@@ -10,12 +10,15 @@ const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)");
 const keyboard=new Set();
 const movement={w:[0,-1],a:[-1,0],s:[0,1],d:[1,0],arrowup:[0,-1],arrowleft:[-1,0],arrowdown:[0,1],arrowright:[1,0]};
 const stations={
-  forge:{title:"黑鬚鐵匠",x:.25,y:.49},
-  gate:{title:"潮汐門",x:.50,y:.30},
-  lamp:{title:"守燈人",x:.75,y:.49},
+  forge:{title:"黑鬚鐵匠",icon:"✦",x:.23,y:.49},
+  gate:{title:"潮汐門",icon:"☾",x:.50,y:.30},
+  lamp:{title:"守燈人",icon:"◈",x:.77,y:.49},
+  garden:{title:"村落膳堂",icon:"❧",x:.24,y:.73},
+  shrine:{title:"集會祭壇",icon:"✧",x:.76,y:.73},
 };
 let currentScene,state,press=null,heldAttack=null,destination=null,toastTimer,dialogKind="",uiTimer=0;
 let started=false;
+const loadout={weapon:"scythe",invocation:"wave"};
 const village=readVillage();
 const worldHeight=720;
 const worldWidth=()=>Math.max(330,Math.round(worldHeight*stage.clientWidth/Math.max(1,stage.clientHeight)));
@@ -33,12 +36,10 @@ function dismiss(){
 }
 function panel(kind,title,html){
   dialogKind=kind;clearInput();
+  modal.dataset.kind=kind;
   modal.innerHTML='<section class="panel" role="dialog" aria-modal="true" aria-label="'+title+'"><h2>'+title+'</h2>'+html+'</section>';
   modal.hidden=false;
   modal.querySelector("button:not(:disabled)")?.focus({preventScroll:true});
-}
-function choice(attr,id,icon,title,copy){
-  return '<button class="choice" '+attr+'="'+id+'" type="button"><i aria-hidden="true">'+icon+'</i><b>'+title+'</b><span>'+copy+'</span></button>';
 }
 function hud(){
   const p=state.player,r=state.run;
@@ -49,17 +50,41 @@ function hud(){
     hearts.setAttribute("aria-label","生命 "+hp+"／"+p.maxHp);
     hearts.innerHTML=Array.from({length:p.maxHp},(_,i)=>'<span aria-hidden="true" class="'+(i<hp?"alive":"")+'">♥</span>').join("");
   }
-  const description=names[state.location]+(state.location==="village"?"":"　"+(r?.depth||1)+"／3");
+  const inVillage=state.location==="village";
+  const villageHud=$("village-stats");
+  villageHud.hidden=!inVillage;
+  if(inVillage){
+    const summary=[
+      ["第 "+village.day+" 日","☾"],["居民 "+(1+village.rescued),"♙"],
+      ["糧食 "+village.food,"❧"],["飢餓 "+village.hunger+"%","◔"],["信仰 "+village.faith+"%","✧"],
+    ];
+    const markup=summary.map(([label,icon])=>'<span><i aria-hidden="true">'+icon+'</i>'+label+'</span>').join("");
+    if(villageHud.innerHTML!==markup)villageHud.innerHTML=markup;
+  }
+  const fervor=$("fervor");
+  fervor.hidden=inVillage;
+  if(!inVillage){
+    const level=Math.floor(p.fervor||0);
+    if(fervor.dataset.value!==String(level)){
+      fervor.dataset.value=String(level);fervor.setAttribute("aria-label","潮力 "+level+"／5");
+      fervor.innerHTML=Array.from({length:5},(_,i)=>'<i class="'+(i<level?'full':'')+'"></i>').join("");
+    }
+  }
+  const description=names[state.location]+(inVillage?"":"　"+(r?.depth||1)+"／3");
   if($("room-name").textContent!==description)$("room-name").textContent=description;
   const balance="◈ "+(state.location==="village"?village.embers:r?.embers||0);
   if($("counter").textContent!==balance)$("counter").textContent=balance;
   if(state.phase==="fight"){
     dashButton.style.setProperty("--cooldown",(p.dashCd/r.dashWait*100).toFixed(0)+"%");
     castButton.style.setProperty("--cooldown",(p.castCd/r.castWait*100).toFixed(0)+"%");
+    castButton.classList.toggle("empty",p.fervor<1);
   }
   const boss=state.enemies.find(e=>e.kind==="boss");
   $("boss-meter").hidden=!boss;
-  if(boss)$("boss-fill").style.transform="scaleX("+boss.hp/boss.maxHp+")";
+  if(boss){
+    $("boss-fill").style.transform="scaleX("+boss.hp/boss.maxHp+")";
+    $("boss-meter").dataset.phase=boss.enraged?"2":"1";
+  }
 }
 function showArrival(name){
   const el=$("arrival");el.textContent=name;el.classList.remove("show");
@@ -70,9 +95,14 @@ function room(location){
   dismiss();toast("");destination=null;
   $("stations").hidden=true;
   $("controls").hidden=false;
+  const weapon=weapons[state.run.weapon],spell=spells[state.run.invocation];
+  for(const [button,item] of [[attackButton,weapon],[castButton,spell]]){
+    button.querySelector("i").textContent=item.icon;button.querySelector("span").textContent=item.name;
+    button.setAttribute("aria-label",item.name);
+  }
   currentScene.placeBackdrop(location);
-  showArrival(names[location]);hud();CatAudio.scene(location==="boss"?"boss":"fight");
-  if(location==="entry")toast(innerWidth<690?"拖動行走 · 輕點出鐮刀 · 翻滾避開紅圈":"WASD 移動 · 按住左鍵連擊 · 空白鍵翻滾 · Q 潮刃",5);
+  showArrival(names[location]);hud();CatAudio.scene(location==="entry"?"fight":location);
+  if(location==="entry")toast(innerWidth<690?"拖動行走 · 輕點普攻 · 翻滾避開紅圈":"WASD 移動 · 按住左鍵連擊 · 空白鍵翻滾 · Q 咒術",5);
 }
 function showVillage(first=false){
   $("game").dataset.location="village";
@@ -81,8 +111,8 @@ function showVillage(first=false){
   $("title").hidden=true;$("hud").hidden=false;$("controls").hidden=true;
   $("stations").hidden=false;
   $("stations").innerHTML=Object.entries(stations).map(([id,s])=>{
-    const tip=id==="gate"?"出征地城":id==="forge"?"強化鐮刀":"修復潮燈";
-    return '<button type="button" class="station" data-station="'+id+'" style="--x:'+(s.x*100)+'%;--y:'+(s.y*100)+'%"><b>'+s.title+'</b><small>'+tip+'</small></button>';
+    const tip={gate:"準備出征",forge:"武器鍛造",lamp:"修復潮燈",garden:"煮食 · 農圃",shrine:"布道 · 祭儀"}[id];
+    return '<button type="button" class="station" data-station="'+id+'" style="--x:'+(s.x*100)+'%;--y:'+(s.y*100)+'%"><i aria-hidden="true">'+s.icon+'</i><span><b>'+s.title+'</b><small>'+tip+'</small></span></button>';
   }).join("");
   currentScene.placeBackdrop("village");
   showArrival("潮燈村");hud();CatAudio.scene("village");
@@ -90,14 +120,67 @@ function showVillage(first=false){
 }
 function forgeOrLamp(id){
   const isLamp=id==="lamp",level=village[id],max=isLamp?2:3,cost=(isLamp?4:5)+level*3;
-  const guide=isLamp?"每修一盞潮燈，下次出征多一格生命。":"每次鍛造永久提高鐮刀傷害 17%。";
+  const guide=isLamp?"每修一盞潮燈，下次出征多一格生命。":"每次鍛造永久提高武器傷害 17%。";
   const line=isLamp?"守燈人":"黑鬚鐵匠";
   const label=level>=max?"已達最高等級":(isLamp?"修復":"鍛造")+" · "+cost+" 潮火";
   panel(id,line,'<p>'+guide+'</p><p class="small">等級 '+level+'／'+max+'　持有 '+village.embers+' 潮火</p><div class="actions"><button class="primary" data-upgrade="'+id+'" '+(level>=max||village.embers<cost?"disabled":"")+'>'+label+'</button><button data-act="close">返回</button></div>');
 }
+function loadoutPanel(){
+  const options=(items,key)=>Object.entries(items).map(([id,item])=>
+    '<button class="kit-option" data-kit="'+key+'" data-item="'+id+'" aria-pressed="'+(loadout[key]===id)+'"><i>'+item.icon+'</i><strong>'+item.name+'</strong><span>'+item.detail+'</span></button>'
+  ).join("");
+  panel("loadout","潮汐門",'<div class="kit-label">武器</div><div class="kit-grid">'+options(weapons,"weapon")+'</div>'+
+    '<div class="kit-label">咒術</div><div class="kit-grid two">'+options(spells,"invocation")+'</div>'+
+    '<div class="actions"><button class="primary" data-act="depart">踏入地城</button><button data-act="close">返村</button></div>');
+}
+function villagePanel(id){
+  const v=village;
+  const button=(action,label,allowed,main=false)=>'<button '+(main?'class="primary" ':'')+'data-care="'+action+'" '+(allowed?'':'disabled')+'>'+label+'</button>';
+  if(id==="garden"){
+    const need=Math.min(4,1+Math.floor(v.rescued/3));
+    const cost=4+v.garden*4;
+    panel("garden","村落膳堂",
+      '<div class="village-detail"><span>糧食 <b>'+v.food+'</b></span><span>飢餓 <b>'+v.hunger+'%</b></span><span>農圃 <b>'+v.garden+'／2</b></span></div>'+
+      '<p>煮一餐可以減低飢餓、提升信仰。建好農圃後，每趟回村都會多收成。</p>'+
+      '<div class="actions">'+button("feed","煮一餐 · "+need+" 糧食",v.food>=need&&v.hunger>0,true)+
+      button("garden",v.garden>=2?"農圃已完成":(v.garden?"擴建農圃":"建造農圃")+" · "+cost+" 潮火",v.garden<2&&v.embers>=cost)+'<button data-act="close">返回</button></div>');
+  }else{
+    panel("shrine","集會祭壇",
+      '<div class="village-detail"><span>信仰 <b>'+v.faith+'%</b></span><span>供奉 <b>'+v.devotion+'</b></span></div>'+
+      '<p>每日布道提升信仰。建好祭壇後，回村時會收到供奉，可用嚟為下一次出征加一格生命。</p>'+
+      '<div class="actions">'+button("sermon",v.sermonDay===v.day?"今日已布道":"今日布道",v.sermonDay!==v.day,true)+
+      (v.shrine?button("ritual",v.blessing?"下一趟已受祝福":"潮燈祭儀 · 4 供奉",v.devotion>=4&&!v.blessing):button("shrine","建造祭壇 · 6 潮火",v.embers>=6))+
+      '<button data-act="close">返回</button></div>');
+  }
+}
+function careVillage(action){
+  if(state.phase!=="village")return;
+  const v=village;
+  if(action==="feed"){
+    const need=Math.min(4,1+Math.floor(v.rescued/3));
+    if(v.food<need||v.hunger<=0)return;
+    v.food-=need;v.hunger=Math.max(0,v.hunger-34);v.faith=Math.min(100,v.faith+12);
+  }else if(action==="garden"){
+    const cost=4+v.garden*4;
+    if(v.garden>=2||v.embers<cost)return;
+    v.embers-=cost;v.garden++;v.food=Math.min(99,v.food+2);
+  }else if(action==="sermon"){
+    if(v.sermonDay===v.day)return;
+    v.sermonDay=v.day;v.faith=Math.min(100,v.faith+13);v.devotion=Math.min(99,v.devotion+1);
+  }else if(action==="shrine"){
+    if(v.shrine||v.embers<6)return;
+    v.embers-=6;v.shrine=1;v.devotion=Math.min(99,v.devotion+2);
+  }else if(action==="ritual"){
+    if(!v.shrine||v.blessing||v.devotion<4)return;
+    v.devotion-=4;v.blessing=1;v.faith=Math.min(100,v.faith+7);
+  }else return;
+  writeVillage(v);hud();CatAudio.play("reward");
+  villagePanel(action==="feed"||action==="garden"?"garden":"shrine");
+}
 function chooseStation(id){
   if(!started||state.phase!=="village"||!modal.hidden)return;
-  if(id==="gate"){state.depart();return;}
+  if(id==="gate"){loadoutPanel();return;}
+  if(id==="garden"||id==="shrine"){villagePanel(id);return;}
   forgeOrLamp(id);
 }
 function upgrade(id){
@@ -109,24 +192,41 @@ function upgrade(id){
   writeVillage(village);hud();CatAudio.play("reward");forgeOrLamp(id);
 }
 function reward(){
-  const saved=state.run.depth===2?"你喺塌牆後救出一隻提燈小貓。打贏食燈者，就可以帶佢返村。":"沉鐘裂開，露出三枚月印。";
-  panel("reward","揀一枚月印",'<p>'+saved+'</p><div class="choices">'+state.offered.map(id=>{
-    const g=gifts[id];return choice("data-gift",id,g.icon,g.name,g.detail);
+  const line=state.run.depth===2?"你喺塌牆後救出一隻提燈小貓。要帶佢返村，先要打贏食燈者。":"沉鐘裂開，露出三枚月印。";
+  panel("reward","揀一枚月印",'<p>'+line+'</p><div class="choices moon-cards">'+state.offered.map(id=>{
+    const g=gifts[id];
+    return '<button class="moon-card" data-gift="'+id+'"><img alt="" src="./moon-'+id+'.webp"><span><b>'+g.name+'</b><small>'+g.detail+'</small></span></button>';
   }).join("")+'</div>');
 }
 function route(){
-  panel("route","潮水分開兩道門",'<div class="choices" style="--columns:2">'+choice("data-route","reef","⌁","碎礁墓道","貼身甲蟹較多")+choice("data-route","fen","✧","白潮祭壇","要避開遠程潮彈")+'</div>');
+  const options=[
+    ["reef","碎礁墓道","近身戰 · 甲蟹"],
+    ["fen","白潮祭壇","遠攻戰 · 水母女巫"],
+  ];
+  panel("route","揀下一道潮門",
+    '<div class="path-origin"><span></span>沉鐘之門<span></span></div>'+
+    '<div class="path-fork">'+options.map(([id,title,description])=>
+      '<button class="path-card" data-route="'+id+'"><img src="./'+id+'.webp" alt=""><span><b>'+title+'</b><small>'+description+'</small></span></button>'
+    ).join("")+'</div><div class="path-finish">食燈者巢穴</div>');
+}
+function market(){
+  const missing=state.player.maxHp-state.player.hp;
+  panel("market","潮市燈商",'<p>「用三枚潮火換一口熱湯。再行，就係食燈者嘅巢穴。」</p>'+
+    '<div class="village-detail"><span>潮火 <b>'+state.run.embers+'</b></span><span>生命 <b>'+state.player.hp+'／'+state.player.maxHp+'</b></span></div>'+
+    '<div class="actions"><button data-act="market-heal" class="primary" '+(missing>0&&state.run.embers>=3?"":"disabled")+'>'+(!missing?"生命已滿":"飲湯 · 回復 2 格")+'</button>'+
+    '<button data-act="market-next">進入巢穴</button></div>');
 }
 function result(won,earned){
   $("controls").hidden=true;CatAudio.scene("village");toast("");
-  panel("result",won?"潮燈再次亮起":"被潮水捲走",
-    '<p>'+(won?"食燈者沉入深海。你帶住提燈小貓走出潮汐門。":"你醒返時已經喺岸邊。今趟帶返一半潮火。")+'</p>'+
-    '<p class="small">帶返 '+earned+' 潮火 · 村落現有 '+village.embers+' 潮火</p><div class="actions"><button data-act="village" class="primary">返回潮燈村</button></div>');
+  panel(won?"victory":"result",won?"潮燈再次亮起":"被潮水捲走",
+    '<p>'+(won?"食燈者沉入深海。提燈小貓終於等到潮退，同你一齊踏上返村嘅路。":"你醒返時已經喺岸邊。今趟帶返一半潮火。")+'</p>'+
+    '<div class="village-detail"><span>帶回潮火 <b>'+earned+'</b></span><span>村民 <b>'+(1+village.rescued)+'</b></span><span>第 <b>'+village.day+'</b> 日</span></div>'+
+    '<div class="actions"><button data-act="village" class="primary">返回潮燈村</button></div>');
 }
-const callbacks={room,hud,reward,route,result,toast};
+const callbacks={room,hud,reward,route,market,result,toast};
 function pause(){
   if(!started||!modal.hidden)return;
-  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 潮刃。</p><p>手機拖動移動，點戰場或按住鐮刀掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
+  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 咒術。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
 }
 function clearInput(){
   keyboard.clear();press=null;heldAttack=null;destination=null;
@@ -150,6 +250,18 @@ modal.addEventListener("click",e=>{
   if(d.gift){state.choose(d.gift);return;}
   if(d.route&&state.phase==="route"&&["reef","fen"].includes(d.route)){state.openRoom(d.route);return;}
   if(d.upgrade){upgrade(d.upgrade);return;}
+  if(d.care){careVillage(d.care);return;}
+  if(d.kit&&dialogKind==="loadout"){
+    if(d.kit==="weapon"&&weapons[d.item]||d.kit==="invocation"&&spells[d.item]){
+      loadout[d.kit]=d.item;
+      for(const option of modal.querySelectorAll("[data-kit]"))option.setAttribute("aria-pressed",String(loadout[option.dataset.kit]===option.dataset.item));
+      CatAudio.play("door");
+    }
+    return;
+  }
+  if(d.act==="depart"&&dialogKind==="loadout"){state.depart(loadout.weapon,loadout.invocation);return;}
+  if(d.act==="market-heal"){state.leaveMarket(true);return;}
+  if(d.act==="market-next"){state.leaveMarket(false);return;}
   if(d.act==="close")dismiss();
   if(d.act==="village")showVillage();
   if(d.act==="retreat"&&state.phase==="fight")state.finish(false);
@@ -162,7 +274,7 @@ modal.addEventListener("click",e=>{
 window.addEventListener("keydown",e=>{
   if(!started||e.altKey||e.metaKey||e.ctrlKey)return;
   const key=e.key.toLowerCase();
-  if(key==="escape"){if(dialogKind==="pause"||dialogKind==="forge"||dialogKind==="lamp")dismiss();else pause();return;}
+  if(key==="escape"){if(["pause","forge","lamp","garden","shrine","loadout"].includes(dialogKind))dismiss();else pause();return;}
   if(!modal.hidden)return;
   if(movement[key]){
     e.preventDefault();keyboard.add(key);return;
@@ -246,8 +358,9 @@ function intent(){
 class ShoreScene extends Phaser.Scene{
   constructor(){super("shore");}
   preload(){
-    for(const id of ["village","crypt","reef","boss"])this.load.image(id,"./"+id+".webp");
+    for(const id of ["village","crypt","reef","fen","boss"])this.load.image(id,"./"+id+".webp");
     this.load.spritesheet("cast","./cast.png",{frameWidth:256,frameHeight:256});
+    this.load.spritesheet("village-props","./village-props.png",{frameWidth:232,frameHeight:232});
     this.load.on("loaderror",file=>{
       $("boot-status").textContent="資源載入失敗。請重新整理頁面。";
       console.error("Asset load failed",file.key);
@@ -260,8 +373,9 @@ class ShoreScene extends Phaser.Scene{
     this.front=this.add.graphics().setDepth(50);
     this.playerSprite=this.add.sprite(0,0,"cast",0).setOrigin(.5,.88);
     this.actorSprites=[];
+    this.cinema=new ShoreCinema(this);
     this.placeBackdrop("village");
-    const ready=["village","crypt","reef","boss","cast"].every(id=>this.textures.exists(id));
+    const ready=["village","crypt","reef","fen","boss","cast","village-props"].every(id=>this.textures.exists(id));
     if(!ready)return;
     $("start").disabled=false;
     $("boot-status").textContent=innerWidth<690?"單手觸控可玩 · 點一下開始":"鍵盤與滑鼠 · 亦支援手機觸控";
@@ -271,17 +385,18 @@ class ShoreScene extends Phaser.Scene{
     });
   }
   placeBackdrop(place){
-    const id=place==="village"?"village":place==="reef"?"reef":place==="boss"?"boss":"crypt";
+    const id=place==="entry"?"crypt":place;
     this.background.setTexture(id);
     const frame=this.background.frame;
     const w=this.scale.width,h=this.scale.height;
     const scale=Math.max(w/frame.width,h/frame.height)*1.034;
     this.background.setScale(scale).setPosition(w/2,h/2);
-    this.background.setTint(place==="fen"?0xb0e3d5:0xffffff);
+    this.background.clearTint();
   }
   update(_,delta){
     if(!started||!state)return;
     const dt=Math.min(.066,delta/1000);
+    this.visualTime=(this.visualTime||0)+dt;
     if(modal.hidden){
       state.intent=intent();
       this.timeLeft=Math.min(.09,(this.timeLeft||0)+dt);
@@ -317,18 +432,19 @@ class ShoreScene extends Phaser.Scene{
     sprite.setVisible(true).setFrame(frame).setPosition(actor.x,actor.y+jump).setDepth(10+actor.y*.02);
     sprite.setDisplaySize(size*factor*(hit?1.08:1),size*factor*(1+pulse)*(hit?.95:1));
     sprite.setFlipX(face).setRotation(tilt);
-    if(hit)sprite.setTintFill(0xfff3df);else sprite.clearTint();
+    if(hit)sprite.setTint(0xfff3df).setTintMode(Phaser.TintModes.FILL);else sprite.clearTint();
     sprite.setAlpha(hero&&actor.invulnerable>.30&&Math.floor(b.clock*22)%2===1?.51:1);
   }
   paint(){
     const b=state,p=b.player,g=this.ground,front=this.front,t=b.clock;
     g.clear();front.clear();
+    this.cinema.prepare(b,this.visualTime||0);
     const shake=reducedMotion.matches?0:b.shake;
     this.cameras.main.setScroll(Math.sin(performance.now()*.066)*shake,Math.cos(performance.now()*.071)*shake*.65);
-    for(let i=0;i<18;i++){
+    for(let i=0;i<30;i++){
       const age=(t*(.105+i%5*.018)+i*.113)%1;
       const x=b.width*(.05+(i*.193)% .90)+Math.sin(t*.62+i*1.6)*13;
-      const y=b.height*(.29+(i%4)*.145)-age*(18+(i%5)*11);
+      const y=b.height*(.29+(i%6)*.104)-age*(18+(i%5)*11);
       const color=b.location==="village"?0xf9d589:0x99ecde;
       g.fillStyle(color,Math.sin(age*Math.PI)*(i%4===0?.54:.24)).fillCircle(x,y,1+i%3*.66);
     }
@@ -359,13 +475,7 @@ class ShoreScene extends Phaser.Scene{
     const frame=p.dash?11:p.attack?.fired?3:p.walking?1+Math.floor(t*11)%2:0;
     this.paintSprite(this.playerSprite,p,frame,90,true);
     front.fillStyle(0xc3f7dd,.80).fillTriangle(p.x,p.y+13,p.x+4,p.y+17,p.x-4,p.y+17);
-    for(const bolt of b.bolts){
-      const a=bolt.angle,x=bolt.x,y=bolt.y-17;
-      const reach=bolt.friendly?24:14;
-      front.lineStyle(bolt.friendly?8:6,bolt.friendly?0x75eddf:0xc392e7,.89);
-      front.lineBetween(x-Math.cos(a)*reach,y-Math.sin(a)*reach,x,y);
-      front.fillStyle(0xfff0db,.96).fillCircle(x,y,bolt.friendly?5:3.7);
-    }
+    for(const bolt of b.bolts)this.cinema.bolt(front,bolt,t);
     for(const particle of b.particles){
       const alpha=clamp(particle.left/particle.life,0,1);
       if(particle.dust)front.fillStyle(particle.color,alpha*.32).fillEllipse(particle.x,particle.y,particle.size*1.8,particle.size*.8);
@@ -374,7 +484,10 @@ class ShoreScene extends Phaser.Scene{
         front.lineBetween(particle.x,particle.y,particle.x-particle.vx*.035,particle.y-particle.vy*.035);
       }
     }
-    for(const effect of b.effects)this.paintEffect(effect);
+    for(const effect of b.effects){
+      if(!this.cinema.effect(front,effect))this.paintEffect(effect);
+    }
+    this.cinema.finish(b);
   }
   paintWarning(w){
     const g=this.ground,progress=clamp(1-w.left/w.total,0,1);
@@ -396,12 +509,7 @@ class ShoreScene extends Phaser.Scene{
     const g=this.front,a=clamp(e.left/e.life,0,1),p=1-a;
     if(e.kind==="slash"){
       const heading=e.angle-1.27+p*.82,arc=2.25-p*.68,r=e.size*(.85+p*.20);
-      g.fillStyle(e.color,a*.93).lineStyle(3,0x392335,a);
-      g.beginPath();g.arc(e.x,e.y,r,heading,heading+arc);
-      g.arc(e.x,e.y,r*.53,heading+arc,heading,true);
-      g.closePath();g.fillPath();g.strokePath();
-      g.lineStyle(2,0xfff6e1,a).beginPath();
-      g.arc(e.x,e.y,r-2,heading+.08,heading+arc-.08);g.strokePath();
+      this.cinema.slash(g,e,heading,arc,r,a);
     }else if(e.kind==="spark"){
       const r=e.size*(.46+p*.61);
       g.fillStyle(e.color,a);

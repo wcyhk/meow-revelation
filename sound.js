@@ -63,7 +63,9 @@ const CatAudio=(()=>{
       if(combat&&(beat===0||beat===4||mode==="boss"&&beat===6)){
         note(music,next,112,43,.22,.27);brush(music,next,410,.18,.18);
       }
-      if(combat&&(beat===2||beat===5||beat===7))brush(music,next,2100,.088,beat===2?.16:.084,.68,1.8);
+      if(combat&&(beat===2||beat===5||beat===7))brush(music,next,mode==="fen"?3400:2100,.088,beat===2?.16:.084,.68,1.8);
+      if(mode==="fen"&&beat===3)note(music,next,hz(root+36),hz(root+36)*.996,.82,.058,"sine",.09);
+      if(mode==="reef"&&beat===5)note(music,next,hz(root+7),hz(root+7),.35,.11,"triangle",.022);
       if(mode==="boss"&&beat%2===1)note(music,next,hz(root+12),hz(root+12),.15,.095,"triangle");
       next+=mode==="village"?.335:.262;step++;
     }

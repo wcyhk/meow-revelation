@@ -5,14 +5,23 @@ const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(n,b));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const unit=(x,y)=>{const l=Math.hypot(x,y)||1;return {x:x/l,y:y/l};};
+const weapons={
+  scythe:{name:"潮鐮",icon:"☾",detail:"均衡橫掃，第三擊重斬",range:1,power:1,speed:1,arc:.32,tint:0xffe9d2},
+  fang:{name:"幽牙",icon:"✦",detail:"出手最快，貼近敵人連刺",range:.76,power:.75,speed:.72,arc:.48,tint:0xb0e8ed},
+  anchor:{name:"沉錨",icon:"⬥",detail:"揮擊較慢，範圍同威力更大",range:1.27,power:1.36,speed:1.38,arc:.13,tint:0xffc589},
+};
+const spells={
+  wave:{name:"潮刃",icon:"✧",detail:"發出穿過敵人嘅月刃"},
+  brand:{name:"霧印",icon:"◉",detail:"喺敵人腳下引爆一圈潮火"},
+};
 const names={village:"潮燈村",entry:"沉鐘之門",reef:"碎礁墓道",fen:"白潮祭壇",boss:"食燈者巢穴"};
 const gifts={
-  claw:{name:"赤月爪",icon:"☾",detail:"鐮刀傷害提高 32%",apply:r=>r.power*=1.32},
+  claw:{name:"赤月爪",icon:"☾",detail:"武器傷害提高 32%",apply:r=>r.power*=1.32},
   mist:{name:"薄霧步",icon:"≋",detail:"翻滾冷卻縮短 35%",apply:r=>r.dashWait*=.65},
   shell:{name:"蛻殼",icon:"◈",detail:"增加一格生命上限並回滿",apply:(r,p)=>{p.maxHp++;p.hp=p.maxHp;}},
-  tide:{name:"雙生潮",icon:"✧",detail:"潮刃傷害提高，冷卻縮短",apply:r=>{r.spell*=1.65;r.castWait*=.73;}},
+  tide:{name:"雙生潮",icon:"✧",detail:"咒術傷害提高，冷卻縮短",apply:r=>{r.spell*=1.65;r.castWait*=.73;}},
   bell:{name:"收魂鈴",icon:"♢",detail:"之後每次清場回復一格生命",apply:r=>r.healOnClear=true},
-  hook:{name:"捕月鉤",icon:"⌁",detail:"鐮刀範圍擴大 35%",apply:r=>r.range*=1.35},
+  hook:{name:"捕月鉤",icon:"⌁",detail:"武器範圍擴大 35%",apply:r=>r.range*=1.35},
 };
 const enemies={
   rat:{hp:39,speed:116,reach:61,charge:.49,rest:.62,frame:4,size:64,color:0x9dc3cc},
@@ -27,11 +36,23 @@ function seedRandom(seed){
   };
 }
 function readVillage(){
-  try{
-    const data=JSON.parse(localStorage.getItem("nine-tides-v1"));
-    const integer=(key,limit)=>Number.isInteger(data?.[key])?clamp(data[key],0,limit):0;
-    return {embers:integer("embers",99999),rescued:integer("rescued",99),lamp:integer("lamp",2),forge:integer("forge",3),wins:integer("wins",999)};
-  }catch{return {embers:0,rescued:0,lamp:0,forge:0,wins:0};}
+  let data;
+  try{data=JSON.parse(localStorage.getItem("nine-tides-v1"));}catch{}
+  const int=(key,max,start=0)=>Number.isInteger(data?.[key])?clamp(data[key],0,max):start;
+  return {
+    version:2,embers:int("embers",99999),rescued:int("rescued",99),lamp:int("lamp",2),
+    forge:int("forge",3),wins:int("wins",999),day:Math.max(1,int("day",9999,1)),
+    food:int("food",99,3),hunger:int("hunger",100,15),faith:int("faith",100,64),
+    devotion:int("devotion",99,2),garden:int("garden",2),shrine:int("shrine",1),
+    blessing:int("blessing",1),sermonDay:int("sermonDay",9999),
+  };
+}
+function villageDay(v,win){
+  v.day=Math.min(9999,v.day+1);
+  v.food=Math.min(99,v.food+1+v.garden*2);
+  v.hunger=Math.min(100,v.hunger+18+Math.min(14,v.rescued*2));
+  v.faith=clamp(v.faith+(win?11:-5)-(v.hunger>=66?12:0),0,100);
+  if(v.shrine)v.devotion=Math.min(99,v.devotion+1+Math.floor(v.faith/25)+Math.min(4,v.rescued));
 }
 function writeVillage(village){
   try{localStorage.setItem("nine-tides-v1",JSON.stringify(village));}catch{}
@@ -54,21 +75,28 @@ class TideRun{
     }
     this.width=width;
   }
-  depart(){
+  depart(weapon="scythe",spell="wave"){
+    if(this.phase!=="village"||!weapons[weapon]||!spells[spell])return;
     const seed=Date.now()>>>0;
     this.random=seedRandom(seed);
-    this.run={seed,depth:0,embers:0,rescued:0,power:1+this.village.forge*.17,spell:1,range:1,dashWait:.78,castWait:2.35,chosen:[],healOnClear:false};
-    this.player.maxHp=4+this.village.lamp;
+    this.run={seed,depth:0,embers:0,rescued:0,weapon,invocation:spell,power:1+this.village.forge*.17,spell:1,range:1,dashWait:.78,castWait:1.65,chosen:[],healOnClear:false};
+    this.player.maxHp=4+this.village.lamp+this.village.blessing;
     this.player.hp=this.player.maxHp;
+    this.player.fervor=3;
+    this.village.blessing=0;
+    writeVillage(this.village);
     this.openRoom("entry");
   }
   openRoom(location){
     this.location=location;this.phase="fight";this.run.depth++;
     this.bolts=[];this.particles=[];this.effects=[];
     this.freeze=0;this.shake=0;this.comboUntil=0;this.roomTime=0;
+    this.intro=location==="boss"?.76:.21;
+    this.bufferDash=this.bufferCast=this.bufferAttack=0;
     const p=this.player;
     p.x=this.width*.5;p.y=this.height*.75;p.angle=-Math.PI/2;
     p.attackCd=0;p.castCd=0;p.dashCd=0;p.attack=null;p.dash=null;p.invulnerable=.28;
+    p.fervor=Math.max(2,p.fervor||0);
     const rooms={
       entry:[["rat","rat","witch"],["rat","witch","rat"],["witch","rat","rat"]],
       reef:[["crab","rat","crab","rat"],["rat","crab","witch","crab"]],
@@ -95,13 +123,19 @@ class TideRun{
   }
   input(name){
     if(this.phase!=="fight")return;
+    if(this.intro>0){
+      if(name==="cast")this.bufferCast=this.clock+.22;
+      if(name==="attack")this.bufferAttack=this.clock+.22;
+      return;
+    }
     const p=this.player,r=this.run;
     if(name==="dash"){
       if(p.dashCd>0){if(p.dashCd<.15)this.bufferDash=this.clock+.16;return;}
       const d=this.intent.x||this.intent.y?unit(this.intent.x,this.intent.y):{x:Math.cos(p.angle),y:Math.sin(p.angle)};
       p.angle=Math.atan2(d.y,d.x);
       p.dash={...d,left:.20};p.invulnerable=.27;p.dashCd=r.dashWait;p.attack=null;
-      this.burst(p.x,p.y,0xa9b6c0,10,86,true);
+      this.burst(p.x,p.y,0xa9b6c0,14,112,true);
+      this.effect("ring",p.x,p.y,0x97d8d8,.27,45);
       CatAudio.play("dash");
       return;
     }
@@ -112,42 +146,61 @@ class TideRun{
     }
     if(name==="cast"){
       if(p.castCd>0){if(p.castCd<.16)this.bufferCast=this.clock+.17;return;}
+      if(p.fervor<1){this.callbacks.toast("潮力不足。用武器命中敵人可以補充。",1.5);return;}
       const e=this.target(420);
       if(e)p.angle=Math.atan2(e.y-p.y,e.x-p.x);
       const angle=p.angle;
-      this.bolts.push({x:p.x+Math.cos(angle)*17,y:p.y+Math.sin(angle)*17,angle,speed:630,time:.68,friendly:true,damage:38*r.spell,seen:new Set(),size:15});
-      p.castCd=r.castWait;
+      p.fervor-=1;p.castCd=r.castWait;
       this.effect("spark",p.x,p.y-18,0x86f7df,.26,28);
+      if(r.invocation==="brand"){
+        const x=e?.x??clamp(p.x+Math.cos(angle)*145,30,this.width-30);
+        const y=e?.y??clamp(p.y+Math.sin(angle)*145,this.height*.26,this.height*.88);
+        this.effect("sigil",x,y,0xbd99fb,.59,100,angle);
+        let hits=0;
+        for(const enemy of this.enemies){
+          if(enemy.hp>0&&dist(enemy,{x,y})<=100){
+            this.damage(enemy,32*r.spell,Math.atan2(enemy.y-y,enemy.x-x),true,hits===0,true);
+            hits++;
+          }
+        }
+      }else{
+        this.bolts.push({x:p.x+Math.cos(angle)*17,y:p.y+Math.sin(angle)*17,angle,speed:645,time:.69,friendly:true,damage:40*r.spell,seen:new Set(),size:15});
+      }
       CatAudio.play("cast");
       return;
     }
     if(p.attackCd>0){if(p.attackCd<.15)this.bufferAttack=this.clock+.16;return;}
-    const e=this.target(165*r.range);
+    const weapon=weapons[r.weapon];
+    const e=this.target(165*r.range*weapon.range);
     if(e)p.angle=Math.atan2(e.y-p.y,e.x-p.x);
     this.combo=this.clock<this.comboUntil?(this.combo+1)%3:0;
     this.comboUntil=this.clock+.66;
     const heavy=this.combo===2;
-    p.attack={left:heavy?.31:.22,impact:heavy?.21:.15,angle:p.angle,fired:false,heavy};
-    p.attackCd=heavy?.35:.237;
+    p.attack={left:(heavy?.31:.22)*weapon.speed,impact:(heavy?.21:.15)*weapon.speed,angle:p.angle,fired:false,heavy};
+    p.attackCd=(heavy?.35:.237)*weapon.speed;
     CatAudio.play("swipe");
   }
   strike(attack){
     const p=this.player,r=this.run;
     const dx=Math.cos(attack.angle),dy=Math.sin(attack.angle);
-    const range=(attack.heavy?129:103)*r.range;
+    const weapon=weapons[r.weapon];
+    const range=(attack.heavy?129:103)*r.range*weapon.range;
     this.move(p,p.x+dx*(attack.heavy?22:11),p.y+dy*(attack.heavy?22:11));
-    this.effect("slash",p.x,p.y-16,attack.heavy?0xffb88a:0xffead1,.22,range*.91,attack.angle);
+    this.effect("slash",p.x,p.y-16,attack.heavy?0xffb88a:weapon.tint,.24,range*.91,attack.angle);
     let landed=false;
     for(const e of this.enemies){
       const x=e.x-p.x,y=e.y-p.y,d=Math.hypot(x,y);
-      if(e.hp>0&&d<=range&&(d<24||(x*dx+y*dy)/d>.32)){
-        this.damage(e,(attack.heavy?37:23)*r.power,attack.angle,attack.heavy,!landed);
+      if(e.hp>0&&d<=range&&(d<24||(x*dx+y*dy)/d>weapon.arc)){
+        this.damage(e,(attack.heavy?37:23)*r.power*weapon.power,attack.angle,attack.heavy,!landed);
         landed=true;
       }
     }
   }
-  damage(e,amount,angle,heavy,loud=true){
+  damage(e,amount,angle,heavy,loud=true,magic=false){
+    const dealt=Math.min(e.hp,amount);
     e.hp=Math.max(0,e.hp-amount);e.hit=.115;
+    if(!magic)this.player.fervor=Math.min(5,this.player.fervor+.30);
+    this.effects.push({kind:"number",x:e.x,y:e.y-(e.kind==="boss"?94:53),text:String(Math.ceil(dealt)),color:heavy?0xffcc8e:0xfff0d8,left:.57,life:.57});
     if(e.kind!=="boss"){
       e.knockX=Math.cos(angle)*(heavy?315:180);e.knockY=Math.sin(angle)*(heavy?315:180);
       if(e.warning){e.warning=null;e.wait=.3;}
@@ -163,13 +216,14 @@ class TideRun{
       this.burst(e.x,e.y-15,color,e.kind==="boss"?35:14,175,true);
       this.effect("ring",e.x,e.y,color,.38,e.kind==="boss"?132:40);
       this.run.embers+=e.kind==="boss"?10:e.kind==="crab"?2:1;
+      this.player.fervor=Math.min(5,this.player.fervor+.78);
       this.callbacks.hud();
     }
   }
   hurt(){
     const p=this.player;
     if(p.invulnerable>0)return;
-    p.hp--;p.invulnerable=.68;p.attack=null;
+    p.hp--;p.invulnerable=.68;p.attack=null;this.hurtFlash=.38;
     this.shake=8;this.freeze=.052;
     this.burst(p.x,p.y-18,0xf792a3,16,175);
     this.effect("ring",p.x,p.y,0xfa657f,.28,49);
@@ -250,10 +304,20 @@ class TideRun{
     if(d<=s.reach&&e.wait<=0){e.strikes++;this.warning(e,p);}
   }
   tick(dt,held){
+    if(this.phase==="victory"){
+      this.clock+=dt;
+      this.victory-=dt;
+      this.shake=Math.max(0,this.shake-dt*17);
+      this.ageEffects(dt);
+      if(this.victory<=0)this.finish(true);
+      return;
+    }
     if(this.phase!=="fight"&&this.phase!=="village")return;
+    if(this.intro>0){this.intro-=dt;return;}
     if(this.freeze>0){this.freeze-=dt;return;}
     this.clock+=dt;
     this.shake=Math.max(0,this.shake-dt*34);
+    this.hurtFlash=Math.max(0,(this.hurtFlash||0)-dt);
     const p=this.player;
     p.walking=false;
     if(this.phase==="village"){
@@ -267,6 +331,11 @@ class TideRun{
     if(this.bufferCast>this.clock&&p.castCd===0){this.bufferCast=0;this.input("cast");}
     if((held||this.bufferAttack>this.clock)&&p.attackCd===0){this.bufferAttack=0;this.input("attack");}
     if(p.dash){
+      if((p.dash.echo||0)<=0){
+        this.effect("echo",p.x,p.y,0xa7e2e4,.23,82,p.angle);
+        p.dash.echo=.047;
+      }
+      p.dash.echo-=dt;
       this.move(p,p.x+p.dash.x*615*dt,p.y+p.dash.y*615*dt);
       p.dash.left-=dt;
       if(p.dash.left<=0)p.dash=null;
@@ -294,7 +363,7 @@ class TideRun{
       if(b.friendly){
         for(const e of this.enemies){
           if(e.hp>0&&!b.seen.has(e)&&dist(e,b)<(e.kind==="boss"?43:27)){
-            this.damage(e,b.damage,b.angle,true,b.seen.size===0);
+            this.damage(e,b.damage,b.angle,true,b.seen.size===0,true);
             b.seen.add(e);
           }
         }
@@ -302,6 +371,10 @@ class TideRun{
       if(this.phase!=="fight")return;
     }
     this.bolts=this.bolts.filter(b=>b.time>0&&b.x>-30&&b.x<this.width+30&&b.y>-30&&b.y<this.height+30);
+    this.ageEffects(dt);
+    if(this.enemies.every(e=>e.hp===0))this.clear();
+  }
+  ageEffects(dt){
     for(const particle of this.particles){
       particle.left-=dt;particle.x+=particle.vx*dt;particle.y+=particle.vy*dt;
       particle.vx*=.96;particle.vy*=.96;
@@ -309,11 +382,17 @@ class TideRun{
     this.particles=this.particles.filter(p=>p.left>0);
     for(const effect of this.effects)effect.left-=dt;
     this.effects=this.effects.filter(e=>e.left>0);
-    if(this.enemies.every(e=>e.hp===0))this.clear();
   }
   clear(){
     if(this.run.healOnClear)this.player.hp=Math.min(this.player.maxHp,this.player.hp+1);
-    if(this.location==="boss"){this.finish(true);return;}
+    if(this.location==="boss"){
+      const e=this.enemies[0];
+      this.phase="victory";this.victory=.78;this.shake=12;this.bolts=[];
+      this.effect("sigil",e.x,e.y,0xffd5a8,.78,166);
+      this.burst(e.x,e.y-25,0x93f4df,56,265);
+      CatAudio.play("heavy");
+      return;
+    }
     this.phase="reward";
     if(this.run.depth===2)this.run.rescued=1;
     const remaining=Object.keys(gifts).filter(id=>!this.run.chosen.includes(id));
@@ -329,7 +408,16 @@ class TideRun{
     gifts[id].apply(this.run,this.player);
     this.callbacks.hud();
     if(this.run.depth===1){this.phase="route";this.callbacks.route();}
-    else this.openRoom("boss");
+    else{this.phase="market";this.callbacks.market();}
+  }
+  leaveMarket(heal){
+    if(this.phase!=="market")return;
+    if(heal){
+      if(this.run.embers<3||this.player.hp>=this.player.maxHp)return;
+      this.run.embers-=3;this.player.hp=Math.min(this.player.maxHp,this.player.hp+2);
+      CatAudio.play("reward");
+    }
+    this.openRoom("boss");
   }
   finish(win){
     this.phase="result";
@@ -339,6 +427,7 @@ class TideRun{
       this.village.wins=Math.min(999,this.village.wins+1);
       this.village.rescued=Math.min(99,this.village.rescued+this.run.rescued);
     }
+    villageDay(this.village,win);
     writeVillage(this.village);
     CatAudio.play(win?"reward":"hurt");
     this.callbacks.result(win,earned);

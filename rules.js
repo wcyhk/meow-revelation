@@ -9,12 +9,14 @@ const weapons={
   scythe:{name:"潮鐮",icon:"☾",detail:"均衡橫掃，第三擊重斬",range:1,power:1,speed:1,arc:.32,tint:0xffe9d2},
   fang:{name:"幽牙",icon:"✦",detail:"出手最快，貼近敵人連刺",range:.76,power:.75,speed:.72,arc:.48,tint:0xb0e8ed},
   anchor:{name:"沉錨",icon:"⬥",detail:"揮擊較慢，範圍同威力更大",range:1.27,power:1.36,speed:1.38,arc:.13,tint:0xffc589},
+  spear:{name:"拾骨槍",icon:"⟐",detail:"向前突刺，最長近戰距離",range:1.52,power:1.05,speed:.93,arc:.76,tint:0xd8d8ff,unlock:2},
+  lantern:{name:"返魂燈",icon:"✺",detail:"每次揮擊帶出一束短程潮火",range:.89,power:.83,speed:1.13,arc:.28,tint:0xa4f9d7,unlock:3},
 };
 const spells={
   wave:{name:"潮刃",icon:"✧",detail:"發出穿過敵人嘅月刃"},
   brand:{name:"霧印",icon:"◉",detail:"喺敵人腳下引爆一圈潮火"},
+  ward:{name:"護魂潮",icon:"◎",detail:"震退身邊敵人，短暫抵擋傷害",unlock:1},
 };
-const names={village:"潮燈村",entry:"沉鐘之門",reef:"碎礁墓道",fen:"白潮祭壇",boss:"食燈者巢穴"};
 const gifts={
   claw:{name:"赤月爪",icon:"☾",detail:"武器傷害提高 32%",apply:r=>r.power*=1.32},
   mist:{name:"薄霧步",icon:"≋",detail:"翻滾冷卻縮短 35%",apply:r=>r.dashWait*=.65},
@@ -25,10 +27,18 @@ const gifts={
 };
 const enemies={
   rat:{hp:39,speed:116,reach:61,charge:.49,rest:.62,frame:4,size:64,color:0x9dc3cc},
-  witch:{hp:51,speed:71,reach:275,charge:.73,rest:1.05,frame:5,size:74,color:0xcc9ddd},
+  witch:{hp:51,speed:71,reach:275,charge:.73,rest:1.05,frame:5,size:74,color:0xcc9ddd,pattern:["shot"]},
   crab:{hp:92,speed:86,reach:92,charge:.62,rest:.84,frame:6,size:83,color:0xf2a17d},
-  boss:{hp:495,speed:63,reach:350,charge:.83,rest:.89,frame:8,size:144,color:0x7bd4ca},
+  bailiff:{hp:88,speed:89,reach:102,charge:.60,rest:.83,frame:3,size:79,color:0xe5b26e,sheet:"tide-cast",armor:.82},
+  wisp:{hp:53,speed:137,reach:70,charge:.45,rest:.63,frame:4,size:75,color:0xbda8fb,sheet:"tide-cast"},
+  sentinel:{hp:68,speed:78,reach:302,charge:.73,rest:1.02,frame:5,size:77,color:0xfa779c,sheet:"tide-cast",pattern:["lane","shot"]},
+  boss:{name:"食燈者",hp:495,speed:63,reach:350,charge:.83,rest:.89,frame:8,size:144,color:0x7bd4ca,pattern:["circle"],rage:["circle","lane"],adds:"rat",omen:"溺鼠從地底湧出。留意食燈者嘅直線重擊。"},
+  weigher:{name:"秤契官",hp:760,speed:72,reach:365,charge:.76,rest:.82,frame:0,size:153,color:0xeeb066,sheet:"tide-cast",pattern:["lane","circle"],rage:["fan","circle","lane"],adds:"bailiff",omen:"磅錘裂開。向側面避開散射嘅糧契。"},
+  abbess:{name:"拾骨修女",hp:890,speed:68,reach:380,charge:.76,rest:.79,frame:1,size:159,color:0xb4a5f4,sheet:"tide-cast",pattern:["fan","circle"],rage:["ring","lane","fan"],adds:"wisp",omen:"修女放開所有鹽魂。留意由佢腳下向外散開嘅彈。"},
+  undertow:{name:"持契者 · 黑月",hp:1260,speed:83,reach:400,charge:.74,rest:.73,frame:2,size:172,color:0xfc8089,sheet:"tide-cast",pattern:["cross","fan","circle"],rage:["ring","cross","lane","fan"],adds:"sentinel",omen:"黑月撕開契紙。先搵到交錯射線之間嘅空位。"},
 };
+const isBoss=enemy=>Boolean(enemies[enemy.kind].rage);
+const gearUnlocked=(item,village)=>(item.unlock||0)<=village.cleared;
 function seedRandom(seed){
   return ()=>{
     seed=(Math.imul(seed,1664525)+1013904223)>>>0;
@@ -40,11 +50,14 @@ function readVillage(){
   try{data=JSON.parse(localStorage.getItem("nine-tides-v1"));}catch{}
   const int=(key,max,start=0)=>Number.isInteger(data?.[key])?clamp(data[key],0,max):start;
   return {
-    version:2,embers:int("embers",99999),rescued:int("rescued",99),lamp:int("lamp",2),
+    version:3,embers:int("embers",99999),rescued:int("rescued",99),lamp:int("lamp",2),
     forge:int("forge",3),wins:int("wins",999),day:Math.max(1,int("day",9999,1)),
     food:int("food",99,3),hunger:int("hunger",100,15),faith:int("faith",100,64),
     devotion:int("devotion",99,2),garden:int("garden",2),shrine:int("shrine",1),
     blessing:int("blessing",1),sermonDay:int("sermonDay",9999),
+    cleared:int("cleared",chapters.length,int("wins",999)>0?1:0),prologue:Boolean(data?.prologue),
+    ending:Object.hasOwn(endings,data?.ending)?data.ending:"",flasks:int("flasks",3,1),trials:int("trials",15),
+    favors:int("favors",7),
   };
 }
 function villageDay(v,win){
@@ -63,6 +76,7 @@ class TideRun{
     Object.assign(this,{width,height,village,callbacks});
     this.phase="village";
     this.location="village";
+    this.floor=.27;
     this.player={x:width*.50,y:height*.70,angle:-Math.PI/2,hp:4+village.lamp,maxHp:4+village.lamp,attackCd:0,castCd:0,dashCd:0,invulnerable:0};
     this.enemies=[];this.bolts=[];this.particles=[];this.effects=[];
     this.clock=0;this.freeze=0;this.shake=0;this.intent={x:0,y:0};this.combo=0;this.comboUntil=0;
@@ -75,47 +89,55 @@ class TideRun{
     }
     this.width=width;
   }
-  depart(weapon="scythe",spell="wave"){
-    if(this.phase!=="village"||!weapons[weapon]||!spells[spell])return;
+  depart(weapon="scythe",spell="wave",chapter=0,trial=false){
+    const v=this.village,story=chapters[chapter];
+    if(this.phase!=="village"||!story||chapter>v.cleared||trial&&!v.ending)return;
+    if(!weapons[weapon]||!spells[spell]||!gearUnlocked(weapons[weapon],v)||!gearUnlocked(spells[spell],v))return;
     const seed=Date.now()>>>0;
     this.random=seedRandom(seed);
-    this.run={seed,depth:0,embers:0,rescued:0,weapon,invocation:spell,power:1+this.village.forge*.17,spell:1,range:1,dashWait:.78,castWait:1.65,chosen:[],healOnClear:false};
-    this.player.maxHp=4+this.village.lamp+this.village.blessing;
+    this.run={seed,chapter,story,trial,depth:0,embers:0,food:0,rescued:0,weapon,invocation:spell,power:1+v.forge*.17,spell:1,range:1,dashWait:.78,castWait:1.65,chosen:[],healOnClear:false};
+    this.player.maxHp=4+v.lamp+v.blessing;
     this.player.hp=this.player.maxHp;
     this.player.fervor=3;
     this.village.blessing=0;
     writeVillage(this.village);
-    this.openRoom("entry");
+    this.openRoom(story.entry);
   }
   openRoom(location){
+    const area=areas[location];
     this.location=location;this.phase="fight";this.run.depth++;
     this.bolts=[];this.particles=[];this.effects=[];
     this.freeze=0;this.shake=0;this.comboUntil=0;this.roomTime=0;
-    this.intro=location==="boss"?.76:.21;
+    this.intro=area.guardian?.76:.23;
+    this.floor=this.run.chapter?.46:.27;
+    this.reinforced=false;
     this.bufferDash=this.bufferCast=this.bufferAttack=0;
     const p=this.player;
     p.x=this.width*.5;p.y=this.height*.75;p.angle=-Math.PI/2;
     p.attackCd=0;p.castCd=0;p.dashCd=0;p.attack=null;p.dash=null;p.invulnerable=.28;
     p.fervor=Math.max(2,p.fervor||0);
-    const rooms={
-      entry:[["rat","rat","witch"],["rat","witch","rat"],["witch","rat","rat"]],
-      reef:[["crab","rat","crab","rat"],["rat","crab","witch","crab"]],
-      fen:[["witch","witch","rat","crab"],["witch","rat","witch","witch"]],
-      boss:[["boss"]],
-    };
-    const waves=rooms[location];
-    const lineup=waves[Math.floor(this.random()*waves.length)];
-    this.enemies=lineup.map((kind,i)=>this.makeEnemy(kind,this.width*(lineup.length===1?.5:.21+i*.58/(lineup.length-1)),this.height*(kind==="boss"?.34:.32+this.random()*.09),.72+i*.18));
+    const lineup=area.guardian?[area.guardian]:area.waves[Math.floor(this.random()*area.waves.length)];
+    this.enemies=[];
+    this.spawnLine(lineup);
     this.callbacks.room(location);
     CatAudio.play("door");
   }
+  takePath(id){
+    if(this.phase==="route"&&this.run.story.paths.includes(id))this.openRoom(id);
+  }
+  spawnLine(lineup){
+    lineup.forEach((kind,i)=>{
+      const x=this.width*(lineup.length===1?.5:.18+i*.64/(lineup.length-1));
+      this.enemies.push(this.makeEnemy(kind,x,this.height*(this.floor+.07+this.random()*.075),.72+i*.18));
+    });
+  }
   makeEnemy(kind,x,y,wait){
-    const maxHp=enemies[kind].hp;
+    const maxHp=Math.ceil(enemies[kind].hp*(this.run.trial?1.35:1));
     return {kind,x,y,maxHp,hp:maxHp,wait,angle:Math.PI*.5,hit:0,recoil:0,warning:null,knockX:0,knockY:0,strikes:0};
   }
   move(p,x,y){
     p.x=clamp(x,26,this.width-26);
-    p.y=clamp(y,this.height*.27,this.height*.88);
+    p.y=clamp(y,this.height*this.floor,this.height*.88);
   }
   target(range){
     const p=this.player;
@@ -129,6 +151,14 @@ class TideRun{
       return;
     }
     const p=this.player,r=this.run;
+    if(name==="flask"){
+      if(p.hp===p.maxHp){this.callbacks.toast("生命已滿。",1.25);return;}
+      if(!this.village.flasks){this.callbacks.toast("冇藥湯喇。返村可以再煮。",1.5);return;}
+      this.village.flasks--;p.hp=Math.min(p.maxHp,p.hp+2);
+      this.effect("sigil",p.x,p.y,0xade39f,.6,59);
+      writeVillage(this.village);this.callbacks.hud();CatAudio.play("reward");
+      return;
+    }
     if(name==="dash"){
       if(p.dashCd>0){if(p.dashCd<.15)this.bufferDash=this.clock+.16;return;}
       const d=this.intent.x||this.intent.y?unit(this.intent.x,this.intent.y):{x:Math.cos(p.angle),y:Math.sin(p.angle)};
@@ -152,9 +182,19 @@ class TideRun{
       const angle=p.angle;
       p.fervor-=1;p.castCd=r.castWait;
       this.effect("spark",p.x,p.y-18,0x86f7df,.26,28);
-      if(r.invocation==="brand"){
+      if(r.invocation==="ward"){
+        p.invulnerable=Math.max(p.invulnerable,.92);
+        this.effect("sigil",p.x,p.y,0xb0edf9,.56,130,angle);
+        let first=true;
+        for(const enemy of this.enemies){
+          if(enemy.hp>0&&dist(enemy,p)<=130){
+            this.damage(enemy,27*r.spell,Math.atan2(enemy.y-p.y,enemy.x-p.x),true,first,true);
+            first=false;
+          }
+        }
+      }else if(r.invocation==="brand"){
         const x=e?.x??clamp(p.x+Math.cos(angle)*145,30,this.width-30);
-        const y=e?.y??clamp(p.y+Math.sin(angle)*145,this.height*.26,this.height*.88);
+        const y=e?.y??clamp(p.y+Math.sin(angle)*145,this.height*this.floor,this.height*.88);
         this.effect("sigil",x,y,0xbd99fb,.59,100,angle);
         let hits=0;
         for(const enemy of this.enemies){
@@ -195,27 +235,32 @@ class TideRun{
         landed=true;
       }
     }
+    if(r.weapon==="lantern"){
+      this.bolts.push({x:p.x+dx*22,y:p.y+dy*22,angle:attack.angle,speed:515,time:.28,friendly:true,damage:(attack.heavy?18:12)*r.power,seen:new Set(),size:11});
+    }
   }
   damage(e,amount,angle,heavy,loud=true,magic=false){
+    const boss=isBoss(e),data=enemies[e.kind];
+    if(!magic&&!heavy&&data.armor)amount*=data.armor;
     const dealt=Math.min(e.hp,amount);
     e.hp=Math.max(0,e.hp-amount);e.hit=.115;
     if(!magic)this.player.fervor=Math.min(5,this.player.fervor+.30);
-    this.effects.push({kind:"number",x:e.x,y:e.y-(e.kind==="boss"?94:53),text:String(Math.ceil(dealt)),color:heavy?0xffcc8e:0xfff0d8,left:.57,life:.57});
-    if(e.kind!=="boss"){
+    this.effects.push({kind:"number",x:e.x,y:e.y-(boss?94:53),text:String(Math.ceil(dealt)),color:heavy?0xffcc8e:0xfff0d8,left:.57,life:.57});
+    if(!boss){
       e.knockX=Math.cos(angle)*(heavy?315:180);e.knockY=Math.sin(angle)*(heavy?315:180);
       if(e.warning){e.warning=null;e.wait=.3;}
     }
     const color=enemies[e.kind].color;
-    this.effect("spark",e.x,e.y-(e.kind==="boss"?48:23),heavy?0xffdb91:0xf7e4c5,.17,heavy?33:20);
-    this.burst(e.x,e.y-(e.kind==="boss"?43:19),color,heavy?18:9,heavy?230:152);
+    this.effect("spark",e.x,e.y-(boss?48:23),heavy?0xffdb91:0xf7e4c5,.17,heavy?33:20);
+    this.burst(e.x,e.y-(boss?43:19),color,heavy?18:9,heavy?230:152);
     if(loud){
       this.freeze=Math.max(this.freeze,heavy?.055:.027);this.shake=Math.max(this.shake,heavy?7:3.2);
       CatAudio.play(heavy?"heavy":"hit");
     }
     if(e.hp===0){
-      this.burst(e.x,e.y-15,color,e.kind==="boss"?35:14,175,true);
-      this.effect("ring",e.x,e.y,color,.38,e.kind==="boss"?132:40);
-      this.run.embers+=e.kind==="boss"?10:e.kind==="crab"?2:1;
+      this.burst(e.x,e.y-15,color,boss?35:14,175,true);
+      this.effect("ring",e.x,e.y,color,.38,boss?132:40);
+      this.run.embers+=boss?10+this.run.chapter*3:data.armor||e.kind==="crab"?2:1;
       this.player.fervor=Math.min(5,this.player.fervor+.78);
       this.callbacks.hud();
     }
@@ -242,19 +287,26 @@ class TideRun{
     if(this.particles.length>140)this.particles.splice(0,this.particles.length-140);
   }
   warning(e,p){
-    const boss=e.kind==="boss";
-    const witch=e.kind==="witch";
-    const lane=boss&&e.enraged&&e.strikes%2===0;
+    const data=enemies[e.kind],boss=isBoss(e);
+    const pattern=e.enraged?data.rage:data.pattern;
+    const kind=pattern?.[(e.strikes-1)%pattern.length]||"circle";
+    const lane=kind==="lane",cross=kind==="cross";
+    const shots=kind==="shot"?[0]:kind==="fan"?[-.34,-.17,0,.17,.34]:kind==="ring"?Array.from({length:10},(_,i)=>i*TAU/10):null;
     e.angle=Math.atan2(p.y-e.y,p.x-e.x);
+    const charge=data.charge*(this.run.trial?.90:1);
     e.warning={
-      x:lane?e.x:p.x,y:lane?e.y:p.y,angle:e.angle,lane,shot:witch,
-      size:boss?(lane?41:e.enraged?104:89):e.kind==="crab"?70:47,
-      length:lane?Math.min(540,dist(p,e)+125):0,
-      left:enemies[e.kind].charge,total:enemies[e.kind].charge,
+      x:lane||shots?e.x:p.x,y:lane||shots?e.y:p.y,angle:e.angle,lane,cross,shots,
+      size:cross?30:lane?(boss?38:21):boss?(e.enraged?103:84):e.kind==="crab"||data.armor?68:47,
+      length:cross?Math.hypot(this.width,this.height):lane?Math.min(625,dist(p,e)+142):0,
+      left:charge,total:charge,
     };
     if(boss)CatAudio.play("warn");
   }
   threatened(w,p){
+    if(w.cross){
+      const dx=p.x-w.x,dy=p.y-w.y,cos=Math.cos(w.angle),sin=Math.sin(w.angle);
+      return Math.min(Math.abs(dx*cos+dy*sin),Math.abs(dx*sin-dy*cos))<w.size;
+    }
     if(!w.lane)return dist(w,p)<w.size;
     const dx=Math.cos(w.angle),dy=Math.sin(w.angle);
     const t=clamp((p.x-w.x)*dx+(p.y-w.y)*dy,0,w.length);
@@ -262,40 +314,43 @@ class TideRun{
   }
   tickEnemy(e,dt){
     if(e.hp<=0)return;
-    const p=this.player,s=enemies[e.kind];
+    const p=this.player,s=enemies[e.kind],boss=isBoss(e);
     e.hit=Math.max(0,e.hit-dt);
     e.recoil=Math.max(0,e.recoil-dt);
     e.walking=false;
     this.move(e,e.x+e.knockX*dt,e.y+e.knockY*dt);
     e.knockX*=.83;e.knockY*=.83;
-    if(e.kind==="boss"&&!e.enraged&&e.hp<e.maxHp*.53){
+    if(boss&&!e.enraged&&e.hp<e.maxHp*.53){
       e.enraged=true;e.wait=.46;
-      this.enemies.push(this.makeEnemy("rat",this.width*.18,this.height*.37,1.0),this.makeEnemy("rat",this.width*.82,this.height*.37,1.1));
-      this.effect("ring",e.x,e.y,0xff957e,.52,152);
+      const y=this.height*(this.floor+.08);
+      this.enemies.push(this.makeEnemy(s.adds,this.width*.18,y,1.0),this.makeEnemy(s.adds,this.width*.82,y,1.1));
+      this.effect("sigil",e.x,e.y,s.color,.58,152);
       this.shake=8;
-      this.callbacks.toast("食燈者喚醒了溺鼠。避開紅色直線。",2.7);
+      this.callbacks.toast(s.omen,3.2);
       CatAudio.play("heavy");
     }
     if(e.warning){
       const w=e.warning;w.left-=dt;
       if(w.left>0)return;
       e.warning=null;e.wait=s.rest;e.recoil=.22;
-      if(w.shot){
-        this.bolts.push({x:e.x,y:e.y,angle:w.angle,speed:270,time:1.5,friendly:false,size:9});
+      if(w.shots){
+        for(const offset of w.shots){
+          this.bolts.push({x:e.x,y:e.y,angle:w.angle+offset,speed:boss?315:277,time:1.65,friendly:false,size:9});
+        }
         CatAudio.play("cast");
       }else{
         if(this.threatened(w,p))this.hurt();
-        if(w.lane){
+        if(w.lane||w.cross){
           this.effects.push({kind:"lane",...w,color:0xf18073,left:.28,life:.28});
         }else this.effect("ring",w.x,w.y,0xfd9d86,.34,w.size+17);
         this.burst(w.x,w.y,0xd88476,12,145,true);
-        if(e.kind==="boss"){this.shake=Math.max(7,this.shake);CatAudio.play("slam");}
+        if(boss){this.shake=Math.max(7,this.shake);CatAudio.play("slam");}
       }
       return;
     }
     const d=dist(e,p);
     e.wait-=dt;
-    if(d>Math.min(s.reach,e.kind==="boss"?165:s.reach*.92)&&d>1){
+    if(d>Math.min(s.reach,boss?152:s.reach*.92)&&d>1){
       const v=unit(p.x-e.x,p.y-e.y);
       e.angle=Math.atan2(v.y,v.x);
       e.walking=true;
@@ -362,7 +417,7 @@ class TideRun{
       b.x+=Math.cos(b.angle)*b.speed*dt;b.y+=Math.sin(b.angle)*b.speed*dt;
       if(b.friendly){
         for(const e of this.enemies){
-          if(e.hp>0&&!b.seen.has(e)&&dist(e,b)<(e.kind==="boss"?43:27)){
+          if(e.hp>0&&!b.seen.has(e)&&dist(e,b)<(isBoss(e)?43:27)){
             this.damage(e,b.damage,b.angle,true,b.seen.size===0,true);
             b.seen.add(e);
           }
@@ -384,8 +439,16 @@ class TideRun{
     this.effects=this.effects.filter(e=>e.left>0);
   }
   clear(){
+    const area=areas[this.location];
+    if(area.reinforcements&&!this.reinforced){
+      this.reinforced=true;
+      this.spawnLine(area.reinforcements);
+      this.callbacks.toast("黑潮湧入。第二批敵人出現喇。",2.8);
+      CatAudio.play("warn");
+      return;
+    }
     if(this.run.healOnClear)this.player.hp=Math.min(this.player.maxHp,this.player.hp+1);
-    if(this.location==="boss"){
+    if(area.guardian){
       const e=this.enemies[0];
       this.phase="victory";this.victory=.78;this.shake=12;this.bolts=[];
       this.effect("sigil",e.x,e.y,0xffd5a8,.78,166);
@@ -394,7 +457,12 @@ class TideRun{
       return;
     }
     this.phase="reward";
-    if(this.run.depth===2)this.run.rescued=1;
+    if(this.run.depth===2){
+      this.run.rescued=Number(this.run.chapter===this.village.cleared);
+      this.run.embers+=area.reward.embers||0;
+      this.run.food+=area.reward.food||0;
+      this.player.hp=Math.min(this.player.maxHp,this.player.hp+(area.reward.heal||0));
+    }
     const remaining=Object.keys(gifts).filter(id=>!this.run.chosen.includes(id));
     this.offered=[];
     while(this.offered.length<3)this.offered.push(remaining.splice(Math.floor(this.random()*remaining.length),1)[0]);
@@ -417,15 +485,20 @@ class TideRun{
       this.run.embers-=3;this.player.hp=Math.min(this.player.maxHp,this.player.hp+2);
       CatAudio.play("reward");
     }
-    this.openRoom("boss");
+    this.openRoom(this.run.story.boss);
   }
   finish(win){
+    if(this.phase==="result")return;
     this.phase="result";
     const earned=win?this.run.embers:Math.floor(this.run.embers*.5);
     this.village.embers=Math.min(99999,this.village.embers+earned);
     if(win){
       this.village.wins=Math.min(999,this.village.wins+1);
       this.village.rescued=Math.min(99,this.village.rescued+this.run.rescued);
+      this.run.firstClear=this.run.chapter===this.village.cleared;
+      if(this.run.firstClear)this.village.cleared++;
+      if(this.run.trial)this.village.trials|=trialBit(this.run.chapter);
+      this.village.food=Math.min(99,this.village.food+this.run.food);
     }
     villageDay(this.village,win);
     writeVillage(this.village);

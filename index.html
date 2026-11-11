@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f1420">
-<meta name="description" content="黑貓與潮燈的手繪動作 Roguelike。探索潮汐地城，救回貓村的居民。">
+<meta name="description" content="四章手繪動作 Roguelike。跟住最後一盞潮燈闖入地城、救回村民，揭開以壽命換糧的契約。">
 <title>貓貓啟示錄｜最後一盞潮燈</title>
-<link rel="stylesheet" href="./game.css?v=tide-2">
+<link rel="stylesheet" href="./game.css?v=black-moon">
 <script src="./phaser.min.js" defer></script>
-<script src="./sound.js?v=tide-2" defer></script>
-<script src="./rules.js?v=tide-2" defer></script>
-<script src="./cinema.js?v=tide-2" defer></script>
-<script src="./game.js?v=tide-2" defer></script>
+<script src="./sound.js?v=black-moon" defer></script>
+<script src="./campaign.js?v=black-moon" defer></script>
+<script src="./rules.js?v=black-moon" defer></script>
+<script src="./cinema.js?v=black-moon" defer></script>
+<script src="./game.js?v=black-moon" defer></script>
 </head>
 <body>
 <main id="game">
@@ -37,8 +38,9 @@
   <div id="arrival" aria-hidden="true"></div>
   <div id="stations" hidden></div>
   <div id="stick" aria-hidden="true" hidden><i></i></div>
-  <div id="boss-meter" hidden><span>食燈者</span><i><b id="boss-fill"></b></i></div>
+  <div id="boss-meter" hidden><span id="boss-name"></span><i><b id="boss-fill"></b></i></div>
   <div id="controls" hidden>
+    <button data-input="flask" type="button" aria-label="藥湯"><i>♜</i><span>藥湯 <b id="flask-count"></b></span><kbd>R</kbd></button>
     <button data-input="cast" type="button" aria-label="潮刃"><i>✧</i><span>潮刃</span><kbd>Q</kbd></button>
     <button data-input="dash" type="button" aria-label="翻滾"><i>↗</i><span>翻滾</span><kbd>空白</kbd></button>
     <button data-input="attack" type="button" aria-label="鐮刀攻擊"><i>☽</i><span>鐮刀</span><kbd>左鍵</kbd></button>

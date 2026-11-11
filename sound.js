@@ -5,6 +5,7 @@ const CatAudio=(()=>{
   let ctx,mix,music,fx,noise,next=0,step=0,mode="village",muted=false;
   const palette=[ [62,0,69,65,0,64,0,60], [58,0,65,62,0,60,0,57], [55,0,62,65,0,67,0,64], [57,0,64,61,0,64,67,0] ];
   const roots=[38,34,31,33];
+  const regionNotes={vault:[-3,0,0,2],abbey:[5,0,5,3],temple:[-5,-2,-3,-1],flats:[3,0,3,0],salt:[4,0,4,0]};
   const hz=n=>440*2**((n-69)/12);
   function unlock(){
     if(!ctx){
@@ -48,10 +49,12 @@ const CatAudio=(()=>{
     const now=ctx.currentTime;
     if(next<now)next=now+.03;
     while(next<now+.16){
-      const beat=step%8,measure=Math.floor(step/8)%4,root=roots[measure],combat=mode!=="village";
+      const beat=step%8,measure=Math.floor(step/8)%4,combat=mode!=="village";
+      const shift=regionNotes[mode]?.[measure]||0,root=roots[measure]+shift;
+      const boss=["boss","vault","abbey","temple"].includes(mode);
       const melody=palette[measure][beat];
       if(melody){
-        const f=hz(melody);
+        const f=hz(melody+shift);
         note(music,next,f,f*.997,.52,combat?.083:.117,"triangle");
         note(music,next+.018,f*2.001,f*2,.25,.045);
         note(music,next+.137,f,f,.39,.022);
@@ -60,14 +63,16 @@ const CatAudio=(()=>{
         const f=hz(root);note(music,next,f,f,2.18,.108,"triangle",.16);
         note(music,next,f*1.498,f*1.5,2.04,.034,"sine",.30);
       }
-      if(combat&&(beat===0||beat===4||mode==="boss"&&beat===6)){
+      if(combat&&(beat===0||beat===4||boss&&beat===6)){
         note(music,next,112,43,.22,.27);brush(music,next,410,.18,.18);
       }
       if(combat&&(beat===2||beat===5||beat===7))brush(music,next,mode==="fen"?3400:2100,.088,beat===2?.16:.084,.68,1.8);
       if(mode==="fen"&&beat===3)note(music,next,hz(root+36),hz(root+36)*.996,.82,.058,"sine",.09);
       if(mode==="reef"&&beat===5)note(music,next,hz(root+7),hz(root+7),.35,.11,"triangle",.022);
-      if(mode==="boss"&&beat%2===1)note(music,next,hz(root+12),hz(root+12),.15,.095,"triangle");
-      next+=mode==="village"?.335:.262;step++;
+      if(boss&&beat%2===1)note(music,next,hz(root+12),hz(root+12),.15,.095,"triangle");
+      if(mode==="temple"&&beat===4)note(music,next,hz(root-7),hz(root-7)*.98,.78,.15,"sine",.06);
+      if(mode==="abbey"&&beat===7)note(music,next,hz(root+31),hz(root+31),.75,.075,"sine",.11);
+      next+=combat?(mode==="temple"?.231:.262):.335;step++;
     }
   }
   const sounds={

@@ -6,6 +6,7 @@ const stage=$("stage"),modal=$("modal");
 const attackButton=document.querySelector('[data-input="attack"]');
 const dashButton=document.querySelector('[data-input="dash"]');
 const castButton=document.querySelector('[data-input="cast"]');
+const flaskButton=document.querySelector('[data-input="flask"]');
 const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)");
 const keyboard=new Set();
 const movement={w:[0,-1],a:[-1,0],s:[0,1],d:[1,0],arrowup:[0,-1],arrowleft:[-1,0],arrowdown:[0,1],arrowright:[1,0]};
@@ -18,6 +19,7 @@ const stations={
 };
 let currentScene,state,press=null,heldAttack=null,destination=null,toastTimer,dialogKind="",uiTimer=0;
 let started=false;
+let storyPage=0,selectedChapter=0,trialMode=false;
 const loadout={weapon:"scythe",invocation:"wave"};
 const village=readVillage();
 const worldHeight=720;
@@ -70,7 +72,7 @@ function hud(){
       fervor.innerHTML=Array.from({length:5},(_,i)=>'<i class="'+(i<level?'full':'')+'"></i>').join("");
     }
   }
-  const description=names[state.location]+(inVillage?"":"　"+(r?.depth||1)+"／3");
+  const description=areas[state.location].name+(inVillage?"":"　"+(r?.depth||1)+"／3");
   if($("room-name").textContent!==description)$("room-name").textContent=description;
   const balance="◈ "+(state.location==="village"?village.embers:r?.embers||0);
   if($("counter").textContent!==balance)$("counter").textContent=balance;
@@ -78,10 +80,14 @@ function hud(){
     dashButton.style.setProperty("--cooldown",(p.dashCd/r.dashWait*100).toFixed(0)+"%");
     castButton.style.setProperty("--cooldown",(p.castCd/r.castWait*100).toFixed(0)+"%");
     castButton.classList.toggle("empty",p.fervor<1);
+    if($("flask-count").textContent!==String(village.flasks))$("flask-count").textContent=village.flasks;
+    flaskButton.classList.toggle("empty",!village.flasks);
+    flaskButton.setAttribute("aria-label","藥湯 "+village.flasks+" 瓶");
   }
-  const boss=state.enemies.find(e=>e.kind==="boss");
+  const boss=state.phase!=="result"&&state.enemies.find(isBoss);
   $("boss-meter").hidden=!boss;
   if(boss){
+    $("boss-name").textContent=enemies[boss.kind].name;
     $("boss-fill").style.transform="scaleX("+boss.hp/boss.maxHp+")";
     $("boss-meter").dataset.phase=boss.enraged?"2":"1";
   }
@@ -101,8 +107,10 @@ function room(location){
     button.setAttribute("aria-label",item.name);
   }
   currentScene.placeBackdrop(location);
-  showArrival(names[location]);hud();CatAudio.scene(location==="entry"?"fight":location);
-  if(location==="entry")toast(innerWidth<690?"拖動行走 · 輕點普攻 · 翻滾避開紅圈":"WASD 移動 · 按住左鍵連擊 · 空白鍵翻滾 · Q 咒術",5);
+  showArrival(areas[location].name);hud();
+  CatAudio.scene(location==="entry"?"fight":location);
+  if(areas[location].guardian)toast(state.run.story.intro,4.5);
+  else if(location==="entry")toast(innerWidth<690?"拖動行走 · 輕點普攻 · 翻滾避開紅圈":"WASD 移動 · 左鍵連擊 · 空白鍵翻滾 · Q 咒術 · R 藥湯",5);
 }
 function showVillage(first=false){
   $("game").dataset.location="village";
@@ -126,12 +134,62 @@ function forgeOrLamp(id){
   panel(id,line,'<p>'+guide+'</p><p class="small">等級 '+level+'／'+max+'　持有 '+village.embers+' 潮火</p><div class="actions"><button class="primary" data-upgrade="'+id+'" '+(level>=max||village.embers<cost?"disabled":"")+'>'+label+'</button><button data-act="close">返回</button></div>');
 }
 function loadoutPanel(){
+  const story=chapters[selectedChapter];
   const options=(items,key)=>Object.entries(items).map(([id,item])=>
-    '<button class="kit-option" data-kit="'+key+'" data-item="'+id+'" aria-pressed="'+(loadout[key]===id)+'"><i>'+item.icon+'</i><strong>'+item.name+'</strong><span>'+item.detail+'</span></button>'
+    '<button class="kit-option" data-kit="'+key+'" data-item="'+id+'" aria-pressed="'+(loadout[key]===id)+'" '+(gearUnlocked(item,village)?'':'disabled')+'><i>'+item.icon+'</i><strong>'+item.name+'</strong><span>'+(gearUnlocked(item,village)?item.detail:"通過"+chapters[item.unlock-1].label+"解鎖")+'</span></button>'
   ).join("");
-  panel("loadout","潮汐門",'<div class="kit-label">武器</div><div class="kit-grid">'+options(weapons,"weapon")+'</div>'+
-    '<div class="kit-label">咒術</div><div class="kit-grid two">'+options(spells,"invocation")+'</div>'+
-    '<div class="actions"><button class="primary" data-act="depart">踏入地城</button><button data-act="close">返村</button></div>');
+  panel("loadout",story.title,'<p class="chapter-brief">'+story.brief+'</p><div class="kit-label">武器</div><div class="kit-grid">'+options(weapons,"weapon")+'</div>'+
+    '<div class="kit-label">咒術</div><div class="kit-grid">'+options(spells,"invocation")+'</div>'+
+    (village.ending?'<button class="oath" data-act="trial" aria-pressed="'+trialMode+'">☾ '+(trialMode?"黑潮誓約已啟用":"啟用黑潮誓約")+'<small>敵人生命 +35% · 出招加快</small></button>':'')+
+    '<div class="actions"><button class="primary" data-act="depart">踏入地城</button><button data-act="map">返航圖</button></div>');
+}
+function chapterMap(){
+  const pending=village.cleared===chapters.length&&!village.ending;
+  panel("map","潮汐航圖",'<div class="chapter-map">'+chapters.map((story,i)=>{
+    const open=i<=village.cleared,done=i<village.cleared,trial=village.trials&trialBit(i);
+    const badge=trial?"黑潮誓約完成":done?"已得"+story.seal:open?"可出征":"尚未解鎖";
+    return '<button class="chapter-card" data-chapter="'+i+'" '+(open?'':'disabled')+' style="--chapter-art:url(./'+areaArt(story.entry)+'.webp)">'+
+      '<span><small>'+story.label+'</small><b>'+story.title+'</b><em>'+badge+'</em></span></button>';
+  }).join("")+'</div><div class="actions">'+(pending?'<button class="primary" data-act="verdict">返回潮爐</button>':'')+
+  '<button data-act="journal">旅程紀錄</button><button data-act="villagers">村民委託</button><button data-act="close">返村</button></div>');
+}
+function storyIntro(){
+  const beat=prologue[storyPage];
+  panel("story",beat.title,'<img class="story-art" src="./'+beat.art+'.webp" alt=""><p class="story-text">'+beat.text+'</p>'+
+    '<div class="actions"><button class="primary" data-act="story-next">'+(storyPage===prologue.length-1?"進入潮燈村":"繼續")+'</button><button data-act="story-skip">返村</button></div>');
+}
+function journal(){
+  panel("journal","旅程紀錄",'<ol class="ledger">'+chapters.map((story,i)=>
+    '<li><b>'+story.label+' · '+story.title+'</b><span>'+(i<village.cleared?story.epilogue:i===village.cleared?story.brief:"未探索")+'</span></li>'
+  ).join("")+'</ol><div class="actions"><button data-act="prologue">重看序章</button><button data-act="villagers">村民委託</button>'+
+  (village.ending?'<button data-act="ending">重看結局</button>':'')+'<button data-act="map">返航圖</button></div>');
+}
+function villagerPanel(index){
+  const resident=villagers[index];
+  if(resident&&index<village.cleared){
+    const complete=Boolean(village.favors&trialBit(index));
+    panel("villager",resident.name+' · '+resident.role,'<p class="story-text">'+(complete?resident.thanks:resident.line)+'</p>'+
+      (complete?'':'<p class="story-text">'+resident.task+'</p><p class="ending-note">回禮 '+resident.reward+'</p>')+
+      '<div class="actions">'+(complete?'':'<button class="primary" data-favor="'+index+'" '+(resident.ready(village)?'':'disabled')+'>交付委託</button>')+
+      '<button data-act="villagers">返回村民</button></div>');
+    return;
+  }
+  const entries=villagers.slice(0,village.cleared);
+  panel("villagers","村民委託",entries.length?
+    '<div class="resident-list">'+entries.map((item,i)=>'<button data-resident="'+i+'"><i>'+item.icon+'</i><span><b>'+item.name+'</b><small>'+item.role+'</small></span><em>'+(village.favors&trialBit(i)?"已完成":item.ready(village)?"可交付":"進行中")+'</em></button>').join("")+'</div>'+
+      '<div class="actions"><button data-act="journal">返回紀錄</button><button data-act="close">返村</button></div>':
+    '<p>救到村民返嚟之後，可以喺呢度同佢哋傾偈。</p><div class="actions"><button data-act="journal">返回紀錄</button></div>');
+}
+function verdict(){
+  panel("verdict","最後一爐潮火",'<img class="story-art" src="./temple.webp" alt=""><p class="story-text">'+chapters.at(-1).epilogue+'</p><div class="ending-choices">'+
+    '<button data-ending="burn"><b>燒毀糧契</b><small>歸還所有被扣起嘅名字，熄滅最後一盞燈。</small></button>'+
+    '<button data-ending="return"><b>贖回母親</b><small>用餘下嘅潮火，贖回母親尚未走完嘅日子。</small></button></div>');
+}
+function showEnding(){
+  const end=endings[village.ending];
+  panel("ending",end.title,'<img class="story-art" src="./'+end.art+'.webp" alt=""><p class="story-text">'+end.text+'</p>'+
+    '<p class="ending-note">全章通關 · 潮汐航圖已開放黑潮誓約</p><div class="actions"><button class="primary" data-act="village">返回潮燈村</button></div>');
+  CatAudio.scene("village");CatAudio.play("reward");
 }
 function villagePanel(id){
   const v=village;
@@ -140,10 +198,11 @@ function villagePanel(id){
     const need=Math.min(4,1+Math.floor(v.rescued/3));
     const cost=4+v.garden*4;
     panel("garden","村落膳堂",
-      '<div class="village-detail"><span>糧食 <b>'+v.food+'</b></span><span>飢餓 <b>'+v.hunger+'%</b></span><span>農圃 <b>'+v.garden+'／2</b></span></div>'+
+      '<div class="village-detail"><span>糧食 <b>'+v.food+'</b></span><span>飢餓 <b>'+v.hunger+'%</b></span><span>農圃 <b>'+v.garden+'／2</b></span><span>藥湯 <b>'+v.flasks+'／3</b></span></div>'+
       '<p>煮一餐可以減低飢餓、提升信仰。建好農圃後，每趟回村都會多收成。</p>'+
       '<div class="actions">'+button("feed","煮一餐 · "+need+" 糧食",v.food>=need&&v.hunger>0,true)+
-      button("garden",v.garden>=2?"農圃已完成":(v.garden?"擴建農圃":"建造農圃")+" · "+cost+" 潮火",v.garden<2&&v.embers>=cost)+'<button data-act="close">返回</button></div>');
+      button("garden",v.garden>=2?"農圃已完成":(v.garden?"擴建農圃":"建造農圃")+" · "+cost+" 潮火",v.garden<2&&v.embers>=cost)+
+      button("brew","煮藥湯 · 2 糧食",v.flasks<3&&v.food>=2)+'<button data-act="close">返回</button></div>');
   }else{
     panel("shrine","集會祭壇",
       '<div class="village-detail"><span>信仰 <b>'+v.faith+'%</b></span><span>供奉 <b>'+v.devotion+'</b></span></div>'+
@@ -160,6 +219,9 @@ function careVillage(action){
     const need=Math.min(4,1+Math.floor(v.rescued/3));
     if(v.food<need||v.hunger<=0)return;
     v.food-=need;v.hunger=Math.max(0,v.hunger-34);v.faith=Math.min(100,v.faith+12);
+  }else if(action==="brew"){
+    if(v.flasks>=3||v.food<2)return;
+    v.food-=2;v.flasks++;
   }else if(action==="garden"){
     const cost=4+v.garden*4;
     if(v.garden>=2||v.embers<cost)return;
@@ -175,11 +237,11 @@ function careVillage(action){
     v.devotion-=4;v.blessing=1;v.faith=Math.min(100,v.faith+7);
   }else return;
   writeVillage(v);hud();CatAudio.play("reward");
-  villagePanel(action==="feed"||action==="garden"?"garden":"shrine");
+  villagePanel(["feed","garden","brew"].includes(action)?"garden":"shrine");
 }
 function chooseStation(id){
   if(!started||state.phase!=="village"||!modal.hidden)return;
-  if(id==="gate"){loadoutPanel();return;}
+  if(id==="gate"){chapterMap();return;}
   if(id==="garden"||id==="shrine"){villagePanel(id);return;}
   forgeOrLamp(id);
 }
@@ -192,41 +254,44 @@ function upgrade(id){
   writeVillage(village);hud();CatAudio.play("reward");forgeOrLamp(id);
 }
 function reward(){
-  const line=state.run.depth===2?"你喺塌牆後救出一隻提燈小貓。要帶佢返村，先要打贏食燈者。":"沉鐘裂開，露出三枚月印。";
+  const r=state.run;
+  const line=r.depth===2&&r.rescued?r.story.rescue:"潮水退去，地面留下三枚月印。";
   panel("reward","揀一枚月印",'<p>'+line+'</p><div class="choices moon-cards">'+state.offered.map(id=>{
     const g=gifts[id];
     return '<button class="moon-card" data-gift="'+id+'"><img alt="" src="./moon-'+id+'.webp"><span><b>'+g.name+'</b><small>'+g.detail+'</small></span></button>';
   }).join("")+'</div>');
 }
 function route(){
-  const options=[
-    ["reef","碎礁墓道","近身戰 · 甲蟹"],
-    ["fen","白潮祭壇","遠攻戰 · 水母女巫"],
-  ];
+  const story=state.run.story;
   panel("route","揀下一道潮門",
-    '<div class="path-origin"><span></span>沉鐘之門<span></span></div>'+
-    '<div class="path-fork">'+options.map(([id,title,description])=>
-      '<button class="path-card" data-route="'+id+'"><img src="./'+id+'.webp" alt=""><span><b>'+title+'</b><small>'+description+'</small></span></button>'
-    ).join("")+'</div><div class="path-finish">食燈者巢穴</div>');
+    '<div class="path-origin"><span></span>'+areas[story.entry].name+'<span></span></div>'+
+    '<div class="path-fork">'+story.paths.map(id=>
+      '<button class="path-card" data-route="'+id+'"><img src="./'+areaArt(id)+'.webp" alt=""><span><b>'+areas[id].name+'</b><small>'+areas[id].hint+'</small></span></button>'
+    ).join("")+'</div><div class="path-finish">'+areas[story.boss].name+'</div>');
 }
 function market(){
   const missing=state.player.maxHp-state.player.hp;
-  panel("market","潮市燈商",'<p>「用三枚潮火換一口熱湯。再行，就係食燈者嘅巢穴。」</p>'+
+  panel("market","潮市燈商",'<p>「三枚潮火換一口熱湯。過咗呢道門就到'+areas[state.run.story.boss].name+'。」</p>'+
     '<div class="village-detail"><span>潮火 <b>'+state.run.embers+'</b></span><span>生命 <b>'+state.player.hp+'／'+state.player.maxHp+'</b></span></div>'+
     '<div class="actions"><button data-act="market-heal" class="primary" '+(missing>0&&state.run.embers>=3?"":"disabled")+'>'+(!missing?"生命已滿":"飲湯 · 回復 2 格")+'</button>'+
     '<button data-act="market-next">進入巢穴</button></div>');
 }
 function result(won,earned){
   $("controls").hidden=true;CatAudio.scene("village");toast("");
-  panel(won?"victory":"result",won?"潮燈再次亮起":"被潮水捲走",
-    '<p>'+(won?"食燈者沉入深海。提燈小貓終於等到潮退，同你一齊踏上返村嘅路。":"你醒返時已經喺岸邊。今趟帶返一半潮火。")+'</p>'+
-    '<div class="village-detail"><span>帶回潮火 <b>'+earned+'</b></span><span>村民 <b>'+(1+village.rescued)+'</b></span><span>第 <b>'+village.day+'</b> 日</span></div>'+
-    '<div class="actions"><button data-act="village" class="primary">返回潮燈村</button></div>');
+  const r=state.run,last=r.chapter===chapters.length-1;
+  const seal=r.trial?"完成黑潮誓約":r.firstClear?"取得"+r.story.seal:"再次擊退"+enemies[areas[r.story.boss].guardian].name;
+  const next=won&&r.firstClear&&!last?'<span>解鎖 <b>'+chapters[r.chapter+1].title+'</b></span>':'';
+  panel(won?"victory":"result",won?seal:"被潮水捲走",
+    '<p>'+(won?r.story.epilogue:"你醒返時已經喺岸邊。今趟帶返一半潮火。")+'</p>'+
+    '<div class="village-detail"><span>帶回潮火 <b>'+earned+'</b></span><span>村民 <b>'+(1+village.rescued)+'</b></span>'+next+'</div>'+
+    '<div class="actions">'+(won&&last?'<button data-act="verdict" class="primary">走到潮爐前</button>':'')+
+    '<button data-act="village" '+(won&&last?'':'class="primary"')+'>返回潮燈村</button></div>');
+  if(won)modal.querySelector(".panel").style.setProperty("--victory-art",'url("./'+(last?"temple":"home")+'.webp")');
 }
 const callbacks={room,hud,reward,route,market,result,toast};
 function pause(){
   if(!started||!modal.hidden)return;
-  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 咒術。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
+  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 咒術、R 藥湯。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
 }
 function clearInput(){
   keyboard.clear();press=null;heldAttack=null;destination=null;
@@ -236,6 +301,8 @@ function begin(){
   if(started||!currentScene)return;
   CatAudio.unlock();started=true;
   showVillage(village.wins===0);
+  if(!village.prologue)storyIntro();
+  else if(village.cleared===chapters.length&&!village.ending)verdict();
 }
 $("start").addEventListener("click",begin);
 $("pause").addEventListener("click",pause);
@@ -248,9 +315,24 @@ modal.addEventListener("click",e=>{
   if(!b||b.disabled)return;
   const d=b.dataset;
   if(d.gift){state.choose(d.gift);return;}
-  if(d.route&&state.phase==="route"&&["reef","fen"].includes(d.route)){state.openRoom(d.route);return;}
+  if(d.route){state.takePath(d.route);return;}
   if(d.upgrade){upgrade(d.upgrade);return;}
   if(d.care){careVillage(d.care);return;}
+  if(d.chapter!==undefined&&dialogKind==="map"){
+    selectedChapter=Number(d.chapter);trialMode=false;loadoutPanel();return;
+  }
+  if(d.resident!==undefined&&dialogKind==="villagers"){villagerPanel(Number(d.resident));return;}
+  if(d.favor!==undefined&&dialogKind==="villager"){
+    const i=Number(d.favor),resident=villagers[i],bit=trialBit(i);
+    if(resident&&i<village.cleared&&!(village.favors&bit)&&resident.ready(village)){
+      resident.claim(village);village.favors|=bit;writeVillage(village);hud();CatAudio.play("reward");
+      villagerPanel(i);
+    }
+    return;
+  }
+  if(d.ending&&dialogKind==="verdict"&&Object.hasOwn(endings,d.ending)){
+    village.ending=d.ending;writeVillage(village);showEnding();return;
+  }
   if(d.kit&&dialogKind==="loadout"){
     if(d.kit==="weapon"&&weapons[d.item]||d.kit==="invocation"&&spells[d.item]){
       loadout[d.kit]=d.item;
@@ -259,7 +341,18 @@ modal.addEventListener("click",e=>{
     }
     return;
   }
-  if(d.act==="depart"&&dialogKind==="loadout"){state.depart(loadout.weapon,loadout.invocation);return;}
+  if(d.act==="depart"&&dialogKind==="loadout"){state.depart(loadout.weapon,loadout.invocation,selectedChapter,trialMode);return;}
+  if(d.act==="trial"&&dialogKind==="loadout"&&village.ending){trialMode=!trialMode;loadoutPanel();return;}
+  if(d.act==="map"&&state.phase==="village"){chapterMap();return;}
+  if(d.act==="journal"&&state.phase==="village"){journal();return;}
+  if(d.act==="villagers"&&state.phase==="village"){villagerPanel();return;}
+  if(d.act==="prologue"&&dialogKind==="journal"){storyPage=0;storyIntro();return;}
+  if(d.act==="verdict"&&village.cleared===chapters.length){verdict();return;}
+  if(d.act==="ending"&&village.ending){showEnding();return;}
+  if(dialogKind==="story"&&(d.act==="story-next"||d.act==="story-skip")){
+    if(d.act==="story-next"&&storyPage+1<prologue.length){storyPage++;storyIntro();return;}
+    village.prologue=true;writeVillage(village);dismiss();return;
+  }
   if(d.act==="market-heal"){state.leaveMarket(true);return;}
   if(d.act==="market-next"){state.leaveMarket(false);return;}
   if(d.act==="close")dismiss();
@@ -274,7 +367,7 @@ modal.addEventListener("click",e=>{
 window.addEventListener("keydown",e=>{
   if(!started||e.altKey||e.metaKey||e.ctrlKey)return;
   const key=e.key.toLowerCase();
-  if(key==="escape"){if(["pause","forge","lamp","garden","shrine","loadout"].includes(dialogKind))dismiss();else pause();return;}
+  if(key==="escape"){if(["pause","forge","lamp","garden","shrine","loadout","map","journal","villagers","villager"].includes(dialogKind))dismiss();else pause();return;}
   if(!modal.hidden)return;
   if(movement[key]){
     e.preventDefault();keyboard.add(key);return;
@@ -283,7 +376,7 @@ window.addEventListener("keydown",e=>{
     const closest=Object.entries(stations).sort(([,a],[,b])=>dist(state.player,{x:a.x*state.width,y:a.y*worldHeight})-dist(state.player,{x:b.x*state.width,y:b.y*worldHeight}))[0];
     chooseStation(closest[0]);return;
   }
-  const action={f:"attack"," ":"dash",q:"cast"}[key];
+  const action={f:"attack"," ":"dash",q:"cast",r:"flask"}[key];
   if(action){e.preventDefault();keyboard.add(key);if(!e.repeat)state.input(action);}
 });
 window.addEventListener("keyup",e=>keyboard.delete(e.key.toLowerCase()));
@@ -358,8 +451,9 @@ function intent(){
 class ShoreScene extends Phaser.Scene{
   constructor(){super("shore");}
   preload(){
-    for(const id of ["village","crypt","reef","fen","boss"])this.load.image(id,"./"+id+".webp");
+    for(const id of Object.keys(areas).map(areaArt))this.load.image(id,"./"+id+".webp");
     this.load.spritesheet("cast","./cast.png",{frameWidth:256,frameHeight:256});
+    this.load.spritesheet("tide-cast","./tide-cast.png",{frameWidth:256,frameHeight:256});
     this.load.spritesheet("village-props","./village-props.png",{frameWidth:232,frameHeight:232});
     this.load.on("loaderror",file=>{
       $("boot-status").textContent="資源載入失敗。請重新整理頁面。";
@@ -375,9 +469,10 @@ class ShoreScene extends Phaser.Scene{
     this.actorSprites=[];
     this.cinema=new ShoreCinema(this);
     this.placeBackdrop("village");
-    const ready=["village","crypt","reef","fen","boss","cast","village-props"].every(id=>this.textures.exists(id));
+    const ready=[...Object.keys(areas).map(areaArt),"cast","tide-cast","village-props"].every(id=>this.textures.exists(id));
     if(!ready)return;
     $("start").disabled=false;
+    if(village.prologue)$("start").firstChild.nodeValue="繼續旅程 ";
     $("boot-status").textContent=innerWidth<690?"單手觸控可玩 · 點一下開始":"鍵盤與滑鼠 · 亦支援手機觸控";
     this.scale.on("resize",size=>{
       if(state)state.resize(size.width);
@@ -385,7 +480,7 @@ class ShoreScene extends Phaser.Scene{
     });
   }
   placeBackdrop(place){
-    const id=place==="entry"?"crypt":place;
+    const id=areaArt(place);
     this.background.setTexture(id);
     const frame=this.background.frame;
     const w=this.scale.width,h=this.scale.height;
@@ -420,7 +515,7 @@ class ShoreScene extends Phaser.Scene{
     g.fillStyle(0x141526,.49).fillEllipse(x+4,y+5,size*.63,size*.21);
     g.fillStyle(0x100f1a,.68).fillEllipse(x,y+2,size*.39,size*.105);
   }
-  paintSprite(sprite,actor,frame,size,hero=false){
+  paintSprite(sprite,actor,frame,size,hero=false,sheet="cast"){
     const b=state;
     const face=Math.cos(actor.angle??0)<-.14;
     const factor=.92+actor.y/b.height*.15;
@@ -429,7 +524,9 @@ class ShoreScene extends Phaser.Scene{
     const hit=actor.hit>0;
     const tilt=actor.warning?-.11*(1-actor.warning.left/actor.warning.total):actor.recoil>0?.11:0;
     this.shadow(actor.x,actor.y,size*factor);
-    sprite.setVisible(true).setFrame(frame).setPosition(actor.x,actor.y+jump).setDepth(10+actor.y*.02);
+    if(sprite.texture.key!==sheet)sprite.setTexture(sheet,frame);
+    else sprite.setFrame(frame);
+    sprite.setVisible(true).setPosition(actor.x,actor.y+jump).setDepth(10+actor.y*.02);
     sprite.setDisplaySize(size*factor*(hit?1.08:1),size*factor*(1+pulse)*(hit?.95:1));
     sprite.setFlipX(face).setRotation(tilt);
     if(hit)sprite.setTint(0xfff3df).setTintMode(Phaser.TintModes.FILL);else sprite.clearTint();
@@ -457,8 +554,8 @@ class ShoreScene extends Phaser.Scene{
     for(const e of b.enemies){
       if(e.hp<=0)continue;
       const data=enemies[e.kind];
-      this.paintSprite(this.sprite(count++),e,e.kind==="boss"&&(e.warning||e.recoil>0)?9:data.frame,data.size);
-      if(e.kind!=="boss"&&e.hp<e.maxHp){
+      this.paintSprite(this.sprite(count++),e,e.kind==="boss"&&(e.warning||e.recoil>0)?9:data.frame,data.size,false,data.sheet);
+      if(!isBoss(e)&&e.hp<e.maxHp){
         front.fillStyle(0x171320,.85).fillRect(e.x-15,e.y-data.size*.89,30,4);
         front.fillStyle(0xf58195,.95).fillRect(e.x-15,e.y-data.size*.89,30*e.hp/e.maxHp,4);
       }
@@ -467,8 +564,9 @@ class ShoreScene extends Phaser.Scene{
       this.paintSprite(this.sprite(count++),{x:b.width*.25,y:b.height*.45},10,72);
       this.paintSprite(this.sprite(count++),{x:b.width*.75,y:b.height*.45,angle:Math.PI},7,69);
       for(let i=0;i<Math.min(village.rescued,4);i++){
-        const x=b.width*(.32+(i%2)*.36),y=b.height*(.61+Math.floor(i/2)*.13);
-        this.paintSprite(this.sprite(count++),{x,y,angle:i%2?Math.PI:0},7,59);
+        const walk=t*.73+i*1.7;
+        const x=b.width*(.32+(i%2)*.36)+Math.sin(walk)*17,y=b.height*(.60+Math.floor(i/2)*.13)+Math.cos(walk)*7;
+        this.paintSprite(this.sprite(count++),{x,y,angle:Math.cos(walk)<0?Math.PI:0,walking:!reducedMotion.matches},7,59);
       }
     }
     for(let i=count;i<this.actorSprites.length;i++)this.actorSprites[i].setVisible(false);
@@ -491,19 +589,29 @@ class ShoreScene extends Phaser.Scene{
   }
   paintWarning(w){
     const g=this.ground,progress=clamp(1-w.left/w.total,0,1);
-    if(w.shot){
-      const x=w.x-Math.cos(w.angle)*180,y=w.y-Math.sin(w.angle)*180;
-      g.lineStyle(4,0xe79bdd,.27+progress*.45).lineBetween(x,y,w.x,w.y);return;
+    if(w.shots){
+      for(const offset of w.shots){
+        const a=w.angle+offset,reach=w.shots.length===10?95:245;
+        g.lineStyle(3,0xe79bdd,.27+progress*.45).lineBetween(w.x,w.y,w.x+Math.cos(a)*reach,w.y+Math.sin(a)*reach);
+      }
+      return;
     }
-    if(w.lane){
-      const x=w.x+Math.cos(w.angle)*w.length,y=w.y+Math.sin(w.angle)*w.length;
-      g.lineStyle(w.size*2,0xd43657,.24+progress*.14).lineBetween(w.x,w.y,x,y);
-      g.lineStyle(3,0xffb090,.9).lineBetween(w.x,w.y,x,y);return;
+    if(w.lane||w.cross){
+      this.paintBeams(g,w,w.size*2,0xd43657,.24+progress*.14);
+      this.paintBeams(g,w,3,0xffb090,.90);
+      return;
     }
     g.fillStyle(0xc42f54,.26).fillCircle(w.x,w.y,w.size);
     g.fillStyle(0xf77966,.18+progress*.19).fillCircle(w.x,w.y,w.size*progress);
     g.lineStyle(4,0x44243a,.94).strokeCircle(w.x,w.y,w.size+2);
     g.lineStyle(2,0xffa28c,.93).strokeCircle(w.x,w.y,w.size);
+  }
+  paintBeams(g,w,width,color,alpha){
+    g.lineStyle(width,color,alpha);
+    for(const angle of w.cross?[w.angle,w.angle+Math.PI/2]:[w.angle]){
+      const x=Math.cos(angle)*w.length,y=Math.sin(angle)*w.length;
+      g.lineBetween(w.x-(w.cross?x:0),w.y-(w.cross?y:0),w.x+x,w.y+y);
+    }
   }
   paintEffect(e){
     const g=this.front,a=clamp(e.left/e.life,0,1),p=1-a;
@@ -519,9 +627,8 @@ class ShoreScene extends Phaser.Scene{
           e.x+Math.cos(angle)*r,e.y+Math.sin(angle)*r,e.x+Math.cos(angle+.22)*r*.24,e.y+Math.sin(angle+.22)*r*.24);
       }
     }else if(e.kind==="lane"){
-      const x=e.x+Math.cos(e.angle)*e.length,y=e.y+Math.sin(e.angle)*e.length;
-      g.lineStyle(Math.max(2,31*a),e.color,a).lineBetween(e.x,e.y,x,y);
-      g.lineStyle(Math.max(1,8*a),0xffdfad,a).lineBetween(e.x,e.y,x,y);
+      this.paintBeams(g,e,Math.max(2,31*a),e.color,a*.8);
+      this.paintBeams(g,e,Math.max(1,8*a),0xffdfad,a);
     }else{
       g.lineStyle(1+5*a,e.color,a*.9).strokeEllipse(e.x,e.y,e.size*(.7+p*1.48),e.size*(.5+p*1.07));
     }

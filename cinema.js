@@ -7,6 +7,18 @@ const shoreLights={
   reef:{warm:0xf7ae86,cool:0x56d9cf,air:0x5faab7},
   fen:{warm:0xac92ed,cool:0x64ffe1,air:0x83d4e3},
   boss:{warm:0xfba076,cool:0xd29af8,air:0xb671a6},
+  exchange:{warm:0xffb768,cool:0x8eb6bf,air:0xab896c},
+  cistern:{warm:0x92bb85,cool:0x52dece,air:0x679899},
+  archive:{warm:0xffa86a,cool:0xd290b8,air:0xb77872},
+  vault:{warm:0xff9d5c,cool:0xe0b478,air:0xcc8363},
+  flats:{warm:0xc3a4db,cool:0xa2c7f3,air:0xb7a9d4},
+  wreck:{warm:0xd69d7c,cool:0x70c4e6,air:0x81aecb},
+  salt:{warm:0xd1a7ff,cool:0xa0edfc,air:0xa4c4ee},
+  abbey:{warm:0xb794eb,cool:0xa1ceff,air:0x9bafd9},
+  cliff:{warm:0xff8264,cool:0xc4a4ce,air:0xca7489},
+  garden:{warm:0xe28499,cool:0xa6ead0,air:0xa593b2},
+  bridge:{warm:0xedac70,cool:0x75ecd7,air:0x77bbb8},
+  temple:{warm:0xff806e,cool:0x72ffe0,air:0xc26b92},
 };
 
 function paintTexture(scene,key,width,height,paint){
@@ -50,7 +62,7 @@ class ShoreCinema{
     const palette=shoreLights[location];
     const view=Math.max(0,Math.min(1,(w-330)/650));
     const p=b.player;
-    const activeBoss=b.enemies.find(e=>e.kind==="boss"&&e.hp>0);
+    const activeBoss=b.enemies.find(e=>isBoss(e)&&e.hp>0);
     const pulse=Math.sin(t*4.2)*.02;
     const positionOffset=reducedMotion.matches?0:clamp((p.x/w-.5)*12,-6,6);
     this.scene.background.setPosition(w/2-positionOffset,h/2);
@@ -62,7 +74,7 @@ class ShoreCinema{
         return;
       }
       const x=i===0?w*(.16+view*.05):i===1?w*(.84-view*.05):w*.5;
-      const y=i===2?h*(location==="boss"?.26:.27):h*.365;
+      const y=i===2?h*(areas[location].guardian?.30:.27):h*.365;
       light.setPosition(x,y).setDisplaySize(i===2?Math.min(w*.95,395):268,i===2?354:215)
         .setTint(i===2?palette.cool:palette.warm).setAlpha((i===2?.29:.24)+pulse+flare);
     });

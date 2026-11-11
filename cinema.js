@@ -56,7 +56,7 @@ class ShoreCinema{
     this.echoes=[];this.numbers=[];
     this.flash=document.getElementById("screen-flash");
   }
-  prepare(b,t){
+  prepare(b,t,enhanced=false){
     this.echoCount=0;this.numberCount=0;
     const {width:w,height:h,location}=b;
     const palette=shoreLights[location];
@@ -68,6 +68,7 @@ class ShoreCinema{
     this.scene.background.setPosition(w/2-positionOffset,h/2);
     const flare=b.phase==="victory"?Math.max(0,(b.victory-.17)*.34):0;
     this.lights.forEach((light,i)=>{
+      light.setVisible(!enhanced);
       if(i===3){
         light.setPosition(p.x,p.y-16).setDisplaySize(168,154).setTint(palette.cool)
           .setAlpha((p.dash?.26:p.attack?.20:.096)+flare);
@@ -79,15 +80,16 @@ class ShoreCinema{
         .setTint(i===2?palette.cool:palette.warm).setAlpha((i===2?.29:.24)+pulse+flare);
     });
     this.fog.forEach((fog,i)=>{
+      fog.setVisible(!enhanced);
       const x=w*(i*.263-.04)+Math.sin(t*.36+i*3)*(.11*w+10);
       const y=h*(.35+i*.142)+Math.sin(t*.65+i)*10;
       fog.setPosition(x,y).setDisplaySize(w*(i===4?1.65:1.15),i===4?142:119)
         .setTint(palette.air).setAlpha(i===4?.66:.44);
     });
-    this.placeVillage(b);
+    this.placeVillage(b,enhanced);
     const g=this.glyphs;
     g.clear();
-    if(activeBoss){
+    if(activeBoss&&!enhanced){
       const x=activeBoss.x,y=activeBoss.y;
       const radius=76+Math.sin(t*2.8)*7;
       const alpha=b.intro>0?.54:activeBoss.enraged?.42:.27;
@@ -104,7 +106,7 @@ class ShoreCinema{
     const strength=reducedMotion.matches?.40:1;
     this.flash.style.opacity=String(Math.max(hurt*.64,flare*.72)*strength);
   }
-  placeVillage(b){
+  placeVillage(b,enhanced){
     const v=b.village,w=b.width,h=b.height;
     const props=[
       {frame:2,x:.15,y:.444,width:96,show:true},
@@ -116,7 +118,7 @@ class ShoreCinema{
     this.villageArt.forEach((sprite,i)=>{
       const prop=props[i];
       const visible=b.location==="village"&&prop.show;
-      sprite.setVisible(Boolean(visible));
+      sprite.setVisible(Boolean(visible)).setAlpha(enhanced?0:1);
       if(visible)sprite.setFrame(prop.frame).setPosition(w*prop.x,h*prop.y).setDisplaySize(prop.width,prop.width).setDepth(9+h*prop.y*.02);
     });
   }

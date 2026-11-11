@@ -9,6 +9,7 @@ const castButton=document.querySelector('[data-input="cast"]');
 const flaskButton=document.querySelector('[data-input="flask"]');
 const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)");
 const keyboard=new Set();
+const surveyButton=$("survey");
 const movement={w:[0,-1],a:[-1,0],s:[0,1],d:[1,0],arrowup:[0,-1],arrowleft:[-1,0],arrowdown:[0,1],arrowright:[1,0]};
 const stations={
   forge:{title:"黑鬚鐵匠",icon:"✦",x:.23,y:.49},
@@ -19,6 +20,9 @@ const stations={
 };
 let currentScene,state,press=null,heldAttack=null,destination=null,toastTimer,dialogKind="",uiTimer=0;
 let started=false;
+let surveyMode=false,viewDrag=null;
+let threeEnabled=true;
+try{threeEnabled=localStorage.getItem("nine-tides-light")!=="low";}catch{}
 let storyPage=0,selectedChapter=0,trialMode=false;
 const loadout={weapon:"scythe",invocation:"wave"};
 const village=readVillage();
@@ -53,6 +57,7 @@ function hud(){
     hearts.innerHTML=Array.from({length:p.maxHp},(_,i)=>'<span aria-hidden="true" class="'+(i<hp?"alive":"")+'">♥</span>').join("");
   }
   const inVillage=state.location==="village";
+  surveyButton.hidden=!inVillage||!currentScene.world3d?.active;
   const villageHud=$("village-stats");
   villageHud.hidden=!inVillage;
   if(inVillage){
@@ -97,6 +102,7 @@ function showArrival(name){
   void el.offsetWidth;el.classList.add("show");
 }
 function room(location){
+  setSurvey(false);
   $("game").dataset.location=location;
   dismiss();toast("");destination=null;
   $("stations").hidden=true;
@@ -113,6 +119,7 @@ function room(location){
   else if(location==="entry")toast(innerWidth<690?"拖動行走 · 輕點普攻 · 翻滾避開紅圈":"WASD 移動 · 左鍵連擊 · 空白鍵翻滾 · Q 咒術 · R 藥湯",5);
 }
 function showVillage(first=false){
+  setSurvey(false);
   $("game").dataset.location="village";
   dismiss();clearInput();
   state=new TideRun(currentScene.scale.width,worldHeight,village,callbacks);
@@ -291,10 +298,30 @@ function result(won,earned){
 const callbacks={room,hud,reward,route,market,result,toast};
 function pause(){
   if(!started||!modal.hidden)return;
-  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 咒術、R 藥湯。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
+  setSurvey(false);
+  const available=currentScene.world3d&&!currentScene.world3d.lost;
+  const graphics=available?'<button data-act="graphics" aria-pressed="'+threeEnabled+'">'+(threeEnabled?"切換省電畫面":"開啟立體畫面")+'</button>':'';
+  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 咒術、R 藥湯。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+graphics+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
+}
+function setSurvey(on){
+  if(on&&(!currentScene?.world3d?.active||state?.phase!=="village"||!modal.hidden))return;
+  if(surveyMode===on)return;
+  surveyMode=on;
+  clearInput();
+  if(!on)currentScene.world3d?.resetOrbit();
+  $("game").classList.toggle("surveying",on);
+  $("survey-guide").hidden=!on;
+  surveyButton.setAttribute("aria-pressed",String(on));
+}
+function applyGraphics(){
+  const world=currentScene?.world3d;
+  if(!world)return;
+  world.setActive(threeEnabled);
+  if(!world.active)setSurvey(false);
+  if(started&&state)hud();
 }
 function clearInput(){
-  keyboard.clear();press=null;heldAttack=null;destination=null;
+  keyboard.clear();press=null;heldAttack=null;destination=null;viewDrag=null;
   $("stick").hidden=true;
 }
 function begin(){
@@ -306,6 +333,7 @@ function begin(){
 }
 $("start").addEventListener("click",begin);
 $("pause").addEventListener("click",pause);
+surveyButton.addEventListener("click",()=>setSurvey(!surveyMode));
 $("stations").addEventListener("click",e=>{
   const id=e.target.closest("[data-station]")?.dataset.station;
   if(id)chooseStation(id);
@@ -358,6 +386,14 @@ modal.addEventListener("click",e=>{
   if(d.act==="close")dismiss();
   if(d.act==="village")showVillage();
   if(d.act==="retreat"&&state.phase==="fight")state.finish(false);
+  if(d.act==="graphics"&&dialogKind==="pause"){
+    threeEnabled=!threeEnabled;
+    try{localStorage.setItem("nine-tides-light",threeEnabled?"3d":"low");}catch{}
+    applyGraphics();
+    b.textContent=threeEnabled?"切換省電畫面":"開啟立體畫面";
+    b.setAttribute("aria-pressed",String(threeEnabled));
+    return;
+  }
   if(d.act==="audio"){
     const enabled=CatAudio.toggle();
     b.textContent=enabled?"關閉聲音":"開啟聲音";
@@ -367,8 +403,14 @@ modal.addEventListener("click",e=>{
 window.addEventListener("keydown",e=>{
   if(!started||e.altKey||e.metaKey||e.ctrlKey)return;
   const key=e.key.toLowerCase();
+  if(surveyMode){
+    if(key==="escape"||key==="c"){e.preventDefault();if(!e.repeat)setSurvey(false);}
+    else if(movement[key]){e.preventDefault();keyboard.add(key);}
+    return;
+  }
   if(key==="escape"){if(["pause","forge","lamp","garden","shrine","loadout","map","journal","villagers","villager"].includes(dialogKind))dismiss();else pause();return;}
   if(!modal.hidden)return;
+  if(key==="c"&&!e.repeat&&state.phase==="village"){setSurvey(true);return;}
   if(movement[key]){
     e.preventDefault();keyboard.add(key);return;
   }
@@ -390,6 +432,13 @@ for(const type of ["gesturestart","gesturechange"]){
 }
 stage.addEventListener("pointerdown",e=>{
   if(!started||!modal.hidden||e.button!==0||press)return;
+  if(surveyMode){
+    if(!viewDrag){
+      e.target.setPointerCapture?.(e.pointerId);
+      viewDrag={id:e.pointerId,x:e.clientX,y:e.clientY};
+    }
+    return;
+  }
   e.target.setPointerCapture?.(e.pointerId);
   if(e.pointerType==="mouse"&&state.phase==="fight"){
     heldAttack=e.pointerId;state.input("attack");return;
@@ -398,6 +447,11 @@ stage.addEventListener("pointerdown",e=>{
   destination=null;
 });
 stage.addEventListener("pointermove",e=>{
+  if(viewDrag?.id===e.pointerId){
+    currentScene.world3d.orbit(e.clientX-viewDrag.x,e.clientY-viewDrag.y);
+    viewDrag.x=e.clientX;viewDrag.y=e.clientY;
+    return;
+  }
   if(press?.id!==e.pointerId||press.mouse)return;
   const x=e.clientX-press.x,y=e.clientY-press.y,length=Math.hypot(x,y);
   press.moved ||= length>6;
@@ -411,6 +465,7 @@ stage.addEventListener("pointermove",e=>{
   stick.hidden=false;
 });
 function release(e){
+  if(viewDrag?.id===e.pointerId){viewDrag=null;return;}
   if(heldAttack===e.pointerId)heldAttack=null;
   if(press?.id!==e.pointerId)return;
   if(e.type==="pointerup"&&!press.moved&&modal.hidden){
@@ -476,8 +531,20 @@ class ShoreScene extends Phaser.Scene{
     $("boot-status").textContent=innerWidth<690?"單手觸控可玩 · 點一下開始":"鍵盤與滑鼠 · 亦支援手機觸控";
     this.scale.on("resize",size=>{
       if(state)state.resize(size.width);
+      if(this.world3d)this.world3d.width=0;
       this.placeBackdrop(state?.location||"village");
     });
+    this.loadWorld();
+  }
+  async loadWorld(){
+    try{
+      const {MoonlightWorld}=await import("./world3d.mjs?v=moonlight");
+      this.world3d=MoonlightWorld.create(stage,this.game.canvas,
+        key=>this.textures.get(key).getSourceImage(),shoreLights,applyGraphics);
+      applyGraphics();
+    }catch(error){
+      console.warn("立體畫面載入失敗",error);
+    }
   }
   placeBackdrop(place){
     const id=areaArt(place);
@@ -492,7 +559,11 @@ class ShoreScene extends Phaser.Scene{
     if(!started||!state)return;
     const dt=Math.min(.066,delta/1000);
     this.visualTime=(this.visualTime||0)+dt;
-    if(modal.hidden){
+    if(surveyMode){
+      const {x,y}=intent();
+      this.world3d.orbit(x*dt*143,y*dt*143);
+    }
+    if(modal.hidden&&!surveyMode){
       state.intent=intent();
       this.timeLeft=Math.min(.09,(this.timeLeft||0)+dt);
       while(this.timeLeft>=1/60){
@@ -504,7 +575,15 @@ class ShoreScene extends Phaser.Scene{
     }else this.timeLeft=0;
     uiTimer-=dt;
     if(uiTimer<=0){uiTimer=.065;hud();}
-    this.paint();
+    try{
+      this.paint(dt);
+    }catch(error){
+      if(!this.world3d?.active)throw error;
+      console.warn("立體畫面已切換至省電模式",error);
+      this.world3d.setActive(false);
+      setSurvey(false);hud();
+      this.paint(dt);
+    }
   }
   sprite(index){
     if(!this.actorSprites[index])this.actorSprites[index]=this.add.sprite(0,0,"cast",0).setOrigin(.5,.88);
@@ -523,29 +602,47 @@ class ShoreScene extends Phaser.Scene{
     const jump=actor.walking&&!hero?Math.sin(b.clock*20+actor.x*.05)*3:0;
     const hit=actor.hit>0;
     const tilt=actor.warning?-.11*(1-actor.warning.left/actor.warning.total):actor.recoil>0?.11:0;
+    const width=size*factor*(hit?1.08:1);
+    const height=size*factor*(1+pulse)*(hit?.95:1);
+    const alpha=hero&&actor.invulnerable>.30&&Math.floor(b.clock*22)%2===1?.51:1;
+    if(this.world3d?.active){
+      sprite.setVisible(false);
+      this.world3d.actor(actor.x,actor.y+jump,frame,width,height,sheet,face,tilt,hit,alpha,hero&&(actor.attack||actor.dash)?1:.28);
+      return;
+    }
     this.shadow(actor.x,actor.y,size*factor);
     if(sprite.texture.key!==sheet)sprite.setTexture(sheet,frame);
     else sprite.setFrame(frame);
     sprite.setVisible(true).setPosition(actor.x,actor.y+jump).setDepth(10+actor.y*.02);
-    sprite.setDisplaySize(size*factor*(hit?1.08:1),size*factor*(1+pulse)*(hit?.95:1));
+    sprite.setDisplaySize(width,height);
     sprite.setFlipX(face).setRotation(tilt);
     if(hit)sprite.setTint(0xfff3df).setTintMode(Phaser.TintModes.FILL);else sprite.clearTint();
-    sprite.setAlpha(hero&&actor.invulnerable>.30&&Math.floor(b.clock*22)%2===1?.51:1);
+    sprite.setAlpha(alpha);
   }
-  paint(){
+  paint(dt){
     const b=state,p=b.player,g=this.ground,front=this.front,t=b.clock;
+    const world=this.world3d?.active?this.world3d:null;
+    this.background.setVisible(!world);
     g.clear();front.clear();
-    this.cinema.prepare(b,this.visualTime||0);
     const shake=reducedMotion.matches?0:b.shake;
-    this.cameras.main.setScroll(Math.sin(performance.now()*.066)*shake,Math.cos(performance.now()*.071)*shake*.65);
-    for(let i=0;i<30;i++){
+    const sx=Math.sin(performance.now()*.066)*shake,sy=Math.cos(performance.now()*.071)*shake*.65;
+    this.cameras.main.setScroll(sx,sy);
+    this.cinema.prepare(b,this.visualTime||0,Boolean(world));
+    if(world){
+      world.begin(b,areaArt(b.location),this.visualTime,sx,sy,reducedMotion.matches,surveyMode,dt,b.enemies.find(e=>e.hp>0&&isBoss(e)));
+      for(const sprite of this.cinema.villageArt){
+        if(sprite.visible)world.actor(sprite.x,sprite.y+sprite.displayHeight*.10,Number(sprite.frame.name),sprite.displayWidth,
+          sprite.displayHeight,"village-props",false,0,false,1,0,false);
+      }
+    }
+    for(let i=0;i<(world?0:30);i++){
       const age=(t*(.105+i%5*.018)+i*.113)%1;
       const x=b.width*(.05+(i*.193)% .90)+Math.sin(t*.62+i*1.6)*13;
       const y=b.height*(.29+(i%6)*.104)-age*(18+(i%5)*11);
       const color=b.location==="village"?0xf9d589:0x99ecde;
       g.fillStyle(color,Math.sin(age*Math.PI)*(i%4===0?.54:.24)).fillCircle(x,y,1+i%3*.66);
     }
-    if(b.location==="village"){
+    if(b.location==="village"&&!world){
       const glow=.16+Math.sin(t*5)*.045+village.lamp*.085;
       for(let i=0;i<4;i++)g.fillStyle(0x6dd8c8,glow*(1-i/4)*.28).fillEllipse(b.width*.5,b.height*.28,36+i*29,13+i*8);
     }
@@ -572,9 +669,9 @@ class ShoreScene extends Phaser.Scene{
     for(let i=count;i<this.actorSprites.length;i++)this.actorSprites[i].setVisible(false);
     const frame=p.dash?11:p.attack?.fired?3:p.walking?1+Math.floor(t*11)%2:0;
     this.paintSprite(this.playerSprite,p,frame,90,true);
-    front.fillStyle(0xc3f7dd,.80).fillTriangle(p.x,p.y+13,p.x+4,p.y+17,p.x-4,p.y+17);
+    if(!surveyMode)front.fillStyle(0xc3f7dd,.80).fillTriangle(p.x,p.y+13,p.x+4,p.y+17,p.x-4,p.y+17);
     for(const bolt of b.bolts)this.cinema.bolt(front,bolt,t);
-    for(const particle of b.particles){
+    for(const particle of world?[]:b.particles){
       const alpha=clamp(particle.left/particle.life,0,1);
       if(particle.dust)front.fillStyle(particle.color,alpha*.32).fillEllipse(particle.x,particle.y,particle.size*1.8,particle.size*.8);
       else{
@@ -583,9 +680,11 @@ class ShoreScene extends Phaser.Scene{
       }
     }
     for(const effect of b.effects){
+      if(world&&effect.kind==="slash")continue;
       if(!this.cinema.effect(front,effect))this.paintEffect(effect);
     }
     this.cinema.finish(b);
+    if(world)world.end();
   }
   paintWarning(w){
     const g=this.ground,progress=clamp(1-w.left/w.total,0,1);
@@ -636,7 +735,7 @@ class ShoreScene extends Phaser.Scene{
 }
 const engine=new Phaser.Game({
   type:Phaser.AUTO,parent:"stage",width:viewportWidth(),height:worldHeight,
-  backgroundColor:"#171b2b",transparent:false,
+  transparent:true,
   scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},
   render:{antialias:true,powerPreference:"high-performance"},
   input:{mouse:false,touch:false,keyboard:false},

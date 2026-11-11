@@ -6,13 +6,13 @@
 <meta name="theme-color" content="#0f1420">
 <meta name="description" content="四章手繪動作 Roguelike。跟住最後一盞潮燈闖入地城、救回村民，揭開以壽命換糧的契約。">
 <title>貓貓啟示錄｜最後一盞潮燈</title>
-<link rel="stylesheet" href="./game.css?v=black-moon-ui">
+<link rel="stylesheet" href="./game.css?v=moonlight">
 <script src="./phaser.min.js" defer></script>
 <script src="./sound.js?v=black-moon" defer></script>
 <script src="./campaign.js?v=black-moon" defer></script>
 <script src="./rules.js?v=black-moon" defer></script>
-<script src="./cinema.js?v=black-moon" defer></script>
-<script src="./game.js?v=black-moon" defer></script>
+<script src="./cinema.js?v=moonlight" defer></script>
+<script src="./game.js?v=moonlight" defer></script>
 </head>
 <body>
 <main id="game">
@@ -31,11 +31,12 @@
   </section>
   <div id="hud" hidden>
     <div class="vitals"><div id="hearts" aria-label="生命"></div><div id="fervor" aria-label="潮力" hidden></div><div id="room-name"></div></div>
-    <div class="top-right"><span id="counter" aria-label="潮火"></span><button id="pause" type="button" aria-label="暫停">Ⅱ</button></div>
+    <div class="top-right"><span id="counter" aria-label="潮火"></span><button id="survey" type="button" aria-label="巡景鏡頭" aria-pressed="false" hidden>巡景</button><button id="pause" type="button" aria-label="暫停">Ⅱ</button></div>
   </div>
   <div id="village-stats" aria-label="村落狀態" hidden></div>
   <div id="toast" role="status" aria-live="polite" hidden></div>
   <div id="arrival" aria-hidden="true"></div>
+  <div id="survey-guide" role="status" hidden>拖動環視潮燈村 <span>·</span> 再點巡景返回</div>
   <div id="stations" hidden></div>
   <div id="stick" aria-hidden="true" hidden><i></i></div>
   <div id="boss-meter" hidden><span id="boss-name"></span><i><b id="boss-fill"></b></i></div>

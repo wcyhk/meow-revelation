@@ -243,3 +243,15 @@ h1{font:950 clamp(3rem,7.3vw,7.4rem)/1.04 var(--serif);color:#fff0d6;letter-spac
   .chapter-card b{font-size:1.04rem}
   #controls button[data-input=flask]{width:49px}
 }
+
+#stage{isolation:isolate}
+#stage canvas:not(.moonlight-canvas){position:relative;z-index:1}
+#stage canvas.moonlight-canvas{position:absolute;z-index:0;pointer-events:none}
+#stage.moonlight-live:after{z-index:2;box-shadow:inset 0 0 clamp(28px,7vw,130px) #0c0d1c55;background:linear-gradient(180deg,#090d1a3d,transparent 19%,transparent 77%,#0d101b4f)}
+#survey{min-width:44px;padding:0 8px;background:#18252be8;color:#c8eee0;border-color:#88ab9a;font-size:.74rem;touch-action:none}
+#survey[aria-pressed=true]{background:#3d5d55;color:#fff0c9;border-color:#f9d29f}
+#survey-guide{position:absolute;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;padding:9px 16px;background:#171b2ce8;border:1px solid #aeaa91;border-radius:7px;color:#ffe6bc;text-align:center;white-space:nowrap;pointer-events:none;font-size:.82rem}
+#survey-guide span{padding:0 5px;color:#9dd8cc}
+.surveying #stations,.surveying #village-stats,.surveying #toast{display:none}
+.surveying #stage,.surveying #stage canvas{cursor:grab}
+.surveying #stage:active,.surveying #stage canvas:active{cursor:grabbing}

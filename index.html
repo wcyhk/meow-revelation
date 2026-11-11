@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1420">
+<meta name="description" content="黑貓與潮燈的手繪動作 Roguelike。探索潮汐地城，救回貓村的居民。">
+<title>喵喵啟示錄｜最後一盞潮燈</title>
+<link rel="stylesheet" href="./game.css?v=1">
+<script src="./phaser.min.js" defer></script>
+<script src="./sound.js?v=1" defer></script>
+<script src="./rules.js?v=1" defer></script>
+<script src="./game.js?v=1" defer></script>
+</head>
+<body>
+<main id="game">
+  <div id="stage" aria-label="遊戲場景"></div>
+  <section id="title">
+    <div class="cover" aria-hidden="true"></div>
+    <div class="title-copy">
+      <p class="edition">NINE TIDES</p>
+      <h1>喵喵啟示錄</h1>
+      <p class="subtitle">最後一盞潮燈</p>
+      <p class="premise">霧吞沒了村落，潮燈也一盞盞熄滅。帶上鐮刀，到海床下尋回失蹤的貓。</p>
+      <button type="button" id="start" class="primary" disabled>點燃潮燈 <span>›</span></button>
+      <p class="start-controls" id="boot-status" role="status">正在載入海霧…</p>
+    </div>
+  </section>
+  <div id="hud" hidden>
+    <div class="vitals"><div id="hearts" aria-label="生命"></div><div id="room-name"></div></div>
+    <div class="top-right"><span id="counter" aria-label="潮火"></span><button id="pause" type="button" aria-label="暫停">Ⅱ</button></div>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <div id="arrival" aria-hidden="true"></div>
+  <div id="stations" hidden></div>
+  <div id="stick" aria-hidden="true" hidden><i></i></div>
+  <div id="boss-meter" hidden><span>食燈者</span><i><b id="boss-fill"></b></i></div>
+  <div id="controls" hidden>
+    <button data-input="cast" type="button" aria-label="潮刃"><i>✧</i><span>潮刃</span><kbd>Q</kbd></button>
+    <button data-input="dash" type="button" aria-label="翻滾"><i>↗</i><span>翻滾</span><kbd>空白</kbd></button>
+    <button data-input="attack" type="button" aria-label="鐮刀攻擊"><i>☽</i><span>鐮刀</span><kbd>左鍵</kbd></button>
+  </div>
+  <div id="modal" hidden></div>
+</main>
+<noscript>請啟用 JavaScript 以遊玩《喵喵啟示錄》。</noscript>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1119">
+<meta name="description" content="《貓貓啟示錄》潮燈祀殿頭目戰試玩。">
+<title>潮燈祀殿 · 貓貓啟示錄</title>
+<link rel="stylesheet" href="./hall.css?v=1">
+<script type="module" src="./hall-game.mjs?v=1"></script>
+</head>
+<body>
+<main id="game" data-phase="menu">
+  <div id="view" aria-label="潮燈祀殿戰場"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div id="bars" aria-hidden="true"></div>
+  <header id="cover">
+    <p>貓貓啟示錄</p>
+    <h1>潮燈祀殿</h1>
+    <button id="begin" disabled>進入祀殿</button>
+    <div class="cover-links"><a href="../">返回主線</a><button id="audio" aria-pressed="true">聲音開啟</button></div>
+  </header>
+  <p id="loading" role="status">正在點亮潮燈</p>
+  <button id="skip" hidden>略過過場 <kbd>Enter</kbd></button>
+  <div id="hud" hidden>
+    <div class="player">
+      <div class="crest" aria-hidden="true">✦</div>
+      <div class="gauges">
+        <div class="vital" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="6" aria-valuenow="6"><b id="life"></b></div>
+        <div class="skill" role="meter" aria-label="潮鐘蓄力" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><b id="fervor"></b></div>
+      </div>
+    </div>
+    <button id="lock" aria-pressed="true" aria-label="鎖定頭目" title="鎖定頭目">◇</button>
+    <button id="pause" aria-label="暫停">Ⅱ</button>
+    <div class="tips"><kbd>W A S D</kbd> 移動　<kbd>F</kbd> 普攻　<kbd>Space</kbd> 翻滾　<kbd>E</kbd> 潮鐘　<kbd>Q</kbd> 鎖定　<kbd>R</kbd> 藥湯</div>
+    <div id="reticle" aria-hidden="true"></div>
+    <div id="boss-vital">
+      <strong>持契者 · 黑月</strong>
+      <div class="health" role="meter" aria-label="頭目生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><b id="boss-life"></b></div>
+    </div>
+    <div id="controls" aria-label="戰鬥操作">
+      <button data-action="heal" aria-label="藥湯"><i>♜</i><span id="flasks">3</span><kbd>R</kbd></button>
+      <button data-action="pulse" aria-label="潮鐘"><i>✧</i><span>潮鐘</span><kbd>E</kbd></button>
+      <button data-action="roll" aria-label="翻滾"><i>↗</i><span>翻滾</span><kbd>Space</kbd></button>
+      <button data-action="attack" aria-label="普攻"><i>☽</i><span>普攻</span><kbd>F</kbd></button>
+    </div>
+    <div id="stick" aria-hidden="true" hidden><i></i></div>
+    <p id="cue" role="status" hidden></p>
+  </div>
+  <section id="message" role="dialog" aria-modal="true" aria-labelledby="message-title" hidden>
+    <h2 id="message-title"></h2>
+    <button id="resume">繼續</button>
+    <button id="retry">再戰</button>
+    <a href="../">返回主線</a>
+  </section>
+</main>
+<noscript>請啟用 JavaScript 遊玩。</noscript>
+</body>
+</html>

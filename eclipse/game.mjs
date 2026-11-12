@@ -1,16 +1,17 @@
-import {Scenery} from './scenery.mjs?v=forge-1';
-import {Audio} from './audio.mjs?v=battle-1';
+import {Scenery} from './scenery.mjs?v=impact-1';
+import {Audio} from './audio.mjs?v=impact-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=battle-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=counter-1';
-import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=forge-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=impact-1';
+import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=impact-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
-import {BossArena} from './boss-arena.mjs?v=counter-1';
+import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
+import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=impact-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -35,7 +36,7 @@ function makeHero() {
     x:0,z:7.7,hp:100,maxHp:100,face:1,dx:0,dz:-1,vx:0,vz:0,move:0,
     invulnerable:0,flash:0,atk:0,attackAge:1,slash:null,combo:0,comboLeft:0,
     rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
-    ward:0,surge:0,rush:null,snared:0,
+    ward:0,surge:0,rush:null,snared:0,reaction:null,motion:null,
   };
 }
 
@@ -206,6 +207,7 @@ export class Game {
     h.invulnerable = 1;
     h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = h.snared = 0;
     h.slash = h.rush = null;
+    h.reaction=h.motion=null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
     this.ambientClock=4.1+(stage.room%4)*.47;
@@ -345,6 +347,7 @@ export class Game {
     const unit = {
       kind,spec,x,z,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
       kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,morale:0,
+      guardOpen:0,reaction:null,motion:null,
       visual:this.view.createActor(spec.frame,spec.height),
     };
     if (kind==='boss') this.view.prepareBoss(unit.visual,spec);
@@ -446,6 +449,7 @@ export class Game {
       h.rollZ = movement>.07 ? input.z/movement : h.dz;
       h.slash = null;
       h.attackAge = 1;
+      h.motion=null;
       this.audio.play('roll');
       this.view.spark(h.x,.2,h.z,0xe5b17b,13,.6);
     }
@@ -543,6 +547,7 @@ export class Game {
     h.atk = h.attackPeriod*(h.combo===3?1.34:1);
     h.attackAge = 0;
     h.slash = {dx,dz,delay:this.weapon.delay};
+    heroAction(h,this.weapon,'strike');
     const lunge = this.weapon.id==='tiger' ? .26 : this.weapon.id==='dragon' ? .04 : .12;
     this.moveUnit(h,dx*lunge,dz*lunge,.38);
   }
@@ -554,9 +559,8 @@ export class Game {
     const hits = strikeWith(this,dx,dz);
     this.audio.play('swing');
     if (hits) {
-      this.hitstop = final ? .067 : .034;
-      this.view.shake = final ? .195 : .089;
-      this.audio.play(final?'heavy':'hit');
+      this.hitstop = Math.max(this.hitstop,final?.061:.026);
+      this.view.shake = Math.max(this.view.shake,final?.177:.074);
       if (final) invokeSchool(this,'wind');
     }
   }
@@ -565,6 +569,7 @@ export class Game {
     const h = this.hero;
     h.spellCool = h.spellTime;
     invokeArm(this,input);
+    if (!h.rush) heroAction(h,this.weapon,'cast');
     invokeSchool(this,'fire');
     this.view.shake = Math.max(this.view.shake,.12);
     this.audio.arm(this.weapon.id);
@@ -583,28 +588,46 @@ export class Game {
     });
   }
 
-  hit(unit,amount,origin,knock,tint=this.weapon.tone) {
+  impact(unit,origin,kind,tint) {
+    if (kind==='break'&&unit.attack) {
+      unit.attack.interrupted=true;
+      unit.attack=null;
+      unit.motion=null;
+    }
+    recoil(unit,origin,kind);
+    this.view.impact(unit,origin,kind,tint);
+    const material=unit.spec?.guard?'armor':unit.spec?.effect==='stone'?'stone':'hide';
+    this.audio.impact(kind,material);
+    const shake=kind==='break'?.19:kind==='heavy'?.13:kind==='fall'?.12:0;
+    this.view.shake=Math.max(this.view.shake,shake);
+    if (kind==='break') this.hitstop=Math.max(this.hitstop,.066);
+  }
+
+  hit(unit,amount,origin,knock,tint=this.weapon.tone,weight) {
     if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
     if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
     const boss=unit.kind==='boss';
     if (boss&&this.bossArena?.locked) {
-      this.bossArena.rejectHit();
+      this.bossArena.rejectHit(origin);
       return false;
     }
     const phaseBoundary=boss ? unit.spec.phases[unit.bossPhase]??0 : 0;
     const nextPhaseHp=phaseBoundary*unit.spec.hp;
-    const shield=unit.spec.guard&&unit.attack&&unit.attack.time>unit.spec.time*.34;
+    const shield=unit.spec.guard&&unit.guardOpen<=0&&unit.attack&&unit.attack.time>unit.spec.time*.34;
+    const heavy=weight==='heavy'||(!weight&&(Math.abs(knock)>=1.21||amount>=this.hero.damage*1.44));
     unit.hp -= amount*(unit.exposed>0?1.24:1)*(shield?.73:1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
-    unit.flash = .78;
-    unit.stun = unit.kind==='boss' ? .033 : .14;
+    const kind=unit.hp<=0?'fall':shield?(heavy?'break':'block'):heavy?'heavy':'light';
+    if (kind==='break') {
+      unit.guardOpen=1.48;
+      unit.exposed=Math.max(unit.exposed,1.48);
+    }
+    this.impact(unit,origin,kind,tint);
+    unit.stun = unit.kind==='boss'?.033:kind==='break'?.31:.14;
     if (unit.raider && distance(this.hero,unit)<4.8) unit.lured=1.45;
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
-    this.view.spark(unit.x,unit.spec.height*.47,unit.z,tint,unit.hp<=0?24:10,1.15,
-      unit.hp<=0?unit.spec.effect:'feather');
-    if (knock>0) this.view.contactFx(unit,origin,tint,knock>1.4||unit.hp<=0);
     if (phaseBoundary && unit.hp<=nextPhaseHp) {
       unit.bossPhase++;
       unit.phaseGuard=.91;
@@ -623,7 +646,6 @@ export class Game {
       this.kills++;
       const h = this.hero;
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
-      unit.death = 0;
       this.fallen.push(unit);
       if (boss) this.view.bossCue(unit,'defeat');
       if (unit.kind!=='boss' && (this.kills%4===0 || Math.random()<.10)) this.drop(unit);
@@ -637,24 +659,35 @@ export class Game {
     this.view.spark(unit.x,.38,unit.z,0xffdfa5,12,.74);
   }
 
-  hurt(amount,x,z,attacker) {
+  hurt(amount,x,z,attacker,pattern) {
     const h = this.hero;
     if (h.invulnerable>0 || this.state!=='play') return false;
     const guarded=h.ward>0;
     h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1));
     h.invulnerable = .64;
-    h.flash = .9;
+    const heavy=['cleave','pounce','lance','burst','counterCharge','sweep','arenaBait'].includes(pattern)
+      || amount>=h.maxHp*.15;
+    const origin=Math.hypot(h.x-x,h.z-z)<.18&&attacker ? attacker : {x,z};
+    const kind=h.hp===0?'fall':guarded?'block':heavy?'heavy':'light';
+    this.impact(h,origin,kind,guarded?0x91eee0:0xffad7d);
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
     this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
     h.slash = null;
+    h.motion=null;
     this.bound(h);
-    this.damageFlash = guarded?.25:.78;
-    this.view.shake = .26;
-    this.hitstop = .067;
-    this.audio.play('hurt');
+    this.damageFlash = guarded?.24:heavy?.70:.42;
+    this.hitstop = Math.max(this.hitstop,heavy?.061:.032);
     if (guarded&&this.weapon.id==='turtle') reflectHit(this,attacker);
     if (h.hp>0) invokeSchool(this,'ward',attacker);
-    if (h.hp===0) this.finish(false);
+    if (h.hp===0) {
+      h.rolling=0;
+      h.ward=0;
+      h.move=0;
+      this.state='falling';
+      this.audio.active=false;
+      this.input.reset();
+      this.ui.inspect.hidden=true;
+    }
     return true;
   }
 
@@ -681,7 +714,7 @@ export class Game {
     }
     if (pattern==='summon'&&unit.summons>=2) pattern='prison';
     const time=spec.time*(1-phase*.12);
-    unit.attack={pattern,time,dx,dz};
+    unit.attack={pattern,time,windup:time,dx,dz};
     unit.attack.landing=telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
     if (boss && phase>=1 && index%3===2) {
       const echo=spec.attacks[(index+1)%spec.attacks.length];
@@ -695,6 +728,7 @@ export class Game {
     const attack=unit.attack;
     const boss=unit.kind==='boss';
     unit.attack=null;
+    unit.motion={pattern:attack.pattern,dx:attack.dx,dz:attack.dz,age:0};
     unit.recover=boss?.56-unit.bossPhase*.08:.29;
     unit.cool=(boss?1.16-unit.bossPhase*.19:1.21/this.stage.pace)+random(.12,.45);
     if (attack.pattern==='pounce') {
@@ -709,10 +743,10 @@ export class Game {
       unit.z=z;
       this.view.spark(x,.58,z,unit.spec.tint,18,.86,'void');
     }
+    this.audio.release(attack.pattern,boss);
     if (boss) {
       this.bossArena?.counters.resolveAttack(attack);
       this.view.shake=Math.max(this.view.shake,.13);
-      this.audio.play('heavy');
     }
   }
 
@@ -721,6 +755,8 @@ export class Game {
       if (unit.hp<=0) continue;
       const spec=unit.spec;
       unit.age+=dt;
+      if (unit.motion) unit.motion.age+=dt;
+      unit.guardOpen-=dt;
       unit.flash=Math.max(0,unit.flash-dt*5);
       unit.stun-=dt;
       unit.recover-=dt;
@@ -732,7 +768,10 @@ export class Game {
       if (unit.lured>0) unit.lured-=dt;
       const arena=this.bossArena?.boss===unit?this.bossArena:null;
       if (arena?.counters.stagger>0||arena?.counters.moveCharge(dt)) continue;
+      const lunging=unit.motion?.pattern==='pounce'&&unit.motion.age<.31;
+      const old=lunging?{x:unit.x,z:unit.z}:null;
       this.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
+      if (old) this.view.motion.enemyTrail(old,unit);
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
       if (unit.attack) {
@@ -911,22 +950,28 @@ export class Game {
 
   animateActors(dt) {
     const h=this.hero, t=this.t;
+    advanceReaction(h,dt);
     const isRoll=h.rolling>0;
-    const pose=isRoll?1:h.attackAge<.23?2:h.move>.34&&Math.sin(t*20)>-.35?1:0;
+    const action=heroPose(h);
+    const knockedDown=h.reaction?.kind==='fall';
+    if (knockedDown) this.playLanding(h);
+    const pose=knockedDown?0:isRoll?1:action?2:h.move>.34&&Math.sin(t*20)>-.35?1:0;
     const stride=h.move*Math.sin(t*20);
-    const windup=h.attackAge<.07;
-    this.view.actor(this.heroVisual,h,{
-      frame:pose,poseSize:pose===1?.83:pose===2?1.08:1,face:h.face,
+    const heroFrame={
+      frame:pose,poseSize:pose===1?.83:pose===2?1.08:1,face:action?.face??h.face,
       bob:isRoll? .14 : .055+Math.abs(stride)*.15+Math.sin(t*4.1)*.036,
-      tilt:isRoll?0:(h.attackAge<.23?(windup?.20:-.20)*h.face:stride*.073),
+      tilt:isRoll?0:stride*.073,
       squash:isRoll?.74:1+Math.sin(t*(h.move>.25?20:4.2))*(.03+h.move*.027),
       stretch:isRoll?1.08:1,
       roll:isRoll&&!h.rush?-h.face*(1-h.rolling/h.rollDuration)*TAU:0,
       flash:h.flash,fade:h.invulnerable>0 && !isRoll && Math.sin(t*33)<-.35 ? .74 : 1,
       aura:h.ward>0||h.surge>0?.55:.24,rim:this.weapon.tone,
-    });
+    };
+    this.view.actor(this.heroVisual,h,blendPose(blendPose(heroFrame,action),reactionPose(h)));
     this.view.setWard(h);
     for (const unit of this.enemies) {
+      if (unit.hp<=0) continue;
+      advanceReaction(unit,dt);
       const boss=unit.kind==='boss';
       const shielded=boss&&this.bossArena?.locked;
       const staggered=boss&&this.bossArena?.counters.stagger>0;
@@ -934,33 +979,46 @@ export class Game {
       const oscillation=Math.sin(t* (boss?7:13)+unit.phase);
       const fierce=unit.bossPhase>0;
       const owlDive=unit.spec.frame===6&&(wind>.42||unit.recover>.37);
-      this.view.actor(unit.visual,unit,{
+      const frame={
         frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
         poseSize:owlDive?.84:1,
         bob:Math.abs(oscillation)*unit.move*.14+(unit.spec.float??0)*(1.7+oscillation)+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
-        squash:1+oscillation*(.028+unit.move*.032)-wind*.095,
-        tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
-        warm:wind*.55+(fierce?.42:0),
+        squash:1+oscillation*(.028+unit.move*.032),
+        tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move,
+        warm:fierce?.42:0,
         aura:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
         rim:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
         phase:unit.bossPhase,
-      });
+      };
+      this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
     }
     this.fallen=this.fallen.filter(unit=>{
-      unit.death+=dt;
-      const fade=1-unit.death/.52;
-      if (fade<=0) {
+      advanceReaction(unit,dt);
+      this.playLanding(unit);
+      if (unit.reaction.age>=reactionTime.fall) {
         this.view.removeActor(unit.visual);
         return false;
       }
-      this.view.actor(unit.visual,unit,{frame:unit.spec.frame,face:unit.face,flash:fade*.6,
-        fade,squash:.3+fade*.7,tilt:.43*(1-fade)*unit.face,aura:.03,phase:unit.bossPhase});
+      this.view.actor(unit.visual,unit,blendPose({frame:unit.spec.frame,face:unit.face,flash:0,
+        fade:1,squash:1,tilt:0,bob:0,aura:.03,phase:unit.bossPhase},reactionPose(unit)));
       return true;
     });
     for (const item of this.pickups) this.view.actor(item.visual,item,{frame:8,bob:.34+Math.sin(t*4.4)*.15,aura:.55,rim:0xffbf78});
   }
 
+  playLanding(unit) {
+    const reaction=unit.reaction;
+    if (reaction.age<.32||reaction.landed) return;
+    reaction.landed=true;
+    this.view.fallDust(unit);
+  }
+
   step(dt,input) {
+    if (this.state==='falling') {
+      this.animateActors(dt);
+      if (this.hero.reaction.age>=reactionTime.fall) this.finish(false);
+      return;
+    }
     this.buffered.dodge = input.dodge ? .39 : this.buffered.dodge-dt;
     this.buffered.spell = input.spell ? .35 : this.buffered.spell-dt;
     this.buffered.strike = input.strike ? .23 : this.buffered.strike-dt;
@@ -977,8 +1035,10 @@ export class Game {
     this.bossArena?.tick(dt);
     this.updateHazards(dt);
     if (this.state==='play'&&!this.discovery&&this.enemies.length) invokeSchool(this,'thunder');
-    this.updatePickups(dt);
-    if (this.state==='play') this.updateFlow(dt);
+    if (this.state==='play') {
+      this.updatePickups(dt);
+      this.updateFlow(dt);
+    }
     this.animateActors(dt);
   }
 
@@ -1033,8 +1093,8 @@ export class Game {
     this.previousTime=now;
     if (!this.hero || document.hidden) return;
     const freezeWarnings=this.hitstop>0;
-    if (this.state==='play') {
-      this.step(dt,this.input.read());
+    if (this.state==='play'||this.state==='falling') {
+      this.step(dt,this.state==='play'?this.input.read():null);
       this.damageFlash=Math.max(0,this.damageFlash-dt*1.74);
       this.announceLeft-=dt;
       if (this.announceLeft<=0) this.ui.announce.classList.remove('visible');
@@ -1045,7 +1105,7 @@ export class Game {
       this.renderUI();
       this.audio.update();
     }
-    this.view.render(dt,this.hero,this.state!=='play',freezeWarnings);
+    this.view.render(dt,this.hero,this.state!=='play'&&this.state!=='falling',freezeWarnings&&this.state==='play');
     this.updateMissionPins();
   }
 

@@ -117,7 +117,7 @@ export class BossCounters {
     const length=Math.min(10.7,gap+1.6), delay=1.06;
     const center=pointAt(boss,dx,dz,length*.5);
     const phase=arena.phase;
-    const attack={pattern:'counterCharge',time:delay,dx,dz,length};
+    const attack={pattern:'counterCharge',time:delay,windup:delay,dx,dz,length};
     boss.attack=attack;
     this.ready=7.3;
     this.chargeHint=delay;
@@ -174,7 +174,7 @@ export class BossCounters {
     charge.left-=traveled;
     const heroDistance=contact(start,dx,dz,traveled,game.hero,.76);
     if (!charge.hitHero&&heroDistance<=traveled) {
-      charge.hitHero=game.hurt(boss.spec.hurt*.88,start.x,start.z,boss);
+      charge.hitHero=game.hurt(boss.spec.hurt*.88,start.x,start.z,boss,'counterCharge');
     }
     if (game.state!=='play'||this.charge!==charge||boss.hp<=0) return true;
     if (anchor) {

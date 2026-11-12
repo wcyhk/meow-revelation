@@ -8,6 +8,7 @@ export class Audio {
     this.step = 0;
     this.danger = false;
     this.dread = 0;
+    this.lastImpact = Object.create(null);
   }
 
   async start() {
@@ -22,7 +23,7 @@ export class Audio {
     const limiter = context.createDynamicsCompressor();
     master.gain.value = this.muted ? 0 : .43;
     master.connect(limiter).connect(context.destination);
-    this.noise = context.createBuffer(1, context.sampleRate * .19, context.sampleRate);
+    this.noise = context.createBuffer(1, Math.ceil(context.sampleRate * .32), context.sampleRate);
     const data = this.noise.getChannelData(0);
     for (let index=0; index<data.length; index++) data[index] = Math.random() * 2 - 1;
     await context.resume();
@@ -97,6 +98,51 @@ export class Audio {
         [392,493.9,587.3,784].forEach((f,index) => this.note(f,f,now+.09*index,.66,.07,'triangle',.018));
         break;
     }
+  }
+
+  impact(kind,material='hide') {
+    if (!this.context||this.muted) return;
+    const now=this.context.currentTime;
+    const quiet=kind==='light'?.059:kind==='fall'?.076:.11;
+    if (now-(this.lastImpact[kind]??-1)<quiet) return;
+    this.lastImpact[kind]=now;
+    const plated=material==='armor';
+    const stone=material==='stone';
+    if (kind==='light') {
+      this.rasp(now,.062,.19,plated?1890:stone?1090:750);
+      this.note(plated?302:118,plated?139:64,now,.095,.15,'triangle',.004);
+    } else if (kind==='heavy') {
+      this.note(105,31,now,.255,.31,'triangle',.007);
+      this.rasp(now,.122,.25,plated?1430:565);
+      this.rasp(now+.031,.158,.13,410);
+    } else if (kind==='block') {
+      this.note(622,257,now,.145,.15,'triangle',.004);
+      this.note(1105,516,now+.014,.107,.083,'sine',.004);
+      this.rasp(now,.043,.15,2530);
+    } else if (kind==='break') {
+      this.rasp(now,.13,.26,2870);
+      for (const [offset,high,low] of [[0,1190,492],[.036,1905,652],[.073,765,223]]) {
+        this.note(high,low,now+offset,.24,.124,'triangle',.005);
+      }
+      this.note(94,33,now+.045,.24,.24,'sine',.008);
+    } else if (kind==='fall') {
+      this.note(91,35,now,.16,.18,'triangle',.007);
+      this.rasp(now+.19,.20,.17,stone||plated?720:400);
+      this.note(stone||plated?93:72,24,now+.30,.28,.30,'triangle',.008);
+    }
+  }
+
+  release(pattern,boss) {
+    if (!this.context||this.muted) return;
+    const now=this.context.currentTime;
+    const level=boss?1:.58;
+    if (['cleave','sweep','lance','pounce','counterCharge'].includes(pattern)) {
+      this.rasp(now,.11,.18*level,pattern==='pounce'?950:1750);
+      if (boss) this.note(153,60,now,.115,.14,'triangle',.008);
+    } else if (['burst','roots','cinders','seal','arenaBait'].includes(pattern)) {
+      this.note(106,37,now,.20,.20*level,'triangle',.007);
+      this.rasp(now,.14,.14*level,660);
+    } else if (boss) this.note(233,97,now,.16,.092,'triangle',.012);
   }
 
   arm(id) {

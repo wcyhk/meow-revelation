@@ -17,17 +17,19 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
   const source={x:origin.x,z:origin.z};
   const aim={x:target.x,z:target.z};
   const bossPhase=boss?phase:undefined;
+  const windup=owner?.attack;
+  const active=windup?()=>!windup.interrupted&&owner.hp>0:undefined;
   const zone=(kind,center,size,wait=delay,width=0,angle=0,residue=null)=>{
-    const hazard={kind,...center,radius:size,width,angle,delay:wait,damage,owner,tint,pattern,effect,residue,source,aim,bossPhase};
+    const hazard={kind,...center,radius:size,width,angle,delay:wait,damage,owner,tint,pattern,effect,residue,source,aim,bossPhase,windup};
     game.hazards.push(hazard);
-    game.view.warning(kind,center.x,center.z,size,wait,-angle,width,tint);
-    if (pattern==='icicles') game.view.fallingShard(center.x,center.z,size,wait,tint);
+    game.view.warning(kind,center.x,center.z,size,wait,-angle,width,tint,active);
+    if (pattern==='icicles') game.view.fallingShard(center.x,center.z,size,wait,tint,active);
   };
   const ring=(center,outer,band,wait)=>zone('ring',center,outer,wait,band);
   const line=(center,length,width,angle,wait)=>zone('line',center,length,wait,width,angle);
   const circle=(center,size,wait)=>zone('circle',center,size,wait);
   const rays=(center,angles,speed,wait,returning=false)=>{
-    game.hazards.push({kind:'release',...center,angles,speed,delay:wait,damage,owner,tint,pattern,effect,returning,bossPhase});
+    game.hazards.push({kind:'release',...center,angles,speed,delay:wait,damage,owner,tint,pattern,effect,returning,bossPhase,windup});
   };
   const around=(center,angle,length)=>({x:center.x+Math.cos(angle)*length,z:center.z+Math.sin(angle)*length});
   switch (pattern) {
@@ -88,7 +90,7 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
       break;
     case 'summon':
       circle(source,1.40,delay);
-      if (owner?.summons<2) game.hazards.push({kind:'summon',...source,delay,owner,tint});
+      if (owner?.summons<2) game.hazards.push({kind:'summon',...source,delay,owner,tint,windup});
       break;
     case 'cleave':
       zone('cone',source,boss?5.6:3.6,delay,boss?1.00:.73,bearing);
@@ -114,8 +116,8 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
       if (boss) zone('circle',around(aim,stageBearing,3.38),2.20,delay+.44,0,0,'snare');
       break;
     case 'rally':
-      game.hazards.push({kind:'rally',...source,delay,owner,tint,effect,radius:boss?6.1:4.0});
-      game.view.warning('aura',source.x,source.z,boss?6.1:4.0,delay,0,0,tint);
+      game.hazards.push({kind:'rally',...source,delay,owner,tint,effect,radius:boss?6.1:4.0,windup});
+      game.view.warning('aura',source.x,source.z,boss?6.1:4.0,delay,0,0,tint,active);
       if (boss) circle(aim,1.55,delay+.35);
       break;
     case 'feathers': {
@@ -190,6 +192,7 @@ export function advanceThreats(game,dt) {
   for (const hazard of queued) {
     hazard.delay-=dt;
     if (hazard.tactic&&(hazard.owner.hp<=0||hazard.encounter.phase!==hazard.arenaPhase)) continue;
+    if (hazard.windup?.interrupted&&hazard.kind!=='projectile'&&hazard.kind!=='residue') continue;
     if (hazard.kind==='projectile') {
       if (hazard.returning && !hazard.reversed && hazard.delay<1.65) {
         hazard.reversed=true;
@@ -202,7 +205,7 @@ export function advanceThreats(game,dt) {
       const blocked=game.isBlocked(hazard,.17);
       if (blocked&&hazard.delay>0) counters?.projectileBlocked(hazard);
       if (hazard.delay<=0 || Math.abs(hazard.x)>12 || hazard.z<-8.5 || hazard.z>12 || blocked
-        || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner))
+        || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner,hazard.pattern))
         || (lantern && hazard.owner?.raider && distance(lantern,hazard)<.74 && game.mission.hurtLantern(hazard.damage))) {
         view.removeProjectile(hazard.visual);
       } else game.hazards.push(hazard);
@@ -256,7 +259,7 @@ export function advanceThreats(game,dt) {
     if (hazard.arena) hazard.arena.resolve(hazard);
     const caughtByPillar=counters?.impact(hazard);
     if (!caughtByPillar&&withinThreat(hero,hazard)) {
-      const struck=game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
+      const struck=game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner,hazard.pattern);
       if (struck && hazard.pattern==='icicles') hero.snared=1.08;
     }
     if (lantern && hazard.owner?.raider && withinThreat(lantern,hazard)) game.mission.hurtLantern(hazard.damage);

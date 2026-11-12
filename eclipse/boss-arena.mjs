@@ -1,8 +1,8 @@
 import {arenaTerrain} from './arena-layouts.mjs?v=arena-1';
-import {withinThreat} from './threats.mjs?v=counter-1';
+import {withinThreat} from './threats.mjs?v=impact-1';
 import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
-import {BossCounters} from './boss-counters.mjs?v=counter-1';
+import {BossCounters} from './boss-counters.mjs?v=impact-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const interaction = {
@@ -90,11 +90,9 @@ export class BossArena {
     return true;
   }
 
-  rejectHit() {
+  rejectHit(origin) {
     if (this.shieldCue>0) return;
-    const {view,audio}=this.game;
-    view.spark(this.boss.x,1.55,this.boss.z,this.terrain.ink,10,.66,'gold');
-    audio.play('warning');
+    this.game.impact(this.boss,origin,'block',this.terrain.ink);
     this.shieldCue=.46;
   }
 
@@ -121,7 +119,7 @@ export class BossArena {
     this.boss.recover=Math.max(this.boss.recover,.63);
     view.bolt({x:point.x,y:.62,z:point.z},{x:this.boss.x,y:1.68,z:this.boss.z},this.terrain.ink,2.3);
     view.shock(this.boss.x,this.boss.z,this.terrain.ink,3.1,1.08);
-    audio.play('heavy');
+    this.game.impact(this.boss,point,'break',this.terrain.ink);
     this.game.announce(this.boss.spec.name,'護盾破裂','弱點暴露，趁機進攻。',1.5);
     this.game.objective('擊敗 '+this.boss.spec.name);
   }

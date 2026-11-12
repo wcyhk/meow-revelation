@@ -34,6 +34,7 @@ export function strikeWith(game,dx,dz) {
   const targets=active(game);
   const reach=h.reach+(finish?.4:0);
   const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1);
+  const land=(unit,amount,source,knock)=>game.hit(unit,amount,source,knock,arm.tone,finish?'heavy':'light');
   let hits=0;
   if (arm.id==='dragon') {
     const aimPoint={x:h.x+dx*reach*.72,z:h.z+dz*reach*.72};
@@ -42,21 +43,21 @@ export function strikeWith(game,dx,dz) {
     const end=first?point(first,.84):{x:h.x+dx*reach,y:.73,z:h.z+dz*reach};
     view.bolt(point(h,.78),end,arm.tone,finish?1.6:1);
     if (!first) return 0;
-    if (game.hit(first,power,h,.28)) hits++;
+    if (land(first,power,h,.28)) hits++;
     const second=closest(targets.filter(foe=>foe!==first),first,3.45);
     if (second) {
       view.bolt(end,point(second,.65),arm.tone);
-      if (game.hit(second,power*.56,first,.21)) hits++;
+      if (land(second,power*.56,first,.21)) hits++;
     }
   } else if (arm.id==='phoenix') {
     view.wave(h.x,h.z,dx,dz,reach,arm.tone,false,'fire');
     for (const foe of lineTargets(targets,h,dx,dz,reach,.80)) {
-      if (game.hit(foe,power,h,finish?1.15:.42)) hits++;
+      if (land(foe,power,h,finish?1.15:.42)) hits++;
     }
   } else if (arm.id==='qilin') {
     view.thrust(h.x,h.z,dx,dz,reach,arm.tone,finish);
     for (const foe of lineTargets(targets,h,dx,dz,reach,finish?.99:.61)) {
-      if (game.hit(foe,power,h,finish?2.65:.93)) hits++;
+      if (land(foe,power,h,finish?2.65:.93)) hits++;
     }
   } else if (arm.id==='stormbow') {
     const touched=new Set();
@@ -64,7 +65,7 @@ export function strikeWith(game,dx,dz) {
       const x=dx*Math.cos(offset)-dz*Math.sin(offset), z=dx*Math.sin(offset)+dz*Math.cos(offset);
       view.thrust(h.x,h.z,x,z,reach,arm.tone,false);
       for (const enemy of lineTargets(targets,h,x,z,reach,.44)) {
-        if (!touched.has(enemy)&&game.hit(enemy,power,h,.48)) hits++;
+        if (!touched.has(enemy)&&land(enemy,power,h,.48)) hits++;
         touched.add(enemy);
       }
     }
@@ -72,18 +73,18 @@ export function strikeWith(game,dx,dz) {
     view.wave(h.x,h.z,dx,dz,reach,arm.tone,finish,'ice');
     for (const enemy of lineTargets(targets,h,dx,dz,reach,finish?1.08:.68)) {
       enemy.chill=Math.max(enemy.chill,finish?2.5:1.7);
-      if (game.hit(enemy,power,h,.55)) hits++;
+      if (land(enemy,power,h,.55)) hits++;
     }
   } else if (arm.id==='chakra') {
     const source={x:h.x,z:h.z};
     view.spinningDisk(source.x,source.z,dx,dz,reach,arm.tone);
     for (const enemy of lineTargets(targets,source,dx,dz,reach,.7)) {
-      if (game.hit(enemy,power,source,.38)) hits++;
+      if (land(enemy,power,source,.38)) hits++;
     }
     game.schedule(.38,()=>{
       const end={x:source.x+dx*reach,z:source.z+dz*reach};
       view.spinningDisk(end.x,end.z,-dx,-dz,reach,arm.tone);
-      for (const enemy of lineTargets(active(game),end,-dx,-dz,reach,.73)) game.hit(enemy,power*.72,end,.44);
+      for (const enemy of lineTargets(active(game),end,-dx,-dz,reach,.73)) land(enemy,power*.72,end,.44);
     });
   } else {
     view.slash(h.x,h.z,dx,dz,arm.tone,reach,finish);
@@ -97,13 +98,13 @@ export function strikeWith(game,dx,dz) {
       const sweepsAll=(arm.id==='tiger'||wide)&&finish;
       if (d>reach+margin || (!sweepsAll && d>1.02 && facing<(wide?-.17:finish?-.16:.12))) continue;
       if (arm.id==='turtle') foe.chill=Math.max(foe.chill,finish?2.2:1.55);
-      if (game.hit(foe,power,h,finish?(wide?2.75:1.6):.88)) {
+      if (land(foe,power,h,finish?(wide?2.75:1.6):.88)) {
         hits++;
         if (finish&&arm.id==='flameblade') {
           const center={x:foe.x,z:foe.z};
           game.schedule(.18,()=>{
             view.threatImpact({...center,kind:'circle',radius:1.45,tint:arm.tone,effect:'fire',pattern:'burst'});
-            for (const enemy of active(game)) if (distance(enemy,center)<1.57) game.hit(enemy,power*.35,center,.53);
+            for (const enemy of active(game)) if (distance(enemy,center)<1.57) land(enemy,power*.35,center,.53);
           });
         }
       }

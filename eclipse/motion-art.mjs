@@ -45,6 +45,27 @@ function jetRibbon() {
   });
 }
 
+function cleaveRibbon(halfAngle) {
+  return ribbon(34,(u,v)=>{
+    const angle=(u*2-1)*halfAngle;
+    const blade=Math.sin(u*PI)**.64;
+    const radius=.82+v*.18*blade;
+    return [Math.cos(angle)*radius,.14*Math.sin(PI*u)+v*.048,Math.sin(angle)*radius];
+  });
+}
+
+function shieldFragments() {
+  const vertices=[];
+  for (let index=0;index<12;index++) {
+    const angle=index*TAU/12,reach=.32+(index%4)*.09;
+    const x=Math.cos(angle)*reach,y=Math.sin(angle)*reach;
+    const skew=.047+(index%3)*.021;
+    vertices.push(x,y,0,x+Math.cos(angle+.61)*skew,y+Math.sin(angle+.61)*skew,.011,
+      x+Math.cos(angle)*skew*2.7,y+Math.sin(angle)*skew*2.7,.024);
+  }
+  return new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+}
+
 function boltRibbon(path,width,positions,uvs,indices) {
   const start=positions.length/3;
   const camera=new T.Vector3(0,.63,.77);
@@ -184,6 +205,9 @@ export class MotionArt {
     this.disk=serratedDisk();
     this.star=flashGeometry();
     this.flame=flameGeometry();
+    this.shards=shieldFragments();
+    this.cleaves=new Map();
+    this.lastEnemyTrail=new WeakMap();
     this.lastTrail=-1;
     this.budget=0;
   }
@@ -246,6 +270,46 @@ export class MotionArt {
     const light=this.view.addEffect(this.star,point,tint,.18,{scale:scale*.63,growth:scale*.69,opacity:.90,fade:true,order:97});
     light.mesh.quaternion.copy(this.view.camera.quaternion);
     light.mesh.rotateZ(.39);
+  }
+
+  impact(point,angle,tint,kind) {
+    if (kind==='break') {
+      const burst=this.view.addEffect(this.shards,point,tint,.48,{scale:.46,growth:1.82,opacity:.93,fade:true,order:98});
+      burst.mesh.quaternion.copy(this.view.camera.quaternion);
+      burst.mesh.rotateZ(angle+.51);
+      this.flash(point,0xe4fcff,1.11);
+    } else if (kind==='heavy'||kind==='fall') {
+      this.flash(point,tint,kind==='fall'?.86:.76);
+      const strike=this.ribbon(this.cut,{...point,y:point.y*.83},tint,.25,
+        {kind:2,scale:.42,angle:-angle,growth:.17,opacity:.65,order:93});
+      strike.stretchZ=.59;
+    } else if (kind==='block') {
+      const flash=this.view.addEffect(this.shards,point,tint,.21,{scale:.50,growth:.25,opacity:.57,fade:true,order:97});
+      flash.mesh.quaternion.copy(this.view.camera.quaternion);
+    }
+  }
+
+  enemyCleave(hazard) {
+    const {x,z,radius,width,angle,tint}=hazard;
+    const key=Math.round(width*100)/100;
+    if (!this.cleaves.has(key)) this.cleaves.set(key,cleaveRibbon(key));
+    const geometry=this.cleaves.get(key);
+    this.ribbon(geometry,{x,y:.42,z},tint,.31,{scale:radius,angle:-angle,opacity:1.07,order:83});
+    if (this.accent()) {
+      this.ribbon(geometry,{x,y:.31,z},tint,.24,{scale:radius*.87,angle:-angle+.12,opacity:.47,order:82});
+    }
+  }
+
+  enemyTrail(from,unit) {
+    if (this.view.time-(this.lastEnemyTrail.get(unit)??-1)<.061
+      ||Math.hypot(unit.x-from.x,unit.z-from.z)<.11||!this.accent()) return;
+    this.lastEnemyTrail.set(unit,this.view.time);
+    const angle=Math.atan2(unit.z-from.z,unit.x-from.x);
+    const size=Math.min(1.15,unit.spec.height*.42);
+    const fx=this.ribbon(this.cut,{x:from.x,y:.32,z:from.z},unit.spec.tint,.23,
+      {kind:2,scale:size,angle:-angle+PI,opacity:.57,order:45});
+    fx.stretchZ=.68;
+    this.view.spark(from.x,.14,from.z,0xbaa086,this.view.mobile?3:5,.45,'stone',angle+PI);
   }
 
   vortex(x,z,radius,tint) {

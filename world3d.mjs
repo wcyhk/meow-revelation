@@ -1,552 +1,329 @@
 import * as T from "./three.min.mjs";
-import { DEPTH, PITCH, lanternX, profileFor, TideSet } from "./world-set.mjs?v=guild";
-import {
-  propFragment, floorFragment, floorVertex, haloFragment, matteFragment, mistFragment,
-  planeVertex, ribbonFragment, shaftFragment, sigilFragment, sparksFragment, sparksVertex,
-} from "./world-light.mjs?v=inkbound";
+import { CharacterStage } from "./character-rig.mjs?v=moonwake";
+import { CourtStage } from "./world-stage.mjs?v=moonwake";
+import { DEPTH } from "./world-set.mjs?v=guild";
+import { haloFragment, planeVertex, ribbonFragment, sparksFragment, sparksVertex } from "./world-light.mjs?v=inkbound";
 
-const SECOND = Math.PI * 2;
-const MAX_POINTS = 420;
-const RIBBON_STEPS = 36;
-const lean = Math.cos(PITCH);
-const bound = (n,min,max) => Math.max(min,Math.min(max,n));
-const uniform = value => ({value});
-const cutoutFragment = `
-  varying vec2 panel;
-  uniform sampler2D atlas;
-  uniform vec4 cell;
-  uniform vec3 rim;
-  uniform float opacity;
-  uniform float hit;
-  void main() {
-    vec4 src = texture2D(atlas, cell.xy + cell.zw * panel);
-    if (src.a < .035) discard;
-    vec3 lit = src.rgb * (.79 + panel.y * .24) + rim * .032;
-    gl_FragColor = vec4(mix(lit, vec3(1., .81, .64), hit), src.a * opacity);
-    #include <colorspace_fragment>
-  }
-`;
+const TAU=Math.PI*2,STEPS=26,MAX_POINTS=240;
+const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+const U=value=>({value});
+const motion=(rate,dt)=>1-Math.exp(-rate*dt);
+const shader=(fragment,tint,alpha,additive)=>new T.ShaderMaterial({
+  uniforms:{tint:U(new T.Color(tint)),strength:U(alpha),time:U(0)},
+  vertexShader:planeVertex,fragmentShader:fragment,
+  transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
+  blending:additive?T.AdditiveBlending:T.NormalBlending,
+});
 
-function colorMaterial(fragment, tint, strength, additive = false) {
-  return new T.ShaderMaterial({
-    uniforms:{tint:uniform(new T.Color(tint)),strength:uniform(strength),time:uniform(0)},
-    vertexShader:planeVertex,fragmentShader:fragment,transparent:true,depthWrite:false,
-    blending:additive?T.AdditiveBlending:T.NormalBlending,
-  });
-}
-
-function seedMotes() {
-  let seed = 17882300;
-  const rand = () => ((seed = (Math.imul(seed,1664525)+1013904223) >>> 0) / 4294967296);
-  return Array.from({length:128}, () => ({
-    x:rand(),y:rand(),phase:rand()*SECOND,speed:.18+rand()*.72,
-    radius:3+rand()*13,warm:rand()<.33,
-  }));
-}
-
-export class MoonlightWorld {
-  static create(host, reference, getImage, palettes, contextChanged) {
-    const canvas = document.createElement("canvas");
-    const options = {alpha:false,antialias:false,powerPreference:"high-performance",depth:true};
-    const context = canvas.getContext("webgl2",options);
-    if(!context)return null;
-    return new MoonlightWorld(canvas,context,options,host,reference,getImage,palettes,contextChanged);
-  }
-  constructor(canvas,context,options,host,reference,getImage,palettes,contextChanged) {
-    this.canvas = canvas;
-    this.host = host;
-    this.reference = reference;
-    this.getImage = getImage;
-    this.palettes = palettes;
-    this.textures = new Map();
-    this.drawn = 0;
-    this.yaw = this.pitch = this.toYaw = this.toPitch = 0;
-    this.active = false;
-    this.lost = false;
-    this.scaleFactor = 1;
-    this.location = "";
-    this.props = [];
-    this.figures = [];
-    this.ribbons = [];
-    this.glyphs = [];
-    this.motes = seedMotes();
-    this.warmPoint = new T.Color(0xffb180);
-    this.coolPoint = new T.Color(0xa7fae9);
-    this.impactPoint = new T.Color();
-    this.particleColor = new T.Color();
-    this.position = new T.Vector3();
-    this.anchor = new T.Vector3();
-    this.target = new T.Vector3();
-    this.canvas.className = "moonlight-canvas";
-    this.canvas.hidden = true;
-    this.canvas.setAttribute("aria-hidden","true");
-    this.renderer = new T.WebGLRenderer({canvas,context,...options});
-    this.renderer.autoClear = false;
-    this.renderer.outputColorSpace = T.SRGBColorSpace;
-    this.renderer.setClearColor(0x121627,1);
-    this.stage = new T.Scene();
-    this.matte = new T.Scene();
-    this.flatCamera = new T.OrthographicCamera(-1,1,1,-1,.05,4);
-    this.flatCamera.position.z = 1;
-    this.camera = new T.OrthographicCamera(-1,1,1,-1,1,2600);
-    this.makeScene();
-    host.prepend(canvas);
-    canvas.addEventListener("webglcontextlost",event=>{
-      event.preventDefault();
-      this.lost = true;
-      this.setActive(false);
-      contextChanged();
-    });
-    canvas.addEventListener("webglcontextrestored",()=>{
-      this.lost = false;
-      this.width = 0;
-      contextChanged();
-    });
-  }
-  image(key) {
-    if(this.textures.has(key))return this.textures.get(key);
-    const source = this.getImage(key);
-    const map = new T.Texture(source);
-    map.colorSpace = T.SRGBColorSpace;
-    if(key==="village-props"){
-      map.generateMipmaps = false;
-      map.minFilter = T.LinearFilter;
-    }else{
-      map.anisotropy = Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
-    }
-    map.needsUpdate = true;
-    this.textures.set(key,map);
-    return map;
-  }
-  makeScene() {
-    this.plane = new T.PlaneGeometry(1,1);
-    this.spriteGeometry = this.plane.clone().translate(0,.38,0);
-    this.common = {
-      matte:uniform(null),crop:uniform(new T.Vector2(1,1)),drift:uniform(new T.Vector2()),
-      cool:uniform(this.coolPoint),warm:uniform(this.warmPoint),time:uniform(0),kind:uniform(0),
+class GroundEffects{
+  constructor(scene){
+    this.scene=scene;
+    this.items=[];
+    this.forms={
+      ring:new T.RingGeometry(.941,1,40).rotateX(-Math.PI/2),
+      fill:new T.CircleGeometry(1,40).rotateX(-Math.PI/2),
+      lane:new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),
     };
-    this.matte.add(new T.Mesh(new T.PlaneGeometry(2,2),new T.ShaderMaterial({
-      uniforms:this.common,vertexShader:planeVertex,fragmentShader:matteFragment,depthTest:false,depthWrite:false,
-    })));
-    this.floorUniforms = {
-      ...this.common,size:uniform(new T.Vector2(1,1)),hero:uniform(new T.Vector2()),
-      keyLight:uniform(new T.Vector2(0,-220)),floorStart:uniform(.35),wet:uniform(.8),
-      flash:uniform(0),flashColor:uniform(this.impactPoint),orbit:uniform(0),economy:uniform(0),
-    };
-    this.floor = new T.Mesh(this.plane,new T.ShaderMaterial({
-      uniforms:this.floorUniforms,vertexShader:floorVertex,fragmentShader:floorFragment,
-      transparent:true,depthWrite:false,
-    }));
-    this.floor.rotation.x = -Math.PI/2;
-    this.floor.renderOrder = -8;
-    this.stage.add(this.floor);
-
-    this.sky = new T.HemisphereLight(0xe2f4fb,0x6b638b,1.65);
-    this.key = new T.DirectionalLight(0xffca9a,2.3);
-    this.key.position.set(-260,425,-135);
-    this.rim = new T.DirectionalLight(0x9ff9ed,1.35);
-    this.rim.position.set(220,165,360);
-    this.lanternLights = [new T.PointLight(0xffb180,4600,160,1.4),new T.PointLight(0xb5fff1,4200,165,1.4)];
-    this.stage.add(this.sky,this.key,this.rim,...this.lanternLights);
-    this.set = new TideSet(this.stage);
-
-    this.mists = Array.from({length:4},(_,i)=>this.panel(mistFragment,0x9fb4cd,i===3?.35:.22,7+i));
-    this.shafts = Array.from({length:3},()=>this.panel(shaftFragment,0xa6efe4,.44,0,true));
-    this.flares = Array.from({length:3},()=>this.panel(haloFragment,0xc9fff4,.88,10,true));
-    this.seal = this.panel(sigilFragment,0xa6efe4,.8,2,true);
-    this.seal.rotation.x = -Math.PI/2;
-    this.seal.scale.set(240,208,1);
-    this.seal.visible = false;
-    this.shadow = colorMaterial(haloFragment,0x050716,.86);
-
-    const geo = new T.BufferGeometry();
-    for(const [name,n] of [["position",3],["tint",3],["radius",1],["alpha",1]]){
-      geo.setAttribute(name,new T.BufferAttribute(new Float32Array(MAX_POINTS*n),n).setUsage(T.DynamicDrawUsage));
-    }
-    this.sparks = new T.Points(geo,new T.ShaderMaterial({
-      uniforms:{pixelScale:uniform(1)},vertexShader:sparksVertex,fragmentShader:sparksFragment,
-      transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-    }));
-    this.sparks.frustumCulled = false;
-    this.sparks.renderOrder = 14;
-    this.stage.add(this.sparks);
   }
-  panel(fragment,color,strength,order,additive=false) {
-    const mesh = new T.Mesh(this.plane,colorMaterial(fragment,color,strength,additive));
-    mesh.renderOrder = order;
-    mesh.frustumCulled = false;
-    this.stage.add(mesh);
+  begin(){this.used=0;}
+  take(form,color,alpha){
+    let mesh=this.items[this.used++];
+    if(!mesh){
+      mesh=new T.Mesh(this.forms[form],new T.MeshBasicMaterial({
+        color,transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
+      }));
+      mesh.renderOrder=3;
+      this.items.push(mesh);this.scene.add(mesh);
+    }
+    mesh.geometry=this.forms[form];
+    mesh.material.color.setHex(color);mesh.material.opacity=alpha;mesh.visible=true;
     return mesh;
   }
-  setActive(active) {
-    this.active = Boolean(active&&!this.lost);
-    this.canvas.hidden = !this.active;
-    this.host.classList.toggle("moonlight-live",this.active);
-    if(!this.active)this.resetOrbit();
+  end(){for(let i=this.used;i<this.items.length;i++)this.items[i].visible=false;}
+}
+
+export class MoonlightWorld{
+  static create(host,reference,getImage,palettes,contextChanged){
+    const canvas=document.createElement("canvas");
+    const options={alpha:false,antialias:false,powerPreference:"high-performance",depth:true};
+    const context=canvas.getContext("webgl2",options);
+    return context?new MoonlightWorld(canvas,context,options,host,reference,getImage,palettes,contextChanged):null;
   }
-  resize(width,height) {
-    if(width===this.width&&height===this.height)return;
-    this.width = width;
-    this.height = height;
-    const outer = this.host.getBoundingClientRect();
-    const reference = this.reference.getBoundingClientRect();
-    const fit = Math.min(outer.width/width,outer.height/height);
-    const pixelsWide = reference.width || width*fit;
-    const pixelsHigh = reference.height || height*fit;
-    const left = reference.width ? reference.left-outer.left : (outer.width-pixelsWide)/2;
-    const top = reference.height ? reference.top-outer.top : (outer.height-pixelsHigh)/2;
-    Object.assign(this.canvas.style,{left:left+"px",top:top+"px",width:pixelsWide+"px",height:pixelsHigh+"px"});
-    this.viewport = {width:pixelsWide,height:pixelsHigh};
-    this.camera.left = -width/2;
-    this.camera.right = width/2;
-    this.camera.top = height/2;
-    this.camera.bottom = -height/2;
-    this.camera.updateProjectionMatrix();
-    this.floor.scale.set(width*1.7,height*2.3,1);
-    this.floorUniforms.size.value.set(width,height);
-    this.set.layout(width);
-    this.updateCrop();
-    this.renderSize();
-  }
-  renderSize() {
-    const {width,height} = this.viewport;
-    const phone = width<650;
-    const base = Math.min(devicePixelRatio||1,phone?1.20:1.55,Math.sqrt(1450000/(width*height)));
-    this.renderer.setPixelRatio(base*this.scaleFactor);
-    this.renderer.setSize(width,height,false);
-    this.sparks.material.uniforms.pixelScale.value = this.renderer.getPixelRatio()*height/this.height;
-  }
-  updateCrop() {
-    if(!this.width||!this.common.matte.value)return;
-    const img = this.common.matte.value.image;
-    const ratio = this.width / this.height;
-    const art = img.width / img.height;
-    const over = 1.065;
-    this.common.crop.value.set(Math.min(1,ratio/art)/over,Math.min(1,art/ratio)/over);
-  }
-  dress(location, artKey) {
-    this.location = location;
-    const palette = this.palettes[location];
-    const design = profileFor(location);
-    this.common.matte.value = this.image(artKey);
-    this.warmPoint.setHex(palette.warm);
-    this.coolPoint.setHex(palette.cool);
-    this.key.color.copy(this.warmPoint);
-    this.rim.color.copy(this.coolPoint);
-    this.lanternLights[0].color.copy(this.warmPoint);
-    this.lanternLights[1].color.copy(this.coolPoint);
-    this.floorUniforms.floorStart.value = design.floor;
-    this.floorUniforms.wet.value = design.wet;
-    this.floorUniforms.kind.value = location==="village"||location==="garden"?.07:design.set==="coast"?.48:.86;
-    this.set.dress(location,palette);
-    this.set.layout(this.width);
-    this.mists.forEach((mesh,i)=>{
-      const tint = mesh.material.uniforms.tint.value.setHex(palette.air);
-      tint.multiplyScalar(i===3?.50:.70);
+  constructor(canvas,context,options,host,reference,getImage,palettes,contextChanged){
+    Object.assign(this,{canvas,host,reference,getImage,palettes});
+    this.renderer=new T.WebGLRenderer({canvas,context,...options});
+    this.renderer.outputColorSpace=T.SRGBColorSpace;
+    this.renderer.toneMapping=T.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure=1.18;
+    this.scene=new T.Scene();
+    this.camera=new T.PerspectiveCamera(49,1,8,3900);
+    this.stage=new CourtStage(this.scene,this.renderer);
+    this.cool=new T.Color(0xa7fae9);this.warm=new T.Color(0xffb180);this.pointColor=new T.Color();
+    this.focus=new T.Vector3();this.desired=new T.Vector3();this.gaze=new T.Vector3();this.hero=new T.Vector3();
+    this.position=new T.Vector3();this.projected=new T.Vector3();this.ray=new T.Vector3();this.screenResult={};
+    this.textures=new Map();this.ribbons=[];this.ground=new GroundEffects(this.scene);
+    this.characters=new CharacterStage(this.scene,new T.PlaneGeometry(1,1),shader(haloFragment,0x060913,.84,false),this.cool,this.warm,DEPTH);
+    this.sparks=this.makeSparks();
+    this.quality=1;this.smooth=false;this.active=false;this.lost=false;
+    this.yaw=0;this.pitch=0;this.width=0;this.location="";
+    canvas.className="moonlight-canvas";canvas.hidden=true;canvas.setAttribute("aria-hidden","true");
+    host.prepend(canvas);
+    canvas.addEventListener("webglcontextlost",event=>{
+      event.preventDefault();this.lost=true;this.setActive(false);contextChanged();
     });
-    this.shafts.forEach((mesh,i)=>mesh.material.uniforms.tint.value.copy(i===0?this.warmPoint:this.coolPoint));
-    this.flares.forEach((mesh,i)=>mesh.material.uniforms.tint.value.copy(i===0?this.warmPoint:this.coolPoint));
-    this.updateCrop();
+    canvas.addEventListener("webglcontextrestored",()=>{
+      this.lost=false;this.width=0;contextChanged();
+    });
   }
-  worldPoint(x,y,height=0,target=this.position) {
-    return target.set(x-this.width*.5,height,(y-this.height*.5+height*lean)/DEPTH);
+  setActive(on){
+    this.active=on&&!this.lost;
+    this.canvas.hidden=!this.active;
+    this.host.classList.toggle("moonlight-live",this.active);
+    this.host.closest("#game")?.classList.toggle("moonlight-live",this.active);
   }
-  orbit(dx,dy) {
-    this.toYaw = bound(this.toYaw-dx*.0058,-.47,.47);
-    this.toPitch = bound(this.toPitch+dy*.0044,-.21,.21);
+  setQuality(smooth){
+    if(this.smooth===smooth)return;
+    this.smooth=smooth;this.quality=1;this.slowFrames=0;
+    if(this.width)this.renderSize();
   }
-  resetOrbit() {
-    this.yaw = this.pitch = this.toYaw = this.toPitch = 0;
+  image(id){
+    if(this.textures.has(id))return this.textures.get(id);
+    const tex=new T.Texture(this.getImage(id));
+    tex.colorSpace=T.SRGBColorSpace;tex.needsUpdate=true;
+    this.textures.set(id,tex);
+    return tex;
   }
-  begin(b,art,visualTime,shakeX,shakeY,reduced,survey,dt,guardian) {
-    this.resize(b.width,b.height);
-    if(this.location!==b.location)this.dress(b.location,art);
-    this.drawn = 0;
-    this.drawnFigures = 0;
-    this.time = visualTime;
-    this.state = b;
-    this.still = reduced;
-    const time = reduced?0:visualTime;
-    this.common.time.value = time;
-    const response = 1-Math.exp(-dt*14);
-    this.yaw += (this.toYaw-this.yaw)*response;
-    this.pitch += (this.toPitch-this.pitch)*response;
-    const pitch = PITCH + this.pitch;
-    this.target.set(shakeX,-shakeY*lean,shakeY*DEPTH);
-    this.camera.position.set(Math.sin(this.yaw)*Math.cos(pitch)*1050,Math.sin(pitch)*1050,Math.cos(this.yaw)*Math.cos(pitch)*1050).add(this.target);
-    this.camera.lookAt(this.target);
-    this.camera.updateMatrixWorld();
-    this.common.drift.value.set((reduced?0:(b.player.x/b.width-.5)*.015)+this.yaw*.044,this.pitch*.031);
-    const anchor = this.worldPoint(b.player.x,b.player.y);
-    this.floorUniforms.hero.value.set(anchor.x,anchor.z);
-    const flare = b.effects.find(e=>e.kind==="sigil"||e.kind==="slash");
-    const flash = flare ? bound(flare.left/flare.life,0,1)*.81 : b.phase==="victory"?.64:0;
-    this.floorUniforms.flash.value = flash*(reduced?.46:1);
-    this.floorUniforms.orbit.value = Math.abs(this.yaw)+Math.abs(this.pitch);
-    this.impactPoint.setHex(flare?.color||0x83e7e0);
-    this.set.update(visualTime,reduced);
-    this.placeAir(b,time,flash,guardian);
-    this.placeMagic(b,time);
-    if(!survey&&dt>.027)this.slow=(this.slow||0)+1;
-    else this.slow=Math.max(0,(this.slow||0)-1);
-    if(this.slow>=12&&this.scaleFactor>.65){
-      this.scaleFactor=Math.max(.65,this.scaleFactor*.84);
-      this.slow=0;
-      this.renderSize();
-      if(this.scaleFactor<=.72){
-        this.floorUniforms.economy.value=1;
-        this.mists[1].visible=false;
-        this.shafts[2].visible=false;
-      }
+  resize(width,height){
+    const reference=this.reference.getBoundingClientRect(),outer=this.host.getBoundingClientRect();
+    if(width===this.width&&height===this.height&&reference.width===this.cssWidth&&reference.height===this.cssHeight)return false;
+    this.width=width;this.height=height;
+    this.cssWidth=reference.width||outer.width;this.cssHeight=reference.height||outer.height;
+    if(!this.cssWidth||!this.cssHeight)return false;
+    this.phone=this.cssWidth<690;
+    this.xScale=Math.min(1,865/width);
+    this.characters.depth=DEPTH*this.xScale;
+    Object.assign(this.canvas.style,{left:(reference.left-outer.left)+"px",top:(reference.top-outer.top)+"px",width:this.cssWidth+"px",height:this.cssHeight+"px"});
+    this.camera.aspect=this.cssWidth/this.cssHeight;
+    this.camera.fov=this.phone?63:49;
+    this.camera.updateProjectionMatrix();
+    this.renderSize();
+    return true;
+  }
+  renderSize(){
+    const {cssWidth:w,cssHeight:h}=this;
+    const cap=this.smooth?1:this.phone?1.16:1.42;
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio||1,cap,Math.sqrt(1450000/(w*h)))*this.quality);
+    this.renderer.setSize(w,h,false);
+    this.stage.resize(w,h,this.phone,this.smooth||this.quality<.84);
+    this.sparks.material.uniforms.pixelScale.value=this.renderer.getPixelRatio()*h/this.height;
+  }
+  worldPoint(x,y,lift=0,target=this.position){
+    return target.set((x-this.width*.5)*this.xScale,lift,(y-this.height*.5)/DEPTH);
+  }
+  screenPoint(x,y,lift=0){
+    const projected=this.worldPoint(x,y,lift,this.projected).project(this.camera);
+    const point=this.screenResult;
+    point.x=(projected.x*.5+.5)*this.width;
+    point.y=(.5-projected.y*.5)*this.height;
+    point.visible=projected.z>=-1&&projected.z<=1&&Math.abs(projected.x)<1.08&&Math.abs(projected.y)<1.07;
+    point.behind=projected.z>1;
+    return point;
+  }
+  groundPoint(clientX,clientY){
+    if(!this.ready)return null;
+    const rect=this.reference.getBoundingClientRect();
+    const ray=this.ray.set((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2,.5).unproject(this.camera);
+    const origin=this.camera.position;
+    if(ray.y>=origin.y)return null;
+    const at=origin.y/(origin.y-ray.y);
+    return {x:(origin.x+(ray.x-origin.x)*at)/this.xScale+this.width*.5,y:(origin.z+(ray.z-origin.z)*at)*DEPTH+this.height*.5};
+  }
+  input(x,y){
+    if(!this.ready||(!x&&!y))return {x,y};
+    const e=this.camera.matrixWorld.elements;
+    const wx=(x*e[0]+y*e[8])/this.xScale,wz=(x*e[2]+y*e[10])*DEPTH;
+    const scale=Math.hypot(x,y)/(Math.hypot(wx,wz)||1);
+    return {x:wx*scale,y:wz*scale};
+  }
+  resetOrbit(){this.yaw=0;this.pitch=0;}
+  orbit(dx,dy){
+    this.yaw=clamp(this.yaw-dx*.006,-.82,.82);
+    this.pitch=clamp(this.pitch+dy*.48,-55,132);
+  }
+  begin(b,art,time,shakeX,shakeY,still,survey,dt,guardian){
+    const resized=this.resize(b.width,b.height);
+    if(!this.width||!this.cssWidth)return;
+    const changed=this.location!==b.location;
+    this.time=time;this.state=b;this.still=still;
+    this.worldPoint(b.player.x,b.player.y,0,this.hero);
+    if(changed||resized){
+      this.location=b.location;
+      const colors=this.palettes[b.location];
+      this.cool.setHex(colors.cool);this.warm.setHex(colors.warm);
+      this.stage.decorate(b.location,b.width*this.xScale,(b.height*.90-b.height*.5)/DEPTH,(b.height*b.floor-b.height*.5)/DEPTH,colors,this.image(art));
+      this.stage.reflectedAt=-Infinity;
+    }
+    this.positionCamera(b,dt,guardian,survey,still,changed||!this.ready,shakeX,shakeY);
+    this.ready=true;
+    this.characters.begin(dt,time,still,this.phone||this.smooth);
+    const flash=b.effects.find(e=>e.kind==="sigil"||e.kind==="slash");
+    this.stage.update(time,this.hero,flash?clamp(flash.left/flash.life,0,1):0,flash?.color||0x9bf0e5,still,this.phone||this.smooth||this.quality<.84);
+    this.ground.begin();
+    for(const e of b.enemies)if(e.hp>0&&e.warning)this.warning(e.warning);
+    this.placeMagic(b);
+    this.ground.end();
+    this.slowFrames=dt>1/43?Math.min(70,(this.slowFrames||0)+1):Math.max(0,(this.slowFrames||0)-2);
+    if(this.slowFrames>26&&this.quality>.71){
+      this.slowFrames=0;this.quality=Math.max(.70,this.quality*.86);this.renderSize();
     }
   }
-  billboard(mesh,x,y,width,height,lift=0) {
+  positionCamera(b,dt,guardian,survey,still,snap,shakeX,shakeY){
+    const p=b.player,h=this.hero;
+    let closest=guardian,nearest=guardian?0:Infinity;
+    let behind=0;
+    for(const e of b.enemies){
+      if(e.hp<=0)continue;
+      const d=Math.hypot(p.x-e.x,p.y-e.y);
+      if(d<nearest){closest=e;nearest=d;}
+      if(e.y>p.y+25)behind=Math.max(behind,(1-clamp(d/235,0,1))*clamp((e.y-p.y)/118,0,1));
+    }
+    const lead=closest?clamp((closest.x-p.x)*this.xScale,-245,245):0;
+    const yaw=survey?this.yaw:clamp(-lead*.00075,-.20,.20);
+    const length=(this.phone?393:345)+behind*56+(guardian?(this.phone?68:103):0);
+    this.desired.set(h.x+Math.sin(yaw)*length,(this.phone?226:197)+behind*72+(survey?this.pitch:0),h.z+Math.cos(yaw)*length);
+    const along=survey?42:(this.phone?94:127)-behind*68;
+    this.gaze.set(h.x+lead*.27-Math.sin(yaw)*along,guardian?(this.phone?93:108):47,h.z-Math.cos(yaw)*along);
+    if(b.location==="village"){this.gaze.y=56;this.gaze.z-=30;}
+    if(!still&&!survey&&b.intro>0){
+      this.desired.y+=b.intro*47;
+      this.desired.z+=b.intro*38;
+    }
+    if(!still){this.desired.x+=shakeX*.46;this.gaze.y+=shakeY*.35;}
+    const blend=snap?1:motion(still?18:7.8,dt);
+    this.camera.position.lerp(this.desired,blend);this.focus.lerp(this.gaze,blend);
+    this.camera.lookAt(this.focus);this.camera.updateMatrixWorld();
+  }
+  ring(x,y,radius,color,alpha,filled=false,lift=2){
+    const mesh=this.ground.take(filled?"fill":"ring",color,alpha);
+    mesh.matrixAutoUpdate=true;
     this.worldPoint(x,y,lift,mesh.position);
-    mesh.quaternion.copy(this.camera.quaternion);
-    mesh.scale.set(width,height,1);
+    mesh.rotation.y=0;mesh.scale.set(radius*this.xScale,1,radius/DEPTH);
   }
-  placeAir(b,time,flash,boss) {
-    const {width:w,height:h,location}=b;
-    const temple = location==="temple";
-    const sanctuary = profileFor(location).set==="sanctum";
-    for(const [i,light] of this.lanternLights.entries()){
-      this.worldPoint(w*lanternX(location,i===1),h*(profileFor(location).floor+.10),0,light.position);
-      light.position.y = 53;
-      light.intensity = 4500 + 750*Math.sin(time*3.3+i) + flash*850;
-    }
-    for(const [i,mist] of this.mists.entries()){
-      const sway = Math.sin(time*.32+i*2.2)*.10;
-      const x = (i===3?.51:.25+(i%2)*.49)+sway;
-      const y = [.39,.53,.65,.88][i];
-      this.billboard(mist,w*x,h*y,w*(i===3?1.58:1.06),i===3?168:116,18+i*11);
-      mist.material.uniforms.time.value = time+i*4.4;
-    }
-    for(const [i,shaft] of this.shafts.entries()){
-      const x = (i===2?.51:lanternX(location,i===1)+(i===0?.054:-.054))+Math.sin(time*.49+i)*.012;
-      const y = [.32,.37,.25][i];
-      this.billboard(shaft,w*x,h*y,Math.min(w*.8,232+i*32),330+i*30,15);
-      shaft.rotateZ(i===0?-.29:i===1?.29:.075);
-      shaft.material.uniforms.time.value = time+i*1.38;
-      shaft.material.uniforms.strength.value = (i===2&&!sanctuary?.25:.44)+flash*.1;
-    }
-    for(const [i,flare] of this.flares.entries()){
-      const x = i===2?.50:lanternX(location,i===1);
-      const y = i===2?(temple?.372:.24):profileFor(location).floor+.055;
-      const size = i===2?(temple?180:144):134;
-      this.billboard(flare,w*x,h*y,size,size,28);
-      flare.material.uniforms.strength.value = (i===2&&location!=="village"&&!temple?.35:.89)+Math.sin(time*2.7+i)*.09+flash*.17;
-    }
-    this.seal.visible = Boolean(boss);
-    if(boss){
-      this.worldPoint(boss.x,boss.y,2,this.seal.position);
-      this.seal.material.uniforms.tint.value.setHex(boss.enraged?0xffa3aa:0xaaffed);
-      this.seal.material.uniforms.time.value = time;
-      this.seal.material.uniforms.strength.value = boss.enraged?.70:.45;
-    }
+  lane(x,y,angle,length,halfWidth,color,alpha,cross=false){
+    const dx=Math.cos(angle)*length,dy=Math.sin(angle)*length;
+    const geometry=this.ground.take("lane",color,alpha);
+    const center=this.worldPoint(x+(cross?0:dx*.5),y+(cross?0:dy*.5),2.1);
+    const width=halfWidth*2,span=cross?2:1;
+    geometry.matrixAutoUpdate=false;
+    geometry.matrix.set(dx*this.xScale*span,0,-Math.sin(angle)*width*this.xScale,center.x,
+      0,1,0,center.y,dy/DEPTH*span,0,Math.cos(angle)*width/DEPTH,center.z,0,0,0,1);
+    geometry.matrixWorldNeedsUpdate=true;
   }
-  createRibbon() {
-    const geometry = new T.BufferGeometry();
-    const vertices = new Float32Array((RIBBON_STEPS+1)*6);
-    const uv = new Float32Array((RIBBON_STEPS+1)*4);
-    const triangles = [];
-    for(let i=0;i<=RIBBON_STEPS;i++){
-      uv.set([i/RIBBON_STEPS,0,i/RIBBON_STEPS,1],i*4);
-      if(i<RIBBON_STEPS){
-        const a=i*2;
-        triangles.push(a,a+1,a+2,a+1,a+3,a+2);
+  warning(w){
+    const progress=clamp(1-w.left/w.total,0,1);
+    if(w.shots){
+      for(const a of w.shots)this.lane(w.x,w.y,w.angle+a,w.shots.length===10?95:245,1.8,0xea9fe3,.39+progress*.47);
+    }else if(w.lane||w.cross){
+      const angles=w.cross?[w.angle,w.angle+Math.PI/2]:[w.angle];
+      for(const angle of angles){
+        this.lane(w.x,w.y,angle,w.length,w.size,0xe14452,.28+progress*.20,w.cross);
+        this.lane(w.x,w.y,angle,w.length,2.1,0xffbd85,.84,w.cross);
       }
+    }else{
+      this.ring(w.x,w.y,w.size,0xf46353,.24,true);
+      this.ring(w.x,w.y,w.size*(.12+progress*.88),0xff7958,.36,true,2.4);
+      this.ring(w.x,w.y,w.size,0xffbd8e,.91,false,2.7);
     }
-    geometry.setAttribute("position",new T.BufferAttribute(vertices,3).setUsage(T.DynamicDrawUsage));
-    geometry.setAttribute("uv",new T.BufferAttribute(uv,2));
-    geometry.setIndex(triangles);
-    const material = colorMaterial(ribbonFragment,0xe8ffda,.9,true);
-    material.side = T.DoubleSide;
-    const ribbon = new T.Mesh(geometry,material);
-    ribbon.frustumCulled = false;
-    ribbon.renderOrder = 13;
-    this.stage.add(ribbon);
-    this.ribbons.push(ribbon);
-    return ribbon;
   }
-  placeMagic(b,time) {
-    let cuts = 0, seals = 0;
+  makeRibbon(){
+    const geometry=new T.BufferGeometry(),indices=[];
+    const positions=new Float32Array((STEPS+1)*6),uv=new Float32Array((STEPS+1)*4);
+    for(let i=0;i<=STEPS;i++){
+      uv.set([i/STEPS,0,i/STEPS,1],i*4);
+      if(i<STEPS){const a=i*2;indices.push(a,a+1,a+2,a+1,a+3,a+2);}
+    }
+    geometry.setAttribute("position",new T.BufferAttribute(positions,3).setUsage(T.DynamicDrawUsage));
+    geometry.setAttribute("uv",new T.BufferAttribute(uv,2));geometry.setIndex(indices);
+    const mesh=new T.Mesh(geometry,shader(ribbonFragment,0xffdeb0,.8,true));
+    mesh.frustumCulled=false;
+    this.scene.add(mesh);this.ribbons.push(mesh);return mesh;
+  }
+  placeMagic(b){
+    let cuts=0;
     for(const e of b.effects){
-      if(e.kind==="slash"&&cuts<5){
-        const ribbon = this.ribbons[cuts] || this.createRibbon();
-        cuts++;
-        ribbon.visible = true;
-        const p = 1-bound(e.left/e.life,0,1);
-        const narrow=e.fx==="thrust",ink=e.fx==="ink",wide=e.fx==="whirl";
-        const heading = e.angle-(wide?Math.PI:narrow?.23:ink?1.55:1.28)+p*.63;
-        const arc = wide?SECOND-.06:narrow?.53:ink?2.85:2.22-p*.38;
-        const radius = e.size*(.78+p*.25);
-        const verts = ribbon.geometry.attributes.position;
-        for(let i=0;i<=RIBBON_STEPS;i++){
-          const f = i/RIBBON_STEPS;
-          const taper = Math.pow(Math.sin(f*Math.PI),.67);
-          const a = heading+arc*f;
-          const outer = radius*(.87+.14*taper);
-          const inner = outer-radius*(narrow?.61:.15+.29*taper);
+      const fade=clamp(e.left/e.life,0,1),phase=1-fade;
+      if(e.kind==="slash"&&cuts<4){
+        const ribbon=this.ribbons[cuts++]||this.makeRibbon();
+        const narrow=e.fx==="thrust",wide=e.fx==="whirl",ink=e.fx==="ink";
+        const arc=wide?TAU-.06:narrow?.49:ink?2.78:2.22;
+        const start=e.angle-arc*.55+phase*.55;
+        const radius=e.size*(.73+phase*.31);
+        const verts=ribbon.geometry.attributes.position;
+        for(let i=0;i<=STEPS;i++){
+          const f=i/STEPS,a=start+f*arc,taper=Math.sin(f*Math.PI)**.67;
           for(let j=0;j<2;j++){
-            const r = j?outer:inner;
-            const h = 18 + taper*(ink?38:22) + j*(7+f*10);
-            const v = this.worldPoint(e.x+Math.cos(a)*r,e.y+Math.sin(a)*r,h);
-            verts.setXYZ(i*2+j,v.x,v.y,v.z);
+            const r=radius*(j?1:.56-taper*.13);
+            const point=this.worldPoint(e.x+Math.cos(a)*r,e.y+16+Math.sin(a)*r,30+taper*26+j*8);
+            verts.setXYZ(i*2+j,point.x,point.y,point.z);
           }
         }
-        verts.needsUpdate = true;
-        const uniforms = ribbon.material.uniforms;
-        uniforms.tint.value.setHex(e.color);
-        uniforms.strength.value = Math.pow(1-p,.69)*.92;
-        uniforms.time.value = time;
-      }else if(e.kind==="sigil"&&seals<4){
-        let glyph = this.glyphs[seals++];
-        if(!glyph){
-          glyph = this.panel(sigilFragment,0xc0e8ff,1,2,true);
-          glyph.rotation.x = -Math.PI/2;
-          this.glyphs.push(glyph);
-        }
-        const p = 1-bound(e.left/e.life,0,1);
-        glyph.visible = true;
-        this.worldPoint(e.x,e.y,2.6,glyph.position);
-        glyph.scale.setScalar(e.size*(.97+1.67*p));
-        glyph.material.uniforms.tint.value.setHex(e.color);
-        glyph.material.uniforms.time.value = time+p*3;
-        glyph.material.uniforms.strength.value = (1-p)*.84;
+        verts.needsUpdate=true;ribbon.visible=true;
+        ribbon.material.uniforms.tint.value.setHex(e.color);
+        ribbon.material.uniforms.strength.value=fade*.91;
+        ribbon.material.uniforms.time.value=this.time;
+      }else if(e.kind==="lane"){
+        for(const angle of e.cross?[e.angle,e.angle+Math.PI/2]:[e.angle])
+          this.lane(e.x,e.y,angle,e.length,3+15*fade,e.color,fade*.79,e.cross);
+      }else if(e.kind==="sigil"||e.kind==="ring"){
+        const radius=e.size*(.66+phase*.63);
+        this.ring(e.x,e.y,radius,e.color,fade*.8,false,4.2);
+        if(e.kind==="sigil")this.ring(e.x,e.y,radius*.83,e.color,fade*.18,true,3);
       }
     }
     for(let i=cuts;i<this.ribbons.length;i++)this.ribbons[i].visible=false;
-    for(let i=seals;i<this.glyphs.length;i++)this.glyphs[i].visible=false;
   }
-  newCutout(geometry) {
-    const material=new T.ShaderMaterial({
-      uniforms:{atlas:uniform(null),cell:uniform(new T.Vector4()),rim:uniform(this.coolPoint),opacity:uniform(1),hit:uniform(0)},
-      vertexShader:planeVertex,fragmentShader:cutoutFragment,side:T.DoubleSide,transparent:true,depthWrite:false,
-    });
-    const mesh=new T.Mesh(geometry,material);
-    this.stage.add(mesh);
-    return mesh;
-  }
-  newFigure() {
-    const shade=new T.Mesh(this.plane,this.shadow);
-    shade.rotation.x=-Math.PI/2;
-    shade.renderOrder=2;
-    this.stage.add(shade);
-    const figure={body:this.newCutout(this.spriteGeometry),hand:this.newCutout(this.plane),shade};
-    this.figures.push(figure);
-    return figure;
-  }
-  dressCutout(mesh,key,frame,pose) {
-    const map=this.image(key),u=mesh.material.uniforms;
-    u.atlas.value=map;
-    const columns=frame===null?1:map.image.width/256,rows=frame===null?1:map.image.height/256;
-    const cell=frame??0,inset=frame===null?0:.5/256;
-    u.cell.value.set((cell%columns+inset)/columns,1-(Math.floor(cell/columns)+1-inset)/rows,(1-2*inset)/columns,(1-2*inset)/rows);
-    u.opacity.value=pose.alpha;
-    u.hit.value=pose.hit?.57:0;
-  }
-  figure(actor,key,frame,pose,weapon) {
-    const index=this.drawnFigures++;
-    const {body,hand,shade}=this.figures[index]||this.newFigure();
-    shade.visible=true;
-    this.worldPoint(actor.x,actor.y,1.3,shade.position);
-    shade.scale.set(pose.width*.76,pose.width*.29/DEPTH,1);
-    body.visible=true;
-    this.billboard(body,actor.x,actor.y-pose.lift,pose.width*pose.side,pose.height);
-    body.rotateZ(-pose.tilt);
-    body.renderOrder=5+actor.y/this.height*4;
-    this.dressCutout(body,key,frame,pose);
-    hand.visible=Boolean(weapon);
-    if(weapon){
-      hand.position.copy(body.position);
-      hand.quaternion.copy(this.camera.quaternion);
-      hand.translateX(weapon.x);
-      hand.translateY(-weapon.y);
-      hand.translateZ(1.2);
-      hand.rotateZ(-weapon.angle);
-      hand.scale.set(weapon.size*pose.side,weapon.size,1);
-      hand.renderOrder=body.renderOrder+.001;
-      this.dressCutout(hand,weapon.key,null,pose);
+  makeSparks(){
+    const geometry=new T.BufferGeometry();
+    for(const [attribute,width] of [["position",3],["tint",3],["radius",1],["alpha",1]]){
+      geometry.setAttribute(attribute,new T.BufferAttribute(new Float32Array(MAX_POINTS*width),width).setUsage(T.DynamicDrawUsage));
     }
+    geometry.setDrawRange(0,0);
+    const sparks=new T.Points(geometry,new T.ShaderMaterial({
+      uniforms:{pixelScale:U(1)},vertexShader:sparksVertex,fragmentShader:sparksFragment,
+      transparent:true,depthWrite:false,blending:T.AdditiveBlending,
+    }));
+    sparks.frustumCulled=false;this.scene.add(sparks);
+    return sparks;
   }
-  prop(x,y,frame,w,h) {
-    const index = this.drawn++;
-    const mesh = this.props[index] || this.newProp();
-    const map = this.image("village-props");
-    const frameSize = 232;
-    const columns = map.image.width/frameSize, rows = map.image.height/frameSize;
-    mesh.visible = true;
-    this.billboard(mesh,x,y,w,h);
-    const u = mesh.material.uniforms;
-    const inset = .6/frameSize;
-    u.atlas.value = map;
-    u.cell.value.set((frame%columns+inset)/columns,1-(Math.floor(frame/columns)+1-inset)/rows,(1-2*inset)/columns,(1-2*inset)/rows);
-  }
-  newProp() {
-    const material = new T.ShaderMaterial({
-      uniforms:{
-        atlas:uniform(null),cell:uniform(new T.Vector4()),tint:uniform(this.coolPoint),
-      },
-      vertexShader:planeVertex,fragmentShader:propFragment,transparent:true,depthWrite:false,
-    });
-    const mesh = new T.Mesh(this.spriteGeometry,material);
-    mesh.renderOrder = 4;
-    this.stage.add(mesh);
-    this.props.push(mesh);
-    return mesh;
-  }
-  writeSparks() {
-    const b = this.state, time = this.still?0:this.time;
-    const attributes = this.sparks.geometry.attributes;
-    let count = 0;
-    const put = (x,y,h,r,color,alpha)=>{
-      const p = this.worldPoint(x,y,h);
-      attributes.position.setXYZ(count,p.x,p.y,p.z);
-      attributes.tint.setXYZ(count,color.r,color.g,color.b);
-      attributes.radius.setX(count,r);
-      attributes.alpha.setX(count,alpha);
-      count++;
+  writeSparks(){
+    const b=this.state,a=this.sparks.geometry.attributes,t=this.still?0:this.time;
+    let index=0;
+    const put=(x,y,lift,color,radius,alpha)=>{
+      if(index>=MAX_POINTS)return;
+      const p=this.worldPoint(x,y,lift);
+      a.position.setXYZ(index,p.x,p.y,p.z);a.tint.setXYZ(index,color.r,color.g,color.b);
+      a.radius.setX(index,radius);a.alpha.setX(index,alpha);index++;
     };
-    const maxMotes = this.width<620?79:this.motes.length;
-    for(let i=0;i<maxMotes;i++){
-      const m = this.motes[i];
-      const age = (m.y + time*.051*m.speed)%1;
-      const x = b.width*m.x+Math.sin(time*.86*m.speed+m.phase)*31;
-      const y = b.height*(.93-age*.73);
-      const hue = m.warm?this.warmPoint:this.coolPoint;
-      const alpha = Math.sin(age*Math.PI)*(.24+Math.sin(time*2.1+m.phase)*.12);
-      put(x,y,14+m.y*100,m.radius,hue,alpha);
+    const count=this.phone||this.smooth?36:71;
+    for(let i=0;i<count;i++){
+      const age=(i*.157+t*(.035+i%4*.004))%1;
+      put(b.width*(.07+(i*.189)% .86)+Math.sin(t*.43+i)*19,b.height*(.24+(i*.137)% .67),18+age*167,i%3?this.cool:this.warm,2+i%5*1.4,Math.sin(age*Math.PI)*.44);
     }
-    for(const s of b.particles){
-      if(count>=MAX_POINTS)break;
-      const a = bound(s.left/s.life,0,1);
-      this.particleColor.setHex(s.color);
-      put(s.x,s.y,11+(1-a)*39,6+s.size*(s.dust?2.9:3.8),this.particleColor,a*(s.dust?.38:.91));
+    for(const p of b.particles){
+      const alpha=clamp(p.left/p.life,0,1);
+      put(p.x,p.y,16+(1-alpha)*35,this.pointColor.setHex(p.color),p.size*(p.dust?3.2:3.9)+4,alpha*(p.dust?.32:.83));
     }
-    for(const bolt of b.bolts){
-      if(count>=MAX_POINTS)break;
-      this.particleColor.setHex(bolt.friendly?(bolt.color||0x7bffcd):0xee87fc);
-      put(bolt.x,bolt.y-17,24,bolt.friendly?34:26,this.particleColor,.69);
-    }
-    if(this.state.player.dash){
-      const p = this.state.player;
-      for(let i=0;i<8&&count<MAX_POINTS;i++){
-        put(p.x-p.dash.x*i*9,p.y-p.dash.y*i*9-18,17+i*.55,26-i*2,this.coolPoint,(1-i/8)*.42);
-      }
-    }
-    this.sparks.geometry.setDrawRange(0,count);
-    for(const attribute of Object.values(attributes))attribute.needsUpdate=true;
+    for(const p of b.bolts)put(p.x,p.y,21,this.pointColor.setHex(p.friendly?(p.color||0xa5ffe0):0xeaa4ff),26,.77);
+    this.sparks.geometry.setDrawRange(0,index);
+    for(const attribute of Object.values(a))attribute.needsUpdate=true;
   }
-  end() {
-    for(let i=this.drawn;i<this.props.length;i++)this.props[i].visible = false;
-    for(let i=this.drawnFigures;i<this.figures.length;i++){
-      const {body,hand,shade}=this.figures[i];
-      body.visible=hand.visible=shade.visible=false;
-    }
-    this.writeSparks();
-    this.renderer.clear();
-    this.renderer.render(this.matte,this.flatCamera);
-    this.renderer.clearDepth();
-    this.renderer.render(this.stage,this.camera);
+  figure(key,kind,actor,size,weapon,forged){
+    this.characters.draw(key,kind,actor,this.worldPoint(actor.x,actor.y),size*(kind==="hero"?(this.phone?.79:.85):.88),weapon,forged);
+  }
+  end(){
+    this.characters.end();this.writeSparks();
+    const reflections=this.phone||this.smooth?14:this.quality<.84?17:26;
+    this.stage.reflect(this.camera,this.focus,this.time,reflections);
+    this.renderer.render(this.scene,this.camera);
   }
 }

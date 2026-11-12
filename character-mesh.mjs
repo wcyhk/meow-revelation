@@ -98,6 +98,7 @@ const vertex = `
   attribute vec3 pigment;
   uniform mat4 bones[${JOINT_LIMIT}];
   uniform float weapon;
+  uniform float forged;
   uniform float ink;
   varying vec3 surface;
   varying vec3 nWorld;
@@ -116,7 +117,7 @@ const vertex = `
     height = p.y;
     nWorld = normalize(mat3(modelMatrix) * normalHere);
     towardCamera = normalize(cameraPosition - world.xyz);
-    gl_Position = gear > .5 && abs(gear - weapon) > .5
+    gl_Position = abs(gear) > .5 && (abs(abs(gear) - weapon) > .5 || (gear < -.5 && forged < .5))
       ? vec4(2.0, 2.0, 2.0, 1.0)
       : projectionMatrix * view;
   }
@@ -137,14 +138,15 @@ const fragment = `
   void main() {
     vec3 n = normalize(nWorld);
     float incidence = dot(n, normalize(vec3(-.55,.74,.49)));
-    float soft = smoothstep(-.21,-.12,incidence) * .27 + smoothstep(.26,.33,incidence) * .31;
+    float soft = smoothstep(-.43,.61,incidence) * .59 + smoothstep(.36,.62,incidence) * .07;
     float rim = pow(1.0 - clamp(dot(n, normalize(towardCamera)),0.0,1.0),2.65);
     float ambient = smoothstep(.03, .94, height);
-    vec3 shadow = vec3(.42,.43,.59) + cool * .14;
-    vec3 light = vec3(1.14,1.03,.97) + warm * .09;
+    vec3 shadow = vec3(.40,.42,.54) + cool * .17;
+    vec3 light = vec3(1.16,1.06,1.02) + warm * .15;
     vec3 result = surface * mix(shadow,light,soft + .38 + ambient * .06);
     result += surface * lit * .68;
-    result += (cool*.30 + vec3(.12,.13,.17)) * rim * (.21+ward*.44);
+    float bounce = max(0.,dot(n,normalize(vec3(.56,-.29,-.64))));
+    result += warm*bounce*.075 + (cool*.37 + vec3(.12,.13,.18)) * rim * (.27+ward*.44);
     result += min(vec3(.13),surface*.44) * smoothstep(.72,.94,incidence);
     result = mix(result,vec3(.018,.011,.029),smoothstep(.73,.99,rim)*edge*.84);
     result = mix(result, vec3(1.0,.52,.35), hit*.55);
@@ -158,7 +160,7 @@ export function figureMaterial(bones,cool,warm,outline) {
   return new T.ShaderMaterial({
     uniforms:{
       bones:{value:bones},cool:{value:cool},warm:{value:warm},ink:{value:outline?1:0},
-      weapon:{value:0},hit:{value:0},ward:{value:0},edge:{value:0},
+      weapon:{value:0},forged:{value:0},hit:{value:0},ward:{value:0},edge:{value:0},
     },
     vertexShader:vertex,fragmentShader:fragment,side:outline?T.BackSide:T.FrontSide,
   });

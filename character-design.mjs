@@ -1,4 +1,4 @@
-import { FigureBuilder } from "./character-mesh.mjs?v=inkbound";
+import { FigureBuilder } from "./character-mesh.mjs?v=moonwake";
 
 const I = 0x1d1827;
 const BONE = 0xffdfaf;
@@ -111,6 +111,15 @@ function weapons(b,j){
   b.line(j,[[.078,-.305,.030],[.260,-.117,.027],[.296,.205,.021],[.241,.47,.035],[.085,.71,.058]],.031,0xba8252,10);
   b.line(j,[[.078,-.305,.030],[.085,.71,.058]],.010,BONE,10);
   b.shape(j,"gem",[.103,.771,.14],[.085,.139,.078],0xece3cc,[0,0,-.16],0,11);
+
+  b.shape(j,"gem",[.143,.795,.136],[.106,.207,.098],0xffd289,[.16,0,-.20],.30,-6);
+  b.shape(j,"hoop",[.116,.792,.14],[.202,.214,.063],0x9c7ad3,[.12,.22,0],.19,-7);
+  b.volume(j,[[0,-.04],[.019,.19,.13,.37],[.19,.47],[.12,.12,.051,-.037]],
+    [.155,.829,.073],[.79,.78,.037],0xf49da6,[.12,0,-.18],.25,-8);
+  b.shape(j,"gem",[.113,.867,.099],[.054,.095,.054],0x9ce8ff,[0,0,-.15],.37,-9);
+  b.line(j,[[.084,.71,.058],[.02,.79,.073],[-.027,.94,.078]],.024,0xa9dfa2,-10,.28);
+  b.line(j,[[.081,-.30,.031],[.024,-.39,.036],[-.022,-.48,.052]],.023,0xa9dfa2,-10,.28);
+  b.shape(j,"orb",[.114,.791,.148],[.109,.089,.091],0x6bdfb4,[0,0,-.16],.37,-11);
 }
 
 function cat(kind){
@@ -124,8 +133,14 @@ function cat(kind){
     gray:[0x968fa9,0x647654,0x3b4c53,0xd697a8],
     ghostCat:[0x9dcdd9,0x5e5c9d,0x6576a5,0xa2e6f4],
     snowDemon:[0xe0eef3,0x7189b8,0xa1c2dc,0x7cb4df],
+    tao:[0xe4d6be,0x8e4b4b,0x564150,0xe49b98],
+    blade:[0xc88951,0x647585,0x3d4757,0xe1a188],
+    gun:[0x8a899d,0x465c7a,0x924e54,0xb586a0],
+    yin:[0x9290a4,0xe4ceb3,0x795870,0xcd8f94],
+    medic:[0xe7b771,0x839a79,0x67866e,0xe2a097],
+    arrow:[0xab7658,0x537c87,0x824e4b,0xd49381],
   };
-  const [fur,coat,boot,inner]=palettes[kind];
+  const [fur,coat,boot,inner]=palettes[kind]||palettes.kit;
   const hero=kind==="hero";
   const rig=biped(b,"cat",coat,boot,fur);
   const {head,torso}=rig;
@@ -173,6 +188,25 @@ function cat(kind){
     if(kind==="kit")b.shape(head,"gem",[.153,.211,.192],[.058,.038,.024],ROSE,[0,0,.27]);
     if(kind==="ink")b.shape(grip,"box",[0,.022,.013],[.163,.218,.046],0xa0759a,[.2,0,.14]);
     if(kind==="gray")b.shape(grip,"orb",[0,-.037,.058],[.080,.101,.066],0x81b592,[0,0,0],.13);
+    if(kind==="tao"||kind==="yin"){
+      b.shape(head,"barrel",[0,.285,-.025],[.266,.102,.192],coat);
+      b.shape(grip,"box",[0,-.038,.061],[.104,.189,.029],kind==="tao"?0xc6e4a5:0xf4d9af,[.06,0,.23],.21);
+      b.shape(grip,"gem",[.011,-.036,.086],[.044,.072,.02],0x987157);
+    }
+    if(kind==="blade"){
+      symmetrical(s=>b.shape(torso,"box",[s*.252,.127,.028],[.107,.145,.231],0xa98e77,[0,0,-s*.33]));
+      b.volume(grip,SICKLE,[.082,.292,.068],[.78,1.37,.077],0xb7c4cd,[0,0,.98]);
+    }
+    if(kind==="gun"){
+      b.shape(head,"barrel",[0,.282,-.018],[.284,.073,.225],0x6d5449);
+      b.shape(grip,"barrel",[.049,.172,.044],[.045,.64,.045],DARK_STEEL,[.29,0,-.32]);
+      b.shape(grip,"box",[0,.026,.056],[.077,.29,.072],0x815845,[.29,0,-.32]);
+    }
+    if(kind==="medic")lantern(b,grip,[0,-.077,.063],.67,0xd9e29c);
+    if(kind==="arrow"){
+      b.line(grip,[[.056,-.25,.02],[.188,-.04,.028],[.172,.24,.031],[.032,.43,.038]],.026,0xc89355);
+      b.line(grip,[[.056,-.25,.02],[.032,.43,.038]],.009,BONE);
+    }
   }
   return b.finish(rig.style);
 }

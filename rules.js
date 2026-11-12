@@ -158,7 +158,7 @@ class TideRun{
     p.walking=false;p.hit=0;p.castPose=0;
     p.gearCd=0;p.ward=0;
     const ally=this.run.profile.ally;
-    this.companion=ally?{key:ally,x:this.width*.5+46,y:p.y+20,angle:p.angle,cd:1.1,castPose:0}:null;
+    this.companion=ally?{key:ally,x:this.width*.5+59,y:p.y+10,angle:p.angle,cd:1.1,castPose:0}:null;
     this.dragon=null;this.lockField=null;
     p.fervor=Math.max(2,p.fervor||0);
     const lineup=area.guardian?[area.guardian]:[...area.waves[Math.floor(this.random()*area.waves.length)]];
@@ -381,7 +381,7 @@ class TideRun{
       const offset=p.x<this.width*.60?1:-1;
       const e=this.target(m.mode==="blade"?154:368);
       const close=m.mode==="blade"&&e;
-      track(a,close?e.x+offset*38:p.x+offset*54,close?e.y+14:p.y+24,213);
+      track(a,close?e.x+offset*38:p.x+offset*66,close?e.y+14:p.y+10,213);
       if(a.cd===0){
         if(m.mode==="mana"&&p.fervor<4){
           p.fervor=Math.min(5,p.fervor+(rank===2?1.3:.72));a.cd=3.7;
@@ -445,7 +445,7 @@ class TideRun{
     const dealt=Math.min(e.hp,amount);
     e.hp=Math.max(0,e.hp-amount);e.hit=.115;
     if(!magic)this.player.fervor=Math.min(5,this.player.fervor+.30);
-    this.effects.push({kind:"number",x:e.x,y:e.y-(boss?94:53),text:String(Math.ceil(dealt)),color:heavy?0xffcc8e:0xfff0d8,left:.57,life:.57});
+    this.effects.push({kind:"number",x:e.x,y:e.y-(boss?94:53),groundY:e.y,lift:data.size*(boss?1.06:1.12),text:String(Math.ceil(dealt)),color:heavy?0xffcc8e:0xfff0d8,left:.57,life:.57});
     if(!boss){
       e.knockX=Math.cos(angle)*(heavy?315:180);e.knockY=Math.sin(angle)*(heavy?315:180);
       if(e.warning){e.warning=null;e.wait=.3;}

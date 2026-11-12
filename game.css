@@ -275,6 +275,23 @@ h1{font:950 clamp(3rem,7.3vw,7.4rem)/1.04 var(--serif);color:#fff0d6;letter-spac
 #stage canvas:not(.moonlight-canvas){position:relative;z-index:1}
 #stage canvas.moonlight-canvas{position:absolute;z-index:0;pointer-events:none}
 #stage.moonlight-live:after{z-index:2;box-shadow:inset 0 0 clamp(28px,7vw,130px) #0c0d1c55;background:linear-gradient(180deg,#090d1a3d,transparent 19%,transparent 77%,#0d101b4f)}
+.moonlight-live #stations{inset:auto max(12px,env(safe-area-inset-right)) max(23px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;width:min(100% - 24px,820px);margin:auto}
+.moonlight-live .station{position:static;transform:none;min-width:0;justify-content:center;padding:5px 6px;border-width:1px;border-color:#b19a74;background:#161824e8;box-shadow:0 4px 13px #080912ba;outline:0;color:#f6dfba}
+.moonlight-live .station span{min-width:0}
+.moonlight-live .station b,.moonlight-live .station small{overflow:hidden;text-overflow:ellipsis}
+#game.moonlight-live[data-location=village] #toast{bottom:calc(max(23px,env(safe-area-inset-bottom)) + 60px)}
+#game.moonlight-live:not([data-location=village]) #room-name{color:#f8e2bc}
+.moonlight-live #boss-meter{border-color:#b19872;background:#1a1622e9}
+.moonlight-live #boss-fill{background:linear-gradient(180deg,#fba77c,#9f3541)}
+.moonlight-live #controls button{border-width:1px;border-color:#b09879;background:#252333e9}
+.moonlight-live #controls button[data-input=attack]{background:linear-gradient(#663943,#382432);border-color:#dbb187}
+@media(max-width:690px){
+ .moonlight-live #stations{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .moonlight-live .station i{width:22px;height:22px;min-width:22px;font-size:.88rem}
+ .moonlight-live .station b{font-size:.76rem}
+ .moonlight-live .station small{font-size:.62rem}
+ #game.moonlight-live[data-location=village] #toast{bottom:calc(max(23px,env(safe-area-inset-bottom)) + 105px)}
+}
 #survey{min-width:44px;padding:0 8px;background:#18252be8;color:#c8eee0;border-color:#88ab9a;font-size:.74rem;touch-action:none}
 #survey[aria-pressed=true]{background:#3d5d55;color:#fff0c9;border-color:#f9d29f}
 #survey-guide{position:absolute;left:50%;bottom:max(22px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:3;padding:9px 16px;background:#171b2ce8;border:1px solid #aeaa91;border-radius:7px;color:#ffe6bc;text-align:center;white-space:nowrap;pointer-events:none;font-size:.82rem}

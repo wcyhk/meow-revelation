@@ -1,6 +1,6 @@
 import * as T from "./three.min.mjs";
-import { figureMaterial, JOINT_LIMIT } from "./character-mesh.mjs?v=inkbound";
-import { buildFigure } from "./character-design.mjs?v=guild";
+import { figureMaterial, JOINT_LIMIT } from "./character-mesh.mjs?v=moonwake";
+import { buildFigure } from "./character-design.mjs?v=moonwake";
 
 const TAU = Math.PI * 2;
 const clamp = (n,low,high) => Math.max(low,Math.min(high,n));
@@ -55,7 +55,7 @@ class ActorModel {
   rotate(name,x=0,y=0,z=0) {
     this.joints[name]?.rotation.set(x,y,z);
   }
-  pose(actor,dt,time,depth,size,weapon,still) {
+  pose(actor,dt,time,depth,size,weapon,forged,still) {
     const aim = actor.angle??Math.PI*.5;
     const heading = Math.atan2(Math.cos(aim)*depth,Math.sin(aim));
     this.yaw = this.yaw===null||still?heading:angleToward(this.yaw,heading,actor.attack||actor.dash?32:18,dt);
@@ -172,6 +172,7 @@ class ActorModel {
     for(const mesh of [this.skin,this.line]){
       const {uniforms}=mesh.material;
       uniforms.weapon.value = gear[weapon] || 1;
+      uniforms.forged.value = forged ? 1 : 0;
       uniforms.hit.value = impact;
       uniforms.ward.value = ward;
     }
@@ -202,7 +203,7 @@ export class CharacterStage {
     this.stage.add(item.shadow);
     return item;
   }
-  draw(key,kind,actor,position,size,weapon) {
+  draw(key,kind,actor,position,size,weapon,forged) {
     let item = this.figures.get(key);
     if(!item){
       if(actor.hp===0)return;
@@ -214,7 +215,7 @@ export class CharacterStage {
     if(item.fall>=1)return;
     item.frame=this.frame;
     item.root.position.copy(position);
-    item.pose(actor,this.dt,this.time,this.depth,size,weapon,this.still);
+    item.pose(actor,this.dt,this.time,this.depth,size,weapon,forged,this.still);
     item.line.visible = !this.compact||kind==="hero"||item.style==="guardian";
     item.skin.material.uniforms.edge.value = item.line.visible?0:1;
     item.shadow.visible = true;

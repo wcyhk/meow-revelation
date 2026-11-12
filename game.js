@@ -23,8 +23,8 @@ const stations={
 let currentScene,state,press=null,heldAttack=null,destination=null,toastTimer,dialogKind="",uiTimer=0;
 let started=false;
 let surveyMode=false,viewDrag=null;
-let threeEnabled=true;
-try{threeEnabled=localStorage.getItem("nine-tides-light")!=="low";}catch{}
+let detailedGraphics=true;
+try{detailedGraphics=localStorage.getItem("nine-tides-light")!=="low";}catch{}
 let storyPage=0,selectedPlan,trialMode=false,returnToExpedition=false;
 const loadout={weapon:"",ally:""};
 const village=readVillage();
@@ -316,7 +316,7 @@ function pause(){
   if(!started||!modal.hidden)return;
   setSurvey(false);
   const available=currentScene.world3d&&!currentScene.world3d.lost;
-  const graphics=available?'<button data-act="graphics" aria-pressed="'+threeEnabled+'">'+(threeEnabled?"切換省電畫面":"開啟立體畫面")+'</button>':'';
+  const graphics=available?'<button data-act="graphics" aria-pressed="'+!detailedGraphics+'">'+(detailedGraphics?"切換流暢畫質":"切換精緻畫質")+'</button>':'';
   panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 職業技、E 武器技、R 藥湯。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+graphics+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
 }
 function setSurvey(on){
@@ -332,7 +332,8 @@ function setSurvey(on){
 function applyGraphics(){
   const world=currentScene?.world3d;
   if(!world)return;
-  world.setActive(threeEnabled);
+  world.setQuality(!detailedGraphics);
+  world.setActive(true);
   if(!world.active)setSurvey(false);
   if(started&&state)hud();
 }
@@ -437,11 +438,11 @@ modal.addEventListener("click",e=>{
   if(d.act==="village")showVillage();
   if(d.act==="retreat"&&state.phase==="fight")state.finish(false);
   if(d.act==="graphics"&&dialogKind==="pause"){
-    threeEnabled=!threeEnabled;
-    try{localStorage.setItem("nine-tides-light",threeEnabled?"3d":"low");}catch{}
+    detailedGraphics=!detailedGraphics;
+    try{localStorage.setItem("nine-tides-light",detailedGraphics?"3d":"low");}catch{}
     applyGraphics();
-    b.textContent=threeEnabled?"切換省電畫面":"開啟立體畫面";
-    b.setAttribute("aria-pressed",String(threeEnabled));
+    b.textContent=detailedGraphics?"切換流暢畫質":"切換精緻畫質";
+    b.setAttribute("aria-pressed",String(!detailedGraphics));
     return;
   }
   if(d.act==="audio"){
@@ -526,8 +527,16 @@ function release(e){
   if(e.type==="pointerup"&&!press.moved&&modal.hidden){
     if(state.phase==="fight")state.input("attack");
     else if(state.phase==="village"){
-      const r=currentScene.game.canvas.getBoundingClientRect();
-      destination={x:(e.clientX-r.left)/r.width*state.width,y:clamp((e.clientY-r.top)/r.height*worldHeight,worldHeight*.28,worldHeight*.87)};
+      const world=currentScene.world3d;
+      if(world?.active)destination=world.groundPoint(e.clientX,e.clientY);
+      else{
+        const r=currentScene.game.canvas.getBoundingClientRect();
+        destination={x:(e.clientX-r.left)/r.width*state.width,y:(e.clientY-r.top)/r.height*worldHeight};
+      }
+      if(destination){
+        destination.x=clamp(destination.x,26,state.width-26);
+        destination.y=clamp(destination.y,worldHeight*.28,worldHeight*.87);
+      }
     }
   }
   press=null;$("stick").hidden=true;
@@ -549,13 +558,17 @@ function intent(){
   for(const key of keyboard){
     if(movement[key]){x+=movement[key][0];y+=movement[key][1];}
   }
-  if(x||y){destination=null;return unit(x,y);}
-  if(press?.moved)return {x:press.dx,y:press.dy};
+  if(x||y){destination=null;return viewDirection(unit(x,y));}
+  if(press?.moved)return viewDirection({x:press.dx,y:press.dy});
   if(destination&&state.phase==="village"){
     if(dist(state.player,destination)>8)return unit(destination.x-state.player.x,destination.y-state.player.y);
     destination=null;
   }
   return {x:0,y:0};
+}
+function viewDirection(vector){
+  const world=currentScene?.world3d;
+  return world?.active&&!surveyMode?world.input(vector.x,vector.y):vector;
 }
 
 class ShoreScene extends Phaser.Scene{
@@ -597,7 +610,7 @@ class ShoreScene extends Phaser.Scene{
   }
   async loadWorld(){
     try{
-      const {MoonlightWorld}=await import("./world3d.mjs?v=caravan");
+      const {MoonlightWorld}=await import("./world3d.mjs?v=moonwake");
       this.world3d=MoonlightWorld.create(stage,this.game.canvas,
         key=>this.textures.get(key).getSourceImage(),shoreLights,applyGraphics);
       applyGraphics();
@@ -679,14 +692,9 @@ class ShoreScene extends Phaser.Scene{
     g.clear();front.clear();
     const shake=reducedMotion.matches?0:b.shake;
     const sx=Math.sin(performance.now()*.066)*shake,sy=Math.cos(performance.now()*.071)*shake*.65;
-    this.cameras.main.setScroll(sx,sy);
+    this.cameras.main.setScroll(world?0:sx,world?0:sy);
     this.cinema.prepare(b,this.visualTime||0,Boolean(world));
-    if(world){
-      world.begin(b,areaArt(b.location),this.visualTime,sx,sy,reducedMotion.matches,surveyMode,dt,b.enemies.find(e=>e.hp>0&&isBoss(e)));
-      for(const sprite of this.cinema.villageArt){
-        if(sprite.visible)world.prop(sprite.x,sprite.y+sprite.displayHeight*.10,Number(sprite.frame.name),sprite.displayWidth,sprite.displayHeight);
-      }
-    }
+    if(world)world.begin(b,areaArt(b.location),this.visualTime,sx,sy,reducedMotion.matches,surveyMode,dt,b.enemies.find(e=>e.hp>0&&isBoss(e)));
     for(let i=0;i<(world?0:30);i++){
       const age=(t*(.105+i%5*.018)+i*.113)%1;
       const x=b.width*(.05+(i*.193)% .90)+Math.sin(t*.62+i*1.6)*13;
@@ -698,40 +706,45 @@ class ShoreScene extends Phaser.Scene{
       const glow=.16+Math.sin(t*5)*.045+village.lamp*.085;
       for(let i=0;i<4;i++)g.fillStyle(0x6dd8c8,glow*(1-i/4)*.28).fillEllipse(b.width*.5,b.height*.28,36+i*29,13+i*8);
     }
-    for(const e of b.enemies)if(e.hp>0&&e.warning)this.paintWarning(e.warning);
-    let count=0;
-    const draw=(actor,kind,frame,size,sheet="cast")=>{
+    if(!world)for(const e of b.enemies)if(e.hp>0&&e.warning)this.paintWarning(e.warning);
+    let count=0,edgeMarkers=0;
+    const draw=(actor,kind,frame,size,sheet="cast",key=actor)=>{
       const hero=kind==="hero";
+      const weaponId=hero?b.run?.weapon||village.trade.role:undefined;
+      const forged=hero&&(b.run?.profile.forged??village.trade.forged[village.trade.role]);
+      if(world){world.figure(key,kind,actor,size,weaponId,forged);return;}
       const pose=actorPose(actor,frame,size*(.93+actor.y/b.height*.13),this.visualTime,reducedMotion.matches,hero);
-      const weapon=hero?heldWeapon(b.run?.weapon||village.trade.role,b.run?.profile.forged??village.trade.forged[village.trade.role],pose,actor):null;
+      const weapon=hero?heldWeapon(weaponId,forged,pose,actor):null;
       const texture=weapon?"hero-pose-"+frame:sheet,cell=weapon?null:frame;
-      if(world)world.figure(actor,texture,cell,pose,weapon);
-      else{
-        const sprite=hero?this.playerSprite:this.sprite(count++);
-        this.paintSprite(sprite,actor,cell,pose,texture,weapon);
-      }
+      const sprite=hero?this.playerSprite:this.sprite(count++);
+      this.paintSprite(sprite,actor,cell,pose,texture,weapon);
     };
     for(const e of b.enemies){
       const data=enemies[e.kind];
-      if(e.hp<=0)continue;
+      if(e.hp<=0){if(world)world.figure(e,e.kind,e,data.size);continue;}
       draw(e,e.kind,e.kind==="boss"&&(e.warning||e.recoil>0)?9:data.frame,data.size,data.sheet);
-      if(!isBoss(e)&&e.hp<e.maxHp){
-        front.fillStyle(0x171320,.85).fillRect(e.x-15,e.y-data.size*.89,30,4);
-        front.fillStyle(0xf58195,.95).fillRect(e.x-15,e.y-data.size*.89,30*e.hp/e.maxHp,4);
+      const at=world?.screenPoint(e.x,e.y,data.size*.92);
+      if(at&&!at.visible&&edgeMarkers<3&&b.phase==="fight"){
+        this.paintEdgeMarker(at,edgeMarkers++,Boolean(e.warning));continue;
+      }
+      if(!isBoss(e)&&e.hp<e.maxHp&&(!at||at.visible)){
+        const x=at?.x??e.x,y=at?.y??(e.y-data.size*.89);
+        front.fillStyle(0x171320,.85).fillRect(x-15,y,30,4);
+        front.fillStyle(0xf58195,.95).fillRect(x-15,y,30*e.hp/e.maxHp,4);
       }
     }
     if(b.phase==="village"){
-      draw({x:b.width*.25,y:b.height*.45,angle:1.16},"smith",10,72);
-      draw({x:b.width*.75,y:b.height*.45,angle:1.98},"keeper",7,69);
+      draw({x:b.width*.25,y:b.height*.45,angle:1.16},"smith",10,72,"cast","smith");
+      draw({x:b.width*.75,y:b.height*.45,angle:1.98},"keeper",7,69,"cast","keeper");
       for(let i=0;i<Math.min(village.rescued,4);i++){
         const walk=t*.73+i*1.7;
         const x=b.width*(.32+(i%2)*.36)+Math.sin(walk)*17,y=b.height*(.60+Math.floor(i/2)*.13)+Math.cos(walk)*7;
-        draw({x,y,angle:Math.cos(walk)<0?2.2:.91,walking:!reducedMotion.matches},"resident",7,59);
+        draw({x,y,angle:Math.cos(walk)<0?2.2:.91,walking:!reducedMotion.matches},["kit","ink","gray","kit"][i],7,59,"cast","resident-"+i);
       }
     }
     if(b.companion){
       const merc=tradeMercenaries[b.companion.key];
-      draw(b.companion,"mercenary",merc.frame,75,"merc-cast");
+      draw(b.companion,b.companion.key,merc.frame,75,"merc-cast");
     }
     if(b.dragon)draw(b.dragon,"blackDragon",4,72,"tide-cast");
     for(let i=count;i<this.actorSprites.length;i++)this.actorSprites[i].setVisible(false);
@@ -739,8 +752,15 @@ class ShoreScene extends Phaser.Scene{
     this.playerSprite.setVisible(!world);
     this.handSprite.setVisible(false);
     draw(p,"hero",frame,90,"cast");
-    if(!surveyMode)front.fillStyle(0xc3f7dd,.80).fillTriangle(p.x,p.y+13,p.x+4,p.y+17,p.x-4,p.y+17);
-    for(const bolt of b.bolts)this.cinema.bolt(front,bolt,t);
+    if(!surveyMode&&!world)front.fillStyle(0xc3f7dd,.80).fillTriangle(p.x,p.y+13,p.x+4,p.y+17,p.x-4,p.y+17);
+    for(const bolt of b.bolts){
+      if(!world){this.cinema.bolt(front,bolt,t);continue;}
+      const at=world.screenPoint(bolt.x,bolt.y,21);
+      if(!at.visible)continue;
+      const x=at.x,y=at.y;
+      const end=world.screenPoint(bolt.x+Math.cos(bolt.angle)*20,bolt.y+Math.sin(bolt.angle)*20,21);
+      this.cinema.bolt(front,{...bolt,x,y:y+17,angle:Math.atan2(end.y-y,end.x-x)},t);
+    }
     for(const particle of world?[]:b.particles){
       const alpha=clamp(particle.left/particle.life,0,1);
       if(particle.dust)front.fillStyle(particle.color,alpha*.32).fillEllipse(particle.x,particle.y,particle.size*1.8,particle.size*.8);
@@ -750,11 +770,27 @@ class ShoreScene extends Phaser.Scene{
       }
     }
     for(const effect of b.effects){
-      if(world&&(effect.kind==="slash"||effect.kind==="echo"))continue;
+      if(world){
+        if(effect.kind==="number"){
+          const at=world.screenPoint(effect.x,effect.groundY,effect.lift);
+          if(at.visible)this.cinema.effect(front,{...effect,x:at.x,y:at.y});
+        }
+        continue;
+      }
       if(!this.cinema.effect(front,effect))this.paintEffect(effect);
     }
     this.cinema.finish(b);
     if(world)world.end();
+  }
+  paintEdgeMarker(at,index,danger){
+    const w=state.width,h=state.height;
+    const margin=22,inset=93;
+    const x=at.behind?w*.5:clamp(at.x,margin,w-margin);
+    const y=at.behind?h-inset:clamp(at.y,inset,h-inset);
+    const angle=at.behind?Math.PI/2:Math.atan2(at.y-h*.5,at.x-w*.5);
+    const fx=Math.cos(angle),fy=Math.sin(angle);
+    const cx=x-fy*index*14,cy=y+fx*index*14;
+    this.front.fillStyle(danger?0xff8e73:0xf2cc94,.89).fillTriangle(cx+fx*8,cy+fy*8,cx-fx*5-fy*5,cy-fy*5+fx*5,cx-fx*5+fy*5,cy-fy*5-fx*5);
   }
   paintWarning(w){
     const g=this.ground,progress=clamp(1-w.left/w.total,0,1);

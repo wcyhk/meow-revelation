@@ -21,6 +21,10 @@ export const ultimateRites={
   windhalberd:rite('windhalberd',flare,'風龍回天','≋',0x8bdf83,0xd9ffb1,7,'第一道風龍橫掠聚敵，第二道由交叉方向衝返嚟，將敵人震開。'),
   frostlute:rite('frostlute',ash,'冰弦絕響','❋',0x5cd5ff,0xc5faff,8,'三層冰音從落點擴散，最後一下擊碎冰層，凍結範圍內小怪。'),
   chakra:rite('chakra',forge,'天輪日蝕','◎',0xe78745,0xffe9a9,9,'雙輪一正一反繞住戰場切割，收返中心時引爆日蝕。'),
+  reaper:rite('reaper',ash,'萬魂送葬','☽',0x925bd2,0xf0d0ff,10,'用三道鐮刃將敵人拉入墓環，最後一斬對殘血敵人更痛。'),
+  bell:rite('bell',storm,'百鬼倒鐘','◈',0x4fcfba,0xd2fff1,11,'三座鬼鐘逐步封向中心，最後一下凍住未逃出嘅小怪。'),
+  fangs:rite('fangs',flare,'雙月斷命','✦',0xed446b,0xffc2c3,12,'兩道血月斬交叉掠過，接住裂成四道外刃。'),
+  cannon:rite('cannon',forge,'蝕日葬星','✷',0xf88437,0xffeeb1,13,'向命中處轟出黑日，吸入附近敵人，再爆成五路火流。'),
 };
 
 export function ultimateProgress(weapon,loadout) {

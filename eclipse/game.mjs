@@ -1,22 +1,26 @@
-import {Scenery} from './scenery.mjs?v=resonance-1';
-import {Audio} from './audio.mjs?v=ultimates-1';
+import {Scenery} from './scenery.mjs?v=nightfall-1';
+import {Audio} from './audio.mjs?v=nightfall-1';
 import {Input} from './input.mjs?v=armory-1';
-import {arms} from './armory.mjs?v=combos-1';
+import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
-import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=resonance-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=impact-1';
-import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=fusions-1';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=nightfall-1';
+import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=nightfall-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=nightfall-1';
+import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=nightfall-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
-import {invokeSchool} from './schools.mjs?v=resonance-1';
+import {invokeSchool} from './schools.mjs?v=nightfall-1';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
-import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=links-1';
-import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=links-1';
+import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=nightfall-1';
+import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=nightfall-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
-import {fusionChoices, pickFusion} from './link-fusions.mjs?v=ultimates-1';
-import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=ultimates-1';
-import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=ultimates-1';
+import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
+import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
+import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=nightfall-1';
+import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
+import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=nightfall-1';
+import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
+import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=nightfall-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -60,6 +64,7 @@ export class Game {
     this.view = view;
     this.audio = audio;
     this.state = 'cover';
+    this.difficulty=difficulties.vigil;
     this.arenaSeed=Math.floor(Math.random()*0x100000000);
     this.level = 0;
     this.wave = 0;
@@ -85,6 +90,7 @@ export class Game {
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
+      'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
@@ -104,8 +110,10 @@ export class Game {
     this.audio.active=false;
     const grid=document.createElement('div');
     grid.className='armory-grid';
-    const pool=milestone?arms.filter(arm=>arm!==this.weapon):arms;
-    for (const weapon of shuffle(pool).slice(0,3)) {
+    const pool=shuffle(milestone?arms.filter(arm=>arm.id!==this.weapon.id):arms);
+    const choices=pool.slice(0,3);
+    if(!milestone&&!choices.some(arm=>nightArms.includes(arm)))choices[2]=pool.find(arm=>nightArms.includes(arm));
+    for (const weapon of choices) {
       const choice=makeButton('',()=>milestone?this.swapWeapon(weapon):this.start(weapon),'arm-card');
       choice.dataset.arm=weapon.id;
       choice.style.setProperty('--arm-ink',weapon.ink);
@@ -117,7 +125,7 @@ export class Game {
       const role=document.createElement('small'), name=document.createElement('b');
       const basic=document.createElement('span'), moves=document.createElement('span');
       const skill=document.createElement('strong'), detail=document.createElement('span'), link=document.createElement('span');
-      role.textContent=weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
+      role.textContent=(nightArms.includes(weapon)?'夜祭 · ':'')+weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
       moves.className='arm-combo';
       moves.textContent=comboNames(weapon).join(' → ');
       skill.textContent=weapon.skill; detail.textContent=weapon.detail;
@@ -144,12 +152,32 @@ export class Game {
       choice.append(image,text);
       grid.append(choice);
     }
+    const content=document.createElement('div');
+    if(!milestone)content.append(this.difficultyPicker());
+    content.append(grid);
     this.openModal({kind:'armory',mark:'◇',
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
       title:milestone?'領取頭目遺物':'向林火借一件神器',
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
-        :'三件神器回應了你。選擇一件，踏上百關尋名之路。',content:grid,
+        :'先揀難度，再揀一件神器，踏上百關尋名之路。',content,
       buttons:milestone?[]:[makeButton('返回主畫面',()=>this.showCover())]});
+  }
+
+  difficultyPicker() {
+    const root=document.createElement('div');
+    root.className='difficulty-picker';
+    root.setAttribute('role','group');root.setAttribute('aria-label','選擇難度');
+    const controls=document.createElement('div'),detail=document.createElement('small');
+    const refresh=()=>{
+      for(const button of controls.children) button.setAttribute('aria-pressed',String(button.dataset.difficulty===this.difficulty.id));
+      detail.textContent=this.difficulty.detail;
+    };
+    for(const mode of Object.values(difficulties)) {
+      const button=makeButton(mode.mark+' '+mode.name,()=>{this.difficulty=mode;refresh();},'difficulty-choice');
+      button.dataset.difficulty=mode.id;
+      controls.append(button);
+    }
+    root.append(controls,detail);refresh();return root;
   }
 
   start(weapon) {
@@ -158,6 +186,7 @@ export class Game {
     this.heroVisual = this.view.createActor(0,2.68);
     this.relics = [];
     this.fusionPin=null;
+    this.routeSeed=Math.floor(Math.random()*0x100000000);
     this.journal = [];
     this.learned=new Set();
     this.autoReady=new Map();
@@ -243,7 +272,8 @@ export class Game {
     this.level = level;
     this.wave = 0;
     this.clearDelay = 0;
-    const stage = this.stage = stages[level];
+    const stage = this.stage = modeStage(stages[level],this.difficulty);
+    this.escape=routeLayout(stage,this.routeSeed);
     this.bossArena=null;
     this.mission=stage.objective ? new RoomObjective(this,stage.objective) : null;
     this.ui.hud.dataset.mission=this.mission?.plan.type??'';
@@ -261,20 +291,25 @@ export class Game {
     h.linkFlash=0;
     h.linkWard=false;
     h.rushLink=h.linkGuard=h.linkFusion=null;
+    h.rollOrigin=null;
+    h.sutureUsed=false;
+    h.gravefireAt=h.votiveAt=0;
     h.reaction=h.motion=null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
-    this.ambientClock=4.1+(stage.room%4)*.47;
+    this.ambientClock=(4.1+(stage.room%4)*.47)/this.difficulty.pace;
     this.view.focus.set(0,0,-.65);
     this.view.setStage(stage);
+    this.view.lanternArt.set(this.escape);
     this.view.setMission(this.mission);
     this.view.setBossArena(null);
     this.setupMissionPins();
     this.audio.danger = stage.boss;
     this.audio.dread=stage.dread;
     this.ui['boss-hud'].hidden = true;
+    this.ui['boss-echo'].hidden=true;
     this.ui['route-name'].textContent = stage.name;
-    this.ui['route-floor'].textContent='第 '+stage.floor+' / 100 關';
+    this.ui['route-floor'].textContent='第 '+stage.floor+' / 100 關'+(this.difficulty.id==='vigil'?'':' · '+this.difficulty.name);
     this.ui['route-dots'].replaceChildren(...Array.from({length:10},(_,index) => {
       const gem = document.createElement('i');
       gem.className = 'route-gem '+(index===stage.chapter?'current':index<stage.chapter?'done':'');
@@ -318,6 +353,7 @@ export class Game {
       this.readClue();
       return;
     }
+    if(this.escape?.ready){this.useExit();return;}
     const arenaPoint=this.bossArena?.nearby(this.hero);
     if (arenaPoint) {
       this.bossArena.interact(arenaPoint);
@@ -396,14 +432,20 @@ export class Game {
       buttons:[makeButton('收起手記',()=>this.togglePause(),'primary')]});
   }
 
-  spawn(kind,x,z) {
-    const spec = enemySpec(this.stage,kind);
+  spawn(kind,x,z,omen=null,override=null) {
+    const spec = override??enemySpec(this.stage,kind);
+    if(omen){
+      spec.hp=Math.round(spec.hp*1.22);spec.tint=omen.tint;spec.name=spec.name+' · '+omen.name;
+      if(omen.id==='husk')spec.guard=true;
+      if(omen.id==='hunt'){spec.speed*=1.16;spec.hurt*=1.12;}
+    }
     const unit = {
-      kind,spec,x,z,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
+      kind,spec,x,z,omen,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
       kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,morale:0,
       guardOpen:0,reaction:null,motion:null,frozen:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
+    if(spec.effigy)this.view.prepareEffigy(unit.visual,spec.effigy);
     if (kind==='boss') this.view.prepareBoss(unit.visual,spec);
     this.bound(unit);
     if (this.isBlocked(unit,.45)) {
@@ -424,18 +466,22 @@ export class Game {
   startWave() {
     const {waves,positions,guardian}=this.stage;
     const units = shuffle(waves[this.wave]);
-    let head;
+    const eliteIndex=units.findIndex(kind=>kind!=='boss');
+    const omen=eliteOmen(this.stage,this.wave,this.arenaSeed,eliteIndex>=0);
+    let head,elite;
     const count = units.length;
     for (let i=0;i<count;i++) {
       const {x,z} = units[i]==='boss'?{x:0,z:-3.2}:positions[i];
-      const unit=this.spawn(units[i],x+random(-.46,.46),z+random(-.46,.46));
+      const unit=this.spawn(units[i],x+random(-.46,.46),z+random(-.46,.46),i===eliteIndex?omen:null);
       if (unit.kind==='boss') head=unit;
+      if(unit.omen)elite=unit;
     }
     this.startDelay = Infinity;
     this.wave++;
     const boss=!!head;
     this.objective(boss ? '擊敗 '+guardian.name : '清除敵人 · '+this.wave+' / '+waves.length+
-      (guardian?' · 頭目尚未現身':' · '+patterns[this.stage.hazard]));
+      (guardian?' · 頭目尚未現身':' · '+patterns[this.stage.hazard])+(elite?' · '+elite.omen.name:''));
+    if(elite&&!boss)this.announce('夜祭異變',elite.spec.name,elite.omen.detail,1.75);
     if (boss) {
       this.arenaSeed=(this.arenaSeed+0x9e3779b9)>>>0;
       this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head,this.arenaSeed);
@@ -443,10 +489,20 @@ export class Game {
       head.phaseGuard=1.17;
       head.recover=1.04;
       this.ui['boss-name'].textContent=guardian.name;
+      this.ui['boss-primary'].hidden=false;
       this.ui['boss-hud'].hidden = false;
+      const extra=twinSpec(this.stage);
+      if(extra){
+        const echo=this.spawn('boss',this.escape.x*.65+(this.escape.x>0?3.45:-3.45),-4.95,null,extra);
+        echo.phaseGuard=1.30;echo.recover=2.35;echo.cool=2.65;
+        this.ui['boss-echo'].hidden=false;
+        this.ui['boss-echo-name'].textContent=extra.name;
+        this.view.bossCue(echo,'entrance');
+        this.objective('擊敗兩名頭目 · 封住出口嘅路障可擊破');
+      }
       this.view.bossCue(head,'entrance');
       this.audio.boss(guardian.effect);
-      this.announce('第 '+this.stage.floor+' 關 · 頭目',guardian.name,guardian.signature,2.35);
+      this.announce('第 '+this.stage.floor+' 關 · '+(extra?'雙頭目':'頭目'),guardian.name,extra?'同行：'+extra.name:guardian.signature,2.35);
     }
   }
 
@@ -460,10 +516,10 @@ export class Game {
     }
     let nearest = null;
     let shortest = Infinity;
-    const anchors=this.bossArena?.targets;
-    for (const foe of anchors?.length?[...anchors,...this.enemies]:this.enemies) {
+    const anchors=this.bossArena?.targets??[];
+    for (const foe of [...anchors,...this.enemies,...this.breakables()]) {
       const d = distance(h,foe);
-      const priority=foe.kind==='arenaAnchor'?.50:1;
+      const priority=foe.kind==='arenaAnchor'?.50:foe.kind==='breakable'?1.35:1;
       if (foe.hp>0 && d*priority<shortest && d<range+(foe.kind==='boss'?.65:0)) {
         nearest = foe;
         shortest = d*priority;
@@ -505,6 +561,7 @@ export class Game {
       h.invulnerable = Math.max(h.invulnerable,.35);
       h.rollX = movement>.07 ? input.x/movement : h.dx;
       h.rollZ = movement>.07 ? input.z/movement : h.dz;
+      h.rollOrigin={x:h.x,z:h.z};
       if (h.slash) h.atk=Math.min(h.atk,.20);
       this.interruptLink();
       h.slash = null;
@@ -520,6 +577,8 @@ export class Game {
       h.rolling -= dt;
       h.vx = h.rollX * 4; h.vz = h.rollZ * 4;
       if (h.rolling<=0) {
+        if(h.rollOrigin)giftRoll(this,h.rollOrigin);
+        h.rollOrigin=null;
         if (h.rushLink) finishLinkedRush(this);
         h.rush=null;
         h.rushLink=null;
@@ -535,7 +594,7 @@ export class Game {
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
       this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
-      const canFight=!this.discovery&&!this.mission?.plan.points;
+      const canFight=!this.discovery&&(!this.mission?.plan.points||this.escape?.ready);
       while (h.slash?.timing&&h.attackAge>=h.slash.timing.hits[h.slash.next].at) this.landSlash();
       const ready=this.readyLink();
       const waitForHit=h.link?.pending&&!h.link.contacts.length;
@@ -561,6 +620,12 @@ export class Game {
       }
       return;
     }
+    if(this.escape?.ready){
+      const open=this.exitOpen()&&distance(h,this.escape)<1.78;
+      this.ui.inspect.hidden=!open;
+      if(open){this.ui.inspect.querySelector('span').textContent='穿過出口';if(input.interact)this.useExit();}
+      return;
+    }
     const arenaPoint=this.bossArena?.nearby(h);
     if (arenaPoint) {
       this.ui.inspect.hidden=false;
@@ -578,16 +643,18 @@ export class Game {
   }
 
   bound(unit) {
-    unit.z = clamp(unit.z,-7.55,11.15);
-    const edge = unit.z < -3.9 ? 10.35 : 11.45;
-    unit.x = clamp(unit.x,-edge,edge);
+    unit.z=clamp(unit.z,roomBounds.minZ,roomBounds.maxZ);
+    unit.x=clamp(unit.x,roomBounds.minX,roomBounds.maxX);
   }
+
+  breakables() {return this.escape?.barricades.filter(item=>item.hp>0)??[];}
 
   isBlocked(unit,margin,previous) {
     const gate=this.mission?.plan.gate;
     if (gate && !this.mission.gateOpen
       && Math.abs(unit.x-gate.x)<gate.width/2+margin && Math.abs(unit.z-gate.z)<gate.depth/2+margin) return true;
     return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin)
+      ||!!this.escape?.barricades.some(item=>item.hp>0&&distance(unit,item)<item.radius+margin)
       || !!this.bossArena?.blocks(unit,margin,previous);
   }
 
@@ -642,7 +709,10 @@ export class Game {
       strike.confirmed=true;
     };
     this.audio.attack(this.weapon.id,step,'release',index);
-    confirm(strikeWith(this,dx,dz,move,pulse?.power??1,confirm,link?(unit,kind)=>this.confirmLink(link,unit,kind):undefined));
+    confirm(strikeWith(this,dx,dz,move,pulse?.power??1,confirm,link?(unit,kind)=>{
+      this.confirmLink(link,unit,kind);
+      giftFinisher(this,strike,unit,kind);
+    }:undefined));
     if (link) {
       const travel=strikeTravel(move,h.reach*move.reach,true);
       const settle=()=>{
@@ -702,6 +772,7 @@ export class Game {
         this.view.sealFx(h.x,h.z,0xa9eee0,1.10,.46);
       }
       this.audio.link(this.weapon.id,true);
+      giftCast(this,link);
     } else {
       invokeArm(this,input);
       if (!h.rush) heroAction(h,'cast');
@@ -743,9 +814,17 @@ export class Game {
 
   hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report) {
     if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
+    if (unit.kind==='breakable') {
+      if(unit.hp<=0)return false;
+      unit.hp=Math.max(0,unit.hp-amount);
+      this.view.spark(unit.x,.42,unit.z,unit.hp?0xd3a779:0xffc484,unit.hp?5:14,.91,unit.style==='urn'?'stone':'flare');
+      if(!unit.hp){this.view.lanternArt.smash(unit);this.audio.impact('break',unit.style==='urn'?'stone':'hide');}
+      return true;
+    }
     if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
     const boss=unit.kind==='boss';
-    if (boss&&this.bossArena?.locked) {
+    const primary=this.bossArena?.boss===unit;
+    if (primary&&this.bossArena.locked) {
       this.bossArena.rejectHit(origin);
       return false;
     }
@@ -753,7 +832,7 @@ export class Game {
     const nextPhaseHp=phaseBoundary*unit.spec.hp;
     const shield=unit.spec.guard&&unit.guardOpen<=0&&unit.attack&&unit.attack.time>unit.spec.time*.34;
     const heavy=weight==='heavy'||(!weight&&(Math.abs(knock)>=1.21||amount>=this.hero.damage*1.44));
-    unit.hp -= amount*(unit.exposed>0?1.24:1)*(shield?.73:1);
+    unit.hp -= amount*(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     const kind=unit.hp<=0?'fall':shield?(heavy?'break':'block'):heavy?'heavy':'light';
     if (kind==='break') {
@@ -770,13 +849,13 @@ export class Game {
       unit.bossPhase++;
       unit.phaseGuard=.91;
       unit.step=Math.max(unit.step,unit.bossPhase);
-      this.bossArena?.transform(unit.bossPhase);
+      if(primary)this.bossArena.transform(unit.bossPhase);
       this.beginEnemyAttack(unit,unit.spec.attacks[0]);
       this.view.bossCue(unit,'phase');
       this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
-      const terrain=this.bossArena?.plan;
+      const terrain=primary?this.bossArena?.plan:null;
       const form=unit.bossPhase===2?'最後攻勢':unit.spec.form;
-      const title=this.bossArena?.aftershock?'場地再變':terrain?.title;
+      const title=primary&&this.bossArena?.aftershock?'場地再變':terrain?.title;
       this.announce(unit.spec.name,form+(title?' · '+title:''),terrain?.hint??unit.spec.signature,2.0);
       this.audio.boss(unit.spec.effect,true);
     }
@@ -785,11 +864,21 @@ export class Game {
       const h = this.hero;
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
       this.fallen.push(unit);
+      giftKill(this,unit);
+      if(unit.spec.deathOmen||unit.omen?.id==='grudge')this.deathOmen(unit);
       if (boss) this.view.bossCue(unit,'defeat');
       if (unit.kind!=='boss' && (this.kills%4===0 || Math.random()<.10)) this.drop(unit);
     }
     report?.(unit,kind);
     return true;
+  }
+
+  deathOmen(unit) {
+    if(this.hazards.filter(hazard=>hazard.deathOmen).length>=3)return;
+    const {x,z}=unit,delay=.67,radius=unit.omen?.id==='grudge'?2.19:1.83;
+    const tint=0xff7d7f;
+    this.hazards.push({kind:'circle',x,z,radius,delay,damage:unit.spec.hurt*.69,owner:null,tint,effect:'fire',pattern:'burst',deathOmen:true});
+    this.view.warning('circle',x,z,radius,delay,0,0,tint);
   }
 
   drop(unit) {
@@ -823,6 +912,7 @@ export class Game {
     this.hitstop = Math.max(this.hitstop,heavy?.061:.032);
     if (guarded&&this.weapon.id==='turtle') reflectHit(this,attacker);
     if (barrier?.fusion&&h.hp>0) dischargeFusion(this,attacker,barrier.fusion);
+    giftHurt(this,guarded,barrier);
     if (h.hp>0) invokeSchool(this,'ward',attacker);
     if (h.hp===0) {
       clearUltimates(this);
@@ -862,6 +952,7 @@ export class Game {
     const time=spec.time*(1-phase*.12);
     unit.attack={pattern,time,windup:time,dx,dz};
     unit.attack.landing=telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
+    if(unit.omen?.id==='echo'&&this.hazards.length<13)telegraph(this,'marked',unit,h,{delay:time+.46,damage:spec.hurt*.58,radius:1.27,owner:unit});
     if (boss && phase>=1 && index%3===2) {
       const echo=spec.attacks[(index+1)%spec.attacks.length];
       telegraph(this,['summon','blink','rally'].includes(echo)?'marked':echo,unit,h,
@@ -955,7 +1046,8 @@ export class Game {
           sz+=(unit.z-other.z)/between*(1.30-between)*2.3;
         }
       }
-      const aggression = (1+unit.bossPhase*.17)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1)*(unit.morale>0?1.31:1);
+      const aggression = (1+unit.bossPhase*.17)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1)*(unit.morale>0?1.31:1)
+        *(unit.omen?.id==='hunt'&&unit.hp<unit.spec.hp*.5?1.31:1);
       const advance=direction*spec.speed*aggression*dt;
       const traveled=this.moveUnit(unit,dx*advance+sx*dt,dz*advance+sz*dt,.35);
       if (direction && traveled<Math.abs(advance)*.38) {
@@ -977,7 +1069,7 @@ export class Game {
         const {zone,room,bearing,damage,hazard}=this.stage;
         const origin={x:Math.cos(bearing)*4.9,z:-3.8+Math.sin(bearing)*1.8};
         telegraph(this,hazard,origin,this.hero,{delay:1.05+(room%4)*.11,damage:(7+zone.frame*.39)*damage,radius:1.34+room*.08});
-        this.ambientClock=Math.max(4.2,7.1-room*.19-this.stage.chapter*.13);
+        this.ambientClock=Math.max(3.05,(7.1-room*.19-this.stage.chapter*.13)/this.difficulty.pace);
       }
     }
     advanceThreats(this,dt);
@@ -1015,6 +1107,12 @@ export class Game {
 
   updateFlow(dt) {
     if (this.discovery) return;
+    const exit=this.escape;
+    if(exit&&!exit.found&&distance(this.hero,exit)<lanternRadius(this.stage)*.96){
+      exit.found=true;
+      if(exit.ready)this.audio.play('blessing');
+    }
+    if(exit?.ready){if(!exit.passed)this.updateEscape(dt);return;}
     if (this.startDelay !== Infinity) {
       this.startDelay-=dt;
       if (this.startDelay<=0) {
@@ -1044,7 +1142,7 @@ export class Game {
   }
 
   completeRoom(message,retreat=false) {
-    if (this.state!=='play') return;
+    if (this.state!=='play'||this.escape?.ready) return;
     if (this.mission) this.mission.finished=true;
     this.ui.inspect.hidden=true;
     this.ui['mission-status'].hidden=true;
@@ -1055,7 +1153,61 @@ export class Game {
       for (const enemy of this.enemies) this.view.spark(enemy.x,.55,enemy.z,this.stage.zone.color,10,.48);
       this.clearActors();
     }
-    this.blessing(message);
+    this.bossArena=null;
+    this.view.setBossArena(null);
+    this.setupMissionPins();
+    this.ui.hud.dataset.mission='escape';
+    this.escape.ready=true;
+    this.escape.message=message;
+    this.escape.found||=distance(this.hero,this.escape)<lanternRadius(this.stage)*.96;
+    this.announce('封印解除','尋找出口','留意北面拱門。黑暗入面仲有嘢跟住你。',1.95);
+    this.updateEscape(0);
+  }
+
+  exitOpen() {
+    return this.escape?.ready&&!this.escape.passed&&this.escape.barricades.every(item=>!item.gate||item.hp<=0);
+  }
+
+  useExit() {
+    if(this.state!=='play'||!this.exitOpen()||distance(this.hero,this.escape)>=1.78)return false;
+    this.escape.passed=true;
+    this.clearThreats();this.rituals.length=0;this.clearActors();
+    this.ui.inspect.hidden=true;
+    this.blessing(this.escape.message);
+    return true;
+  }
+
+  updateEscape(dt) {
+    const exit=this.escape;
+    const gateLeft=exit.barricades.filter(item=>item.gate&&item.hp>0).length;
+    exit.searchTime+=dt;
+    const dx=exit.x-this.hero.x,dz=exit.z-this.hero.z;
+    const compass=(Math.abs(dx)>2?(dx<0?'西':'東'):'')+(Math.abs(dz)>2?(dz<0?'北':'南'):'');
+    this.objective(exit.found?(gateLeft?'找到出口 · 擊破路障 '+(2-gateLeft)+'/2':'出口已開 · '+(compass||'靠近拱門'))
+      :'提燈找出口 · '+(exit.searchTime>7&&compass?'往'+compass:'沿北面牆搜尋'));
+    if(exit.found)return;
+    exit.clock-=dt;
+    if(exit.clock>0||this.enemies.length>=4)return;
+    const count=this.stage.floor>=35?2:1;
+    let spawned=false;
+    exit.clock=Math.max(2.0,4.5-this.stage.floor*.019)/this.difficulty.pace;
+    for(let i=0;i<count;i++){
+      let spot;
+      for(let attempt=0;attempt<9;attempt++){
+        const a=exit.seed+(exit.prowls+i)*2.399+attempt*.78;
+        const p={x:this.hero.x+Math.cos(a)*7.65,z:this.hero.z+Math.sin(a)*7.65};
+        this.bound(p);
+        if(distance(this.hero,p)>lanternRadius(this.stage)+.32&&!this.isBlocked(p,.68)){spot=p;break;}
+      }
+      if(!spot)continue;
+      const zone=this.stage.zone.foes;
+      const kind=zone[(this.stage.room+exit.prowls+i*2)%zone.length];
+      const unit=this.spawn(kind,spot.x,spot.z);
+      unit.prowler=true;
+      spawned=true;
+    }
+    if(spawned)this.audio.play('warning');
+    exit.prowls+=count;
   }
 
   setupMissionPins() {
@@ -1087,6 +1239,7 @@ export class Game {
       return;
     }
     const mission=this.mission;
+    if(!mission)return;
     for (const [index,{point,element}] of this.pins.entries()) {
       const taken=mission.found.has(index);
       const revealed=mission.plan.type==='circuit'||distance(point,this.hero)<4.25;
@@ -1125,8 +1278,9 @@ export class Game {
       if (unit.hp<=0) continue;
       advanceReaction(unit,dt);
       const boss=unit.kind==='boss';
-      const shielded=boss&&this.bossArena?.locked;
-      const staggered=boss&&this.bossArena?.counters.stagger>0;
+      const primary=this.bossArena?.boss===unit;
+      const shielded=primary&&this.bossArena?.locked;
+      const staggered=primary&&this.bossArena?.counters.stagger>0;
       const frozen=unit.frozen>0;
       const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
       const oscillation=frozen?0:Math.sin(t*(boss?7:13)+unit.phase);
@@ -1139,8 +1293,8 @@ export class Game {
         squash:1+oscillation*(.028+unit.move*.032),
         tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move,
         warm:fierce?.42:0,
-        aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
+        aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+        rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
         phase:unit.bossPhase,
       };
       this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
@@ -1208,7 +1362,17 @@ export class Game {
       this.meter.setAttribute('aria-valuemax',h.maxHp);
       this.meter.setAttribute('aria-valuenow',hp);
     }
-    const boss=this.enemies.find(unit=>unit.kind==='boss');
+    const boss=this.enemies.find(unit=>unit.kind==='boss'&&!unit.spec.secondary);
+    const echo=this.enemies.find(unit=>unit.kind==='boss'&&unit.spec.secondary);
+    const bossHUD=this.ui['boss-hud'];
+    bossHUD.hidden=!boss&&!echo;
+    this.ui['boss-primary'].hidden=!boss;
+    this.ui['boss-echo'].hidden=!echo;
+    if(echo)this.ui['boss-echo-fill'].style.transform='scaleX('+clamp(echo.hp/echo.spec.hp,0,1)+')';
+    const kills=String(this.kills),seconds=Math.floor(this.elapsed);
+    const clock=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+    if(this.ui['run-kills'].textContent!==kills)this.ui['run-kills'].textContent=kills;
+    if(this.ui['run-time'].textContent!==clock)this.ui['run-time'].textContent=clock;
     if (this.stage.boss) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
     const arena=this.bossArena;
     const arenaHint=this.ui['boss-arena-hint'];
@@ -1314,7 +1478,7 @@ export class Game {
     this.state='blessing';
     this.audio.play('blessing');
     const h=this.hero;
-    const heal=Math.round(h.maxHp*((this.stage.boss?.36:.14)+h.recovery));
+    const heal=Math.round(h.maxHp*((this.stage.boss?.36:.14)+h.recovery)*this.difficulty.heal);
     h.hp=Math.min(h.maxHp,h.hp+heal);
     const grid=document.createElement('div');
     grid.className='relic-grid';
@@ -1367,6 +1531,13 @@ export class Game {
         clue.textContent='隱藏合招｜'+this.ultimateClue(secret,relic.school);
         button.append(clue);
       }
+      for(const seal of seals){
+        if(h.seals.has(seal.id)||!seal.needs.includes(relic.id)||!seal.needs.some(id=>id!==relic.id&&this.ranks.has(id)))continue;
+        const clue=document.createElement('small');
+        clue.className='relic-fusion ultimate-clue';clue.style.setProperty('--fusion-ink',seal.ink);
+        clue.textContent='秘印 '+seal.name+'｜'+seal.detail;
+        button.append(clue);
+      }
       grid.append(button);
     }
     this.openModal({kind:'blessing',mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
@@ -1379,20 +1550,27 @@ export class Game {
     const h=this.hero;
     const oldMax=h.maxHp;
     const previous=this.fusion;
+    const oldSeals=h.seals;
     const knownUltimate=this.fusions.some(fusion=>fusion.ultimate);
     this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics);
     this.refreshFusion();
     const extra=relic.id==='spring'?h.maxHp*.31:relic.id==='flower'?h.maxHp*.19:0;
     h.hp=Math.min(h.maxHp,h.hp+(h.maxHp-oldMax)+extra);
     const branch=relic.school;
-    const learned=!this.learned.has(branch)&&schoolProgress(this.ranks,branch).distinct===3;
+    const learned=!this.learned.has(branch)&&schoolProgress(this.ranks,branch).distinct>=3;
     if (learned) this.learned.add(branch);
     const awakened=!knownUltimate&&this.fusions.find(fusion=>fusion.ultimate);
+    const newSeal=seals.find(seal=>h.seals.has(seal.id)&&!oldSeals.has(seal.id));
     if (awakened) {
       const note=this.ui['school-toast'];
       note.textContent='隱藏合招覺醒 · '+awakened.name+'｜'+awakened.detail;
       note.hidden=false;
       this.schoolToast=4.2;
+    } else if(newSeal){
+      const note=this.ui['school-toast'];
+      note.textContent='秘印 · '+newSeal.name+'｜'+newSeal.detail;
+      note.hidden=false;
+      this.schoolToast=3.8;
     } else if (learned) {
       const note=this.ui['school-toast'];
       note.textContent='解鎖 '+schools[branch].skill+' · '+schools[branch].detail;
@@ -1404,7 +1582,7 @@ export class Game {
       note.hidden=false;
       this.schoolToast=3.2;
     }
-    this.ui['relic-icons'].textContent='✦ '+this.relics.length+' '+[...this.learned].map(id=>schools[id].mark).join('');
+    this.ui['relic-icons'].textContent='✦ '+this.relics.length+' '+[...this.learned].map(id=>schools[id].mark).join('')+(h.seals.size?' ◈'+h.seals.size:'');
     this.ui['relic-icons'].title=blessings.filter(item=>this.ranks.has(item.id))
       .map(item=>item.name+' ×'+this.ranks.get(item.id)).join('、');
     this.audio.play('blessing');
@@ -1475,6 +1653,11 @@ export class Game {
       clue.className='fusion-secret';
       clue.textContent='隱藏合招 · 三個指定流派各達 '+ultimateRank+' 階：'+this.ultimateClue(secret);
       panel.append(clue);
+    }
+    for(const seal of seals)if(this.hero.seals.has(seal.id)){
+      const entry=document.createElement('p');entry.className='fusion-secret';entry.style.color=seal.ink;
+      entry.textContent='秘印 · '+seal.name+'｜'+seal.detail;
+      panel.append(entry);
     }
     paint();
     return panel;

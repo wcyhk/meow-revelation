@@ -1,3 +1,5 @@
+import {roomBounds} from './lantern-route.mjs?v=nightfall-1';
+
 const TAU = Math.PI*2;
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 
@@ -163,6 +165,22 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
       }
       break;
     }
+    case 'jaws': {
+      const gap=boss?2.57:1.95, length=boss?13.4:7.6;
+      for(const side of [-1,1]) line(around(aim,bearing+side*Math.PI/2,gap),length,boss?.84:.66,bearing,delay);
+      line(aim,length,boss?1.20:.79,bearing,delay+(boss?.36:.31));
+      break;
+    }
+    case 'toll':
+      ring(aim,boss?5.12:3.72,boss?1.11:.82,delay);
+      ring(aim,boss?3.43:2.40,boss?1.03:.71,delay+.32);
+      circle(aim,boss?1.87:1.32,delay+.67);
+      break;
+    case 'gravefan':
+      zone('cone',source,boss?8.14:6.18,delay,boss?.72:.60,bearing-.47);
+      zone('cone',source,boss?8.14:6.18,delay+.31,boss?.73:.60,bearing+.47);
+      if(boss) rays(source,[bearing-.14,bearing,bearing+.14],7.8,delay+.62);
+      break;
   }
 }
 
@@ -204,7 +222,7 @@ export function advanceThreats(game,dt) {
       view.moveProjectile(hazard.visual,hazard.x,hazard.z,Math.atan2(hazard.dz,hazard.dx));
       const blocked=game.isBlocked(hazard,.17);
       if (blocked&&hazard.delay>0) counters?.projectileBlocked(hazard);
-      if (hazard.delay<=0 || Math.abs(hazard.x)>12 || hazard.z<-8.5 || hazard.z>12 || blocked
+      if (hazard.delay<=0 || hazard.x<roomBounds.minX-.55 || hazard.x>roomBounds.maxX+.55 || hazard.z<roomBounds.minZ-.55 || hazard.z>roomBounds.maxZ+.55 || blocked
         || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner,hazard.pattern))
         || (lantern && hazard.owner?.raider && distance(lantern,hazard)<.74 && game.mission.hurtLantern(hazard.damage))) {
         view.removeProjectile(hazard.visual);

@@ -1,6 +1,6 @@
 import {stages as originalStory} from './campaign.mjs';
 import {planObjective} from './objectives.mjs?v=battle-1';
-import {chapterAttacks, enemies, regionalEnemies, wardens} from './bestiary.mjs';
+import {chapterAttacks, enemies, regionalEnemies, wardens} from './bestiary.mjs?v=nightfall-1';
 
 const districts = [
   {
@@ -164,15 +164,17 @@ export const patterns = {
   cleave:'弧面連斬', icicles:'落冰連陣', cinders:'流火裂痕', web:'縛足蛛網',
   rally:'戰鼓鼓舞', feathers:'飛羽箭陣', roots:'盤根地棘', coins:'旋刃銅錢',
   blink:'移影伏擊', gravity:'潮汐牽引', lance:'貫穿長刺',
+  jaws:'索魂雙顎',toll:'倒鐘內環',gravefan:'墓扇回剪',
 };
 
 export function enemySpec(stage, kind) {
   if (kind==='boss') {
     const {chapter,chapterBoss,guardian}=stage;
+    const mode=stage.difficulty;
     return {
       ...guardian, height:chapterBoss?(chapter===9?5.9:4.6+chapter*.10):3.7+chapter*.12,
-      hp:chapterBoss?540+chapter*210:320+chapter*142, speed:2.43+chapter*.13, reach:6+chapter*.18,
-      radius:(chapterBoss?2.85:2.42)+chapter*.12, time:1.08-chapter*.022, hurt:(chapterBoss?23:18)+chapter*3.2,
+      hp:Math.round((chapterBoss?540+chapter*210:320+chapter*142)*(mode?.hp??1)), speed:(2.43+chapter*.13)*Math.sqrt(mode?.pace??1), reach:6+chapter*.18,
+      radius:(chapterBoss?2.85:2.42)+chapter*.12, time:(1.08-chapter*.022)/Math.sqrt(mode?.pace??1), hurt:((chapterBoss?23:18)+chapter*3.2)*(mode?.damage??1),
       mass:4.7+chapter*.28, phases:chapterBoss&&chapter>=2?[.58,.25]:[.54],
     };
   }

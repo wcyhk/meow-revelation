@@ -1,4 +1,4 @@
-import {ultimateProgress} from './ultimate-recipes.mjs?v=ultimates-1';
+import {ultimateProgress} from './ultimate-recipes.mjs?v=nightfall-1';
 
 const recipes=[
   {id:'emberbolt',schools:['fire','thunder'],name:'雷引燃痕',mark:'ϟ',ink:'#ffbf83',tint:0xffae70,
@@ -16,7 +16,8 @@ const recipes=[
 ];
 
 const affinities={flameblade:'emberbolt',stormbow:'rail',qilin:'frostlance',turtle:'counter',
-  tiger:'firewhirl',phoenix:'steam',dragon:'emberbolt',windhalberd:'firewhirl',frostlute:'steam',chakra:'rail'};
+  tiger:'firewhirl',phoenix:'steam',dragon:'emberbolt',windhalberd:'firewhirl',frostlute:'steam',chakra:'rail',
+  reaper:'firewhirl',bell:'frostlance',fangs:'rail',cannon:'emberbolt'};
 
 export function fusionChoices(weapon,loadout) {
   const preferred=affinities[weapon.id];

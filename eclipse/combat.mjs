@@ -1,11 +1,11 @@
-import {comboMove} from './weapon-combos.mjs?v=links-1';
+import {comboMove} from './weapon-combos.mjs?v=nightfall-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
   const foes=game.enemies.filter(foe=>foe.hp>0 && foe.age>=.23);
   const anchors=game.bossArena?.targets;
-  return anchors?.length ? [...anchors,...foes] : foes;
+  return [...(anchors??[]),...foes,...game.breakables()];
 };
 
 function point(unit,y) {return {x:unit.x,y,z:unit.z};}
@@ -56,7 +56,12 @@ function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
   const touched=new Set();
   const duration=strikeTravel(move,reach,heavy);
   const rays=(move.angles??[0]).map(angle=>turned(dx,dz,angle));
-  for (const [x,z] of rays) game.view.comboArrow(origin,x,z,reach,tint,duration,heavy);
+  const shell=game.weapon.id==='cannon';
+  let blast=false;
+  for (const [x,z] of rays) {
+    if (shell) game.view.motion.shell(origin,x,z,reach,tint,duration,heavy);
+    else game.view.comboArrow(origin,x,z,reach,tint,duration,heavy);
+  }
   const sections=4;
   for (let index=1;index<=sections;index++) {
     game.schedule(duration*index/sections,()=>{
@@ -65,7 +70,18 @@ function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
         for (const foe of lineTargets(active(game),origin,x,z,reach*index/sections,move.width,reach*(index-1)/sections)) {
           if (touched.has(foe)) continue;
           touched.add(foe);
-          if (land(foe,1,origin)) hits++;
+          if (!land(foe,1,origin)) continue;
+          hits++;
+          if (shell&&heavy&&!blast) {
+            blast=true;
+            const center={x:foe.x,z:foe.z};
+            game.view.threatImpact({...center,kind:'circle',radius:1.55,tint,effect:'fire',pattern:'burst'});
+            for (const other of active(game)) {
+              if (touched.has(other)||distance(other,center)>1.70) continue;
+              touched.add(other);
+              if (land(other,.47,center,.6)) hits++;
+            }
+          }
         }
       }
       if (hits) confirm?.(hits);
@@ -172,6 +188,71 @@ function targetCenter(game,dx,dz,range) {
   const end={x:h.x+dx*range,z:h.z+dz*range};
   const target=closest(lineTargets(active(game),h,dx,dz,range,1.45),end,range);
   return target ? {x:target.x,z:target.z} : end;
+}
+
+function nightSkill(game,source,dx,dz,center,hit,release,linked) {
+  const {hero:h,weapon:arm,view}=game;
+  const tint=arm.tone;
+  const shock=(p,r,effect='void')=>view.threatImpact({...p,kind:'circle',radius:r,tint,effect,pattern:'burst'});
+  const each=(p,r,fn)=>{for(const foe of active(game)) if(distance(foe,p)<r+(foe.kind==='boss'?.54:.15)) fn(foe);};
+  switch (arm.id) {
+    case 'reaper':
+      release(()=>{
+        const p=linked?center:source;
+        view.vortex(p.x,p.z,3.92,tint);
+        each(p,4.15,foe=>hit(foe,.55,source,-2.42));
+      },.015);
+      release(()=>{
+        const p={x:h.x,z:h.z};
+        view.slash(p.x,p.z,dx,dz,tint,4.15,true,-1,.86);
+        each(p,4.38,foe=>hit(foe,(linked?1.37:1.10)+(1-Math.min(1,foe.hp/(foe.spec?.hp??foe.hp)))*.73,p,1.31));
+      },.30);
+      break;
+    case 'bell':
+      for(let i=0;i<3;i++) release(()=>{
+        const radius=1.67+i*.78;
+        view.sealFx(center.x,center.z,tint,radius,.52);
+        view.shock(center.x,center.z,tint,radius,.70);
+        each(center,radius,foe=>{
+          if(linked&&i===2&&distance(center,foe)<1.26){hit(foe,1.36,center,1.32);return;}
+          if(hit(foe,i===0?.90:.77,center,i===2?1.47:.27)) foe.chill=Math.max(foe.chill,1.5+i*.4);
+        });
+      },.01+i*.23);
+      break;
+    case 'fangs':
+      if (!linked) {
+        h.rolling=h.rollDuration=.29;h.rollX=dx;h.rollZ=dz;h.rollSpeed=h.spellRadius/.29;
+        h.rush=new Set();h.invulnerable=Math.max(h.invulnerable,.35);
+      }
+      for(const [i,side] of (linked?[-1,1]:[1]).entries()) release(()=>{
+        const p=linked?center:{x:h.x,z:h.z};
+        const [nx,nz]=linked?turned(dx,dz,side*.88):[-dx,-dz];
+        const from={x:p.x-nx*1.35,z:p.z-nz*1.35};
+        view.motion.rush(from,p,tint);
+        view.slash(p.x,p.z,nx,nz,tint,3.43,true,side,.69);
+        for(const foe of arcTargets(active(game),p,nx,nz,2.80,1.37,true)) hit(foe,linked?.92:1.14,p,.95);
+      },linked?.025+i*.20:.29);
+      break;
+    case 'cannon': {
+      const bursts=linked?2:3;
+      for(let i=0;i<bursts;i++) {
+        const offset=linked?0:(i-1)*1.24;
+        const p={x:center.x-dz*offset,z:center.z+dx*offset};
+        const launch={x:source.x,y:.96,z:source.z};
+        const travel=Math.max(.05,distance(source,p)/31);
+        release(()=>{
+          const gap=Math.max(.05,distance(source,p));
+          view.motion.shell(launch,(p.x-source.x)/gap,(p.z-source.z)/gap,gap,tint,travel,true);
+          game.schedule(travel,()=>{
+            const radius=linked?2.49+i*.49:2.13;
+            shock(p,radius,'fire');
+            each(p,radius,foe=>hit(foe,linked?1.27:.88,p,linked?1.05:.65));
+          });
+        },i*.22);
+      }
+      break;
+    }
+  }
 }
 
 export function invokeArm(game,input) {
@@ -314,12 +395,15 @@ export function invokeArm(game,input) {
         }
       });
       break;
+    default:
+      nightSkill(game,origin,dx,dz,targetCenter(game,dx,dz,range),(foe,n,from,force)=>game.hit(foe,power*n,from,force,arm.tone),
+        (fn,delay)=>game.schedule(.05+delay,fn),false);
   }
 }
 
 function resonanceTarget(game,unit) {
-  return unit.kind!=='arenaAnchor'&&unit.hp>0&&unit.age>=.23&&unit.phaseGuard<=0
-    && !(unit.kind==='boss'&&game.bossArena?.locked);
+  return unit.kind!=='arenaAnchor'&&unit.kind!=='breakable'&&unit.hp>0&&unit.age>=.23&&unit.phaseGuard<=0
+    && !(game.bossArena?.boss===unit&&game.bossArena.locked);
 }
 
 function jumpTarget(game,seen,from,range,longJump=false) {
@@ -394,7 +478,7 @@ function linkedResonance(game,power,tier,fusion) {
   const {view,weapon:arm}=game;
   let spent=false;
   return (unit,source)=>{
-    if (spent||unit.kind==='arenaAnchor') return;
+    if (spent||unit.kind==='arenaAnchor'||unit.kind==='breakable') return;
     spent=true;
     const target={x:unit.x,z:unit.z};
     const seed=arm.id==='flameblade'?{x:source.x,z:source.z}:target;
@@ -674,6 +758,8 @@ export function invokeLinkedArm(game,link,wind,fusion) {
         });
       });
       break;
+    default:
+      nightSkill(game,origin,dx,dz,{x:focus().x,z:focus().z},hit,release,true);
   }
 }
 

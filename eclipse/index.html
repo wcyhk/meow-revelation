@@ -7,12 +7,13 @@
   <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
   <link rel="preload" href="./cover.jpg" as="image">
-  <link rel="stylesheet" href="./style.css?v=ultimates-1">
-  <script type="module" src="./game.mjs?v=ultimates-1"></script>
+  <link rel="stylesheet" href="./style.css?v=nightfall-1">
+  <script type="module" src="./game.mjs?v=nightfall-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
     <canvas id="world" aria-label="戰鬥場景"></canvas>
+    <div id="lantern-dark" aria-hidden="true" hidden></div>
     <div id="boss-shroud" aria-hidden="true"></div>
     <div id="damage-vignette" aria-hidden="true"></div>
     <section id="cover" aria-label="遊戲主畫面">
@@ -20,7 +21,7 @@
       <div class="cover-frame"></div>
       <div class="cover-brand"><span class="brand-mark">☽</span> MEOW REVELATION</div>
       <div class="cover-content">
-        <div class="title-rule">緋月之森</div>
+        <div class="title-rule">緋月之森 · 無月夜祭</div>
         <h1>貓貓啟示錄</h1>
         <p>月蝕之夜，森林開始忘記亡者的名字。<br>帶上你的刀，去把牠們的星火找回來。</p>
         <button class="primary" id="begin" disabled><span>進入緋月之森</span><span class="arrow">↗</span></button>
@@ -37,13 +38,19 @@
         <div class="health-track" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="hp-fill"></div></div>
         <div class="hero-loadout"><span id="equipped"></span><div id="relic-icons" aria-label="已獲得的祝福"></div></div>
       </div></div>
-      <div class="route-hud"><div id="route-name"></div><div id="route-floor"></div><div id="route-dots"></div></div>
+      <div class="route-hud"><div id="route-name"></div><div id="route-floor"></div><div id="route-dots"></div><div class="run-counters"><span>擊倒 <b id="run-kills">0</b></span><span>時間 <b id="run-time">0:00</b></span></div></div>
       <div class="utility"><button id="journal" aria-label="探索手記" title="探索手記（L）">▤</button><button id="mute" aria-label="靜音" aria-pressed="false">♫</button><button id="pause" aria-label="暫停">Ⅱ</button></div>
       <div id="boss-hud" hidden>
-        <div><i aria-hidden="true">◆</i> <span id="boss-name"></span> <i aria-hidden="true">◆</i></div>
-        <div class="boss-track"><div id="boss-fill"></div></div>
-        <div id="boss-arena-hint"></div>
-        <div id="boss-weakness" hidden></div>
+        <div id="boss-primary">
+          <div><i aria-hidden="true">◆</i> <span id="boss-name"></span> <i aria-hidden="true">◆</i></div>
+          <div class="boss-track"><div id="boss-fill"></div></div>
+          <div id="boss-arena-hint"></div>
+          <div id="boss-weakness" hidden></div>
+        </div>
+        <div id="boss-echo" hidden>
+          <div><i aria-hidden="true">◇</i> <span id="boss-echo-name"></span> <i aria-hidden="true">◇</i></div>
+          <div class="boss-track"><div id="boss-echo-fill"></div></div>
+        </div>
       </div>
       <div id="mission-status" hidden>
         <strong id="mission-title"></strong>

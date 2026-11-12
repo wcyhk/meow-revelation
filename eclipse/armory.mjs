@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 
 export const arms = [
   {id:'tiger', name:'白虎之聖輪', mark:'✧', tone:0xece7c5, ink:'#f1ddb2', role:'近身 · 高機動',
@@ -41,6 +42,7 @@ export const arms = [
     attack:'回輪',basic:'直擲接側掠，最後甩出大圓盤。去程和回程都能傷敵。',skill:'電擊鉤',
     detail:'三層電環由外向內收縮，近遠敵人會喺不同時間中招。',
     damage:19,reach:5.9,period:.36,delay:.077,cooldown:6.5,range:5.1,power:42},
+  ...nightArms,
 ];
 
 function materials(weapon) {
@@ -187,6 +189,40 @@ export function forge(weapon) {
         const tooth=piece(root,blade([[0,.40],[-.077,.53],[.08,.70],[.11,.49]],.055),stone);
         tooth.rotation.z=i*Math.PI/4;
       }
+      break;
+    case 'reaper':
+      piece(root,new T.CylinderGeometry(.054,.073,1.82,8),dark,0,-.24);
+      piece(root,new T.CylinderGeometry(.085,.088,.34,8),brass,0,.50);
+      piece(root,blade([[-.12,.55],[.18,.85],[.54,.94],[.87,.71],[1.01,.31],[.78,.53],[.47,.59],[.16,.45]],.13),ivory);
+      piece(root,blade([[.03,.59],[.23,.78],[.55,.87],[.84,.64],[.92,.43],[.73,.58],[.45,.65]],.16),stone);
+      piece(root,new T.OctahedronGeometry(.17),stone,0,.66);
+      break;
+    case 'bell': {
+      piece(root,new T.CylinderGeometry(.057,.078,1.48,7),dark,0,-.37);
+      piece(root,new T.CylinderGeometry(.096,.107,.36,7),brass,0,.37);
+      const cup=piece(root,new T.LatheGeometry([[.33,-.21],[.27,-.17],[.19,.06],[.12,.23],[.05,.28]].map(([x,y])=>new T.Vector2(x,y)),14),brass,0,.76);
+      cup.material.side=T.DoubleSide;
+      piece(root,new T.TorusGeometry(.331,.036,6,16).rotateX(Math.PI/2),ivory,0,.55);
+      piece(root,new T.OctahedronGeometry(.19),stone,0,.53);
+      ring(root,.46,.025,dark,.74);
+      break;
+    }
+    case 'fangs':
+      for (const side of [-1,1]) {
+        const tooth=new T.Group();root.add(tooth);
+        tooth.position.x=side*.23;tooth.rotation.z=side*.25;
+        piece(tooth,new T.CylinderGeometry(.055,.075,.40,6),dark,0,-.36);
+        piece(tooth,blade([[-.13,-.20],[.19,-.11],[.30,.20],[.28,.69],[.02,.38],[-.14,.16]],.105),ivory);
+        piece(tooth,blade([[-.07,-.14],[.11,-.04],[.23,.24],[.25,.59],[.04,.29]],.128),stone);
+      }
+      break;
+    case 'cannon':
+      piece(root,new T.CylinderGeometry(.155,.20,.88,9),dark,0,.28);
+      for (const y of [-.12,.23,.58,.77]) piece(root,new T.CylinderGeometry(.203,.203,.086,9),brass,0,y);
+      piece(root,new T.CylinderGeometry(.145,.145,.11,10),dark,0,.823);
+      piece(root,new T.TorusGeometry(.12,.024,6,12).rotateX(Math.PI/2),stone,0,.887);
+      piece(root,new T.BoxGeometry(.24,.48,.27),ivory,-.067,-.38).rotation.z=.43;
+      for (const side of [-1,1]) piece(root,new T.BoxGeometry(.062,.43,.074),stone,side*.16,.32,0);
       break;
   }
   return root;

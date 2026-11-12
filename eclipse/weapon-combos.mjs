@@ -1,8 +1,11 @@
+import {nightComboData, nightLinks} from './nightfall-arms.mjs?v=nightfall-1';
+
 function strike(name,pose,wind,cycle,shape,options={}) {
   return {name,pose,wind,cycle,shape,reach:1,width:.70,force:.83,step:.12,...options};
 }
 
 const combos={
+  ...Object.fromEntries(Object.entries(nightComboData).map(([id,steps])=>[id,steps.map(args=>strike(...args))])),
   tiger:[
     strike('掠風','rake',.046,.185,'arc',{width:1.04,step:.21,force:.72}),
     strike('回爪','return',.058,.207,'arc',{width:1.32,step:.24,force:.91}),
@@ -60,6 +63,7 @@ const combos={
 export const linkWindow=1.40;
 
 export const skillLinks={
+  ...nightLinks,
   tiger:       {name:'回牙風斬',pose:'return',wind:.10,detail:'旋斬命中後，風刃穿敵突進，落腳時再回斬一次。'},
   dragon:      {name:'引雷入陣',pose:'relay',wind:.10,detail:'震雷命中後，三道天雷集中追打同一個目標。'},
   phoenix:     {name:'三鳴聚焰',pose:'wings',wind:.08,detail:'鳳鳴命中後，三道火浪在命中處交會，令敵人易傷。'},

@@ -218,6 +218,7 @@ export class MotionArt {
     this.jet=jetRibbon();
     this.downstroke=fallingBladeRibbon();
     this.arrowhead=arrowHead();
+    this.ironshot=new T.IcosahedronGeometry(.18,1);
     this.blade=shardGeometry();
     this.disk=serratedDisk();
     this.star=flashGeometry();
@@ -304,6 +305,16 @@ export class MotionArt {
     const geometry=lightning(from,to,intensity,this.view.mobile);
     this.ribbon(geometry,{x:0,y:0,z:0},tint,intensity>1.2?.27:.20,{kind:1,owned:true,opacity:1.0,order:93});
     if (intensity>1.65&&this.accent()) this.flash(to,tint,.50+intensity*.08);
+  }
+
+  shell(origin,dx,dz,range,tint,duration,heavy) {
+    const muzzle={x:origin.x+dx*.24,y:.88,z:origin.z+dz*.24};
+    const travel={x:dx*range/duration,z:dz*range/duration};
+    const core=this.view.addEffect(this.ironshot,muzzle,0xffebad,duration+.025,{scale:heavy?1.63:1,opacity:1,order:95});
+    const plume=this.ribbon(this.jet,{x:muzzle.x-dx*.83,y:.87,z:muzzle.z-dz*.83},tint,duration+.025,
+      {kind:1,scale:heavy?1.88:1.2,angle:-Math.atan2(dz,dx),opacity:.96,order:93});
+    for(const fx of [core,plume]) {fx.travel=travel;fx.combatClock=true;}
+    this.view.spark(muzzle.x,.84,muzzle.z,tint,this.view.mobile?6:11,.92,'fire',Math.atan2(dz,dx));
   }
 
   flash(point,tint,scale) {

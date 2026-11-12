@@ -11,6 +11,8 @@ const attackVoices={
   windhalberd:{noise:1880,pitch:142,shape:'triangle'},
   frostlute:{noise:1070,pitch:392,shape:'sine'},
   chakra:{noise:2790,pitch:570,shape:'triangle'},
+  reaper:{noise:1770,pitch:123,shape:'triangle'},bell:{noise:910,pitch:313,shape:'sine'},
+  fangs:{noise:2680,pitch:240,shape:'triangle'},cannon:{noise:620,pitch:105,shape:'sawtooth'},
 };
 
 export class Audio {
@@ -217,9 +219,9 @@ export class Audio {
   ultimate(skin,pulse=0) {
     if (!this.context||this.muted) return;
     const now=this.context.currentTime;
-    const root=[128,168,221,196,260,112,281,151,392,175][skin];
-    const noise=[1310,2170,2740,1560,960,1490,3150,1040,2080,1740][skin];
-    const ice=skin===4||skin===8;
+    const root=[128,168,221,196,260,112,281,151,392,175,104,277,233,91][skin];
+    const noise=[1310,2170,2740,1560,960,1490,3150,1040,2080,1740,1330,1070,2650,660][skin];
+    const ice=skin===4||skin===8||skin===11;
     this.rasp(now,.16,pulse===0?.19:.13,noise);
     this.note(root*(1+pulse*.27),root*(ice?.98:.36),now,ice?.38:.26,.155,ice?'sine':'triangle',.007);
     this.note(root*(ice?2.39:1.51),root*(ice?1.96:.87),now+.047,.24,.09,'triangle',.012);
@@ -229,7 +231,11 @@ export class Audio {
   arm(id) {
     if (!this.context) return;
     const now=this.context.currentTime;
-    if (id==='tiger') {
+    if (['reaper','bell','fangs','cannon'].includes(id)) {
+      const {pitch,noise,shape}=attackVoices[id];
+      for(let i=0;i<(id==='bell'?3:2);i++) this.note(pitch*(1+i*.37),pitch*(id==='bell'?.97:.33),now+i*.16,.28,.145,shape,.008);
+      this.rasp(now,.21,.20,noise);
+    } else if (id==='tiger') {
       this.rasp(now,.18,.25,1570);
       this.note(375,98,now,.26,.13,'triangle');
     } else if (id==='dragon') {
@@ -293,6 +299,10 @@ export class Audio {
     }
     if (this.danger && (beat === 0 || beat === 4)) {
       this.note(76,34,this.next,.41,.15,'triangle');
+    }
+    if(this.dread>.54&&(beat===1||beat===6)){
+      this.note(62+beat*2,31,this.next,.64,.042*Math.min(1.3,this.dread),'triangle',.10);
+      if(beat===6)this.rasp(this.next+.09,.39,.032,410);
     }
     this.next += this.danger ? .32-this.dread*.039 : .45-this.dread*.028;
   }

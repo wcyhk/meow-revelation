@@ -1,10 +1,12 @@
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=combos-1';
-import {pictures, stages} from './expedition.mjs?v=battle-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=nightfall-1';
+import {pictures, stages} from './expedition.mjs?v=nightfall-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=combos-1';
+import {MotionArt} from './motion-art.mjs?v=nightfall-1';
+import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=nightfall-1';
+import {LanternArt} from './lantern-art.mjs?v=nightfall-1';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -15,7 +17,7 @@ const plane = new T.PlaneGeometry(1, 1);
 const actorPlane = new T.PlaneGeometry(1,1,4,6);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
 const sceneAngle = new T.Vector3(0, 16, 19.6).normalize();
-const ART_SIZE = 29;
+const ART_SIZE = 34;
 const atlasBoxes = [
   [60, 55, 329, 371], [431, 77, 782, 343], [865, 84, 1210, 383],
   [37, 451, 387, 767], [456, 426, 770, 770], [855, 408, 1235, 780],
@@ -200,6 +202,8 @@ export class Scenery {
     this.back.scale.set(ART_SIZE, ART_SIZE, 1);
     this.back.renderOrder = -50;
     this.scene.add(this.back);
+    this.nightShade=makeShade(this);
+    this.lanternArt=new LanternArt(this);
     this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.ring = circle(1, .038);
@@ -260,7 +264,8 @@ export class Scenery {
     this.back.material.map = this.pictures.get(stage.picture);
     const warmth=(stage.room%4)*.014;
     const dread=stage.dread;
-    this.back.material.color.setRGB(1-warmth*.26-dread*.07,1-warmth-dread*.17,1-warmth*.6-dread*.13);
+    this.back.material.color.setRGB(1-warmth*.26-dread*.075,1-warmth-dread*.22,1-warmth*.6-dread*.15);
+    this.nightShade.material.uniforms.dread.value=dread;
     this.stageColor.copy(this.back.material.color);
     this.back.material.needsUpdate = true;
     const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
@@ -498,6 +503,7 @@ export class Scenery {
     art.material.uniforms.guard.value=spec.guardFlash?1:0;
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
+    poseEffigy(visual,spec,this.time,x,z);
     const fall=spec.fall??0;
     art.position.set(x,.02+fall*.055,z);
     const roll = spec.roll || 0;
@@ -575,8 +581,13 @@ export class Scenery {
     }
   }
 
-  removeActor({art, shade, rim, form}) {
+  prepareEffigy(visual,kind) {
+    mountEffigy(this.scene,visual,kind);
+  }
+
+  removeActor({art, shade, rim, form,effigy}) {
     this.scene.remove(art, shade, rim);
+    if(effigy)this.scene.remove(effigy);
     art.material.dispose();
     shade.material.dispose();
     rim.material.dispose();
@@ -1038,7 +1049,7 @@ export class Scenery {
           tint,3,.77,effect,sweep);
       }
     } else if (kind==='line') {
-      if (['lance','pounce','sweep','feathers','barrage'].includes(pattern)) {
+      if (['lance','pounce','sweep','feathers','barrage','jaws'].includes(pattern)) {
         const dx=Math.cos(angle),dz=Math.sin(angle);
         this.motion.thrust({x:x-dx*radius*.5,y:pattern==='pounce'?.30:.55,z:z-dz*radius*.5},
           dx,dz,radius,tint,pattern==='lance'||pattern==='sweep');
@@ -1062,6 +1073,10 @@ export class Scenery {
       this.vortex(x,z,radius,tint);
     } else {
       this.shock(x,z,tint,radius,pattern==='burst'?.92:.63);
+    }
+    if(pattern==='toll'&&this.motion.accent()) {
+      this.sealFx(x,z,tint,radius*.82,.54);
+      this.spark(x,.78,z,0xe4f5e6,this.mobile?7:12,.86,'ice');
     }
     if (effect==='ice'||effect==='root'||effect==='fire') {
       const count=kind==='line'?3:this.mobile?4:6;
@@ -1138,6 +1153,7 @@ export class Scenery {
   render(dt, hero, paused=false, freezeWarnings=false) {
     if (!paused) this.time += dt;
     const time = this.time;
+    this.nightShade.material.uniforms.time.value=time;
     const darkness=this.arenaArt.arena?.darkness??0;
     if (Math.abs(darkness-this.arenaDarkness)>.006) {
       this.arenaDarkness=darkness;
@@ -1151,9 +1167,8 @@ export class Scenery {
     if (hero) {
       const aspect = this.width / this.height;
       const follow = 1 - Math.exp(-dt * 5);
-      const maxSide = Math.max(0, ART_SIZE * .5 + this.camera.left - .1);
-      const targetX = T.MathUtils.clamp(hero.x * (aspect < .9 ? .78 : .38), -maxSide, maxSide);
-      const targetZ = aspect < .85 ? .4 + (hero.z - 1) * .15 : -1.5 + (hero.z - 1) * .18;
+      const targetX=hero.x*(aspect<.9?.94:.78);
+      const targetZ=aspect<.85?.25+(hero.z-1)*.80:-1.1+(hero.z-1)*.78;
       this.focus.x += (targetX - this.focus.x) * follow;
       this.focus.z += (targetZ - this.focus.z) * follow;
       this.shake *= Math.exp(-dt * 12);
@@ -1161,6 +1176,7 @@ export class Scenery {
       this.camera.position.x += Math.sin(time * 116) * this.shake;
       this.camera.position.y += Math.cos(time * 98) * this.shake * .38;
       this.camera.updateMatrixWorld();
+      this.lanternArt.tick(hero,time,this.stage);
     }
     for (const [index, lamp] of this.candles.entries()) {
       lamp.material.opacity = (1-darkness*.94)*(.43 + .13 * Math.sin(time * 7.4 + index * 2.7) + .07 * Math.sin(time * 21.7 + index));

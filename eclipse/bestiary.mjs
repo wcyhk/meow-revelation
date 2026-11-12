@@ -14,19 +14,25 @@ export const enemies = {
   spriggan: {name:'菌根童',frame:27,height:2.15,hp:52,speed:2.72,reach:5.6,radius:1.54,time:.97,hurt:13,mass:1.23,attacks:['roots','spiral'],effect:'root',tint:0x88f8bf},
   coin: {name:'銅面秤鬼',frame:28,height:1.95,hp:64,speed:2.5,reach:6.0,radius:1.42,time:.88,hurt:15,mass:1.4,attacks:['coins','cleave'],guard:true,effect:'gold',tint:0xffc565},
   kite: {name:'蝕羽夜魘',frame:29,height:2.12,hp:58,speed:3.26,reach:6.7,radius:1.51,time:.87,hurt:14,mass:.93,attacks:['blink','feathers','gravity'],ranged:4.4,float:.23,effect:'void',tint:0xc3a2ff},
+  veil: {name:'無面討債人',frame:21,effigy:'veil',height:2.39,hp:64,speed:2.83,reach:6.38,radius:1.52,time:.94,hurt:14,mass:.93,attacks:['jaws','blink','marked'],ranged:4.5,float:.17,effect:'void',tint:0xd0a8f2},
+  coffin: {name:'背棺債衛',frame:5,effigy:'coffin',height:2.80,hp:94,speed:1.98,reach:3.68,radius:1.89,time:1.0,hurt:19,mass:2.12,attacks:['jaws','cleave','lance'],guard:true,effect:'stone',tint:0xe2ae91},
+  wax: {name:'裂腹蠟童',frame:3,effigy:'wax',height:1.68,hp:49,speed:3.39,reach:3.1,radius:1.41,time:.76,hurt:14,mass:.84,attacks:['toll','burst'],deathOmen:true,effect:'fire',tint:0xffaa7e},
+  toller: {name:'倒鐘看守',frame:25,effigy:'toller',height:2.59,hp:74,speed:2.32,reach:7.18,radius:1.88,time:1.10,hurt:15,mass:1.30,attacks:['toll','rally','gravefan'],ranged:4.62,effect:'ice',tint:0x99ddd1},
+  eyes: {name:'百眼蛹',frame:24,effigy:'eyes',height:2.20,hp:62,speed:2.49,reach:6.83,radius:1.59,time:1.05,hurt:15,mass:1.14,attacks:['gravefan','spiral','jaws'],ranged:4.35,float:.12,effect:'blood',tint:0xff969f},
+  hound: {name:'枯井骨犬',frame:18,effigy:'hound',height:1.93,hp:57,speed:4.05,reach:4.65,radius:1.49,time:.74,hurt:15,mass:.99,attacks:['pounce','jaws','cleave'],effect:'blood',tint:0xff8b7c},
 };
 
 export const regionalEnemies = [
-  ['imp','cultist','drummer','stalker','knight','crane'],
-  ['wisp','crane','cultist','coin','stalker','imp'],
-  ['scarab','sentinel','knight','wisp','crane','stalker'],
-  ['salamander','drummer','sentinel','stalker','knight','scarab'],
-  ['weaver','oracle','wisp','crane','stalker','knight'],
-  ['coin','drummer','sentinel','oracle','salamander','knight'],
-  ['crane','kite','sentinel','coin','stalker','oracle'],
-  ['spriggan','weaver','kite','wisp','drummer','cultist'],
-  ['kite','oracle','crane','weaver','sentinel','coin'],
-  ['oracle','salamander','coin','spriggan','kite','sentinel'],
+  ['imp','cultist','wax','stalker','knight','crane'],
+  ['wisp','crane','cultist','coin','veil','imp'],
+  ['scarab','sentinel','knight','toller','crane','stalker'],
+  ['salamander','wax','sentinel','stalker','coffin','scarab'],
+  ['weaver','oracle','veil','hound','stalker','knight'],
+  ['coin','coffin','sentinel','oracle','salamander','toller'],
+  ['crane','kite','coffin','coin','hound','oracle'],
+  ['spriggan','weaver','kite','eyes','toller','cultist'],
+  ['kite','veil','toller','weaver','eyes','coffin'],
+  ['oracle','wax','coffin','eyes','hound','toller'],
 ];
 
 export const wardens = [
@@ -51,6 +57,6 @@ export const chapterAttacks = [
   {effect:'gold',form:'空甲噬骨',attacks:['coins','ring','summon','sweep']},
   {effect:'blood',form:'吞日空殼',attacks:['pounce','lance','gravity','eclipse']},
   {effect:'root',form:'枯骨蔓生',attacks:['roots','spiral','gravity','summon']},
-  {effect:'void',form:'百眼展翼',attacks:['eclipse','blink','feathers','prison']},
-  {effect:'blood',form:'血冠裂面',attacks:['eclipse','cleave','spiral','summon','sweep','lance']},
+  {effect:'void',form:'百眼展翼',attacks:['eclipse','blink','feathers','prison','gravefan']},
+  {effect:'blood',form:'血冠裂面',attacks:['eclipse','cleave','spiral','summon','sweep','lance','jaws','toll']},
 ];

@@ -12,7 +12,7 @@ function bearing(a,b,fallback=[0,-1]) {
 }
 
 function valid(game,unit) {
-  return unit.hp>0&&unit.age>=.23&&unit.phaseGuard<=0&&!(unit.kind==='boss'&&game.bossArena?.locked);
+  return unit.hp>0&&unit.age>=.23&&unit.phaseGuard<=0&&!(game.bossArena?.boss===unit&&game.bossArena.locked);
 }
 
 function nearby(game,from,limit,seen) {
@@ -358,5 +358,89 @@ export function launchUltimate(game,link,wind,rite) {
         sound();
       });
       break;
+
+    case 'reaper': {
+      const center=focus();
+      for(let i=0;i<3;i++) release(()=>{
+        const a=angle+i*tau/3;
+        const p=along(center,Math.cos(a),Math.sin(a),2.06);
+        seal(p,1.74,.42);
+        view.slash(p.x,p.z,-Math.cos(a),-Math.sin(a),tint,3.04,true,i%2?1:-1,.72);
+        disk(center,3.33,unit=>hit(unit,.34,center,-1.58,'light'));
+        if(!i)sound();
+      },i*.145);
+      release(()=>{
+        ultimateBody(view,rite,center,2.34,.61);
+        bloom(center,3.25,'void');
+        disk(center,3.34,unit=>hit(unit,unit.hp<unit.spec.hp*.35?2.22:1.36,center,1.23,'heavy'));
+        sound(2);
+      },.57);
+      break;
+    }
+
+    case 'bell': {
+      const center=focus();
+      for(let i=0;i<3;i++) release(()=>{
+        const radius=4.72-i*1.21;
+        seal(center,radius,.51);
+        ultimateBody(view,rite,center,1.27+i*.31,.54);
+        if(i===2) bloom(center,radius,'ice');
+        else view.shock(center.x,center.z,tint,radius,.59);
+        disk(center,radius,unit=>{
+          if(!hit(unit,i===2?1.43:.52,center,i===2?1.23:-.77,i===2?'heavy':'light'))return;
+          if(i===2)lockIce(unit,.93);else unit.chill=Math.max(unit.chill,1.67);
+        });
+        sound(i);
+      },i*.24);
+      break;
+    }
+
+    case 'fangs': {
+      const center=focus();
+      for(const [i,side] of [-1,1].entries()) release(()=>{
+        const a=angle+side*.84,nx=Math.cos(a),nz=Math.sin(a);
+        const from=along(center,-nx,-nz,3.45),to=along(center,nx,nz,3.45);
+        view.motion.rush(from,to,tint);
+        view.wave(from.x,from.z,nx,nz,6.90,i?accent:tint,true,'blood');
+        beam(from,to,1.0,unit=>hit(unit,1.02,center,.32));
+        sound(i);
+      },i*.15);
+      release(()=>{
+        seal(center,3.11,.51);
+        const struck=new Set();
+        for(let i=0;i<4;i++){
+          const a=angle+i*tau/4,nx=Math.cos(a),nz=Math.sin(a);
+          view.slash(center.x,center.z,nx,nz,tint,3.57,true,i%2?1:-1,.63);
+          beam(center,along(center,nx,nz,3.36),.74,unit=>{if(!struck.has(unit)){struck.add(unit);hit(unit,1.31,center,1.17,'heavy');}});
+        }
+        sound(2);
+      },.38);
+      break;
+    }
+
+    case 'cannon': {
+      const center=focus(), length=Math.max(.16,distance(here,center)),flight=Math.max(.08,length/28);
+      release(()=>{
+        view.motion.shell(here,dx,dz,length,tint,flight,true);
+        sound();
+        game.schedule(flight,()=>{
+          ultimateBody(view,rite,center,1.96,.61);
+          seal(center,3.38,.65);
+          view.vortex(center.x,center.z,3.15,tint);
+          disk(center,3.28,unit=>hit(unit,.85,center,-1.91));
+          game.schedule(.36,()=>{
+            bloom(center,2.52,'fire');
+            const struck=new Set();
+            for(let i=0;i<5;i++){
+              const a=angle+i*tau/5,nx=Math.cos(a),nz=Math.sin(a);
+              view.wave(center.x,center.z,nx,nz,4.65,i%2?accent:tint,true,'fire');
+              beam(center,along(center,nx,nz,4.45),.88,unit=>{if(!struck.has(unit)){struck.add(unit);hit(unit,1.56,center,1.40,'heavy');}});
+            }
+            sound(2);
+          });
+        });
+      });
+      break;
+    }
   }
 }

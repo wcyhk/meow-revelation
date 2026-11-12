@@ -10,6 +10,7 @@ const enemyStyle={
   sweep:'sweep',cross:'thrust',cinders:'slam',burst:'slam',roots:'slam',
   barrage:'shoot',feathers:'shoot',coins:'shoot',spiral:'shoot',
   arenaBait:'slam',seal:'slam',
+  jaws:'sweep',toll:'slam',gravefan:'sweep',
 };
 
 export function recoil(unit,origin,kind) {
@@ -69,12 +70,17 @@ const gestures={
   followLunge:[[-.38,.23,.35,1.43,.28,-.37],[1.28,.31,-.04,1.42,-.36,1.22]],
   ignite:     [[-.11,.03,1.08,1.73,.32,-.33],[.64,.58,-.66,.48,-.43,.72]],
   looseThunder:[[.36,.48,-.12,.34,.12,-.27],[.88,.53,.26,.28,-.38,.69]],
+  harvest:    [[-.35,.58,1.82,.53,-.35,-.55],[.91,.04,-1.70,1.77,.51,.99]],
+  bellTap:    [[-.04,.92,-.17,.32,.24,-.36],[.55,.31,.16,1.23,-.37,.68]],
+  fangPounce: [[-.49,.13,-.41,1.19,.32,-.56],[1.19,.24,.22,1.61,-.48,1.08]],
+  firelock:   [[.22,.29,.04,.91,.09,-.27],[.79,.29,.02,1.56,-.02,.45]],
+  firelockHeavy:[[.01,.51,-.21,.82,.31,-.64],[1.05,.37,.02,1.59,-.18,.82]],
   cast:       [[-.13,.59,-.48,.29,.29,-.38],[.56,.48,.31,.77,-.33,.62]],
 };
-const pointed=new Set(['lift','shell','jab','double','lunge','ember','backfire','overhead','spear','hook','whirl','followLunge','ignite']);
+const pointed=new Set(['lift','shell','jab','double','lunge','ember','backfire','overhead','spear','hook','whirl','followLunge','ignite','harvest','bellTap','fangPounce','firelock','firelockHeavy']);
 const bowDraw={draw:.46,splitdraw:.72,fulldraw:1};
 const sweepMoves=new Set(['spin','whirl']);
-const chargedMoves=new Set(['spin','thunder','phoenix','shell','lunge','overhead','fulldraw','whirl','frost','moon']);
+const chargedMoves=new Set(['spin','thunder','phoenix','shell','lunge','overhead','fulldraw','whirl','frost','moon','fangPounce','firelockHeavy']);
 
 export function heroAction(hero,kind,move,timing) {
   const casting=kind==='cast';

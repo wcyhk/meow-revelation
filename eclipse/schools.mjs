@@ -1,4 +1,4 @@
-import {schoolProgress,schools} from './blessings.mjs?v=resonance-1';
+import {schoolProgress,schools} from './blessings.mjs?v=nightfall-1';
 
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const point=(unit,y)=>({x:unit.x,y,z:unit.z});

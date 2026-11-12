@@ -1,4 +1,5 @@
 import {linkLoadout} from './link-blessings.mjs?v=resonance-1';
+import {nightBlessings,seals} from './relic-gifts.mjs?v=nightfall-1';
 
 const curve = (count,limit) => limit*count/(count+5);
 
@@ -15,6 +16,7 @@ export const blessings = [
   {id:'lantern',school:'fire',mark:'☼',name:'續燈',detail:'提高最大生命與神器傷害。'},
   {id:'kindling',school:'fire',mark:'♨',name:'添薪',detail:'提高神器傷害，強化焰印追擊。'},
   {id:'conductor',school:'thunder',mark:'ϟ',name:'引雷紋',detail:'減少神器冷卻，強化自動雷擊。'},
+  ...nightBlessings,
 ];
 
 export const schools={
@@ -40,17 +42,18 @@ export function buildStats(hero,weapon,floor,relics) {
   hero.maxHp=100+Math.floor(depth*.96)+rank('flower')*6+rank('lantern')*3;
   hero.damage=weapon.damage*(1+depth*.018+curve(rank('thorn'),1.33));
   hero.reach=weapon.reach+curve(rank('reach'),1.55);
-  hero.finisher=1.46+curve(rank('reach'),.76);
+  hero.finisher=1.46+curve(rank('reach')+rank('swiftcut')*.75,.76);
   hero.spellTime=weapon.cooldown*(1-curve(rank('moon')+rank('conductor')*.52,.44));
   hero.spellRadius=weapon.range+curve(rank('moon'),1.84);
-  hero.spellDamage=weapon.power*(1+depth*.022+curve(rank('star')+rank('lantern')*.4+rank('kindling')*.58,1.55));
+  hero.spellDamage=weapon.power*(1+depth*.022+curve(rank('star')+rank('lantern')*.4+rank('kindling')*.58,1.55)+curve(rank('bloodoil'),.83));
   hero.ember=rank('step') ? 16+depth*.21+curve(rank('step'),19) : 0;
   hero.rollTime=.96*(1-curve(rank('step'),.35));
   hero.leech=curve(rank('star'),8.4);
   hero.armor=curve(rank('shell'),.44);
   hero.moveSpeed=5.7*(1+curve(rank('wind'),.28));
-  hero.attackPeriod=weapon.period*(1-curve(rank('wind'),.27));
+  hero.attackPeriod=weapon.period*(1-curve(rank('wind')+rank('swiftcut')*.82,.27));
   hero.recovery=curve(rank('spring'),.18);
   hero.resonance=linkLoadout(relics);
+  hero.seals=new Set(seals.filter(seal=>seal.needs.every(id=>rank(id))).map(seal=>seal.id));
   return ranks;
 }

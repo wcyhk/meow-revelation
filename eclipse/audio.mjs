@@ -92,13 +92,31 @@ export class Audio {
       case 'warning':
         this.note(166,115,now,.24,.05,'triangle');
         break;
-      case 'moon':
-        [220,329.6,440,587.3].forEach((f,index) => this.note(f,f*.86,now+.03*index,.62,.08,'sine',.025));
-        this.note(84,35,now,.4,.23,'triangle');
-        break;
       case 'blessing':
         [392,493.9,587.3,784].forEach((f,index) => this.note(f,f,now+.09*index,.66,.07,'triangle',.018));
         break;
+    }
+  }
+
+  arm(id) {
+    if (!this.context) return;
+    const now=this.context.currentTime;
+    if (id==='tiger') {
+      this.rasp(now,.18,.25,1570);
+      this.note(375,98,now,.26,.13,'triangle');
+    } else if (id==='dragon') {
+      for (let i=0;i<3;i++) {
+        this.rasp(now+i*.24,.12,.23,2350);
+        this.note(156,65,now+i*.24,.17,.14,'sawtooth');
+      }
+    } else if (id==='phoenix') {
+      for (let i=0;i<3;i++) this.note(390-i*34,80,now+i*.19,.24,.15,'triangle');
+      this.rasp(now,.17,.18,1100);
+    } else if (id==='turtle') {
+      [293,463,587].forEach((pitch,index)=>this.note(pitch,pitch*.96,now+index*.07,.52,.12,'sine',.03));
+    } else {
+      this.note(92,32,now,1.08,.20,'triangle',.065);
+      this.rasp(now,.19,.16,610);
     }
   }
 

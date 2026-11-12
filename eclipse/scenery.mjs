@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {armLighting, arms, disposeForge, forge} from './armory.mjs';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -7,7 +8,7 @@ const plane = new T.PlaneGeometry(1, 1);
 const sceneAngle = new T.Vector3(0, 16, 19.6).normalize();
 const ART_SIZE = 29;
 const atlasBoxes = [
-  [60, 55, 329, 371], [431, 77, 782, 343], [865, 34, 1210, 383],
+  [60, 55, 329, 371], [431, 77, 782, 343], [865, 84, 1210, 383],
   [37, 451, 387, 767], [456, 426, 770, 770], [855, 408, 1235, 780],
   [18, 782, 389, 1224], [395, 819, 863, 1206], [865, 810, 1214, 1198],
 ];
@@ -30,51 +31,21 @@ function radialTexture(stops) {
   return texture(canvas);
 }
 
-function ritualTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  ctx.translate(256,256);
-  ctx.strokeStyle='#ffe6a7';
-  ctx.fillStyle='#fff0c8';
-  ctx.lineWidth=2;
-  ctx.shadowColor='#f88c46';
-  ctx.shadowBlur=11;
-  for (const radius of [182,195,225,233]) {
-    ctx.beginPath();
-    ctx.arc(0,0,radius,0,2*PI);
-    ctx.stroke();
-  }
-  ctx.beginPath();
-  ctx.arc(-19,0,108,-PI*.65,PI*.65,true);
-  ctx.bezierCurveTo(15,78,34,-83,-68,-97);
-  ctx.fill();
-  for (let i=0;i<24;i++) {
-    ctx.rotate(PI/12);
-    const accent=i%3===0;
-    ctx.beginPath();
-    ctx.moveTo(0,accent?161:201);
-    ctx.lineTo(accent?12:4,210);
-    ctx.lineTo(0,accent?244:220);
-    ctx.lineTo(accent?-12:-4,210);
-    ctx.closePath();
-    accent?ctx.stroke():ctx.fill();
-  }
-  return texture(canvas);
-}
-
 async function loadCast() {
   const image = new Image();
   image.src = './cast.png';
-  await image.decode();
-  return atlasBoxes.map(([left, top, right, bottom]) => {
+  const hero = new Image();
+  hero.src = './unarmed.png';
+  await Promise.all([image.decode(),hero.decode()]);
+  return atlasBoxes.map(([left, top, right, bottom],index) => {
+    const source = index < 3 ? hero : image;
     const canvas = document.createElement('canvas');
-    const scale = image.width / 1254;
+    const scale = source.width / 1254;
     canvas.width = Math.round((right - left) * 0.76);
     canvas.height = Math.round((bottom - top) * 0.76);
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(image, left * scale, top * scale, (right - left) * scale, (bottom - top) * scale, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(source, left * scale, top * scale, (right - left) * scale, (bottom - top) * scale, 0, 0, canvas.width, canvas.height);
     return texture(canvas);
   });
 }
@@ -121,6 +92,7 @@ export class Scenery {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.mobile ? 1.35 : 1.65));
     this.renderer.setClearColor(0x151912);
     this.scene = new T.Scene();
+    armLighting(this.scene);
     this.camera = new T.OrthographicCamera(-10, 10, 8, -8, .1, 100);
     this.camera.position.copy(sceneAngle).multiplyScalar(28);
     this.camera.lookAt(unit);
@@ -129,7 +101,6 @@ export class Scenery {
     this.halo = radialTexture([[0,'#ffffe7ff'],[.19,'#fff4ceb0'],[.44,'#ffd89e47'],[1,'#ffe1bd00']]);
     this.smoke = radialTexture([[0,'#fffffff0'],[.3,'#ffffff80'],[.65,'#ffffff24'],[1,'#ffffff00']]);
     this.shadow = radialTexture([[0,'#12120ce8'],[.47,'#12110ca2'],[.72,'#15120b4b'],[1,'#00000000']]);
-    this.sigil = ritualTexture();
     this.back = new T.Mesh(plane, new T.MeshBasicMaterial({color:0xffffff,depthWrite:false}));
     this.back.quaternion.copy(this.camera.quaternion);
     this.back.position.copy(sceneAngle).multiplyScalar(-16);
@@ -139,12 +110,17 @@ export class Scenery {
     this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.arc = swingGeometry();
+    this.lance = new T.BufferGeometry();
+    this.lance.setAttribute('position',new T.Float32BufferAttribute([0,0,0,.42,.06,-.11,1.0,0,0,.42,.06,.11],3));
+    this.lance.setIndex([0,1,2,0,2,3]);
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
     this.motes = this.createParticleSystem(this.mobile ? 150 : 270);
     this.leaves = this.createLeaves(this.mobile ? 15 : 28);
     this.effects = [];
     this.portal = this.makePortal();
+    this.clue = this.makeClue();
+    this.ward = this.makeWard();
     this.shake = 0;
     this.time = 0;
     this.lastStamp = 0;
@@ -162,6 +138,7 @@ export class Scenery {
     }
     this.pictures = images;
     for (const image of this.atlas) this.renderer.initTexture(image);
+    this.armIcons = this.previewArms();
     this.setStage(0);
     this.renderer.render(this.scene, this.camera);
   }
@@ -198,6 +175,8 @@ export class Scenery {
     for (const cloud of this.mist) cloud.material.color.setHex(index === 1 ? 0x80b4a9 : 0xeac098);
     this.leaves.mesh.material.color.setHex(index === 1 ? 0x82aaa0 : index === 2 ? 0xd36a3f : 0xbd7250);
     this.portal.visible = false;
+    this.clue.visible = false;
+    this.ward.visible = false;
     for (const fx of this.effects) this.release(fx);
     this.effects.length = 0;
     for (const mote of this.motes.items) mote.life = 0;
@@ -264,6 +243,50 @@ export class Scenery {
     return {art, shade, rim, height};
   }
 
+  previewArms() {
+    const size = 152;
+    const scene = new T.Scene();
+    armLighting(scene);
+    const target = new T.WebGLRenderTarget(size,size,{colorSpace:T.SRGBColorSpace});
+    const camera = new T.OrthographicCamera(-1.10,1.10,1.10,-1.10,.1,20);
+    camera.position.set(.54,.31,5.2);
+    camera.lookAt(0,0,0);
+    const pixels = new Uint8Array(size*size*4);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const frame = ctx.createImageData(size,size);
+    const result = new Map();
+    this.renderer.setClearColor(0x151912,0);
+    this.renderer.setRenderTarget(target);
+    for (const arm of arms) {
+      const item = forge(arm);
+      item.rotation.set(-.12,.32,-.38);
+      item.scale.setScalar(arm.id==='tiger'||arm.id==='dragon'?1.42:1);
+      scene.add(item);
+      this.renderer.render(scene,camera);
+      this.renderer.readRenderTargetPixels(target,0,0,size,size,pixels);
+      for (let y=0;y<size;y++) frame.data.set(pixels.subarray(y*size*4,(y+1)*size*4),(size-y-1)*size*4);
+      ctx.putImageData(frame,0,0);
+      result.set(arm.id,canvas.toDataURL());
+      scene.remove(item);
+      disposeForge(item);
+    }
+    this.renderer.setRenderTarget(null);
+    this.renderer.setClearColor(0x151912,1);
+    target.dispose();
+    return result;
+  }
+
+  equip(actor, weapon) {
+    const model = forge(weapon);
+    const glow = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.32,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+    glow.scale.set(1.55,1.55,1);
+    model.add(glow);
+    this.scene.add(model);
+    actor.weapon = {model,glow,id:weapon.id};
+  }
+
   actor(visual, unit, spec) {
     const {art, shade, rim, height} = visual;
     const atlas = this.atlas[spec.frame];
@@ -288,6 +311,26 @@ export class Scenery {
     rim.position.set(unit.x, .027, unit.z);
     rim.material.color.setHex(spec.rim || 0xc48747);
     rim.material.opacity = (spec.aura ?? .12) * (spec.fade ?? 1);
+    if (visual.weapon) {
+      const {model,glow,id} = visual.weapon;
+      const pose = spec.frame;
+      const reach = pose===2 ? .38 : pose===1 ? .36 : .23;
+      const lift = pose===2 ? .29 : pose===1 ? -.15 : -.185;
+      const theta=(spec.tilt || 0)+roll;
+      const x=direction*reach*displayedHeight*Math.min(1.21,aspect), y=lift*displayedHeight;
+      model.position.copy(art.position)
+        .addScaledVector(this.cameraUp,x*Math.sin(theta)+y*Math.cos(theta))
+        .addScaledVector(sceneAngle,.24);
+      model.position.x += x*Math.cos(theta)-y*Math.sin(theta);
+      model.rotation.set(-.30, direction*(.38+Math.sin(this.time*3.2)*.15), direction*(pose===2?-.7:pose===1?-1.23:-.39)+roll*.5);
+      if (id==='dragon') {
+        model.rotation.y=this.time*2.1;
+        model.position.y+=.085*Math.sin(this.time*5);
+      }
+      model.scale.setScalar((id==='tiger'||id==='dragon'?.83:.95)*(roll?.77:1));
+      model.renderOrder=art.renderOrder+1;
+      glow.renderOrder=art.renderOrder+2;
+    }
   }
 
   removeActor({art, shade, rim}) {
@@ -295,6 +338,15 @@ export class Scenery {
     art.material.dispose();
     shade.material.dispose();
     rim.material.dispose();
+  }
+
+  removeEquippedActor(actor) {
+    if (actor.weapon) {
+      this.scene.remove(actor.weapon.model);
+      disposeForge(actor.weapon.model);
+      actor.weapon.glow.material.dispose();
+    }
+    this.removeActor(actor);
   }
 
   makePortal() {
@@ -319,6 +371,58 @@ export class Scenery {
     portal.userData = {key, light};
     this.scene.add(portal);
     return portal;
+  }
+
+  makeClue() {
+    const root = new T.Group();
+    const brass = new T.MeshStandardMaterial({color:0xa57345,metalness:.45,roughness:.43});
+    const wax = new T.MeshBasicMaterial({color:0xffd188});
+    const base = new T.Mesh(new T.CylinderGeometry(.30,.41,.11,8),brass);
+    const frame = new T.Mesh(new T.CylinderGeometry(.22,.33,.53,6,1,true),new T.MeshBasicMaterial({color:0xcb7c40,wireframe:true,transparent:true,opacity:.85}));
+    const cap = new T.Mesh(new T.ConeGeometry(.34,.19,6),brass);
+    const flame = new T.Mesh(new T.OctahedronGeometry(.18),wax);
+    frame.position.y=.31;
+    cap.position.y=.64;
+    flame.position.y=.35;
+    flame.scale.set(.78,1.37,.78);
+    const halo = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:0xffad64,opacity:.77,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+    halo.position.y=.37;
+    halo.scale.set(2.08,2.08,1);
+    const marker = new T.Mesh(circle(.85,.026),new T.MeshBasicMaterial({color:0xffca85,transparent:true,opacity:.83,blending:T.AdditiveBlending,depthWrite:false}));
+    marker.position.y=.026;
+    root.add(base,frame,cap,flame,marker,halo);
+    root.userData={flame,halo,marker};
+    root.visible=false;
+    this.scene.add(root);
+    return root;
+  }
+
+  placeClue(point) {
+    this.clue.visible=!!point;
+    if (point) this.clue.position.set(point.x,0,point.z);
+  }
+
+  makeWard() {
+    const group = new T.Group();
+    const shell = new T.Mesh(new T.IcosahedronGeometry(1.55,1),
+      new T.MeshBasicMaterial({color:0x9cf3d9,wireframe:true,transparent:true,opacity:.25,depthWrite:false,blending:T.AdditiveBlending}));
+    shell.position.y=.83;
+    const seal = new T.Mesh(circle(1.53,.039),
+      new T.MeshBasicMaterial({color:0x9cf3d9,transparent:true,opacity:.82,depthWrite:false,blending:T.AdditiveBlending}));
+    seal.position.y=.032;
+    group.add(shell,seal);
+    this.scene.add(group);
+    group.visible=false;
+    group.userData.shell=shell;
+    return group;
+  }
+
+  setWard(hero) {
+    this.ward.visible=hero.ward>0;
+    if (!this.ward.visible) return;
+    this.ward.position.set(hero.x,0,hero.z);
+    this.ward.userData.shell.rotation.y=this.time*.48;
+    this.ward.userData.shell.material.opacity=.12+Math.min(.24,hero.ward*.1);
   }
 
   createParticleSystem(capacity) {
@@ -433,13 +537,52 @@ export class Scenery {
     this.spark(x,.65,z,tint,Math.floor(34 * power),power);
   }
 
-  moon(x,z,radius) {
-    this.shock(x,z,0xffae60,radius,1.22);
-    this.addEffect(plane,{x,y:.075,z},0xffe1ab,.57,{map:this.sigil,opacity:.96,scale:radius*1.45,growth:radius*.65,angle:this.time*.24});
-    for (let i=0;i<8;i++) {
-      const angle=i*PI/4;
-      this.spark(x+Math.cos(angle)*radius*.84,.17,z+Math.sin(angle)*radius*.84,0xffcf84,3,.79);
+  bolt(from,to,tint,intensity=1) {
+    const a = new T.Vector3(from.x,from.y,from.z), b = new T.Vector3(to.x,to.y,to.z);
+    const path = [a];
+    for (let index=1;index<8;index++) {
+      const point=a.clone().lerp(b,index/8);
+      point.x+=(Math.random()-.5)*.41;
+      point.y+=(Math.random()-.5)*.28;
+      point.z+=(Math.random()-.5)*.38;
+      path.push(point);
     }
+    path.push(b);
+    const route = new T.CurvePath();
+    for (let i=1;i<path.length;i++) route.add(new T.LineCurve3(path[i-1],path[i]));
+    const geometry=new T.TubeGeometry(route,14,.033*intensity,4,false);
+    this.addEffect(geometry,{x:0,y:0,z:0},tint,.23,{owned:true,opacity:.94,order:93});
+    this.spark(to.x,to.y,to.z,tint,intensity>1?13:5,.72);
+  }
+
+  wave(x,z,dx,dz,reach,tint,strong=false) {
+    const angle = -Math.atan2(dz,dx);
+    const width = strong ? 2.18 : 1.40;
+    const pos={x:x+dx*reach*.46,y:.66,z:z+dz*reach*.46};
+    const size = strong ? 2.0 : 1.22;
+    const effect = this.addEffect(this.arc,pos,tint,strong?.39:.23,{scale:size,growth:.31,angle,opacity:.76,order:94});
+    effect.stretchZ=width;
+    effect.travel={x:dx*(strong?9:6),z:dz*(strong?9:6)};
+    this.spark(pos.x,.50,pos.z,tint,strong?19:7,strong?1.28:.77);
+  }
+
+  thrust(x,z,dx,dz,reach,tint,heavy) {
+    const angle=-Math.atan2(dz,dx);
+    const origin={x,y:.55,z};
+    this.addEffect(this.lance,origin,tint,.23,{scale:reach,angle,growth:.13,opacity:.85,order:94});
+    this.addEffect(this.lance,{...origin,y:.67},0xffeed0,.15,{scale:reach*.98,angle,opacity:.82,order:95});
+    if (heavy) this.shock(x+dx*reach*.70,z+dz*reach*.70,tint,1.68,.70);
+    this.spark(x+dx*reach*.78,.58,z+dz*reach*.78,tint,heavy?16:7,1.05);
+  }
+
+  vortex(x,z,radius,tint) {
+    for (const [part,angle] of [[.95,0],[.82,2.1],[.66,4.2]]) {
+      const arc = circle(radius*part,.045,PI*1.38);
+      const fx=this.addEffect(arc,{x,y:.13+part*.11,z},tint,.62,{owned:true,angle,opacity:.92,scale:.83,growth:.24});
+      fx.spin=4.2;
+    }
+    this.addEffect(plane,{x,y:.045,z},tint,.56,{map:this.halo,scale:radius*2,growth:.7,opacity:.38});
+    this.spark(x,.46,z,tint,18,1.22);
   }
 
   warning(kind,x,z,radius,time,angle = 0) {
@@ -494,6 +637,14 @@ export class Scenery {
       light.position.y = key.position.y;
       if (!paused && Math.random() < dt * 11) this.spark(0,.26,-6.75,0xffcb7c,2,.36);
     }
+    if (this.clue.visible) {
+      const {flame,halo,marker}=this.clue.userData;
+      flame.position.y=.35+Math.sin(time*7.6)*.035;
+      flame.rotation.y=time*.61;
+      halo.material.opacity=.68+.16*Math.sin(time*6.7);
+      marker.material.opacity=.69+.20*Math.sin(time*2.8);
+      if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
+    }
     for (let i=this.effects.length-1;i>=0;i--) {
       const fx = this.effects[i];
       if (!paused) fx.age += dt;
@@ -503,7 +654,13 @@ export class Scenery {
         this.effects.splice(i,1);
       } else {
         fx.mesh.scale.setScalar(fx.scale + fx.growth * (1 - (1 - age) ** 2));
+        if (fx.stretchZ) fx.mesh.scale.z *= fx.stretchZ;
         fx.mesh.material.opacity = fx.opacity * (fx.growth > 0 ? (1-age)**1.2 : .7+.3*Math.sin(age*PI*5));
+        if (!paused && fx.spin) fx.mesh.rotation.y+=fx.spin*dt;
+        if (!paused && fx.travel) {
+          fx.mesh.position.x+=fx.travel.x*dt;
+          fx.mesh.position.z+=fx.travel.z*dt;
+        }
       }
     }
     this.renderParticles(paused ? 0 : dt);

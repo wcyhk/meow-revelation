@@ -1,6 +1,9 @@
-import {Scenery} from './scenery.mjs';
-import {Audio} from './audio.mjs';
-import {Input} from './input.mjs';
+import {Scenery} from './scenery.mjs?v=armory-1';
+import {Audio} from './audio.mjs?v=armory-1';
+import {Input} from './input.mjs?v=armory-1';
+import {arms} from './armory.mjs';
+import {ending, stages} from './campaign.mjs';
+import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -11,12 +14,6 @@ const fixed = value => Math.max(0, Math.ceil(value));
 const random = (low,high) => low + Math.random() * (high-low);
 const actionIds = ['dodge','spell','strike'];
 
-const stages = [
-  {name:'緋石庭', roman:'I', line:'林下的石門，仍有人為亡者留燈。', waves:[['imp','imp','imp'],['imp','imp','cultist','cultist']]},
-  {name:'銀霧迴廊', roman:'II', line:'水底的亡魂，記得每一個被抹去的名字。', waves:[['knight','cultist','imp'],['knight','knight','imp','cultist','imp']]},
-  {name:'落日王座', roman:'III', line:'月蝕深處，守夜者用名字為自己加冕。', waves:[['boss']]},
-];
-
 const kinds = {
   imp:     {frame:3, height:1.71, hp:34, speed:3.30, reach:1.60, radius:1.55, time:.52, hurt:10, mass:.70},
   cultist: {frame:4, height:2.02, hp:42, speed:2.10, reach:6.8, radius:1.55, time:.92, hurt:11, mass:.95},
@@ -25,12 +22,12 @@ const kinds = {
 };
 
 const relics = [
-  {id:'thorn', mark:'✦',name:'荊棘刃',detail:'斬擊傷害提高 35%。', apply:h=>h.damage*=1.35},
-  {id:'moon', mark:'☽',name:'銀月輪',detail:'月輪範圍更廣，冷卻縮至 4.2 秒。',apply:h=>{h.spellTime=4.2;h.spellRadius+=1.05;}},
+  {id:'thorn', mark:'✦',name:'荊棘之力',detail:'普通攻擊傷害提高 35%。', apply:h=>h.damage*=1.35},
+  {id:'moon', mark:'☽',name:'銀月印',detail:'神器技能冷卻縮短 25%，射程或範圍增加。',apply:h=>{h.spellTime*=.75;h.spellRadius+=.85;}},
   {id:'flower',mark:'❋',name:'白花',detail:'最大生命增加 25，立即回滿。',apply:h=>{h.maxHp+=25;h.hp=h.maxHp;}},
   {id:'step',mark:'»',name:'餘燼步',detail:'翻滾更快，落地會灼傷附近敵人。',apply:h=>{h.ember=true;h.rollTime=.7;}},
-  {id:'star',mark:'✷',name:'流星露',detail:'每次擊倒敵人回復 5 點生命，月輪傷害增加。',apply:h=>{h.leech=5;h.spellDamage+=14;}},
-  {id:'reach',mark:'◈',name:'長夜刃',detail:'斬擊距離增加，第三斬傷害再提高。',apply:h=>{h.reach+=.62;h.finisher+=.28;}},
+  {id:'star',mark:'✷',name:'流星露',detail:'每次擊倒敵人回復 5 點生命，神器技能傷害增加。',apply:h=>{h.leech=5;h.spellDamage*=1.25;}},
+  {id:'reach',mark:'◈',name:'長夜',detail:'普通攻擊距離增加，第三擊傷害提高。',apply:h=>{h.reach+=.62;h.finisher+=.28;}},
 ];
 
 function shuffle(list) {
@@ -42,12 +39,13 @@ function shuffle(list) {
   return mixed;
 }
 
-function makeHero() {
+function makeHero(weapon) {
   return {
     x:0,z:7.7,hp:100,maxHp:100,face:1,dx:0,dz:-1,vx:0,vz:0,move:0,
     invulnerable:0,flash:0,atk:0,attackAge:1,slash:null,combo:0,comboLeft:0,
-    rolling:0,rollCool:0,rollTime:.96,rollX:0,rollZ:-1,spellCool:0,spellTime:6,
-    damage:23,reach:2.48,finisher:1.49,spellRadius:4.5,spellDamage:42,ember:false,leech:0,
+    rolling:0,rollCool:0,rollTime:.96,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,spellTime:weapon.cooldown,
+    damage:weapon.damage,reach:weapon.reach,finisher:1.46,spellRadius:weapon.range,spellDamage:weapon.power,
+    ember:false,leech:0,ward:0,surge:0,rush:null,
   };
 }
 
@@ -72,6 +70,9 @@ export class Game {
     this.hazards = [];
     this.pickups = [];
     this.relics = [];
+    this.journal = [];
+    this.rituals = [];
+    this.discovery = null;
     this.elapsed = 0;
     this.t = 0;
     this.hitstop = 0;
@@ -84,23 +85,60 @@ export class Game {
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-dots','damage-vignette','announce','announce-kicker','announce-title','announce-line',
-      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions',...actionIds].map(id=>[id,$(id)]));
+      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
-    this.input = new Input(view.canvas,()=>this.togglePause(),()=>this.state==='play');
-    this.ui.begin.addEventListener('click',()=>this.start());
+    this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
+    this.ui.begin.addEventListener('click',()=>this.prepare());
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
+    this.ui.inspect.addEventListener('click',()=>this.readClue());
+    this.ui.journal.addEventListener('click',()=>this.showJournal());
     addEventListener('resize',()=>this.view.resize());
     document.addEventListener('visibilitychange',() => {if(document.hidden && this.state==='play') this.togglePause();});
     this.loop = this.loop.bind(this);
   }
 
-  start() {
+  prepare() {
     this.audio.start().catch(() => {});
-    if (this.heroVisual) this.view.removeActor(this.heroVisual);
-    this.hero = makeHero();
+    this.state='armory';
+    this.audio.active=false;
+    const grid=document.createElement('div');
+    grid.className='armory-grid';
+    for (const weapon of shuffle(arms).slice(0,3)) {
+      const choice=makeButton('',()=>this.start(weapon),'arm-card');
+      choice.dataset.arm=weapon.id;
+      choice.style.setProperty('--arm-ink',weapon.ink);
+      const image=document.createElement('img');
+      image.src=this.view.armIcons.get(weapon.id);
+      image.alt='';
+      const text=document.createElement('div');
+      text.className='arm-text';
+      const role=document.createElement('small'), name=document.createElement('b');
+      const basic=document.createElement('span'), skill=document.createElement('strong'), detail=document.createElement('span');
+      role.textContent=weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
+      skill.textContent=weapon.skill; detail.textContent=weapon.detail;
+      text.append(role,name,basic,skill,detail);
+      choice.append(image,text);
+      grid.append(choice);
+    }
+    this.openModal({kind:'armory',mark:'◇',kicker:'神獸遺物',title:'向林火借一件神器',
+      copy:'三件神器回應了你。選擇一件，帶着牠的力量走到王座。',content:grid,
+      buttons:[makeButton('返回主畫面',()=>this.showCover())]});
+  }
+
+  start(weapon) {
+    if (this.heroVisual) this.view.removeEquippedActor(this.heroVisual);
+    this.weapon = weapon;
+    this.hero = makeHero(weapon);
     this.heroVisual = this.view.createActor(0,2.68);
+    this.view.equip(this.heroVisual,weapon);
     this.relics = [];
+    this.journal = [];
+    this.ui['relic-icons'].replaceChildren();
+    this.ui.equipped.textContent=weapon.name;
+    this.ui.equipped.style.color=weapon.ink;
+    this.action('strike',weapon.attack,'✦',weapon.ink);
+    this.action('spell',weapon.skill,weapon.mark,weapon.ink);
     this.elapsed = 0;
     this.kills = 0;
     this.hitstop = 0;
@@ -117,9 +155,19 @@ export class Game {
     this.view.canvas.focus();
   }
 
+  action(id,label,mark,tone) {
+    const control=this.ui[id];
+    control.setAttribute('aria-label',label);
+    control.title=label;
+    control.querySelector('em').textContent=label;
+    control.querySelector('span').textContent=mark;
+    control.style.setProperty('--action-ink',tone);
+  }
+
   enter(level) {
     for (const unit of [...this.enemies,...this.fallen,...this.pickups]) this.view.removeActor(unit.visual);
     this.enemies.length = this.fallen.length = this.hazards.length = this.pickups.length = 0;
+    this.rituals.length=0;
     this.level = level;
     this.wave = 0;
     this.clearDelay = 0;
@@ -127,8 +175,9 @@ export class Game {
     const h = this.hero;
     h.x = 0; h.z = 7.45; h.vx = h.vz = 0;
     h.invulnerable = 1;
-    h.rolling = h.atk = h.rollCool = h.spellCool = 0;
-    h.slash = null;
+    h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = 0;
+    h.slash = h.rush = null;
+    h.attackAge=1;
     h.dx = 0; h.dz = -1;
     this.view.focus.set(0,0,-.65);
     this.view.setStage(level);
@@ -140,9 +189,9 @@ export class Game {
       gem.className = 'route-gem '+(index===level?'current':index<level?'done':'');
       return gem;
     }));
-    this.objective(level===0 ? '留意紅色預警 · 翻滾可避開攻擊' : '穿越月蝕留下的封印');
+    this.placeStory(stage.clue);
     this.announce('緋月之森  /  '+stage.roman,stage.name,stage.line,2.5);
-    this.startDelay = level === 2 ? 1.35 : 1.48;
+    this.startDelay = Infinity;
     this.renderUI();
   }
 
@@ -158,11 +207,70 @@ export class Game {
     if (line !== this.ui.objective.textContent) this.ui.objective.textContent = line;
   }
 
+  placeStory(clue) {
+    this.discovery=clue;
+    this.view.placeClue(clue);
+    this.ui.inspect.hidden=true;
+    if (clue) this.objective('沿燈火尋找 · '+clue.title);
+  }
+
+  closeToClue() {
+    return this.discovery && distance(this.hero,this.discovery)<1.82;
+  }
+
+  readClue() {
+    if (this.state!=='play' || !this.closeToClue()) return false;
+    const clue=this.discovery;
+    this.placeStory(null);
+    this.state='story';
+    this.audio.play('blessing');
+    const prose=document.createElement('div');
+    prose.className='story-prose';
+    for (const line of clue.text) {
+      const paragraph=document.createElement('p');
+      paragraph.textContent=line;
+      prose.append(paragraph);
+    }
+    if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:stages[this.level].name});
+    const final=clue===ending;
+    const proceed=makeButton(final?'望向山下':'收起線索',()=>{
+      this.closeModal();
+      if (final) {
+        this.finish(true);
+        return;
+      }
+      this.state='play';
+      this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':'前方的封印正在鬆動');
+      this.startDelay=this.level===2 ? .92 : 1.07;
+    },'primary');
+    this.openModal({kind:'story',mark:final?'✶':'✦',kicker:final?'尾聲':stages[this.level].name,title:clue.title,
+      copy:'',content:prose,buttons:[proceed]});
+    return true;
+  }
+
+  showJournal() {
+    if (this.state!=='play') return;
+    this.state='journal';
+    const journal=document.createElement('div');
+    journal.className='journal-entries';
+    for (const clue of this.journal) {
+      const entry=document.createElement('article');
+      const heading=document.createElement('b'), record=document.createElement('p');
+      heading.textContent=clue.chapter+' · '+clue.title;
+      record.textContent=clue.record;
+      entry.append(heading,record);
+      journal.append(entry);
+    }
+    this.openModal({kind:'story',mark:'◇',kicker:'尋名記',title:'探索手記',
+      copy:this.journal.length?'':'沿着祭燈調查，線索會記在這裏。',content:journal,
+      buttons:[makeButton('收起手記',()=>this.togglePause(),'primary')]});
+  }
+
   spawn(kind,x,z) {
     const spec = kinds[kind];
     const unit = {
       kind,spec,x,z,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
-      kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,
+      kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
     this.enemies.push(unit);
@@ -190,7 +298,7 @@ export class Game {
     }
   }
 
-  aim(input) {
+  aim(input, range=this.hero.reach+.86) {
     const h = this.hero;
     if (input.aim) {
       const center = this.view.project(h.x,.8,h.z);
@@ -199,10 +307,10 @@ export class Game {
       if (length>7) return [x/length,z/length];
     }
     let nearest = null;
-    let shortest = h.reach+.86;
+    let shortest = Infinity;
     for (const foe of this.enemies) {
       const d = distance(h,foe);
-      if (d < shortest + (foe.kind==='boss' ? .65 : 0)) {
+      if (foe.hp>0 && d<shortest && d<range+(foe.kind==='boss'?.65:0)) {
         nearest = foe;
         shortest = d;
       }
@@ -219,6 +327,8 @@ export class Game {
     h.rollCool -= dt;
     h.spellCool -= dt;
     h.invulnerable -= dt;
+    h.ward -= dt;
+    h.surge -= dt;
     h.flash = Math.max(0,h.flash-dt*4.3);
     const movement = Math.hypot(input.x,input.z);
     if (movement>.07 && h.rolling<=0 && !h.slash) {
@@ -227,7 +337,8 @@ export class Game {
     }
     if (this.buffered.dodge>0 && h.rollCool<=0 && h.rolling<=0) {
       this.buffered.dodge=0;
-      h.rolling = .30;
+      h.rolling = h.rollDuration = .30;
+      h.rollSpeed=13.6;
       h.rollCool = h.rollTime;
       h.invulnerable = Math.max(h.invulnerable,.35);
       h.rollX = movement>.07 ? input.x/movement : h.dx;
@@ -238,10 +349,14 @@ export class Game {
       this.view.spark(h.x,.2,h.z,0xe5b17b,13,.6);
     }
     if (h.rolling>0) {
-      h.x += h.rollX*13.6*dt;
-      h.z += h.rollZ*13.6*dt;
+      const previous=h.rush?{x:h.x,z:h.z}:null;
+      h.x += h.rollX*h.rollSpeed*dt;
+      h.z += h.rollZ*h.rollSpeed*dt;
+      this.bound(h);
+      if (previous) rushHit(this,previous);
       h.rolling -= dt;
       h.vx = h.rollX * 4; h.vz = h.rollZ * 4;
+      if (h.rolling<=0) h.rush=null;
       if (h.rolling<=0 && h.ember) {
         this.view.shock(h.x,h.z,0xff783c,2.05,.64);
         for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,16,h,.6);
@@ -252,11 +367,11 @@ export class Game {
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
       h.x += h.vx*dt; h.z += h.vz*dt;
-      if (this.buffered.spell>0 && h.spellCool<=0) {
+      if (!this.discovery && this.buffered.spell>0 && h.spellCool<=0) {
         this.buffered.spell=0;
-        this.cast();
+        this.cast(input);
       }
-      if (this.buffered.strike>0 && h.atk<=0) {
+      if (!this.discovery && h.rolling<=0 && this.buffered.strike>0 && h.atk<=0) {
         this.buffered.strike=0;
         this.attack(input);
       }
@@ -267,6 +382,15 @@ export class Game {
     }
     this.bound(h);
     h.move += (Math.min(1,Math.hypot(h.vx,h.vz)/5)-h.move)*blend(14,dt);
+    if (this.discovery) {
+      const near=this.closeToClue();
+      this.ui.inspect.hidden=!near;
+      if (near) {
+        this.ui.inspect.querySelector('span').textContent=this.discovery.action;
+        if (input.interact) this.readClue();
+      }
+      return;
+    }
     if (this.view.portal.visible && this.nearPortal() && (input.interact || h.z < -6.05)) {
       this.view.portal.visible = false;
       this.enter(this.level+1);
@@ -288,30 +412,20 @@ export class Game {
     if (Math.abs(dx)>.12) h.face = Math.sign(dx);
     h.combo = h.comboLeft>0 ? h.combo%3+1 : 1;
     h.comboLeft = .86;
-    h.atk = h.combo===3 ? .42 : .28;
+    h.atk = this.weapon.period*(h.combo===3?1.34:1);
     h.attackAge = 0;
-    h.slash = {dx,dz,delay:.057};
-    h.x += dx*.18;
-    h.z += dz*.18;
+    h.slash = {dx,dz,delay:this.weapon.delay};
+    const lunge = this.weapon.id==='tiger' ? .26 : this.weapon.id==='dragon' ? .04 : .12;
+    h.x += dx*lunge;
+    h.z += dz*lunge;
   }
 
   landSlash() {
     const h = this.hero, {dx,dz} = h.slash;
     h.slash = null;
     const final = h.combo===3;
-    const reach = h.reach + (final?.40:0);
-    this.view.slash(h.x,h.z,dx,dz,final?0xff7947:0xffc486,reach,final);
+    const hits = strikeWith(this,dx,dz);
     this.audio.play('swing');
-    let hits = 0;
-    for (const foe of this.enemies) {
-      const deltaX=foe.x-h.x, deltaZ=foe.z-h.z;
-      const d=Math.hypot(deltaX,deltaZ);
-      const facing = (dx*deltaX + dz*deltaZ) / Math.max(.03,d);
-      const margin = foe.kind==='boss' ? .72 : .21;
-      if (d > reach+margin || (d>1.02 && facing<(final ? -.25 : .20))) continue;
-      const power = final ? h.finisher : h.combo===2?1.12:1;
-      if (this.hit(foe,h.damage*power,h,final?1.8:.97)) hits++;
-    }
     if (hits) {
       this.hitstop = final ? .067 : .034;
       this.view.shake = final ? .195 : .089;
@@ -319,31 +433,36 @@ export class Game {
     }
   }
 
-  cast() {
+  cast(input) {
     const h = this.hero;
     h.spellCool = h.spellTime;
-    h.invulnerable = Math.max(h.invulnerable,.18);
-    this.view.moon(h.x,h.z,h.spellRadius);
-    for (const unit of this.enemies) if (distance(unit,h)<h.spellRadius+.25) this.hit(unit,h.spellDamage,h,1.62);
-    this.hazards = this.hazards.filter(hazard=>{
-      if (hazard.kind!=='spark' || distance(hazard,h)>h.spellRadius) return true;
-      this.view.spark(hazard.x,.26,hazard.z,0xffdc8c,9,.65);
+    invokeArm(this,input);
+    this.view.shake = Math.max(this.view.shake,.12);
+    this.audio.arm(this.weapon.id);
+  }
+
+  schedule(delay, fire) {
+    this.rituals.push({delay,fire});
+  }
+
+  updateRituals(dt) {
+    this.rituals=this.rituals.filter(event=>{
+      event.delay-=dt;
+      if (event.delay>0) return true;
+      event.fire();
       return false;
     });
-    this.hitstop = .065;
-    this.view.shake = .19;
-    this.audio.play('moon');
   }
 
   hit(unit,amount,origin,knock) {
     if (unit.hp<=0 || unit.age<.23) return false;
-    unit.hp -= amount;
+    unit.hp -= amount*(unit.exposed>0?1.24:1);
     unit.flash = .78;
     unit.stun = unit.kind==='boss' ? .033 : .14;
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
-    this.view.spark(unit.x,unit.spec.height*.47,unit.z,0xff9d62,unit.hp<=0?24:10,1.15);
+    this.view.spark(unit.x,unit.spec.height*.47,unit.z,this.weapon.tone,unit.hp<=0?24:10,1.15);
     if (unit.kind==='boss' && unit.hp>0 && unit.hp<unit.spec.hp*.53 && !unit.phaseTwo) {
       unit.phaseTwo=true;
       unit.step=2;
@@ -369,10 +488,11 @@ export class Game {
     this.view.spark(unit.x,.38,unit.z,0xffdfa5,12,.74);
   }
 
-  hurt(amount,x,z) {
+  hurt(amount,x,z,attacker) {
     const h = this.hero;
     if (h.invulnerable>0 || this.state!=='play') return false;
-    h.hp = Math.max(0,h.hp-amount);
+    const guarded=h.ward>0;
+    h.hp = Math.max(0,h.hp-(guarded?amount*.24:amount));
     h.invulnerable = .64;
     h.flash = .9;
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
@@ -380,10 +500,11 @@ export class Game {
     h.z += (h.z-z)/len*.48;
     h.slash = null;
     this.bound(h);
-    this.damageFlash = .78;
+    this.damageFlash = guarded?.25:.78;
     this.view.shake = .26;
     this.hitstop = .067;
     this.audio.play('hurt');
+    if (guarded) reflectHit(this,attacker);
     if (h.hp===0) this.finish(false);
     return true;
   }
@@ -421,7 +542,7 @@ export class Game {
         const angle=start+i*TAU/4;
         const x=clamp(attack.x+Math.cos(angle)*4.3,-10.8,10.8);
         const z=clamp(attack.z+Math.sin(angle)*4.3,-7.2,10.5);
-        this.hazards.push({kind:'seal',x,z,radius:1.60,delay:attack.time+.26+i*.085,damage:14});
+        this.hazards.push({kind:'seal',x,z,radius:1.60,delay:attack.time+.26+i*.085,damage:14,owner:unit});
         this.view.warning('circle',x,z,1.60,attack.time+.26+i*.085);
       }
     }
@@ -437,11 +558,11 @@ export class Game {
       const along = (h.x-a.x)*a.dx+(h.z-a.z)*a.dz;
       const across = (h.x-a.x)*-a.dz+(h.z-a.z)*a.dx;
       for (let n=1;n<=4;n++) this.view.shock(unit.x+a.dx*n*1.54,unit.z+a.dz*n*1.54,0xff6239,1.0,.34);
-      if (Math.abs(along)<a.radius*.54 && Math.abs(across)<1.04) this.hurt(a.damage,a.x,a.z);
+      if (Math.abs(along)<a.radius*.54 && Math.abs(across)<1.04) this.hurt(a.damage,a.x,a.z,unit);
       unit.kx = a.dx*5; unit.kz = a.dz*5;
     } else {
       this.view.shock(a.x,a.z,unit.kind==='cultist'?0xffad56:0xe65334,a.radius,unit.kind==='boss'?1:.38);
-      if (distance(h,a)<a.radius+.16) this.hurt(a.damage,a.x,a.z);
+      if (distance(h,a)<a.radius+.16) this.hurt(a.damage,a.x,a.z,unit);
     }
     if (unit.kind==='boss') {
       this.view.shake=Math.max(this.view.shake,.15);
@@ -455,7 +576,7 @@ export class Game {
     for (let i=0;i<9;i++) {
       const angle=start+i*TAU/9;
       const dx=Math.cos(angle), dz=Math.sin(angle);
-      this.hazards.push({kind:'spark',x:unit.x+dx*.6,z:unit.z+dz*.6,dx,dz,delay:2.25,damage:13});
+      this.hazards.push({kind:'spark',x:unit.x+dx*.6,z:unit.z+dz*.6,dx,dz,delay:2.25,damage:13,owner:unit});
     }
   }
 
@@ -469,6 +590,8 @@ export class Game {
       unit.stun-=dt;
       unit.recover-=dt;
       unit.cool-=dt;
+      unit.chill-=dt;
+      unit.exposed-=dt;
       unit.x+=unit.kx*dt; unit.z+=unit.kz*dt;
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
@@ -496,7 +619,7 @@ export class Game {
           sz+=(unit.z-other.z)/between*(1.30-between)*2.3;
         }
       }
-      const aggression = unit.kind==='boss'&&unit.hp<spec.hp*.53 ? 1.28 : 1;
+      const aggression = (unit.kind==='boss'&&unit.hp<spec.hp*.53 ? 1.28 : 1)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1);
       unit.x += (dx*direction*spec.speed*aggression+sx)*dt;
       unit.z += (dz*direction*spec.speed*aggression+sz)*dt;
       unit.move=Math.min(1,unit.move+Math.abs(direction)*dt*9);
@@ -512,12 +635,12 @@ export class Game {
         hazard.x+=hazard.dx*4.7*dt;
         hazard.z+=hazard.dz*4.7*dt;
         this.view.spark(hazard.x,.36,hazard.z,0xff7248,1,.18);
-        if (distance(this.hero,hazard)<.65 && this.hurt(hazard.damage,hazard.x,hazard.z)) return false;
+        if (distance(this.hero,hazard)<.65 && this.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner)) return false;
         return hazard.delay>0;
       }
       if (hazard.delay>0) return true;
       this.view.shock(hazard.x,hazard.z,0xff6944,hazard.radius,.47);
-      if (distance(this.hero,hazard)<hazard.radius) this.hurt(hazard.damage,hazard.x,hazard.z);
+      if (distance(this.hero,hazard)<hazard.radius) this.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
       return false;
     });
   }
@@ -545,6 +668,7 @@ export class Game {
   }
 
   updateFlow(dt) {
+    if (this.discovery) return;
     if (this.startDelay !== Infinity) {
       this.startDelay-=dt;
       if (this.startDelay<=0) this.startWave();
@@ -555,11 +679,14 @@ export class Game {
     if (this.clearDelay<.89) return;
     this.clearDelay=0;
     this.hazards.length=0;
+    this.rituals.length=0;
     if (this.wave<stages[this.level].waves.length) {
       this.announce('結界再起','下一波','月蝕正在召喚更多的影子。',1.2);
       this.startDelay=1.18;
     } else if (this.level===2) {
-      this.finish(true);
+      this.ui['boss-hud'].hidden=true;
+      this.placeStory(ending);
+      this.announce('名字重見天日',ending.title,'往王座走，讓牠們聽見鐘聲。',2.0);
     } else {
       this.blessing();
     }
@@ -577,10 +704,11 @@ export class Game {
       tilt:isRoll?0:(h.attackAge<.23?(windup?.20:-.20)*h.face:stride*.073),
       squash:isRoll?.74:1+Math.sin(t*(h.move>.25?20:4.2))*(.03+h.move*.027),
       stretch:isRoll?1.08:1,
-      roll:isRoll?-h.face*(1-h.rolling/.3)*TAU:0,
+      roll:isRoll&&!h.rush?-h.face*(1-h.rolling/h.rollDuration)*TAU:0,
       flash:h.flash,fade:h.invulnerable>0 && !isRoll && Math.sin(t*33)<-.35 ? .74 : 1,
-      aura:.24,rim:0xfbb56b,
+      aura:h.ward>0||h.surge>0?.55:.24,rim:this.weapon.tone,
     });
+    this.view.setWard(h);
     for (const unit of this.enemies) {
       const boss=unit.kind==='boss';
       const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
@@ -592,7 +720,9 @@ export class Game {
         bob:Math.abs(oscillation)*unit.move*.14+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
         squash:1+oscillation*(.028+unit.move*.032)-wind*.095,
         tilt:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
-        warm:wind*.55+(fierce?.42:0),aura:unit.attack?.25:(boss?.25:.09),rim:unit.attack||fierce?0xfb5a33:0xb0764d,
+        warm:wind*.55+(fierce?.42:0),
+        aura:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+        rim:unit.chill>0?0x8de2de:unit.exposed>0?0xff8255:unit.attack||fierce?0xfb5a33:0xb0764d,
       });
     }
     this.fallen=this.fallen.filter(unit=>{
@@ -620,6 +750,8 @@ export class Game {
     this.elapsed+=dt;
     this.t+=dt;
     this.updateHero(dt,input);
+    if (this.state!=='play') return;
+    this.updateRituals(dt);
     this.updateEnemies(dt);
     this.updateHazards(dt);
     this.updatePickups(dt);
@@ -639,7 +771,7 @@ export class Game {
     }
     const boss=this.enemies.find(unit=>unit.kind==='boss');
     if (this.level===2) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
-    const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/.42];
+    const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(this.weapon.period*1.34)];
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
   }
@@ -660,23 +792,27 @@ export class Game {
     this.view.render(dt,this.hero,this.state!=='play');
   }
 
-  openModal({mark,kicker,title,copy,content,buttons}) {
+  openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
     this.input.reset();
     this.buffered = {dodge:0,spell:0,strike:0};
     this.ui['modal-mark'].textContent=mark;
     this.ui['modal-kicker'].textContent=kicker;
     this.ui['modal-title'].textContent=title;
     this.ui['modal-copy'].textContent=copy;
+    this.ui['modal-copy'].hidden=!copy;
+    this.ui.modal.dataset.kind=kind;
     this.ui['modal-content'].replaceChildren(...(content?[content]:[]));
     this.ui['modal-actions'].replaceChildren(...(buttons||[]));
     this.ui.modal.hidden=false;
     this.ui.hud.inert=true;
+    this.ui.cover.inert=true;
     this.ui.modal.querySelector('button')?.focus({preventScroll:true});
   }
 
   closeModal() {
     this.ui.modal.hidden=true;
     this.ui.hud.inert=false;
+    this.ui.cover.inert=false;
     this.input.reset();
   }
 
@@ -715,7 +851,7 @@ export class Game {
   }
 
   togglePause() {
-    if (this.state==='pause') {
+    if (this.state==='pause'||this.state==='journal') {
       this.state='play';
       this.audio.active=true;
       this.closeModal();
@@ -725,13 +861,12 @@ export class Game {
     this.state='pause';
     this.audio.active=false;
     this.openModal({mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
-      copy:'鍵盤用 WASD 移動、J 斬擊、空白鍵翻滾、Q 放月輪。觸屏用左下搖桿與右下按鈕。',
+      copy:'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。手機用搖桿和畫面按鈕。',
       buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('重新開始',()=>this.restart())]});
   }
 
   restart() {
-    this.ui['relic-icons'].replaceChildren();
-    this.start();
+    this.prepare();
   }
 
   finish(won) {
@@ -741,14 +876,14 @@ export class Game {
     const seconds=Math.floor(this.elapsed), time=Math.floor(seconds/60)+'分 '+seconds%60+'秒';
     const results=document.createElement('div');
     results.className='results';
-    for (const line of ['擊倒 '+this.kills,'用時 '+time,'祝福 '+this.relics.length]) {
+    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'線索 '+this.journal.length+'/3']) {
       const item=document.createElement('span');
       item.textContent=line;
       results.append(item);
     }
     const buttons=[makeButton(won?'再闖森林':'再試一次',()=>this.restart(),'primary'),makeButton('返回主畫面',()=>this.showCover())];
     this.openModal(won ? {mark:'✷',kicker:'緋月之森 · 完成',title:'星火歸家',
-      copy:'王冠破碎，亡者的名字回到了燭火裏。天亮之前，森林第一次記起你。',content:results,buttons} :
+      copy:'天亮之前，你和小燈一起回家。',content:results,buttons} :
       {mark:'☽',kicker:stages[this.level].name,title:'燈火熄滅',
         copy:'風把你的名字帶回了起點。下一次，記得在紅印亮起時翻滾。',content:results,buttons});
   }

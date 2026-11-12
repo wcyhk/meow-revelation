@@ -7,8 +7,8 @@
   <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
   <link rel="preload" href="./cover.jpg" as="image">
-  <link rel="stylesheet" href="./style.css">
-  <script type="module" src="./game.mjs"></script>
+  <link rel="stylesheet" href="./style.css?v=armory-1">
+  <script type="module" src="./game.mjs?v=armory-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -34,15 +34,16 @@
       <div class="health-hud"><div class="portrait"></div><div class="health-info">
         <div class="hero-name">守燈貓 <span id="hp-number"></span></div>
         <div class="health-track" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="hp-fill"></div></div>
-        <div id="relic-icons" aria-label="已獲得的祝福"></div>
+        <div class="hero-loadout"><span id="equipped"></span><div id="relic-icons" aria-label="已獲得的祝福"></div></div>
       </div></div>
       <div class="route-hud"><div id="route-name"></div><div id="route-dots"></div></div>
-      <div class="utility"><button id="mute" aria-label="靜音" aria-pressed="false">♫</button><button id="pause" aria-label="暫停">Ⅱ</button></div>
+      <div class="utility"><button id="journal" aria-label="探索手記" title="探索手記（L）">▤</button><button id="mute" aria-label="靜音" aria-pressed="false">♫</button><button id="pause" aria-label="暫停">Ⅱ</button></div>
       <div id="boss-hud" hidden>
         <div><span>◆</span> 王冠守夜者 <span>◆</span></div>
         <div class="boss-track"><div id="boss-fill"></div></div>
       </div>
       <div id="objective"></div>
+      <button id="inspect" hidden><i aria-hidden="true">◇</i><span></span><kbd>E</kbd></button>
       <div id="announce" aria-live="polite"><small id="announce-kicker"></small><strong id="announce-title"></strong><p id="announce-line"></p></div>
       <div class="inputs">
         <div id="stick-zone" aria-hidden="true"><div id="stick"><i></i></div></div>

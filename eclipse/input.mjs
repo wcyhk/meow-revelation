@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','Escape']);
+const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','KeyL','Escape']);
 
 export class Input {
   constructor(world, dispatch, running) {
@@ -18,6 +18,7 @@ export class Input {
       this.keys.add(code);
       if (!repeat && bindings.has(code)) this.actions.add(bindings.get(code));
       if (!repeat && code === 'Escape') dispatch('pause');
+      if (!repeat && code === 'KeyL') dispatch('journal');
     });
     addEventListener('keyup', event => this.keys.delete(event.code));
     addEventListener('blur', () => this.reset());

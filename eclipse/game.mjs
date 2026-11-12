@@ -1,5 +1,5 @@
 import {Scenery} from './scenery.mjs?v=resonance-1';
-import {Audio} from './audio.mjs?v=fusions-1';
+import {Audio} from './audio.mjs?v=ultimates-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=combos-1';
 import {ending} from './campaign.mjs';
@@ -14,7 +14,9 @@ import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=links-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=links-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
-import {fusionChoices, pickFusion} from './link-fusions.mjs?v=fusions-1';
+import {fusionChoices, pickFusion} from './link-fusions.mjs?v=ultimates-1';
+import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=ultimates-1';
+import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=ultimates-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -68,6 +70,7 @@ export class Game {
     this.relics = [];
     this.journal = [];
     this.rituals = [];
+    this.ultimateFields = [];
     this.discovery = null;
     this.elapsed = 0;
     this.t = 0;
@@ -124,12 +127,19 @@ export class Game {
       text.append(role,name,moves,basic,skill,detail,link);
       const signature={qilin:'wind',flameblade:'fire',stormbow:'thunder',turtle:'ward'}[weapon.id];
       const fusion=milestone?pickFusion(fusionChoices(weapon,this.hero.resonance),this.fusionPin):null;
+      const secret=milestone?ultimateProgress(weapon,this.hero.resonance):null;
       if (fusion||milestone&&signature&&this.hero.resonance[signature]) {
         const resonance=document.createElement('span');
         resonance.className='arm-resonance';
         resonance.textContent=fusion?fusion.mark+' '+fusion.name+'｜'+fusion.detail
           :linkResonances[signature].mark+' 已有共鳴｜'+resonanceText(weapon,signature,this.hero.resonance[signature]);
         text.append(resonance);
+      }
+      if (secret?.known&&!secret.ready) {
+        const clue=document.createElement('span');
+        clue.className='arm-resonance';
+        clue.textContent='隱藏合招｜'+this.ultimateClue(secret);
+        text.append(clue);
       }
       choice.append(image,text);
       grid.append(choice);
@@ -189,6 +199,10 @@ export class Game {
     this.fusion=pickFusion(this.fusions,this.fusionPin);
     const skill=skillLinks[this.weapon.id].name;
     this.ui.spell.title=this.weapon.skill+' · 第三擊命中後接技：'+skill+(this.fusion?'｜'+this.fusion.name+'：'+this.fusion.detail:'');
+  }
+
+  ultimateClue(progress,school) {
+    return progress.rite.schools.map(id=>linkResonances[id].name+' '+Math.min(6,schoolProgress(this.ranks,id).total+Number(id===school))+'/6').join(' · ');
   }
 
   fusionForLink(link) {
@@ -673,14 +687,15 @@ export class Game {
     if (link) {
       const profile=skillLinks[this.weapon.id];
       const fusion=this.fusionForLink(link);
-      const wind=profile.wind;
+      const wind=profile.wind+(fusion?.ultimate?.065:0);
       const recovery=.22-linkResonances.wind.recovery[h.resonance.wind];
-      invokeLinkedArm(this,link,wind,fusion);
+      if (fusion?.ultimate) launchUltimate(this,link,wind,fusion);
+      else invokeLinkedArm(this,link,wind,fusion);
       if (!h.rush) heroAction(h,'link',profile,{cycle:wind+recovery,hits:[{at:wind}]});
       h.atk=h.rush ? .26 : wind+recovery;
       h.atkTotal=h.atk;
       h.combo=h.comboLeft=0;
-      h.linkFlash=.77;
+      h.linkFlash=fusion?.ultimate?1.13:.77;
       h.linkFusion=fusion;
       if (h.resonance.ward) {
         h.linkGuard={left:2.8,scale:1-linkResonances.ward.guard[h.resonance.ward],fusion:fusion?.id==='counter'?fusion:null};
@@ -810,6 +825,7 @@ export class Game {
     if (barrier?.fusion&&h.hp>0) dischargeFusion(this,attacker,barrier.fusion);
     if (h.hp>0) invokeSchool(this,'ward',attacker);
     if (h.hp===0) {
+      clearUltimates(this);
       h.rolling=0;
       h.ward=0;
       h.move=0;
@@ -968,6 +984,7 @@ export class Game {
   }
 
   clearThreats() {
+    clearUltimates(this);
     for (const hazard of this.hazards) {
       if (hazard.visual) this.view.removeProjectile(hazard.visual);
     }
@@ -1169,6 +1186,7 @@ export class Game {
     this.updateHero(dt,input);
     if (this.state!=='play') return;
     this.updateRituals(dt);
+    if (this.ultimateFields.length) updateUltimates(this,dt);
     this.updateEnemies(dt);
     this.bossArena?.tick(dt);
     this.updateHazards(dt);
@@ -1221,6 +1239,7 @@ export class Game {
     if (spell.dataset.link!==linkState||spell.dataset.fusion!==(fusion?.id??'')) {
       spell.dataset.link=linkState;
       spell.dataset.fusion=fusion?.id??'';
+      spell.classList.toggle('ultimate-ready',!!fusion?.ultimate);
       if (fusion) spell.style.setProperty('--fusion-ink',fusion.ink);
       else spell.style.removeProperty('--fusion-ink');
       hint.hidden=!linkState;
@@ -1299,6 +1318,7 @@ export class Game {
     h.hp=Math.min(h.maxHp,h.hp+heal);
     const grid=document.createElement('div');
     grid.className='relic-grid';
+    const secret=ultimateProgress(this.weapon,h.resonance);
     const shuffled=shuffle(blessings);
     const suggested=shuffled.find(boon=>!this.ranks.has(boon.id)&&schoolProgress(this.ranks,boon.school).distinct>0);
     const options=[];
@@ -1333,13 +1353,19 @@ export class Game {
       const active=pickFusion(future,this.fusionPin);
       const changed=future.filter(fusion=>fusion.rank>(this.fusions.find(old=>old.id===fusion.id)?.rank??0));
       if (changed.length) {
-        const lead=changed.find(fusion=>fusion.id===active?.id)??changed[0];
+        const lead=changed.find(fusion=>fusion.ultimate)??changed.find(fusion=>fusion.id===active?.id)??changed[0];
         const unlock=!this.fusions.some(fusion=>fusion.id===lead.id);
         const weave=document.createElement('small');
-        weave.className='relic-fusion';
+        weave.className='relic-fusion'+(lead.ultimate?' ultimate-clue':'');
         weave.style.setProperty('--fusion-ink',lead.ink);
-        weave.textContent=(unlock?'解鎖 ':'升階 ')+lead.name+(changed.length>1?' ＋'+(changed.length-1):'')+'｜'+lead.detail;
+        weave.textContent=(lead.ultimate?'覺醒 ':unlock?'解鎖 ':'升階 ')+lead.name+(changed.length>1?' ＋'+(changed.length-1):'')+'｜'+lead.detail;
         button.append(weave);
+      } else if (secret?.known&&!secret.ready&&secret.rite.schools.includes(relic.school)&&total<6) {
+        const clue=document.createElement('small');
+        clue.className='relic-fusion ultimate-clue';
+        clue.style.setProperty('--fusion-ink',secret.rite.ink);
+        clue.textContent='隱藏合招｜'+this.ultimateClue(secret,relic.school);
+        button.append(clue);
       }
       grid.append(button);
     }
@@ -1353,13 +1379,21 @@ export class Game {
     const h=this.hero;
     const oldMax=h.maxHp;
     const previous=this.fusion;
+    const knownUltimate=this.fusions.some(fusion=>fusion.ultimate);
     this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics);
     this.refreshFusion();
     const extra=relic.id==='spring'?h.maxHp*.31:relic.id==='flower'?h.maxHp*.19:0;
     h.hp=Math.min(h.maxHp,h.hp+(h.maxHp-oldMax)+extra);
     const branch=relic.school;
-    if (!this.learned.has(branch)&&schoolProgress(this.ranks,branch).distinct===3) {
-      this.learned.add(branch);
+    const learned=!this.learned.has(branch)&&schoolProgress(this.ranks,branch).distinct===3;
+    if (learned) this.learned.add(branch);
+    const awakened=!knownUltimate&&this.fusions.find(fusion=>fusion.ultimate);
+    if (awakened) {
+      const note=this.ui['school-toast'];
+      note.textContent='隱藏合招覺醒 · '+awakened.name+'｜'+awakened.detail;
+      note.hidden=false;
+      this.schoolToast=4.2;
+    } else if (learned) {
       const note=this.ui['school-toast'];
       note.textContent='解鎖 '+schools[branch].skill+' · '+schools[branch].detail;
       note.hidden=false;
@@ -1415,23 +1449,34 @@ export class Game {
     const title=document.createElement('b'), detail=document.createElement('p');
     title.textContent='接技合招';
     detail.className='fusion-summary';
+    const paint=()=>{
+      const pinned=this.fusions.some(fusion=>fusion.id===this.fusionPin)?this.fusionPin:'auto';
+      for (const option of panel.querySelectorAll('button')) option.setAttribute('aria-pressed',String(option.dataset.fusionChoice===pinned));
+      detail.textContent='目前：'+this.fusion.name+(this.fusion.ultimate?' · 終極':' '+this.fusion.rank+'階')+'｜'+this.fusion.detail;
+    };
     const select=id=>{
       this.fusionPin=id;
       this.refreshFusion();
-      for (const option of panel.querySelectorAll('button')) option.setAttribute('aria-pressed',String(option.dataset.fusionChoice===(id??'auto')));
-      detail.textContent='目前：'+this.fusion.name+' '+this.fusion.rank+'階｜'+this.fusion.detail;
+      paint();
     };
     const options=document.createElement('div');
     options.className='fusion-options';
     for (const fusion of [null,...this.fusions]) {
       const name=fusion?fusion.mark+' '+fusion.name:'隨神器自動配搭';
-      const option=makeButton(name,()=>select(fusion?.id??null),'fusion-option');
+      const option=makeButton(name,()=>select(fusion?.id??null),'fusion-option'+(fusion?.ultimate?' ultimate-clue':''));
       option.dataset.fusionChoice=fusion?.id??'auto';
       option.style.setProperty('--fusion-ink',fusion?.ink??'#ecd6a3');
       options.append(option);
     }
     panel.append(title,options,detail);
-    select(this.fusionPin);
+    const secret=ultimateProgress(this.weapon,this.hero.resonance);
+    if (secret?.known&&!secret.ready) {
+      const clue=document.createElement('p');
+      clue.className='fusion-secret';
+      clue.textContent='隱藏合招 · 三個指定流派各達 '+ultimateRank+' 階：'+this.ultimateClue(secret);
+      panel.append(clue);
+    }
+    paint();
     return panel;
   }
 

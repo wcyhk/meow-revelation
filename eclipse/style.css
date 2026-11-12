@@ -114,6 +114,7 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
 #spell[data-link=cast]::after{--link-left:360deg}
 #skill-link{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);pointer-events:none;padding:4px 8px;white-space:nowrap;border-radius:2px;border:1px solid currentColor;background:#211a16f2;color:var(--fusion-ink,var(--action-ink,#ffe0a3));font:800 10px/1.2 var(--serif);letter-spacing:.065em;box-shadow:0 2px 8px #0d0b09b5}
 #spell[data-link=queued] #skill-link{color:#e1c9a9}
+#spell.ultimate-ready #skill-link{border-style:double;border-width:3px;padding:3px 8px;color:#fff0c7;background:linear-gradient(135deg,#49311f,#1b231d);text-shadow:0 0 7px color-mix(in srgb,var(--fusion-ink) 70%,transparent)}
 .combo-pips{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:4px;pointer-events:none}
 .combo-pips b{width:4px;height:4px;border-radius:50%;background:#3a2b26;border:1px solid #aa785c}
 #strike[data-combo="1"] .combo-pips b:first-child,
@@ -146,6 +147,8 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
 .fusion-option{min-height:36px;padding:4px 9px;color:var(--fusion-ink);background:#28221b;border:1px solid #ad906a75;font-size:11px;line-height:1.3}
 .fusion-option[aria-pressed=true]{border-color:var(--fusion-ink);background:color-mix(in srgb,var(--fusion-ink) 22%,#262019);box-shadow:inset 0 0 0 1px #241b12}
 .fusion-summary{margin:0;color:#e5d0b0;font-size:12px;line-height:1.55}
+.fusion-secret{margin:9px 0 0;padding-top:7px;border-top:1px solid #ac8c6957;color:#e1b98b;font-size:11px;line-height:1.55}
+.relic .ultimate-clue,.fusion-option.ultimate-clue{border-style:double;border-width:3px;background:#36271f;color:var(--fusion-ink)}
 .results{display:flex;justify-content:center;gap:20px;font-size:12px;letter-spacing:.06em;color:#ffd4a5}
 #modal[data-kind=armory]{z-index:11;background:#100f0ab3}
 #modal[data-kind=armory] .panel{width:min(800px,100%);background:radial-gradient(ellipse at top,#3c2c22,#181b17 73%)}

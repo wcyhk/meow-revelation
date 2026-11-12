@@ -214,6 +214,18 @@ export class Audio {
     }
   }
 
+  ultimate(skin,pulse=0) {
+    if (!this.context||this.muted) return;
+    const now=this.context.currentTime;
+    const root=[128,168,221,196,260,112,281,151,392,175][skin];
+    const noise=[1310,2170,2740,1560,960,1490,3150,1040,2080,1740][skin];
+    const ice=skin===4||skin===8;
+    this.rasp(now,.16,pulse===0?.19:.13,noise);
+    this.note(root*(1+pulse*.27),root*(ice?.98:.36),now,ice?.38:.26,.155,ice?'sine':'triangle',.007);
+    this.note(root*(ice?2.39:1.51),root*(ice?1.96:.87),now+.047,.24,.09,'triangle',.012);
+    if (pulse===0) this.note(88,34,now+.027,.33,.136,'sine',.015);
+  }
+
   arm(id) {
     if (!this.context) return;
     const now=this.context.currentTime;

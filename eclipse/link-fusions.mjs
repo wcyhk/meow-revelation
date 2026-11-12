@@ -1,3 +1,5 @@
+import {ultimateProgress} from './ultimate-recipes.mjs?v=ultimates-1';
+
 const recipes=[
   {id:'emberbolt',schools:['fire','thunder'],name:'雷引燃痕',mark:'ϟ',ink:'#ffbf83',tint:0xffae70,
     detail:'雷電帶住火痕逐個敵人傳開，每次跳擊都會引爆落點。'},
@@ -18,7 +20,7 @@ const affinities={flameblade:'emberbolt',stormbow:'rail',qilin:'frostlance',turt
 
 export function fusionChoices(weapon,loadout) {
   const preferred=affinities[weapon.id];
-  return recipes.flatMap(recipe=>{
+  const choices=recipes.flatMap(recipe=>{
     const [a,b]=recipe.schools.map(school=>loadout[school]);
     if (!a||!b) return [];
     const spear=weapon.id==='qilin'&&recipe.id==='frostlance';
@@ -27,6 +29,9 @@ export function fusionChoices(weapon,loadout) {
       name:spear?'霜槍封陣':recipe.name,
       detail:spear?'破盾後嘅額外追刺冰封附近小怪，頭目只會減速。':recipe.detail}];
   }).sort((a,b)=>Number(b.affinity)-Number(a.affinity)||b.rank-a.rank||b.sum-a.sum);
+  const progress=ultimateProgress(weapon,loadout);
+  if (progress?.ready) choices.unshift(progress.rite);
+  return choices;
 }
 
 export function pickFusion(choices,pin) {

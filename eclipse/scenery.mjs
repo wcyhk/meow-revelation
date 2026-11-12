@@ -1,12 +1,12 @@
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=nightfall-1';
-import {pictures, stages} from './expedition.mjs?v=nightfall-1';
+import {pictures, stages} from './expedition.mjs?v=clock-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=nightfall-1';
 import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=nightfall-1';
-import {LanternArt} from './lantern-art.mjs?v=nightfall-1';
+import {LanternArt} from './lantern-art.mjs?v=clock-1';
 
 const PI = Math.PI;
 const color = new T.Color();

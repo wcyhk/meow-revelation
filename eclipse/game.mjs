@@ -1,10 +1,10 @@
-import {Scenery} from './scenery.mjs?v=nightfall-1';
-import {Audio} from './audio.mjs?v=nightfall-1';
+import {Scenery} from './scenery.mjs?v=clock-1';
+import {Audio} from './audio.mjs?v=clock-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
-import {ending} from './campaign.mjs';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=nightfall-1';
-import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=nightfall-1';
+import {ending} from './campaign.mjs?v=clock-1';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
+import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=clock-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=nightfall-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=nightfall-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
@@ -18,9 +18,11 @@ import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
 import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
 import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=nightfall-1';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
-import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=nightfall-1';
+import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=nightfall-1';
+import {Progression,floorGold,formatTime,milestones} from './progression.mjs?v=clock-1';
+import {recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=clock-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -65,6 +67,7 @@ export class Game {
     this.audio = audio;
     this.state = 'cover';
     this.difficulty=difficulties.vigil;
+    this.progress=new Progression();
     this.arenaSeed=Math.floor(Math.random()*0x100000000);
     this.level = 0;
     this.wave = 0;
@@ -90,11 +93,14 @@ export class Game {
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
-      'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time',
+      'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','time-fracture',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
+    this.ui.training.addEventListener('click',()=>this.openTraining());
+    this.ui.records.addEventListener('click',()=>this.openRecords());
+    this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
     this.ui.inspect.addEventListener('click',()=>this.interact());
@@ -102,6 +108,30 @@ export class Game {
     addEventListener('resize',()=>this.view.resize());
     document.addEventListener('visibilitychange',() => {if(document.hidden && this.state==='play') this.togglePause();});
     this.loop = this.loop.bind(this);
+  }
+
+  updateEntryBalance() {
+    this.ui['entry-gold'].textContent='金幣 '+this.progress.data.gold.toLocaleString('zh-HK');
+  }
+
+  openTraining() {
+    if (this.state!=='cover') return;
+    this.progress.refresh();
+    this.state='training';
+    this.openModal({kind:'training',mark:'♨',kicker:'林門外',title:'守燈訓練所',
+      copy:'用帶返入口嘅金幣練成能力，下次入林就會生效。',
+      content:trainingPanel(this.progress,()=>this.updateEntryBalance()),
+      buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
+  }
+
+  openRecords() {
+    if (this.state!=='cover') return;
+    this.progress.refresh();
+    this.state='records';
+    this.openModal({kind:'records',mark:'◇',kicker:'司刻嘅帳簿',title:'個人紀錄',
+      copy:'抵達同通過嘅樓層會即時記下。敲響歸名鐘先計通關時間。',
+      content:recordsPanel(this.progress,Object.values(difficulties)),
+      buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 
   prepare(milestone=false) {
@@ -167,22 +197,34 @@ export class Game {
     const root=document.createElement('div');
     root.className='difficulty-picker';
     root.setAttribute('role','group');root.setAttribute('aria-label','選擇難度');
-    const controls=document.createElement('div'),detail=document.createElement('small');
+    const controls=document.createElement('div'),detail=document.createElement('small'),goals=document.createElement('small');
+    goals.className='difficulty-rewards';
     const refresh=()=>{
       for(const button of controls.children) button.setAttribute('aria-pressed',String(button.dataset.difficulty===this.difficulty.id));
-      detail.textContent=this.difficulty.detail;
+      detail.textContent=this.difficulty.detail+' 每層金幣 ×'+this.difficulty.gold;
+      goals.textContent=milestones[this.difficulty.id].map(reward=>`第 ${reward.floor} 關 · ${reward.name}`).join('　');
+      goals.hidden=!goals.textContent;
     };
     for(const mode of Object.values(difficulties)) {
       const button=makeButton(mode.mark+' '+mode.name,()=>{this.difficulty=mode;refresh();},'difficulty-choice');
       button.dataset.difficulty=mode.id;
       controls.append(button);
     }
-    root.append(controls,detail);refresh();return root;
+    root.append(controls,detail,goals);refresh();return root;
   }
 
   start(weapon) {
     if (this.heroVisual) this.view.removeEquippedActor(this.heroVisual);
     this.hero = makeHero();
+    this.progress.refresh();
+    this.training={...this.progress.data.training};
+    this.hero.technique=this.progress.data.technique;
+    this.hero.lanternStyle=this.progress.data.lantern;
+    this.runGold=0;
+    this.redraws=0;
+    this.altar=null;
+    this.twinReward=null;
+    this.failure=null;
     this.heroVisual = this.view.createActor(0,2.68);
     this.relics = [];
     this.fusionPin=null;
@@ -201,6 +243,7 @@ export class Game {
     this.level = 0;
     this.wave = 0;
     this.equip(weapon);
+    this.hero.hp=this.hero.maxHp;
     this.state = 'play';
     this.audio.active = true;
     this.ui.cover.hidden = true;
@@ -213,7 +256,7 @@ export class Game {
   equip(weapon) {
     this.weapon=weapon;
     this.view.equip(this.heroVisual,weapon);
-    this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics);
+    this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics,this.training);
     this.ui.equipped.textContent=weapon.name;
     this.ui.equipped.style.color=weapon.ink;
     this.action('strike',weapon.attack,'✦',weapon.ink);
@@ -273,16 +316,18 @@ export class Game {
     this.wave = 0;
     this.clearDelay = 0;
     const stage = this.stage = modeStage(stages[level],this.difficulty);
+    this.progress.reach(this.difficulty.id,stage.floor);
+    this.floorBossesDefeated=0;
     this.escape=routeLayout(stage,this.routeSeed);
+    this.floorReward=null;
     this.bossArena=null;
     this.mission=stage.objective ? new RoomObjective(this,stage.objective) : null;
     this.ui.hud.dataset.mission=this.mission?.plan.type??'';
     const h = this.hero;
     const oldMax=h.maxHp;
-    this.ranks=buildStats(h,this.weapon,stage.floor,this.relics);
+    this.ranks=buildStats(h,this.weapon,stage.floor,this.relics,this.training);
     h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
-    this.entryHp=h.hp;
-    this.entryKills=this.kills;
+    h.trainingWardSpent=false;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
     h.invulnerable = 1;
     h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = h.snared = 0;
@@ -556,7 +601,7 @@ export class Game {
     if (this.buffered.dodge>0 && h.rollCool<=0 && h.rolling<=0) {
       this.buffered.dodge=0;
       h.rolling = h.rollDuration = .30;
-      h.rollSpeed=13.6;
+      h.rollSpeed=13.6*(h.technique==='stride'?1.18:1);
       h.rollCool = h.rollTime;
       h.invulnerable = Math.max(h.invulnerable,.35);
       h.rollX = movement>.07 ? input.x/movement : h.dx;
@@ -861,6 +906,7 @@ export class Game {
     }
     if (unit.hp<=0) {
       this.kills++;
+      if (boss) this.floorBossesDefeated++;
       const h = this.hero;
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
       this.fallen.push(unit);
@@ -893,15 +939,17 @@ export class Game {
     const guarded=h.ward>0;
     const barrier=h.linkGuard;
     h.linkGuard=null;
-    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1));
+    const trained=h.technique==='ward'&&!h.trainingWardSpent&&amount>0;
+    if (trained) h.trainingWardSpent=true;
+    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1)*(trained?.55:1));
     h.invulnerable = .64;
     const heavy=['cleave','pounce','lance','burst','counterCharge','sweep','arenaBait'].includes(pattern)
       || amount>=h.maxHp*.15;
     const origin=Math.hypot(h.x-x,h.z-z)<.18&&attacker ? attacker : {x,z};
-    const blocked=guarded||barrier;
+    const blocked=guarded||barrier||trained;
     const kind=h.hp===0?'fall':blocked?'block':heavy?'heavy':'light';
     this.impact(h,origin,kind,blocked?0x91eee0:0xffad7d);
-    if (barrier) this.view.shock(h.x,h.z,0xa9eee0,1.65,.63);
+    if (barrier||trained) this.view.shock(h.x,h.z,trained?0xffba7b:0xa9eee0,1.65,.63);
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
     this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
     this.interruptLink();
@@ -1173,6 +1221,15 @@ export class Game {
     this.escape.passed=true;
     this.clearThreats();this.rituals.length=0;this.clearActors();
     this.ui.inspect.hidden=true;
+    const reward=milestones[this.difficulty.id].find(item=>item.floor===this.stage.floor);
+    const gold=floorGold(this.stage);
+    const unlocked=this.progress.clear(this.difficulty.id,this.stage.floor,gold,reward?.id==='crimson');
+    this.runGold+=gold;
+    if (reward?.id==='redraw') this.redraws++;
+    if (unlocked) this.hero.lanternStyle='crimson';
+    if (reward?.id==='twins'&&this.floorBossesDefeated>=2) this.twinReward={offers:new Map()};
+    const notice=unlocked||reward?.id==='redraw'||this.twinReward ? reward : null;
+    this.floorReward={gold,notice};
     this.blessing(this.escape.message);
     return true;
   }
@@ -1321,6 +1378,10 @@ export class Game {
   }
 
   step(dt,input) {
+    if (this.state==='fracture'||this.state==='gm') {
+      this.updateFailure(dt);
+      return;
+    }
     if (this.state==='falling') {
       this.animateActors(dt);
       if (this.hero.reaction.age>=reactionTime.fall) this.finish(false);
@@ -1369,10 +1430,10 @@ export class Game {
     this.ui['boss-primary'].hidden=!boss;
     this.ui['boss-echo'].hidden=!echo;
     if(echo)this.ui['boss-echo-fill'].style.transform='scaleX('+clamp(echo.hp/echo.spec.hp,0,1)+')';
-    const kills=String(this.kills),seconds=Math.floor(this.elapsed);
-    const clock=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+    const kills=String(this.kills),clock=formatTime(this.elapsed),gold=String(this.runGold??0);
     if(this.ui['run-kills'].textContent!==kills)this.ui['run-kills'].textContent=kills;
     if(this.ui['run-time'].textContent!==clock)this.ui['run-time'].textContent=clock;
+    if(this.ui['run-gold'].textContent!==gold)this.ui['run-gold'].textContent=gold;
     if (this.stage.boss) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
     const arena=this.bossArena;
     const arenaHint=this.ui['boss-arena-hint'];
@@ -1432,7 +1493,8 @@ export class Game {
     requestAnimationFrame(this.loop);
     const dt=clamp((now-this.previousTime)/1000,0,.045);
     this.previousTime=now;
-    if (!this.hero || document.hidden) return;
+    if (!this.hero||document.hidden||!this.ui.cover.hidden) return;
+    if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
     if (this.state==='play'||this.state==='falling') {
       this.step(dt,this.state==='play'?this.input.read():null);
@@ -1474,23 +1536,46 @@ export class Game {
     this.input.reset();
   }
 
-  blessing(message) {
-    this.state='blessing';
-    this.audio.play('blessing');
-    const h=this.hero;
-    const heal=Math.round(h.maxHp*((this.stage.boss?.36:.14)+h.recovery)*this.difficulty.heal);
-    h.hp=Math.min(h.maxHp,h.hp+heal);
-    const grid=document.createElement('div');
-    grid.className='relic-grid';
-    const secret=ultimateProgress(this.weapon,h.resonance);
-    const shuffled=shuffle(blessings);
+  drawBlessings(pool=blessings) {
+    const shuffled=shuffle(pool);
     const suggested=shuffled.find(boon=>!this.ranks.has(boon.id)&&schoolProgress(this.ranks,boon.school).distinct>0);
     const options=[];
     for (const boon of suggested?[suggested,...shuffled]:shuffled) {
       if (!options.some(other=>other.school===boon.school)) options.push(boon);
       if (options.length===3) break;
     }
-    for (const relic of shuffle(options)) {
+    return shuffle(options);
+  }
+
+  blessing(message,bonus=false) {
+    const h=this.hero;
+    const before=h.hp;
+    if (!bonus) {
+      const heal=Math.round(h.maxHp*((this.stage.boss?.36:.14)+h.recovery)*this.difficulty.heal);
+      h.hp=Math.min(h.maxHp,h.hp+heal);
+    }
+    this.altar={message,heal:Math.round(h.hp-before),bonus,options:this.drawBlessings()};
+    this.audio.play('blessing');
+    this.showBlessing();
+  }
+
+  redrawBlessings() {
+    if (this.state!=='blessing'||!this.altar||this.altar.bonus||this.redraws<=0) return;
+    const pool=blessings.filter(relic=>!this.altar.options.includes(relic));
+    this.redraws--;
+    this.altar.options=this.drawBlessings(pool);
+    this.audio.play('blessing');
+    this.showBlessing();
+  }
+
+  showBlessing() {
+    this.state='blessing';
+    const {message,heal,bonus,options}=this.altar;
+    const h=this.hero;
+    const grid=document.createElement('div');
+    grid.className='relic-grid';
+    const secret=ultimateProgress(this.weapon,h.resonance);
+    for (const relic of options) {
       const button=makeButton('',()=>this.choose(relic),'relic');
       button.dataset.blessing=relic.id;
       const mark=document.createElement('strong'), name=document.createElement('b'), detail=document.createElement('span');
@@ -1540,25 +1625,59 @@ export class Game {
       }
       grid.append(button);
     }
-    this.openModal({kind:'blessing',mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
-      copy:'回復 '+heal+' 點生命。兩個流派各有一份祝福，就會解鎖合招。每次接技用一種合招，可喺暫停選單切換。',content:grid});
+    const content=document.createElement('div');
+    const reward=this.floorReward;
+    if (!bonus&&reward) {
+      const receipt=document.createElement('p');
+      receipt.className='floor-receipt';
+      receipt.textContent='金幣 +'+reward.gold+(heal?' · 回復 '+heal+' 生命':'');
+      content.append(receipt);
+      if (reward.notice) {
+        const notice=document.createElement('p');
+        notice.className='milestone-notice';
+        notice.textContent=reward.notice.name+' · '+reward.notice.detail;
+        content.append(notice);
+      }
+    }
+    content.append(grid);
+    const buttons=[];
+    if (!bonus&&this.redraws>0) {
+      const redraw=makeButton('重抽祝福 · 剩 '+this.redraws+' 次',()=>this.redrawBlessings());
+      redraw.id='blessing-redraw';
+      buttons.push(redraw);
+    }
+    this.openModal({kind:'blessing',mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),
+      title:bonus?'雙頭目遺贈':'亡者的祝福',copy:bonus?'揀多一份祝福，帶入餘下樓層。':'揀一份祝福。累積唔同流派可以解鎖合招。',content,buttons});
   }
 
   choose(relic) {
-    if (this.state!=='blessing') return;
-    this.relics.push(relic);
+    if (this.state!=='blessing'||!this.altar?.options.includes(relic)) return;
+    const bonus=this.altar.bonus;
+    this.altar=null;
+    this.applyBlessing(relic);
+    if (!bonus&&this.twinReward) {
+      this.showTwinReward();
+      return;
+    }
+    this.leaveAltar();
+  }
+
+  applyBlessing(relic,slot=null) {
+    if (slot===null) this.relics.push(relic);
+    else this.relics[slot]=relic;
     const h=this.hero;
     const oldMax=h.maxHp;
     const previous=this.fusion;
     const oldSeals=h.seals;
     const knownUltimate=this.fusions.some(fusion=>fusion.ultimate);
-    this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics);
+    this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics,this.training);
     this.refreshFusion();
     const extra=relic.id==='spring'?h.maxHp*.31:relic.id==='flower'?h.maxHp*.19:0;
     h.hp=Math.min(h.maxHp,h.hp+(h.maxHp-oldMax)+extra);
     const branch=relic.school;
-    const learned=!this.learned.has(branch)&&schoolProgress(this.ranks,branch).distinct>=3;
-    if (learned) this.learned.add(branch);
+    const activeSchools=new Set(Object.keys(schools).filter(school=>schoolProgress(this.ranks,school).distinct>=3));
+    const learned=!this.learned.has(branch)&&activeSchools.has(branch);
+    this.learned=activeSchools;
     const awakened=!knownUltimate&&this.fusions.find(fusion=>fusion.ultimate);
     const newSeal=seals.find(seal=>h.seals.has(seal.id)&&!oldSeals.has(seal.id));
     if (awakened) {
@@ -1586,6 +1705,63 @@ export class Game {
     this.ui['relic-icons'].title=blessings.filter(item=>this.ranks.has(item.id))
       .map(item=>item.name+' ×'+this.ranks.get(item.id)).join('、');
     this.audio.play('blessing');
+  }
+
+  showTwinReward() {
+    this.state='twin-reward';
+    const extra=makeButton('多揀一份祝福',()=>{
+      if (this.state==='twin-reward'&&this.twinReward) this.blessing('雙頭目已擊敗',true);
+    },'primary');
+    extra.id='twin-extra';
+    const replace=makeButton('更換一份祝福',()=>this.showTwinInventory());
+    replace.id='twin-replace';
+    this.openModal({kind:'twin-reward',mark:'✶',kicker:'無月 · 第 75 關',title:'雙頭目遺贈',
+      copy:'兩名頭目都已倒下。你可以多揀一份祝福，或者換走一份已有祝福，補齊另一個流派。',buttons:[extra,replace]});
+  }
+
+  showTwinInventory() {
+    if (!this.twinReward) return;
+    this.state='twin-inventory';
+    const list=document.createElement('div');
+    list.className='twin-inventory';
+    for (const relic of new Set(this.relics)) {
+      const button=makeButton(`${relic.name} · ${schools[relic.school].name} ×${this.ranks.get(relic.id)}`,()=>this.showTwinSwap(relic));
+      button.dataset.replace=relic.id;
+      list.append(button);
+    }
+    this.openModal({kind:'twin-reward',mark:'✶',kicker:'雙頭目遺贈',title:'揀要換走嘅祝福',content:list,
+      buttons:[makeButton('返回',()=>this.showTwinReward())]});
+  }
+
+  showTwinSwap(previous) {
+    if (this.state!=='twin-inventory'||!this.twinReward) return;
+    this.state='twin-swap';
+    const slot=this.relics.indexOf(previous);
+    const offers=this.twinReward.offers;
+    if (!offers.has(previous.id)) offers.set(previous.id,this.drawBlessings(blessings.filter(relic=>relic.school!==previous.school)));
+    const list=document.createElement('div');
+    list.className='relic-grid';
+    for (const relic of offers.get(previous.id)) {
+      const card=makeButton('',()=>{
+        if (this.state!=='twin-swap'||this.relics[slot]!==previous) return;
+        this.applyBlessing(relic,slot);
+        this.leaveAltar();
+      },'relic');
+      card.dataset.blessing=relic.id;
+      const name=document.createElement('b'),detail=document.createElement('span'),school=document.createElement('small');
+      name.textContent=relic.name;
+      detail.textContent=relic.detail;
+      school.textContent=schools[relic.school].name;
+      school.style.color=schools[relic.school].ink;
+      card.append(name,detail,school);
+      list.append(card);
+    }
+    this.openModal({kind:'twin-reward',mark:'✶',kicker:'雙頭目遺贈',title:'換入另一流派',copy:'將會換走 '+previous.name+' ×1。',content:list,
+      buttons:[makeButton('返回',()=>this.showTwinInventory())]});
+  }
+
+  leaveAltar() {
+    this.twinReward=null;
     if (this.stage.boss) {
       this.prepare(true);
       return;
@@ -1617,7 +1793,7 @@ export class Game {
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。手機用搖桿和畫面按鈕。',
       content:this.fusionMenu(),
-      buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('重新開始',()=>this.restart())]});
+      buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))]});
   }
 
   fusionMenu() {
@@ -1663,52 +1839,75 @@ export class Game {
     return panel;
   }
 
-  restart() {
-    this.prepare();
-  }
-
-  retryFloor() {
-    if (this.state!=='lost') return;
-    this.kills=this.entryKills;
-    this.hero.hp=Math.max(this.entryHp,this.hero.maxHp*.60);
-    this.hitstop=this.damageFlash=0;
-    this.state='play';
-    this.audio.active=true;
-    this.closeModal();
-    this.enter(this.level);
-  }
-
   finish(won,reason) {
-    this.state=won?'won':'lost';
+    if (['cover','fracture','gm','won'].includes(this.state)) return;
     this.audio.active=false;
-    if (won) this.audio.play('blessing');
-    const seconds=Math.floor(this.elapsed), time=Math.floor(seconds/60)+'分 '+seconds%60+'秒';
+    if (!won) {
+      this.state='fracture';
+      this.failure={remaining:.94,reason};
+      this.input.reset();
+      this.ui.inspect.hidden=true;
+      this.ui.announce.classList.remove('visible');
+      setFracture(this.ui['time-fracture'],formatTime(this.elapsed));
+      this.audio.play('fracture');
+      return;
+    }
+    this.state='won';
+    this.progress.win(this.difficulty.id,Math.round(this.elapsed*1000));
+    this.audio.play('blessing');
+    this.openModal({kind:'win',mark:'✷',kicker:this.difficulty.name+' · 第 100 關',title:'星火歸家',
+      copy:'歸名鐘響起，這一次天亮了。',content:this.runResults(true),
+      buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
+  }
+
+  runResults(includeClues=false) {
     const results=document.createElement('div');
     results.className='results';
-    const storyClues=this.journal.filter(entry=>!entry.hiddenClue).length;
-    const hiddenClues=this.journal.length-storyClues;
-    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'主線 '+storyClues+'/10','隱藏 '+hiddenClues+'/10']) {
+    const record=this.progress.data.records[this.difficulty.id];
+    const best=record.cleared?'第 '+record.cleared+' 關':'—';
+    const lines=['擊倒 '+this.kills,'用時 '+formatTime(this.elapsed),'本次金幣 +'+this.runGold,'最高通過 '+best];
+    if (includeClues) {
+      const hiddenClues=this.journal.filter(entry=>entry.hiddenClue).length;
+      lines.unshift(this.weapon.name);
+      lines.push('主線 '+(this.journal.length-hiddenClues)+'/10','隱藏 '+hiddenClues+'/10');
+    }
+    for (const line of lines) {
       const item=document.createElement('span');
       item.textContent=line;
       results.append(item);
     }
-    const buttons=won
-      ? [makeButton('再闖森林',()=>this.restart(),'primary')]
-      : [makeButton('重試第 '+this.stage.floor+' 關',()=>this.retryFloor(),'primary'),makeButton('重新開始',()=>this.restart())];
-    buttons.push(makeButton('返回主畫面',()=>this.showCover()));
-    this.openModal(won ? {mark:'✷',kicker:'緋月之森 · 完成',title:'星火歸家',
-      copy:'天亮之前，你和小燈一起回家。',content:results,buttons} :
-      {mark:'☽',kicker:'第 '+this.stage.floor+' 關 · '+this.stage.name,title:reason==='lantern'?'祭燈被摧毀':'燈火熄滅',
-        copy:reason==='lantern'?'守住祭燈直到倒數完結。重試會保留神器同祝福。':'重試此關會保留你的神器與祝福。',
-        content:results,buttons});
+    return results;
+  }
+
+  updateFailure(dt) {
+    if (!this.failure) return;
+    this.failure.remaining-=dt;
+    if (this.failure.remaining>0) return;
+    if (this.state==='gm') {
+      this.showCover();
+      return;
+    }
+    this.ui['time-fracture'].hidden=true;
+    this.state='gm';
+    this.failure.remaining=10;
+    const {reason}=this.failure;
+    const event=reason==='lantern'?'祭燈熄咗。':reason==='leave'?'呢段挑戰到此為止。':'呢一輪時間碎咗。';
+    this.openModal({kind:'gm',mark:'',kicker:this.difficulty.name+' · 第 '+this.stage.floor+' 關',title:'GM 司刻',
+      copy:'螢幕前嗰位，我見到你。'+event+'金幣同紀錄已記入帳簿，我而家送你返遊戲入口。',
+      content:this.runResults(),buttons:[makeButton('立即返回入口',()=>this.showCover(),'primary')]});
   }
 
   showCover() {
     this.state='cover';
+    this.audio.active=false;
+    this.failure=null;
+    this.ui['time-fracture'].hidden=true;
     this.closeModal();
     this.ui.hud.hidden=true;
     this.ui.cover.hidden=false;
     this.ui['relic-icons'].replaceChildren();
+    this.progress.refresh();
+    this.updateEntryBalance();
     this.ui.begin.focus();
   }
 }
@@ -1720,6 +1919,8 @@ try {
   game=new Game(world,new Audio());
   $('load-note').textContent='';
   $('begin').disabled=false;
+  $('training').disabled=false;
+  $('records').disabled=false;
   requestAnimationFrame(game.loop);
 } catch (error) {
   console.error('Could not initialize the Eclipse Grove',error);

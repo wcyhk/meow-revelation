@@ -1,7 +1,7 @@
 export const difficulties={
-  vigil:{id:'vigil',name:'巡燈',mark:'◇',detail:'標準百關，越深越容易遇到異變精英。',hp:1,damage:1,pace:1,heal:1,depth:.0,eliteFrom:56,eliteEvery:4},
-  blood:{id:'blood',name:'血月',mark:'♨',detail:'敵人更耐打、出招更快，通關回血減少。',hp:1.16,damage:1.17,pace:1.10,heal:.81,depth:.18,eliteFrom:12,eliteEvery:2},
-  abyss:{id:'abyss',name:'無月',mark:'☾',detail:'敵傷大增、場地咒印更頻密；幾乎每個戰鬥房有精英。',hp:1.31,damage:1.34,pace:1.18,heal:.65,depth:.35,eliteFrom:4,eliteEvery:1},
+  vigil:{id:'vigil',name:'巡燈',mark:'◇',detail:'標準百關，越深越容易遇到異變精英。',gold:1,hp:1,damage:1,pace:1,heal:1,depth:.0,eliteFrom:56,eliteEvery:4},
+  blood:{id:'blood',name:'血月',mark:'♨',detail:'敵人更耐打、出招更快，通關回血減少。',gold:2,hp:1.16,damage:1.17,pace:1.10,heal:.81,depth:.18,eliteFrom:12,eliteEvery:2},
+  abyss:{id:'abyss',name:'無月',mark:'☾',detail:'敵傷大增、場地咒印更頻密；幾乎每個戰鬥房有精英。',gold:3,hp:1.31,damage:1.34,pace:1.18,heal:.65,depth:.35,eliteFrom:4,eliteEvery:1},
 };
 
 export const afflictions=[

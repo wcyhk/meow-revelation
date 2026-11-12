@@ -108,6 +108,11 @@ export class Audio {
       case 'warning':
         this.note(166,115,now,.24,.05,'triangle');
         break;
+      case 'fracture':
+        this.rasp(now,.32,.32,3150);
+        this.note(740,117,now,.55,.16,'triangle',.009);
+        this.note(112,39,now+.13,.69,.22,'sine',.032);
+        break;
       case 'blessing':
         [392,493.9,587.3,784].forEach((f,index) => this.note(f,f,now+.09*index,.66,.07,'triangle',.018));
         break;

@@ -73,7 +73,7 @@ export class LanternArt {
     this.root=new T.Group();
     this.lamp=new T.Group();this.lamp.visible=false;
     part(this.lamp,box,bark,0,0,0,.19,.25,.20);
-    part(this.lamp,diamond,ember,0,.026,.10,.087,.125,.055);
+    this.flame=part(this.lamp,diamond,ember.clone(),0,.026,.10,.087,.125,.055);
     part(this.lamp,box,bevel,0,-.13,0,.25,.044,.23);
     part(this.lamp,box,bevel,0,.132,0,.23,.047,.22);
     const glow=new T.Sprite(new T.SpriteMaterial({map:view.halo,color:0xffa253,transparent:true,opacity:.72,depthWrite:false,blending:T.AdditiveBlending}));
@@ -129,6 +129,14 @@ export class LanternArt {
 
   tick(hero,time,stage) {
     if(!hero)return;
+    if(this.skin!==hero.lanternStyle){
+      this.skin=hero.lanternStyle;
+      const crimson=this.skin==='crimson';
+      this.flame.material.color.setHex(crimson?0xff7976:0xffc67b);
+      this.light.color.setHex(crimson?0xff736a:0xffa65f);
+      this.glow.material.color.setHex(crimson?0xff625b:0xffa253);
+      this.mask.style.setProperty('--lamp-wash',crimson?'#ff686319':'#ffb86d10');
+    }
     const fall=hero.reaction?.kind==='fall';
     const beam=lanternRadius(stage)*(fall?.83:1);
     const sx=this.view.height/(this.view.camera.top-this.view.camera.bottom);

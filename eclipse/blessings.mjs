@@ -34,20 +34,20 @@ export function schoolProgress(ranks,school) {
   };
 }
 
-export function buildStats(hero,weapon,floor,relics) {
+export function buildStats(hero,weapon,floor,relics,training={}) {
   const ranks=new Map();
   for (const relic of relics) ranks.set(relic.id,(ranks.get(relic.id)||0)+1);
   const rank=id=>ranks.get(id)||0;
   const depth=floor-1;
-  hero.maxHp=100+Math.floor(depth*.96)+rank('flower')*6+rank('lantern')*3;
-  hero.damage=weapon.damage*(1+depth*.018+curve(rank('thorn'),1.33));
+  hero.maxHp=100+Math.floor(depth*.96)+rank('flower')*6+rank('lantern')*3+(training.vitality??0)*10;
+  hero.damage=weapon.damage*(1+depth*.018+curve(rank('thorn'),1.33))*(1+(training.edge??0)*.05);
   hero.reach=weapon.reach+curve(rank('reach'),1.55);
   hero.finisher=1.46+curve(rank('reach')+rank('swiftcut')*.75,.76);
-  hero.spellTime=weapon.cooldown*(1-curve(rank('moon')+rank('conductor')*.52,.44));
+  hero.spellTime=weapon.cooldown*(1-curve(rank('moon')+rank('conductor')*.52,.44))*(1-(training.focus??0)*.05);
   hero.spellRadius=weapon.range+curve(rank('moon'),1.84);
   hero.spellDamage=weapon.power*(1+depth*.022+curve(rank('star')+rank('lantern')*.4+rank('kindling')*.58,1.55)+curve(rank('bloodoil'),.83));
   hero.ember=rank('step') ? 16+depth*.21+curve(rank('step'),19) : 0;
-  hero.rollTime=.96*(1-curve(rank('step'),.35));
+  hero.rollTime=.96*(1-curve(rank('step'),.35))*(hero.technique==='stride'?.90:1);
   hero.leech=curve(rank('star'),8.4);
   hero.armor=curve(rank('shell'),.44);
   hero.moveSpeed=5.7*(1+curve(rank('wind'),.28));

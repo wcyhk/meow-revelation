@@ -7,8 +7,8 @@
   <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
   <link rel="preload" href="./cover.jpg" as="image">
-  <link rel="stylesheet" href="./style.css?v=nightfall-1">
-  <script type="module" src="./game.mjs?v=nightfall-1"></script>
+  <link rel="stylesheet" href="./style.css?v=clock-1">
+  <script type="module" src="./game.mjs?v=clock-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -23,8 +23,9 @@
       <div class="cover-content">
         <div class="title-rule">緋月之森 · 無月夜祭</div>
         <h1>貓貓啟示錄</h1>
-        <p>月蝕之夜，森林開始忘記亡者的名字。<br>帶上你的刀，去把牠們的星火找回來。</p>
+        <p>王座吞下了妹妹的名字。提燈闖過百層，在時間再次碎裂之前，把小燈帶回家。</p>
         <button class="primary" id="begin" disabled><span>進入緋月之森</span><span class="arrow">↗</span></button>
+        <div class="cover-entry"><button class="secondary" id="training" disabled>訓練所</button><button class="secondary" id="records" disabled>個人紀錄</button><span id="entry-gold">金幣 0</span></div>
         <div id="load-note" role="status">正在點亮森林的燭火⋯⋯</div>
       </div>
       <div class="cover-footer">
@@ -38,7 +39,7 @@
         <div class="health-track" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="hp-fill"></div></div>
         <div class="hero-loadout"><span id="equipped"></span><div id="relic-icons" aria-label="已獲得的祝福"></div></div>
       </div></div>
-      <div class="route-hud"><div id="route-name"></div><div id="route-floor"></div><div id="route-dots"></div><div class="run-counters"><span>擊倒 <b id="run-kills">0</b></span><span>時間 <b id="run-time">0:00</b></span></div></div>
+      <div class="route-hud"><div id="route-name"></div><div id="route-floor"></div><div id="route-dots"></div><div class="run-counters"><span>擊倒 <b id="run-kills">0</b></span><span>時間 <b id="run-time">0:00</b></span><span>金幣 <b id="run-gold">0</b></span></div></div>
       <div class="utility"><button id="journal" aria-label="探索手記" title="探索手記（L）">▤</button><button id="mute" aria-label="靜音" aria-pressed="false">♫</button><button id="pause" aria-label="暫停">Ⅱ</button></div>
       <div id="boss-hud" hidden>
         <div id="boss-primary">
@@ -72,6 +73,7 @@
         </div>
       </div>
     </section>
+    <div id="time-fracture" aria-hidden="true" hidden><div class="fracture-clock"><b></b><b></b><b></b><b></b></div></div>
     <section id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="panel">
         <span id="modal-mark" aria-hidden="true">✧</span>

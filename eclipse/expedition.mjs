@@ -1,4 +1,4 @@
-import {stages as originalStory} from './campaign.mjs';
+import {stages as originalStory} from './campaign.mjs?v=clock-1';
 import {planObjective} from './objectives.mjs?v=battle-1';
 import {chapterAttacks, enemies, regionalEnemies, wardens} from './bestiary.mjs?v=nightfall-1';
 
@@ -19,13 +19,13 @@ const districts = [
     name:'霜鐘嶺', picture:'frost.jpg', color:0xa6d4ff, style:'snow', hazard:'cross', boss:'霜鐘狐僧', frame:10,
     route:'霜駝道｜懸鈴棧｜白石藥房｜垂冰窟｜默雪中庭｜藍鐘坡｜巡寒台｜冰裂長廊｜斷索吊門｜雪鐘殿',
     signature:'裂冰十字',
-    clue:{title:'守關人的回條',text:['冬糧已送到山下，商會仍把封印留在每一袋糧上。','回條說，名字落到霜鐘上便會結冰。只有收糧的人能打碎它。'],record:'封印留在每袋糧上，收糧時才生效。'},
+    clue:{title:'守關人的回條',text:['冬糧已送到山下，商會仍把封印留在每一袋糧上。','回條背面畫了三扇入口。巡燈、血月、無月連着同一座王座，夜色卻一重比一重深。司刻會把三條路走過的時間分開記下。'],record:'三種難度通往同一座王座。司刻在入口分開記下每一條路的紀錄。'},
   },
   {
     name:'熔星爐', picture:'forge.jpg', color:0xff7f49, style:'embers', hazard:'sweep', boss:'獄爐豬王', frame:11,
     route:'炭袋棚｜紅硫坡｜捶印道｜火星堆｜鐵門工房｜赤渣井｜銅模室｜裂焰堤｜重錘架｜獄爐心',
     signature:'熔鐵三擊',
-    clue:{title:'商會的印模',text:['印模上刻的，是用來區分糧倉的印記。翻到背面，每個倉印之下都有一張陌生的臉。','工匠在地磚留下刻痕：送進爐裏的是名字，熔出來的是給王座的金屬。'],record:'商會把典當的名字鑄成供奉王座的金屬。'},
+    clue:{title:'商會的印模',text:['印模上刻的，是用來區分糧倉的印記。翻到背面，每個倉印之下都有一張陌生的臉。','工匠在地磚留下刻痕：送進爐裏的是名字，熔出來的是給王座的金屬。訓練所師傅拆掉了一副印模，用它來鍛造守燈人帶進下一輪的護符。'],record:'商會用名字鑄金屬。入口的師傅用拆下來的印模打造戰技護符。'},
   },
   {
     name:'無聲塚', picture:'grave.jpg', color:0xcb9bec, style:'wisps', hazard:'prison', boss:'織碑夫人', frame:12,
@@ -43,13 +43,13 @@ const districts = [
     name:'銅砂望臺', picture:'dunes.jpg', color:0xff9d6b, style:'sand', hazard:'pounce', boss:'銅砂蝕日者', frame:14,
     route:'風蝕街｜赤銅影壁｜沙漏台｜長影弧門｜午刻回階｜碎軌觀星室｜風砂堤｜斜月塔｜合蝕門｜蝕日儀頂',
     signature:'日輪合蝕',
-    clue:{title:'倒行的星盤',text:['第一道月蝕本是天象。星盤卻記下七次人為改動，每次改動都把黑夜拉長一刻。','刻線的終點指向王座下方一口鐘。最後一位修鐘人被抹去名字。'],record:'商會令月蝕延長，歸名鐘的位置藏在星盤上。'},
+    clue:{title:'倒行的星盤',text:['第一道月蝕本是天象。商會改動星盤後，每當守燈人倒下，這一輪時間便碎掉，森林重新走回午夜。','刻線的終點指向王座下方一口鐘。最後一位修鐘人沒留下名字，只在盤上寫了兩字：司刻。'],record:'月蝕令時間反覆碎裂。司刻原是修鐘人，歸名鐘就在王座下。'},
   },
   {
     name:'夜菌林', picture:'fungus.jpg', color:0x7de7d9, style:'spores', hazard:'spiral', boss:'森眼菌鹿', frame:15,
     route:'幽根坡｜藍傘徑｜萎燈圃｜孢子湖｜青石根橋｜鏡菌畦｜露盞台｜暗林眼｜岔角碑｜菌鹿之巢',
     signature:'孢潮迴旋',
-    clue:{title:'根下的童謠',text:['菌絲把一段聲音保存下來：「當有人叫返我個名，我就知邊度係屋企。」','你終於記起，家裏那盞總是歪着的燈，是妹妹小燈親手畫的。'],record:'小燈仍在等候。林裏留下了她曾說過的話。'},
+    clue:{title:'根下的童謠',text:['菌絲把一段聲音保存下來：「當有人叫返我個名，我就知邊度係屋企。」','是小燈的聲音。石壁上還有兩道爪痕。到了無月，商會派出另一頭守衛，替原來那一頭看守出口。'],record:'小燈仍在等候。無月的深層出口會由兩名頭目一同看守。'},
   },
   {
     name:'黑月教堂', picture:'cathedral.jpg', alternate:'desecrated-cathedral.jpg', color:0xc2a6ff, style:'stars', hazard:'eclipse', boss:'黑月蛾冠', frame:16,

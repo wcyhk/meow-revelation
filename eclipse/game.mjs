@@ -23,6 +23,8 @@ import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gi
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=moonless-1';
 import {recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=moonless-1';
+import {storyDialogue} from './dialogue-scenes.mjs?v=lantern-dialogue-1';
+import {dialoguePanel} from './dialogue.mjs?v=lantern-dialogue-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -77,6 +79,7 @@ export class Game {
     this.pickups = [];
     this.relics = [];
     this.journal = [];
+    this.storyChoices = Object.create(null);
     this.rituals = [];
     this.ultimateFields = [];
     this.discovery = null;
@@ -230,6 +233,7 @@ export class Game {
     this.fusionPin=null;
     this.routeSeed=Math.floor(Math.random()*0x100000000);
     this.journal = [];
+    this.storyChoices = Object.create(null);
     this.learned=new Set();
     this.autoReady=new Map();
     this.schoolToast=0;
@@ -414,16 +418,11 @@ export class Game {
     this.placeStory(null);
     this.state='story';
     this.audio.play('blessing');
-    const prose=document.createElement('div');
-    prose.className='story-prose';
-    for (const line of clue.text) {
-      const paragraph=document.createElement('p');
-      paragraph.textContent=line;
-      prose.append(paragraph);
-    }
-    if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:this.stage.zone.name});
     const final=clue===ending;
-    const proceed=makeButton(final?'望向山下':'收起線索',()=>{
+    this.openDialogue(clue.title,final?'尾聲':this.stage.zone.name,storyDialogue(clue,this.storyChoices),
+      final?'望向山下':'收起線索',selected=>{
+      if (selected) this.storyChoices[clue.title]=selected.id;
+      if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:this.stage.zone.name,note:selected?.note});
       this.closeModal();
       if (final) {
         this.finish(true);
@@ -432,9 +431,7 @@ export class Game {
       this.state='play';
       this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':'前方的封印正在鬆動');
       this.startDelay=1.07;
-    },'primary');
-    this.openModal({kind:'story',mark:final?'✶':'✦',kicker:final?'尾聲':stages[this.level].name,title:clue.title,
-      copy:'',content:prose,buttons:[proceed]});
+    });
     return true;
   }
 
@@ -446,17 +443,19 @@ export class Game {
     this.state='story';
     this.ui.inspect.hidden=true;
     this.audio.play('blessing');
-    const prose=document.createElement('div');
-    prose.className='story-prose';
-    const paragraph=document.createElement('p');
-    paragraph.textContent=point.record;
-    prose.append(paragraph);
-    this.openModal({kind:'story',mark:'✧',kicker:'隱藏線索 · '+chapter,title:point.title,copy:'',content:prose,
-      buttons:[makeButton(complete?'收起最後一份線索':'收起線索',()=>{
-        this.state='play';
-        this.closeModal();
-        if (complete) this.completeRoom('已搵齊隱藏線索');
-      },'primary')]});
+    const scene={cast:['hero'],intro:[{speaker:'narrator',text:point.record}]};
+    this.openDialogue(point.title,'隱藏線索 · '+chapter,scene,complete?'收起最後一份線索':'收起線索',()=>{
+      this.state='play';
+      this.closeModal();
+      if (complete) this.completeRoom('已搵齊隱藏線索');
+    });
+  }
+
+  openDialogue(title,location,scene,finishLabel,onFinish,summary) {
+    const content=dialoguePanel({title,location,scene,finishLabel,onFinish,summary});
+    content.style.setProperty('--vn-room',`url("./${this.stage.picture}")`);
+    this.openModal({kind:'dialogue',mark:'',kicker:'',title,copy:'',content});
+    content.querySelector('.vn-next:not([hidden]), .vn-options:not([hidden]) .vn-choice')?.focus({preventScroll:true});
   }
 
   showJournal() {
@@ -470,6 +469,12 @@ export class Game {
       heading.textContent=clue.chapter+' · '+clue.title;
       record.textContent=clue.record;
       entry.append(heading,record);
+      if (clue.note) {
+        const note=document.createElement('p');
+        note.className='journal-choice';
+        note.textContent='你嘅選擇 · '+clue.note;
+        entry.append(note);
+      }
       journal.append(entry);
     }
     this.openModal({kind:'story',mark:'◇',kicker:'尋名記',title:'探索手記',
@@ -1895,9 +1900,10 @@ export class Game {
     this.failure.remaining=10;
     const {reason}=this.failure;
     const event=reason==='lantern'?'祭燈熄咗。':reason==='leave'?'呢段挑戰到此為止。':'呢一輪時間碎咗。';
-    this.openModal({kind:'gm',mark:'',kicker:this.difficulty.name+' · 第 '+this.stage.floor+' 關',title:'GM 司刻',
-      copy:'螢幕前嗰位，我見到你。'+event+'金幣同紀錄已記入帳簿，我而家送你返遊戲入口。',
-      content:this.runResults(),buttons:[makeButton('立即返回入口',()=>this.showCover(),'primary')]});
+    const scene={cast:['keeper'],intro:[{speaker:'keeper',
+      text:'螢幕前嗰位，我見到你。'+event+'金幣同紀錄已記入帳簿，我而家送你返遊戲入口。'}]};
+    this.openDialogue('GM 司刻',this.difficulty.name+' · 第 '+this.stage.floor+' 關',scene,
+      '立即返回入口',()=>this.showCover(),this.runResults());
   }
 
   showCover() {

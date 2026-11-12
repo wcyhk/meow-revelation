@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#151716">
+  <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
+  <title>貓貓啟示錄 · 緋月之森</title>
+  <link rel="preload" href="./cover.jpg" as="image">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./game.mjs"></script>
+</head>
+<body>
+  <main id="game" aria-label="貓貓啟示錄">
+    <canvas id="world" aria-label="戰鬥場景"></canvas>
+    <div id="damage-vignette" aria-hidden="true"></div>
+    <section id="cover" aria-label="遊戲主畫面">
+      <div class="cover-grain"></div>
+      <div class="cover-frame"></div>
+      <div class="cover-brand"><span class="brand-mark">☽</span> MEOW REVELATION</div>
+      <div class="cover-content">
+        <div class="title-rule">緋月之森</div>
+        <h1>貓貓啟示錄</h1>
+        <p>月蝕之夜，森林開始忘記亡者的名字。<br>帶上你的刀，去把牠們的星火找回來。</p>
+        <button class="primary" id="begin" disabled><span>進入緋月之森</span><span class="arrow">↗</span></button>
+        <div id="load-note" role="status">正在點亮森林的燭火⋯⋯</div>
+      </div>
+      <div class="cover-footer">
+        <span>動作冒險<span class="dot"> · </span>鍵盤／手機觸控</span>
+        <span class="cover-latin">THE ECLIPSE GROVE</span>
+      </div>
+    </section>
+    <section id="hud" hidden aria-label="戰鬥資訊">
+      <div class="health-hud"><div class="portrait"></div><div class="health-info">
+        <div class="hero-name">守燈貓 <span id="hp-number"></span></div>
+        <div class="health-track" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="hp-fill"></div></div>
+        <div id="relic-icons" aria-label="已獲得的祝福"></div>
+      </div></div>
+      <div class="route-hud"><div id="route-name"></div><div id="route-dots"></div></div>
+      <div class="utility"><button id="mute" aria-label="靜音" aria-pressed="false">♫</button><button id="pause" aria-label="暫停">Ⅱ</button></div>
+      <div id="boss-hud" hidden>
+        <div><span>◆</span> 王冠守夜者 <span>◆</span></div>
+        <div class="boss-track"><div id="boss-fill"></div></div>
+      </div>
+      <div id="objective"></div>
+      <div id="announce" aria-live="polite"><small id="announce-kicker"></small><strong id="announce-title"></strong><p id="announce-line"></p></div>
+      <div class="inputs">
+        <div id="stick-zone" aria-hidden="true"><div id="stick"><i></i></div></div>
+        <div class="keys"><kbd>W A S D</kbd> 移動 <kbd>Esc</kbd> 暫停</div>
+        <div class="actions">
+          <button id="dodge" class="action" aria-label="翻滾"><span>»</span><em>翻滾</em><kbd>Space</kbd></button>
+          <button id="spell" class="action" aria-label="月輪"><span>☾</span><em>月輪</em><kbd>Q</kbd></button>
+          <button id="strike" class="action attack" aria-label="斬擊"><span>✦</span><em>斬擊</em><kbd>J</kbd></button>
+        </div>
+      </div>
+    </section>
+    <section id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="panel">
+        <span id="modal-mark" aria-hidden="true">✧</span>
+        <div id="modal-kicker"></div>
+        <h2 id="modal-title"></h2>
+        <p id="modal-copy"></p>
+        <div id="modal-content"></div>
+        <div id="modal-actions"></div>
+      </div>
+    </section>
+    <noscript>請開啟 JavaScript 以遊玩《貓貓啟示錄》。</noscript>
+  </main>
+</body>
+</html>

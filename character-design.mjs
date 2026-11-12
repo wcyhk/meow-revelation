@@ -1,4 +1,5 @@
-import { FigureBuilder } from "./character-mesh.mjs?v=moonwake";
+import { FigureBuilder } from "./character-mesh.mjs?v=blacksilk";
+import { armorJoints, armorVertexCount, armorPayload } from "./cat-armor-data.mjs?v=blacksilk";
 
 const I = 0x1d1827;
 const BONE = 0xffdfaf;
@@ -48,12 +49,127 @@ function biped(b,style,body,trim,paw,scale=1) {
   return {head,torso,style};
 }
 
-function tail(b,color,tipColor=color){
-  const root=b.joint("tail",0,[0,.343,-.182]);
+function tail(b,color,tipColor=color,height=.343){
+  const root=b.joint("tail",0,[0,height,-.182]);
   const tip=b.joint("tailTip",root,[0,.094,-.292]);
   b.line(root,[[0,0,0],[.014,-.033,-.11],[.044,.008,-.21],[0,.094,-.292]],.058,color);
   b.line(tip,[[0,0,0],[-.044,.105,-.055],[-.091,.195,-.024],[-.133,.202,.050]],.047,color);
   b.shape(tip,"orb",[-.129,.194,.038],[.057,.061,.075],tipColor);
+}
+
+const armorLooks={
+  hero:[0x353744,0x65565d,0x262934,0x4d4c57,0x9e744e,0x28212c,0xf3cb7d],
+  tao:[0xcbc0aa,0xf0e2c3,0x773b46,0x9c5755,0xb99260,0x473340,0xb0e0b0],
+  blade:[0xb97645,0xdec0a0,0x3c414e,0x657383,0xba976c,0x45323a,0xebbc74],
+  gun:[0x565766,0x9c909b,0x354362,0x617188,0xa87556,0x492f3b,0xcce0d0],
+  yin:[0x736b7a,0xe2d9c6,0xa4988b,0xd7c5ab,0xa47751,0x603945,0xddc49f],
+  medic:[0xb98551,0xe7c8a4,0x405f53,0x76947a,0xa49164,0x363e38,0xbce397],
+  arrow:[0x966b54,0xd4af85,0x415e65,0x667f79,0xb18261,0x4a3b3c,0xe7c887],
+  smith:[0xb47552,0xdbba91,0x4b3d4a,0x6b5261,0xb18a67,0x3f2b34,0xe0b78c],
+  keeper:[0xd2b490,0xf2d9af,0x31565d,0x6d8990,0xb3946a,0x35424e,0xa7e6d7],
+  kit:[0xb57f67,0xe4bd9c,0x584361,0x7d698c,0xa68661,0x3b354d,0xe2b5ad],
+  ink:[0x796e83,0xbca9b5,0x3b4d5e,0x627785,0x94755c,0x44384e,0xe1c8bc],
+  gray:[0x8a8290,0xbab3b5,0x505749,0x727765,0xa48c68,0x403b44,0xcce2be],
+  boss:[0x354e55,0x637979,0x253940,0x4b6268,0x997a52,0x292b34,0xb9f4dd],
+  undertow:[0x3f3440,0x746269,0x392638,0x5f4554,0xb2865c,0x28202e,0xf6b382],
+};
+let armor;
+function warrior(kind){
+  const b=new FigureBuilder();
+  const [fur,muzzle,fabric,plate,trim,leather,eyes]=armorLooks[kind];
+  const hero=kind==="hero",cleric=kind==="tao"||kind==="yin",archer=kind==="arrow";
+  const guardian=kind==="boss"||kind==="undertow";
+  const rig={core:0};
+  for(const [name,parent,position] of armorJoints.slice(1))rig[name]=b.joint(name,rig[parent],position);
+  armor ||= {count:armorVertexCount,view:new DataView(Uint8Array.from(atob(armorPayload),char=>char.charCodeAt(0)).buffer)};
+  b.appendArmor(armor,[fur,muzzle,fabric,plate,trim,leather,eyes,0x18151e,0xfff1d4,0x754a49,0xb58181]);
+  tail(b,fur,leather,.52);
+  const {head,torso,grip}=rig;
+  const neck=hero?0xa73849:kind==="yin"?0x9d5654:kind==="medic"?0x8aab80:trim;
+  b.shape(torso,"barrel",[0,.239,-.014],[.178,.058,.143],neck,[0,0,-.09]);
+  b.shape(torso,"gem",[.113,.211,.106],[.037,.042,.022],trim,[0,0,-.14],.09);
+  if(hero||kind==="keeper"||cleric||guardian){
+    const cloth=b.joint("cloth",torso,[.063,.221,-.156]);
+    const end=b.joint("clothTip",cloth,[0,-.170,-.024]);
+    const color=hero?0x973342:kind==="tao"?0x733a4a:fabric;
+    b.volume(cloth,CLOAK,[0,-.127,-.025],[guardian?.87:.60,guardian?.99:.67,.031],color,[.14,0,-.17]);
+    b.volume(end,[[0,.10],[.16,.15],[.18,-.14],[.095,-.26],[-.02,-.18],[-.06,.08]],
+      [.068,-.083,-.023],[.68,.90,.025],color,[.12,0,.19]);
+    b.line(cloth,[[-.119,-.215,-.043],[.006,-.277,-.052],[.128,-.244,-.048]],.006,trim);
+  }
+  if(hero){
+    b.shape(torso,"barrel",[0,-.084,-.10],[.127,.073,.038],leather,[0,0,-.10]);
+    b.shape(torso,"gem",[.09,.11,-.117],[.047,.052,.027],0x7eb1ab,[0,0,-.18],.16);
+    weapons(b,grip);
+  }else if(guardian){
+    guardArmor(b,rig,kind,trim);
+  }else if(cleric){
+    b.shape(head,"barrel",[0,.338,-.075],[.190,.055,.159],fabric);
+    b.shape(head,"barrel",[0,.390,-.085],[.125,.112,.109],leather,[0,0,-.08]);
+    b.shape(head,"gem",[0,.393,.021],[.031,.036,.017],trim);
+    if(kind==="tao"){
+      b.shape(grip,"barrel",[0,.23,0],[.026,.62,.026],leather,[.12,0,.12]);
+      b.shape(grip,"gem",[0,.565,.02],[.059,.094,.057],0x99caa5,[.12,0,.14],.33);
+    }else{
+      b.volume(grip,[[0,-.09],[-.16,.13],[-.10,.20],[.093,.20],[.18,.14],[0,-.09]],
+        [0,.16,.045],[.82,.87,.042],0xe3c5ab,[.17,0,.3]);
+      b.line(grip,[[0,.077,.07],[-.09,.29,.07]],.007,trim);
+      b.line(grip,[[0,.077,.07],[.079,.306,.071]],.007,trim);
+    }
+  }else if(kind==="blade"){
+    b.volume(grip,SICKLE,[.065,.40,.066],[.75,1.0,.063],0xb7c4ca,[.11,0,.74]);
+    b.shape(grip,"barrel",[0,.16,0],[.028,.36,.028],leather,[.12,0,.17]);
+  }else if(kind==="gun"){
+    b.shape(head,"barrel",[0,.325,-.024],[.263,.037,.207],leather);
+    b.shape(grip,"barrel",[.076,.202,.055],[.039,.65,.039],DARK_STEEL,[.19,0,-.33]);
+    b.shape(grip,"box",[.030,.05,.05],[.074,.33,.085],0x875c4d,[.16,0,-.25]);
+  }else if(archer){
+    b.line(grip,[[.05,-.285,.025],[.19,-.07,.025],[.15,.275,.032],[.032,.46,.045]],.023,0xb78959);
+    b.line(grip,[[.05,-.285,.025],[.032,.46,.045]],.006,BONE);
+  }else if(kind==="smith"){
+    b.shape(grip,"barrel",[0,.13,0],[.033,.41,.033],leather,[.05,0,-.17]);
+    b.shape(grip,"box",[.027,.34,.025],[.22,.127,.11],plate,[0,0,.16]);
+  }else if(kind==="medic"||kind==="keeper"){
+    lantern(b,grip,[.02,.06,.03],kind==="medic"?.65:.85,kind==="medic"?0xb8d492:0x83d9d3);
+  }
+  return b.finish("warrior");
+}
+
+function guardArmor(b,{head,torso,grip},kind,trim){
+  const eclipse=kind==="undertow";
+  const dark=eclipse?0x382936:0x1d303b;
+  const light=eclipse?0xff9372:0x8debd9;
+  const shell=eclipse?0xd8b992:0x607c7c;
+  const outline=[[-.194,.077],[-.137,.155],[0,.170],[.137,.155],[.194,.077],[.158,-.079],[.082,-.122],[.055,-.154],[-.055,-.154],[-.082,-.122],[-.158,-.079]];
+  b.volume(head,outline,[0,.224,.223],[1.05,1.10,.048],dark);
+  b.volume(head,outline,[0,.229,.253],[.92,.99,.026],shell);
+  symmetrical((side)=>{
+    b.volume(head,[[0,-.04],[.095,-.058],[.119,.043],[.033,.071],[-.038,.034]],
+      [side*.075,.269,.274],[side*.76,.72,.019],dark,[0,side*.085,side*.16]);
+    b.shape(head,"gem",[side*.091,.283,.289],[.026,.012,.013],light,[0,0,side*.18],.67);
+    b.volume(torso,CLOAK,[side*.284,.137,-.032],[.49,.70,.104],dark,[.15,side*.40,side*.34]);
+    b.line(torso,[[side*.185,.148,.101],[side*.31,.160,.069],[side*.366,.099,-.011]],.012,trim);
+  });
+  b.shape(head,"gem",[0,.191,.285],[.025,.038,.016],dark);
+  for(let i=-1;i<=1;i++)b.shape(head,"box",[i*.023,.147,.285],[.010,.036,.010],dark);
+  const halo=b.joint("halo",head,[0,.341,-.203]);
+  if(eclipse){
+    b.shape(halo,"orb",[0,.12,-.05],[.327,.335,.044],0x562237,[0,0,0],.13);
+    b.shape(halo,"hoop",[0,.12,-.012],[.326,.332,.122],0xf6856e,[0,0,0],.32);
+    symmetrical(side=>{
+      b.volume(head,HORN,[side*.169,.345,-.076],[side*.88,1.06,.118],0xc39776,[.18,side*.18,-side*.17]);
+      b.line(head,[[side*.17,.38,-.04],[side*.23,.52,-.095],[side*.32,.558,-.113]],.019,0xaa745d);
+    });
+    b.shape(grip,"barrel",[.023,.18,.013],[.032,.92,.032],dark,[.08,0,-.19]);
+    b.shape(grip,"hoop",[.108,.666,.067],[.111,.163,.047],trim,[.14,0,-.19],.12);
+    b.shape(grip,"gem",[.11,.666,.087],[.046,.091,.041],light,[0,0,.20],.67);
+  }else{
+    b.line(halo,[[0,-.063,0],[.023,.211,-.031],[.197,.263,.074],[.270,.191,.156]],.031,trim);
+    lantern(b,halo,[.27,.066,.156],.89,light);
+    b.shape(grip,"barrel",[0,.131,.011],[.037,.64,.037],dark,[.17,0,-.21]);
+    b.volume(grip,SICKLE,[.084,.414,.055],[.96,1.11,.106],0x87a4a0,[.19,0,-.28],.03);
+    b.line(grip,[[.104,.468,.11],[.29,.596,.11],[.48,.579,.10]],.012,0xb8d2c1);
+  }
 }
 
 function lantern(b,j,pos,scale,color,gear=0){
@@ -542,5 +658,6 @@ const designs={rat,witch,crab,bailiff,wisp,sentinel,boss:angler,weigher,abbess,u
   clay:()=>bailiff(true),spirit:witch,qinSoul:()=>weigher(true),snowElephant,seaKing:()=>angler(true),
   turtle:()=>seaCreature("turtle"),seaHorse:()=>seaCreature("seaHorse"),blackDragon:()=>seaCreature("blackDragon")};
 export function buildFigure(kind){
+  if(Object.hasOwn(armorLooks,kind))return warrior(kind);
   return Object.hasOwn(designs,kind)?designs[kind]():cat(kind);
 }

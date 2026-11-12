@@ -20,6 +20,8 @@ export class FigureBuilder {
     this.normals = [];
     this.colors = [];
     this.bindings = [];
+    this.weights = [];
+    this.bindSpaceCount = 0;
     this.glow = [];
     this.wardrobe = [];
     this.indices = [];
@@ -39,7 +41,7 @@ export class FigureBuilder {
     const tone = new T.Color(color);
     const vertex = new T.Vector3();
     const normal = new T.Vector3();
-    const base = this.bindings.length;
+    const base = this.weights.length;
     const p = geometry.attributes.position, n = geometry.attributes.normal;
     for(let i=0;i<p.count;i++){
       vertex.fromBufferAttribute(p,i).applyMatrix4(transform);
@@ -47,7 +49,8 @@ export class FigureBuilder {
       this.positions.push(vertex.x,vertex.y,vertex.z);
       this.normals.push(normal.x,normal.y,normal.z);
       this.colors.push(tone.r,tone.g,tone.b);
-      this.bindings.push(joint);
+      this.bindings.push(joint,joint);
+      this.weights.push(1);
       this.glow.push(glow);
       this.wardrobe.push(gear);
     }
@@ -80,11 +83,37 @@ export class FigureBuilder {
     this.shape(joint,mesh,[0,0,0],[1,1,1],color,[0,0,0],glow,gear);
     mesh.dispose();
   }
+  appendArmor(data,palette){
+    const tones=palette.map(tone=>new T.Color(tone));
+    const offset=this.weights.length;
+    for(let i=0;i<data.count;i++){
+      const at=i*13;
+      this.positions.push(data.view.getInt16(at,true)/8192,data.view.getInt16(at+2,true)/8192,data.view.getInt16(at+4,true)/8192);
+      this.normals.push(data.view.getInt8(at+6)/127,data.view.getInt8(at+7)/127,data.view.getInt8(at+8)/127);
+      this.bindings.push(data.view.getUint8(at+9),data.view.getUint8(at+10));
+      this.weights.push(data.view.getUint8(at+11)/255);
+      const slot=data.view.getUint8(at+12),c=tones[slot];
+      this.colors.push(c.r,c.g,c.b);
+      this.glow.push(slot===6?.21:slot===8?.24:0);
+      this.wardrobe.push(0);
+    }
+    for(let i=data.count*13;i<data.view.byteLength;i+=2)this.indices.push(offset+data.view.getUint16(i,true));
+    this.bindSpaceCount=this.weights.length;
+  }
   finish(style) {
     const geometry = new T.BufferGeometry();
+    const bind=[];
+    for(const {position,parent} of this.joints){
+      const origin=parent===null?[0,0,0]:bind[parent];
+      bind.push(position.map((value,axis)=>value+origin[axis]));
+    }
+    for(let i=this.bindSpaceCount;i<this.weights.length;i++){
+      const origin=bind[this.bindings[i*2]];
+      for(let axis=0;axis<3;axis++)this.positions[i*3+axis]+=origin[axis];
+    }
     for(const [name,data,size] of [
       ["position",this.positions,3],["normal",this.normals,3],["pigment",this.colors,3],
-      ["joint",this.bindings,1],["emission",this.glow,1],["gear",this.wardrobe,1],
+      ["joint",this.bindings,2],["boneWeight",this.weights,1],["emission",this.glow,1],["gear",this.wardrobe,1],
     ])geometry.setAttribute(name,new T.Float32BufferAttribute(data,size));
     geometry.setIndex(this.indices);
     return {geometry,joints:this.joints,style};
@@ -92,7 +121,8 @@ export class FigureBuilder {
 }
 
 const vertex = `
-  attribute float joint;
+  attribute vec2 joint;
+  attribute float boneWeight;
   attribute float emission;
   attribute float gear;
   attribute vec3 pigment;
@@ -106,7 +136,8 @@ const vertex = `
   varying float lit;
   varying float height;
   void main() {
-    mat4 bone = bones[int(joint + .5)];
+    mat4 bone = bones[int(joint.x + .5)];
+    if(boneWeight < .999) bone = bone * boneWeight + bones[int(joint.y + .5)] * (1.0 - boneWeight);
     vec4 p = bone * vec4(position, 1.0);
     vec3 normalHere = normalize(mat3(bone) * normal);
     p.xyz += normalHere * ink * .011;

@@ -1,5 +1,5 @@
 import * as T from "./three.min.mjs";
-import { CharacterStage } from "./character-rig.mjs?v=moonwake";
+import { CharacterStage } from "./character-rig.mjs?v=blacksilk";
 import { CourtStage } from "./world-stage.mjs?v=moonwake";
 import { DEPTH } from "./world-set.mjs?v=guild";
 import { haloFragment, planeVertex, ribbonFragment, sparksFragment, sparksVertex } from "./world-light.mjs?v=inkbound";

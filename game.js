@@ -610,9 +610,11 @@ class ShoreScene extends Phaser.Scene{
   }
   async loadWorld(){
     try{
-      const {MoonlightWorld}=await import("./world3d.mjs?v=moonwake");
-      this.world3d=MoonlightWorld.create(stage,this.game.canvas,
+      const {MoonlightWorld}=await import("./world3d.mjs?v=blacksilk");
+      const world=MoonlightWorld.create(stage,this.game.canvas,
         key=>this.textures.get(key).getSourceImage(),shoreLights,applyGraphics);
+      if(world)await world.characters.load();
+      this.world3d=world;
       applyGraphics();
     }catch(error){
       console.warn("立體畫面載入失敗",error);

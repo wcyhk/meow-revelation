@@ -1,0 +1,18 @@
+《貓貓啟示錄》3D 角色素材
+
+主角、貓族傭兵與兩位主線頭目的基礎模型
+LOFRE: Player 3 – Low Poly Cat Warrior with Armor & Spear
+Standout 7
+https://standout7.itch.io/lofre-player-03-low-poly-cat-warrior-with-armor-spear
+依隨附的 Standout 7 Game Asset License 改編並整合於遊戲。
+本遊戲版本重做配色、骨架權重、服裝與武器，並使用自身的戰鬥動作。
+
+溺鼠的基礎模型及動作
+Rat by Gobkit
+https://gobkit.com/freebies
+CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+於遊戲中調整配色、比例、發光效果及動作時序。
+
+glTF 載入及骨架複製工具來自 Three.js r187。
+相關 MIT 授權見 THREE-LICENSE.txt。

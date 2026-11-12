@@ -1,6 +1,7 @@
 import * as T from "./three.min.mjs";
-import { figureMaterial, JOINT_LIMIT } from "./character-mesh.mjs?v=moonwake";
-import { buildFigure } from "./character-design.mjs?v=moonwake";
+import { figureMaterial, JOINT_LIMIT } from "./character-mesh.mjs?v=blacksilk";
+import { buildFigure } from "./character-design.mjs?v=blacksilk";
+import { CreatureModel, loadCreatureModels } from "./creature-models.mjs?v=blacksilk";
 
 const TAU = Math.PI * 2;
 const clamp = (n,low,high) => Math.max(low,Math.min(high,n));
@@ -19,6 +20,7 @@ class ActorModel {
   constructor(kind,model,stage,cool,warm) {
     this.kind = kind;
     this.style = model.style;
+    this.guardian = model.style==="guardian"||kind==="boss"||kind==="undertow";
     this.pivot = new T.Group();
     this.root = new T.Group();
     this.root.name = "figure:"+kind;
@@ -26,13 +28,15 @@ class ActorModel {
     this.skeleton = new T.Group();
     this.joints = {};
     this.bones = Array.from({length:JOINT_LIMIT},()=>new T.Matrix4());
-    model.joints.forEach(({name,parent,position},i)=>{
+    this.poseJoints = model.joints.map(({name,parent,position})=>{
       const joint = new T.Group();
       (parent===null?this.skeleton:this.joints[model.joints[parent].name]).add(joint);
       joint.position.set(...position);
       this.joints[name]=joint;
-      this.bones[i]=joint.matrixWorld;
+      return joint;
     });
+    this.skeleton.updateMatrixWorld(true);
+    this.bindInverse = this.poseJoints.map(joint=>joint.matrixWorld.clone().invert());
     this.skin = new T.Mesh(model.geometry,figureMaterial(this.bones,cool,warm,false));
     this.line = new T.Mesh(model.geometry,figureMaterial(this.bones,cool,warm,true));
     for(const mesh of [this.skin,this.line]){
@@ -60,8 +64,9 @@ class ActorModel {
     const heading = Math.atan2(Math.cos(aim)*depth,Math.sin(aim));
     this.yaw = this.yaw===null||still?heading:angleToward(this.yaw,heading,actor.attack||actor.dash?32:18,dt);
     this.root.rotation.y = this.yaw;
-    const biped = this.style==="cat"||this.style==="biped"||this.style==="guardian";
-    const guardian = this.style==="guardian";
+    const armor = this.style==="warrior";
+    const biped = armor||this.style==="cat"||this.style==="biped"||this.style==="guardian";
+    const guardian = this.guardian;
     const moving = actor.walking&&!actor.dash&&!actor.warning;
     const walk = this.motion = damp(this.motion,moving?1:0,moving?21:16,dt);
     this.gait += dt * (biped?14:17) * (.32+walk*.68);
@@ -83,7 +88,7 @@ class ActorModel {
 
     let lean = stride*.023 + breath*.018 - impact*.19 - warning*.13 + recoil*.19;
     let turn = stride*.06;
-    let armL = stride*.44, armR = -stride*.44;
+    let armL = stride*.44+(armor?.13:0), armR = -stride*.44-(armor?.27:0);
     let twistL = -.14, twistR = .14;
     let wristL = -.15, wristR = -.20;
     let lift = bounce*.041 + (float?.050+breath*.054:breath*.013);
@@ -141,9 +146,9 @@ class ActorModel {
     this.rotate("halo",breath*.12-recoil*.22,Math.sin(time*(actor.enraged?4.7:2.1))*.22,breath*.07);
     this.rotate("panL",recoil*.15,-breath*.12,breath*.20);
     this.rotate("panR",-recoil*.14,breath*.12,breath*-.21);
-    this.rotate("grip",-.18+turn*.18,crouch*.41,-turn*.42);
-    this.rotate("armL",armL,twistL,-.10-warning*.37+impact*.27);
-    this.rotate("armR",armR,twistR,.10+warning*.38-impact*.22);
+    this.rotate("grip",-.18+turn*.18,crouch*.41,(armor?1.04:0)-turn*.42);
+    this.rotate("armL",armL,twistL,(armor?1.23:-.10)-warning*.37+impact*.27);
+    this.rotate("armR",armR,twistR,(armor?-1.23:.10)+warning*.38-impact*.22);
     this.rotate("elbowL",wristL-stride*.11,0,0);
     this.rotate("elbowR",wristR+stride*.11,0,0);
     this.rotate("hipL",-stride*.64-crouch*.83,0,.055);
@@ -168,6 +173,7 @@ class ActorModel {
       this.joints.eye.scale.y = Math.max(.11,1-closure*.93-impact*.41);
     }
     this.skeleton.updateMatrixWorld(true);
+    for(let i=0;i<this.poseJoints.length;i++)this.bones[i].multiplyMatrices(this.poseJoints[i].matrixWorld,this.bindInverse[i]);
     const ward = this.kind==="hero" ? Math.max(cast*.79,crouch*.58,(actor.invulnerable||0)*.39) : guardian&&actor.enraged?.52:0;
     for(const mesh of [this.skin,this.line]){
       const {uniforms}=mesh.material;
@@ -184,6 +190,7 @@ export class CharacterStage {
     Object.assign(this,{stage,plane,shadowMaterial,cool,warm,depth});
     this.figures = new Map();
     this.cache = new Map();
+    this.creatures = new Map();
     this.pool = new Map();
     this.frame = 0;
   }
@@ -194,9 +201,13 @@ export class CharacterStage {
     this.compact=compact;
     this.frame++;
   }
+  async load(){
+    this.creatures=await loadCreatureModels();
+  }
   create(kind) {
-    if(!this.cache.has(kind))this.cache.set(kind,buildFigure(kind));
-    const item = new ActorModel(kind,this.cache.get(kind),this.stage,this.cool,this.warm);
+    const source=this.creatures.get(kind);
+    if(!source&&!this.cache.has(kind))this.cache.set(kind,buildFigure(kind));
+    const item=source?new CreatureModel(kind,source,this.stage):new ActorModel(kind,this.cache.get(kind),this.stage,this.cool,this.warm);
     item.shadow = new T.Mesh(this.plane,this.shadowMaterial);
     item.shadow.rotation.x = -Math.PI/2;
     item.shadow.renderOrder = 1;
@@ -216,8 +227,10 @@ export class CharacterStage {
     item.frame=this.frame;
     item.root.position.copy(position);
     item.pose(actor,this.dt,this.time,this.depth,size,weapon,forged,this.still);
-    item.line.visible = !this.compact||kind==="hero"||item.style==="guardian";
-    item.skin.material.uniforms.edge.value = item.line.visible?0:1;
+    if(item.line){
+      item.line.visible=!this.compact||kind==="hero"||item.guardian;
+      item.skin.material.uniforms.edge.value=item.line.visible?0:1;
+    }
     item.shadow.visible = true;
     item.shadow.position.set(position.x,1.7,position.z+3);
     const width=size*(.85-item.fall*.53);

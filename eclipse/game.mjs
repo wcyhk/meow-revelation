@@ -1,19 +1,20 @@
 import {Scenery} from './scenery.mjs?v=resonance-1';
-import {Audio} from './audio.mjs?v=links-1';
+import {Audio} from './audio.mjs?v=fusions-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=combos-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=resonance-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=impact-1';
-import {finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=resonance-1';
+import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=fusions-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs?v=resonance-1';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=links-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=links-1';
-import {linkResonances, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
+import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
+import {fusionChoices, pickFusion} from './link-fusions.mjs?v=fusions-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -39,7 +40,7 @@ function makeHero() {
     invulnerable:0,flash:0,atk:0,atkTotal:1,attackAge:1,slash:null,combo:0,comboLeft:0,
     rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
     ward:0,surge:0,rush:null,snared:0,reaction:null,motion:null,
-    link:null,linkFlash:0,linkWard:false,rushLink:null,linkGuard:null,
+    link:null,linkFlash:0,linkWard:false,rushLink:null,linkGuard:null,linkFusion:null,
   };
 }
 
@@ -122,10 +123,12 @@ export class Game {
       link.textContent='接技 · '+follow.name+'：'+follow.detail;
       text.append(role,name,moves,basic,skill,detail,link);
       const signature={qilin:'wind',flameblade:'fire',stormbow:'thunder',turtle:'ward'}[weapon.id];
-      if (milestone&&signature&&this.hero.resonance[signature]) {
+      const fusion=milestone?pickFusion(fusionChoices(weapon,this.hero.resonance),this.fusionPin):null;
+      if (fusion||milestone&&signature&&this.hero.resonance[signature]) {
         const resonance=document.createElement('span');
         resonance.className='arm-resonance';
-        resonance.textContent=linkResonances[signature].mark+' 已有共鳴｜'+resonanceText(weapon,signature,this.hero.resonance[signature]);
+        resonance.textContent=fusion?fusion.mark+' '+fusion.name+'｜'+fusion.detail
+          :linkResonances[signature].mark+' 已有共鳴｜'+resonanceText(weapon,signature,this.hero.resonance[signature]);
         text.append(resonance);
       }
       choice.append(image,text);
@@ -144,6 +147,7 @@ export class Game {
     this.hero = makeHero();
     this.heroVisual = this.view.createActor(0,2.68);
     this.relics = [];
+    this.fusionPin=null;
     this.journal = [];
     this.learned=new Set();
     this.autoReady=new Map();
@@ -176,8 +180,21 @@ export class Game {
     this.action('strike',weapon.attack,'✦',weapon.ink);
     this.ui.strike.title=comboNames(weapon).join(' → ');
     this.action('spell',weapon.skill,weapon.mark,weapon.ink);
-    this.ui.spell.title=weapon.skill+' · 第三擊命中後接技：'+skillLinks[weapon.id].name;
+    this.refreshFusion();
     this.hero.link=null;
+  }
+
+  refreshFusion() {
+    this.fusions=fusionChoices(this.weapon,this.hero.resonance);
+    this.fusion=pickFusion(this.fusions,this.fusionPin);
+    const skill=skillLinks[this.weapon.id].name;
+    this.ui.spell.title=this.weapon.skill+' · 第三擊命中後接技：'+skill+(this.fusion?'｜'+this.fusion.name+'：'+this.fusion.detail:'');
+  }
+
+  fusionForLink(link) {
+    if (this.weapon.id==='qilin'&&this.fusion?.id==='frostlance'
+        &&!link.contacts.some(mark=>mark.kind==='break'&&mark.unit.hp>0&&mark.unit.phaseGuard<=0)) return null;
+    return this.fusion;
   }
 
   swapWeapon(weapon) {
@@ -229,7 +246,7 @@ export class Game {
     h.link=null;
     h.linkFlash=0;
     h.linkWard=false;
-    h.rushLink=h.linkGuard=null;
+    h.rushLink=h.linkGuard=h.linkFusion=null;
     h.reaction=h.motion=null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
@@ -370,7 +387,7 @@ export class Game {
     const unit = {
       kind,spec,x,z,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
       kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,morale:0,
-      guardOpen:0,reaction:null,motion:null,
+      guardOpen:0,reaction:null,motion:null,frozen:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
     if (kind==='boss') this.view.prepareBoss(unit.visual,spec);
@@ -655,16 +672,18 @@ export class Game {
     h.link=null;
     if (link) {
       const profile=skillLinks[this.weapon.id];
+      const fusion=this.fusionForLink(link);
       const wind=profile.wind;
       const recovery=.22-linkResonances.wind.recovery[h.resonance.wind];
-      invokeLinkedArm(this,link,wind);
+      invokeLinkedArm(this,link,wind,fusion);
       if (!h.rush) heroAction(h,'link',profile,{cycle:wind+recovery,hits:[{at:wind}]});
       h.atk=h.rush ? .26 : wind+recovery;
       h.atkTotal=h.atk;
       h.combo=h.comboLeft=0;
       h.linkFlash=.77;
+      h.linkFusion=fusion;
       if (h.resonance.ward) {
-        h.linkGuard={left:2.8,scale:1-linkResonances.ward.guard[h.resonance.ward]};
+        h.linkGuard={left:2.8,scale:1-linkResonances.ward.guard[h.resonance.ward],fusion:fusion?.id==='counter'?fusion:null};
         this.view.sealFx(h.x,h.z,0xa9eee0,1.10,.46);
       }
       this.audio.link(this.weapon.id,true);
@@ -788,6 +807,7 @@ export class Game {
     this.damageFlash = blocked?.24:heavy?.70:.42;
     this.hitstop = Math.max(this.hitstop,heavy?.061:.032);
     if (guarded&&this.weapon.id==='turtle') reflectHit(this,attacker);
+    if (barrier?.fusion&&h.hp>0) dischargeFusion(this,attacker,barrier.fusion);
     if (h.hp>0) invokeSchool(this,'ward',attacker);
     if (h.hp===0) {
       h.rolling=0;
@@ -876,6 +896,11 @@ export class Game {
       unit.phaseGuard-=dt;
       unit.morale-=dt;
       if (unit.lured>0) unit.lured-=dt;
+      if (unit.frozen>0) {
+        unit.frozen-=dt;
+        unit.move=unit.kx=unit.kz=0;
+        continue;
+      }
       const arena=this.bossArena?.boss===unit?this.bossArena:null;
       if (arena?.counters.stagger>0||arena?.counters.moveCharge(dt)) continue;
       const lunging=unit.motion?.pattern==='pounce'&&unit.motion.age<.31;
@@ -1085,8 +1110,9 @@ export class Game {
       const boss=unit.kind==='boss';
       const shielded=boss&&this.bossArena?.locked;
       const staggered=boss&&this.bossArena?.counters.stagger>0;
+      const frozen=unit.frozen>0;
       const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
-      const oscillation=Math.sin(t* (boss?7:13)+unit.phase);
+      const oscillation=frozen?0:Math.sin(t*(boss?7:13)+unit.phase);
       const fierce=unit.bossPhase>0;
       const owlDive=unit.spec.frame===6&&(wind>.42||unit.recover>.37);
       const frame={
@@ -1096,8 +1122,8 @@ export class Game {
         squash:1+oscillation*(.028+unit.move*.032),
         tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move,
         warm:fierce?.42:0,
-        aura:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
+        aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+        rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
         phase:unit.bossPhase,
       };
       this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
@@ -1191,13 +1217,17 @@ export class Game {
     const queued=h.link?.pending&&!ready&&this.buffered.spell>0&&h.spellCool<=0;
     const linkState=ready?'ready':queued?'queued':h.linkFlash>0?'cast':'';
     const spell=this.ui.spell, hint=this.ui['skill-link'];
-    if (spell.dataset.link!==linkState) {
+    const fusion=ready?this.fusionForLink(ready):linkState==='cast'?h.linkFusion:null;
+    if (spell.dataset.link!==linkState||spell.dataset.fusion!==(fusion?.id??'')) {
       spell.dataset.link=linkState;
+      spell.dataset.fusion=fusion?.id??'';
+      if (fusion) spell.style.setProperty('--fusion-ink',fusion.ink);
+      else spell.style.removeProperty('--fusion-ink');
       hint.hidden=!linkState;
-      const name=skillLinks[this.weapon.id].name;
+      const name=fusion?.name??skillLinks[this.weapon.id].name;
       spell.setAttribute('aria-label',ready?'接技：'+name:this.weapon.skill);
       const marks=resonanceMarks(h.resonance);
-      const suffix=marks?' '+marks:'';
+      const suffix=fusion?' '+fusion.mark:marks?' '+marks:'';
       if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name+suffix:name+'！'+suffix;
     }
     if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/ready.window*360)+'deg');
@@ -1278,6 +1308,7 @@ export class Game {
     }
     for (const relic of shuffle(options)) {
       const button=makeButton('',()=>this.choose(relic),'relic');
+      button.dataset.blessing=relic.id;
       const mark=document.createElement('strong'), name=document.createElement('b'), detail=document.createElement('span');
       const branch=document.createElement('small'), resonance=document.createElement('small');
       const rank=this.ranks.get(relic.id)||0;
@@ -1297,10 +1328,23 @@ export class Game {
       resonance.textContent=preview.text;
       if (next===3&&count<3) branch.textContent+='（解鎖）';
       button.append(mark,name,detail,resonance,branch);
+      const loadout={...h.resonance,[relic.school]:linkTier(total+1)};
+      const future=fusionChoices(this.weapon,loadout);
+      const active=pickFusion(future,this.fusionPin);
+      const changed=future.filter(fusion=>fusion.rank>(this.fusions.find(old=>old.id===fusion.id)?.rank??0));
+      if (changed.length) {
+        const lead=changed.find(fusion=>fusion.id===active?.id)??changed[0];
+        const unlock=!this.fusions.some(fusion=>fusion.id===lead.id);
+        const weave=document.createElement('small');
+        weave.className='relic-fusion';
+        weave.style.setProperty('--fusion-ink',lead.ink);
+        weave.textContent=(unlock?'解鎖 ':'升階 ')+lead.name+(changed.length>1?' ＋'+(changed.length-1):'')+'｜'+lead.detail;
+        button.append(weave);
+      }
       grid.append(button);
     }
     this.openModal({kind:'blessing',mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
-      copy:'回復 '+heal+' 點生命。同流派祝福累積 1、3、6 份會強化接技；集齊三款唔同祝福會解鎖自動招式。',content:grid});
+      copy:'回復 '+heal+' 點生命。兩個流派各有一份祝福，就會解鎖合招。每次接技用一種合招，可喺暫停選單切換。',content:grid});
   }
 
   choose(relic) {
@@ -1308,7 +1352,9 @@ export class Game {
     this.relics.push(relic);
     const h=this.hero;
     const oldMax=h.maxHp;
+    const previous=this.fusion;
     this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics);
+    this.refreshFusion();
     const extra=relic.id==='spring'?h.maxHp*.31:relic.id==='flower'?h.maxHp*.19:0;
     h.hp=Math.min(h.maxHp,h.hp+(h.maxHp-oldMax)+extra);
     const branch=relic.school;
@@ -1316,6 +1362,11 @@ export class Game {
       this.learned.add(branch);
       const note=this.ui['school-toast'];
       note.textContent='解鎖 '+schools[branch].skill+' · '+schools[branch].detail;
+      note.hidden=false;
+      this.schoolToast=3.2;
+    } else if (this.fusion&&this.fusion.id!==previous?.id) {
+      const note=this.ui['school-toast'];
+      note.textContent='接技合招 · '+this.fusion.name+'｜'+this.fusion.detail;
       note.hidden=false;
       this.schoolToast=3.2;
     }
@@ -1351,9 +1402,37 @@ export class Game {
     if (this.state!=='play') return;
     this.state='pause';
     this.audio.active=false;
-    this.openModal({mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
+    this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。手機用搖桿和畫面按鈕。',
+      content:this.fusionMenu(),
       buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('重新開始',()=>this.restart())]});
+  }
+
+  fusionMenu() {
+    if (!this.fusions.length) return null;
+    const panel=document.createElement('div');
+    panel.className='fusion-menu';
+    const title=document.createElement('b'), detail=document.createElement('p');
+    title.textContent='接技合招';
+    detail.className='fusion-summary';
+    const select=id=>{
+      this.fusionPin=id;
+      this.refreshFusion();
+      for (const option of panel.querySelectorAll('button')) option.setAttribute('aria-pressed',String(option.dataset.fusionChoice===(id??'auto')));
+      detail.textContent='目前：'+this.fusion.name+' '+this.fusion.rank+'階｜'+this.fusion.detail;
+    };
+    const options=document.createElement('div');
+    options.className='fusion-options';
+    for (const fusion of [null,...this.fusions]) {
+      const name=fusion?fusion.mark+' '+fusion.name:'隨神器自動配搭';
+      const option=makeButton(name,()=>select(fusion?.id??null),'fusion-option');
+      option.dataset.fusionChoice=fusion?.id??'auto';
+      option.style.setProperty('--fusion-ink',fusion?.ink??'#ecd6a3');
+      options.append(option);
+    }
+    panel.append(title,options,detail);
+    select(this.fusionPin);
+    return panel;
   }
 
   restart() {

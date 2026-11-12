@@ -322,7 +322,75 @@ function resonanceTarget(game,unit) {
     && !(unit.kind==='boss'&&game.bossArena?.locked);
 }
 
-function linkedResonance(game,power,tier) {
+function jumpTarget(game,seen,from,range,longJump=false) {
+  const targets=game.enemies.filter(unit=>!seen.has(unit)&&resonanceTarget(game,unit));
+  if (!longJump) return closest(targets,from,range);
+  let chosen, distanceSoFar=0;
+  for (const unit of targets) {
+    const gap=distance(from,unit);
+    if (gap<=range&&gap>distanceSoFar) {
+      chosen=unit;
+      distanceSoFar=gap;
+    }
+  }
+  return chosen;
+}
+
+function frostLance(game,center,power,fusion) {
+  const {view}=game;
+  const radius=2.17+fusion.rank*.31;
+  view.sealFx(center.x,center.z,fusion.tint,radius*.90,.57);
+  view.threatImpact({...center,kind:'circle',radius,tint:fusion.tint,effect:'ice',pattern:'icicles'});
+  game.audio.weave(fusion.id);
+  for (const unit of game.enemies) {
+    if (!resonanceTarget(game,unit)||distance(unit,center)>radius+(unit.kind==='boss'?.40:0)) continue;
+    if (!game.hit(unit,power*(.30+fusion.rank*.06),center,.26,fusion.tint,'light')||unit.hp<=0||unit.phaseGuard>0) continue;
+    unit.chill=Math.max(unit.chill,1.85+fusion.rank*.28);
+    if (unit.kind==='boss') continue;
+    unit.frozen=Math.max(unit.frozen??0,.47+fusion.rank*.23);
+    unit.kx=unit.kz=0;
+    if (unit.attack) unit.attack.interrupted=true;
+    unit.attack=unit.motion=null;
+  }
+}
+
+function railCut(game,from,to,power,fusion,first,last) {
+  const reach=distance(from,to);
+  if (reach<.15) return;
+  const dx=(from.x-to.x)/reach,dz=(from.z-to.z)/reach;
+  game.view.wave(to.x,to.z,dx,dz,reach,fusion.tint,true);
+  game.audio.weave(fusion.id);
+  for (const unit of lineTargets(game.enemies,to,dx,dz,reach,.39+fusion.rank*.12)) {
+    if (unit===first||unit===last||!resonanceTarget(game,unit)) continue;
+    game.hit(unit,power*(.43+fusion.rank*.09),to,.75,fusion.tint);
+  }
+}
+
+export function dischargeFusion(game,attacker,fusion) {
+  const {hero:h,view}=game;
+  const foes=game.enemies.filter(unit=>resonanceTarget(game,unit));
+  const target=foes.includes(attacker)&&distance(h,attacker)<8.0?attacker:closest(foes,h,4.6);
+  if (!target) return;
+  const from={x:h.x,z:h.z};
+  const seen=new Set();
+  game.audio.weave(fusion.id);
+  const arc=(origin,unit,index)=>{
+    if (!resonanceTarget(game,unit)) return;
+    seen.add(unit);
+    const spot={x:unit.x,z:unit.z};
+    view.bolt(point(origin,.85),point(unit,.62),fusion.tint,1.70-index*.21);
+    view.shock(spot.x,spot.z,fusion.tint,.83,.55);
+    game.hit(unit,h.spellDamage*(index===0?.87:.54),origin,.64,fusion.tint);
+    if (index>=Math.min(2,fusion.rank)) return;
+    game.schedule(.11,()=>{
+      const next=jumpTarget(game,seen,spot,3.54);
+      if (next) arc(spot,next,index+1);
+    });
+  };
+  arc(from,target,0);
+}
+
+function linkedResonance(game,power,tier,fusion) {
   const {view,weapon:arm}=game;
   let spent=false;
   return (unit,source)=>{
@@ -330,32 +398,60 @@ function linkedResonance(game,power,tier) {
     spent=true;
     const target={x:unit.x,z:unit.z};
     const seed=arm.id==='flameblade'?{x:source.x,z:source.z}:target;
-    const echoes=linkResonances.fire.echoes[tier.fire];
+    const recipe=fusion?.id;
+    const embers=recipe==='emberbolt';
+    const echoes=embers?Math.max(tier.fire,tier.thunder):linkResonances.fire.echoes[tier.fire];
+    if (recipe==='frostlance'&&arm.id!=='qilin') game.schedule(.06,()=>frostLance(game,target,power,fusion));
+    if (recipe==='firewhirl'||recipe==='steam') game.schedule(.075,()=>{
+      const radius=2.35+fusion.rank*.24;
+      if (recipe==='firewhirl') view.vortex(seed.x,seed.z,radius,fusion.tint);
+      else {
+        view.shock(seed.x,seed.z,fusion.tint,radius,.69);
+        view.spark(seed.x,.50,seed.z,0xe8efeb,15,.72,'water');
+      }
+      game.audio.weave(recipe);
+      for (const foe of game.enemies) {
+        if (!resonanceTarget(game,foe)||distance(foe,seed)>radius+.15) continue;
+        if (recipe==='firewhirl') game.hit(foe,power*.27,seed,-2.36,fusion.tint,'light');
+        else {
+          const chilled=foe.chill>0;
+          if (game.hit(foe,power*(chilled?.67:.27),seed,.45,fusion.tint,'light')) {
+            foe.exposed=Math.max(foe.exposed,1.65+fusion.rank*.35);
+            if (chilled) view.spark(foe.x,.58,foe.z,0xc6eff5,9,.87,'ice');
+          }
+        }
+      }
+    });
     if (echoes) {
       const lit=new Set([unit]), burns=new Map();
       const blast=(spot,index)=>{
-        const next=closest(game.enemies.filter(foe=>!lit.has(foe)&&resonanceTarget(game,foe)),spot,3.40);
+        const next=closest(game.enemies.filter(foe=>!lit.has(foe)&&resonanceTarget(game,foe)),spot,embers?3.52+fusion.rank*.21:3.40);
         if (next) lit.add(next);
         const center=next?{x:next.x,z:next.z}:spot;
-        const tint=0xff945c;
+        const tint=embers?fusion.tint:0xff945c;
         const radius=arm.id==='flameblade'?2.34:1.92;
         const gap=distance(spot,center);
-        if (gap>.07) view.wave(spot.x,spot.z,(center.x-spot.x)/gap,(center.z-spot.z)/gap,gap,tint,false,'fire');
+        if (embers&&next) {
+          view.bolt(point(spot,.80),point(center,.60),tint,1.94);
+          view.spark(center.x,.55,center.z,0xffc78a,7,.81,'fire');
+        } else if (gap>.07) view.wave(spot.x,spot.z,(center.x-spot.x)/gap,(center.z-spot.z)/gap,gap,tint,false,'fire');
+        if (embers) game.audio.weave(recipe,index);
         view.threatImpact({...center,kind:'circle',radius,tint,effect:'fire',pattern:'burst'});
         for (const foe of game.enemies) {
           const count=burns.get(foe)??0;
           if (count>=2||!resonanceTarget(game,foe)||distance(center,foe)>radius+.17) continue;
-          if (game.hit(foe,power*(arm.id==='flameblade'?.54:.43)*(count?.66:1),center,.45,tint)) burns.set(foe,count+1);
+          const strike=(arm.id==='flameblade'?.54:.43)+(embers&&foe===next?.13+fusion.rank*.045:0);
+          if (game.hit(foe,power*strike*(count?.66:1),center,.45,tint)) burns.set(foe,count+1);
         }
         if (index+1<echoes) game.schedule(.17,()=>blast(center,index+1));
       };
       game.schedule(.16,()=>blast(seed,0));
     }
-    const hops=arm.id==='stormbow'?0:linkResonances.thunder.hops[tier.thunder];
+    const hops=arm.id==='stormbow'||embers?0:linkResonances.thunder.hops[tier.thunder];
     if (hops) {
       const struck=new Set([unit]);
       const jump=(from,remaining)=>{
-        const next=closest(game.enemies.filter(foe=>!struck.has(foe)&&resonanceTarget(game,foe)),from,linkResonances.thunder.range[tier.thunder]);
+        const next=jumpTarget(game,struck,from,linkResonances.thunder.range[tier.thunder],recipe==='rail'&&remaining===hops);
         if (!next) return;
         struck.add(next);
         const tint=0x9bdcff;
@@ -363,6 +459,7 @@ function linkedResonance(game,power,tier) {
         view.bolt(point(from,.84),point(next,.71),tint,1.55);
         view.spark(next.x,.72,next.z,tint,6,.75);
         game.hit(next,power*.52,from,.35,tint);
+        if (recipe==='rail'&&remaining===hops) railCut(game,from,spot,power,fusion,unit,next);
         if (remaining>1) game.schedule(.10,()=>jump(spot,remaining-1));
       };
       game.schedule(.10,()=>jump(target,hops));
@@ -370,7 +467,7 @@ function linkedResonance(game,power,tier) {
   };
 }
 
-export function invokeLinkedArm(game,link,wind) {
+export function invokeLinkedArm(game,link,wind,fusion) {
   const {hero:h,view,weapon:arm}=game;
   const {tone}=arm;
   const marks=link.contacts;
@@ -389,7 +486,8 @@ export function invokeLinkedArm(game,link,wind) {
   h.attackAge=0;
   const power=h.spellDamage, range=h.spellRadius;
   const tier=h.resonance;
-  const connect=tier.fire||tier.thunder&&arm.id!=='stormbow'?linkedResonance(game,power,tier):null;
+  const resonates=tier.fire||(tier.thunder&&arm.id!=='stormbow')||fusion?.id==='frostlance';
+  const connect=resonates?linkedResonance(game,power,tier,fusion):null;
   const hit=(unit,scale,source,force)=>{
     const landed=game.hit(unit,power*scale,source,force,tone);
     if (landed) connect?.(unit,source);
@@ -446,6 +544,7 @@ export function invokeLinkedArm(game,link,wind) {
       break;
     case 'qilin': {
       h.surge=2.6;
+      let froze=false;
       release(()=>{
         const center=focus();
         const [fx,fz]=toward(h,center);
@@ -473,6 +572,10 @@ export function invokeLinkedArm(game,link,wind) {
               if (game.hit(foe,power*(tier.wind===1?.57:.70),ghost,.52,0xf6e4b6,'light')) {
                 view.spark(foe.x,.91,foe.z,0xffd591,8,.82);
                 game.audio.attack(arm.id,2,'release',i);
+                if (!froze&&fusion?.id==='frostlance') {
+                  froze=true;
+                  frostLance(game,{x:foe.x,z:foe.z},power,fusion);
+                }
               }
             });
           }
@@ -496,6 +599,7 @@ export function invokeLinkedArm(game,link,wind) {
         const radius=index===0?2.79:2.27;
         view.motion.bladefall(center.x,center.z,tone,.06,index);
         impact(center,radius,'fire','burst');
+        if (index===0&&fusion?.id==='emberbolt') connect?.(center.unit,center);
         area(center,radius,foe=>{
           if (touched.has(foe)) return;
           if (hit(foe,foe===center.unit?1.58:1.18,center,1.18)) touched.add(foe);
@@ -512,19 +616,20 @@ export function invokeLinkedArm(game,link,wind) {
         const seen=new Set([primary.unit]);
         const maxHops=3+linkResonances.thunder.hops[tier.thunder];
         const jumpRange=linkResonances.thunder.range[tier.thunder]||3.48;
-        const chain=(from,foe,hop)=>{
+        const chain=(from,foe,hop,previous)=>{
           const end=foe??from;
           if (hop===0) view.bolt(point(end,6.5),point(end,.7),tone,2.53);
           else view.bolt(point(from,.82),point(end,.72),tone,1.69-hop*.15);
           view.shock(end.x,end.z,tone,hop===0?1.32:.77,.59);
           if (foe) hit(foe,Math.max(.53,1.53-hop*.29),from,hop===0?1.07:.48);
+          if (hop===1&&fusion?.id==='rail') railCut(game,from,end,power,fusion,previous,foe);
           if (hop>=maxHops) return;
           const spot={x:end.x,z:end.z};
           game.schedule(.09,()=>{
-            const next=closest(game.enemies.filter(unit=>!seen.has(unit)&&resonanceTarget(game,unit)),spot,jumpRange);
+            const next=jumpTarget(game,seen,spot,jumpRange,fusion?.id==='rail'&&hop===0);
             if (!next) return;
             seen.add(next);
-            chain(spot,next,hop+1);
+            chain(spot,next,hop+1,foe);
           });
         };
         chain(focus(),live(primary.unit)?primary.unit:null,0);

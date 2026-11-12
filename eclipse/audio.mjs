@@ -198,6 +198,22 @@ export class Audio {
     if (id==='frostlute') this.note(622,610,now+.34,.33,.11,'sine',.01);
   }
 
+  weave(id,pulse=0) {
+    if (!this.context||this.muted) return;
+    const now=this.context.currentTime;
+    if (id==='emberbolt'||id==='counter'||id==='rail') {
+      const pitch= id==='emberbolt'?375+pulse*85: id==='counter'?448:590;
+      this.note(pitch,pitch*.32,now,.16,.10,'triangle',.004);
+      this.rasp(now,.085,.12,id==='emberbolt'?1550:2300);
+    } else if (id==='frostlance') {
+      [587,783,1175].forEach((pitch,index)=>this.note(pitch,pitch*.98,now+index*.025,.29,.087,'sine',.007));
+      this.rasp(now,.12,.07,1650);
+    } else {
+      this.note(id==='firewhirl'?220:328,72,now,.21,.11,'triangle',.009);
+      this.rasp(now,.17,.12,1060);
+    }
+  }
+
   arm(id) {
     if (!this.context) return;
     const now=this.context.currentTime;

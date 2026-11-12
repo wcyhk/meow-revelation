@@ -68,6 +68,10 @@ h1{margin:.19em 0 .28em;font:900 clamp(55px,7.4vw,116px)/1.05 var(--serif);lette
 #boss-hud.shielded #boss-fill{background:repeating-linear-gradient(125deg,#8d578f 0 5px,#704174 5px 10px)}
 #boss-hud.shielded #boss-arena-hint{color:#f5dfff}
 #boss-hud #boss-arena-hint.tactic{color:#ffb49b}
+#boss-weakness{margin:3px auto 0;padding:3px 7px;color:#c1ded6;background:#191e1ce0;
+  border:1px solid #93cfbd49;width:fit-content;max-width:100%;font:600 11px/1.36 var(--serif);letter-spacing:.035em}
+#boss-weakness.open{color:#dbfff5;border-color:#94e7d4;box-shadow:0 0 12px #7bdfc64d}
+#boss-weakness.windup{color:#ffd2bb;border-color:#ed9968}
 #objective{left:50%;bottom:max(25px,env(safe-area-inset-bottom));transform:translateX(-50%);text-align:center;font-size:12px;letter-spacing:.10em;color:#f4d4a3;padding:6px 15px;background:linear-gradient(90deg,transparent,#14170fbc,transparent);width:max-content;max-width:calc(100% - 22px);line-height:1.36}
 #mission-status{--mission-ink:#ffda92;position:absolute;top:88px;left:50%;transform:translateX(-50%);min-width:168px;max-width:calc(100% - 25px);text-align:center;color:var(--mission-ink);background:#171713d9;padding:6px 12px 7px;border:1px solid color-mix(in srgb,var(--mission-ink) 51%,transparent);box-shadow:0 3px 14px #0a090786}
 #mission-status[data-mode=survive],#mission-status[data-mode=circuit]{--mission-ink:#c7f3d8}

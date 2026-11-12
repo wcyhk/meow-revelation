@@ -146,6 +146,7 @@ export class ArenaArt {
     this.fragments=[];
     this.columns=[];
     this.sites=[];
+    this.counterMarks=[];
     this.transient=[];
     this.lamps=arena?arena.encounter.lamps.map(({x,z})=>{
       const lamp=this.view.makeClue(this.root);
@@ -164,6 +165,15 @@ export class ArenaArt {
     this.fragments=arena.hazards.map(zone=>(zone.kind==='line'?fissure:pool)(this.phaseRoot,zone,ink,stone));
     this.columns=arena.pillars.map(point=>pillar(this.phaseRoot,point,stone,ink,this.view.battleTextures.stone));
     this.sites=arena.points.map(point=>fixture(this.view,this.phaseRoot,point,arena.plan.mode,ink,stone));
+    const {weakness,rocks}=arena.counters;
+    const reactsToRock=weakness.type==='projectile'||weakness.target==='pillar';
+    this.counterMarks=reactsToRock?rocks.map(rock=>{
+      const radius=rock.radius+.25;
+      const ring=mesh(this.phaseRoot,floorRing(radius-.055,radius,32),
+        new T.MeshBasicMaterial({color:0xa7f3df,opacity:.42,...glowOptions}),rock.x,.06,rock.z);
+      ring.renderOrder=4;
+      return ring;
+    }):[];
     for (const zone of arena.hazards) {
       const count=this.view.mobile?3:5;
       for (let i=0;i<count;i++) {
@@ -199,6 +209,9 @@ export class ArenaArt {
       ember.material.opacity=fade*(.51+.21*Math.sin(time*4+index*1.8));
     }
     for (const column of this.columns) column.position.y=-1.8*(1-fade);
+    for (const [index,mark] of this.counterMarks.entries()) {
+      mark.material.opacity=fade*(.31+.11*Math.sin(time*3.2+index));
+    }
     this.transient=this.transient.filter(({group,ember,hazard})=>{
       if (hazard.delay<=0||arena.boss.hp<=0) {
         this.phaseRoot.remove(group);

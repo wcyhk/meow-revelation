@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge} from './armory.mjs?v=battle-1';
 import {pictures, stages} from './expedition.mjs?v=battle-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
-import {ArenaArt} from './arena-art.mjs?v=shifting-2';
+import {ArenaArt} from './arena-art.mjs?v=counter-1';
 
 const PI = Math.PI;
 const color = new T.Color();

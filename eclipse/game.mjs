@@ -1,15 +1,15 @@
-import {Scenery} from './scenery.mjs?v=shifting-2';
+import {Scenery} from './scenery.mjs?v=counter-1';
 import {Audio} from './audio.mjs?v=battle-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=battle-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=shifting-2';
+import {advanceThreats, telegraph} from './threats.mjs?v=counter-1';
 import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=arena-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
-import {BossArena} from './boss-arena.mjs?v=shifting-2';
+import {BossArena} from './boss-arena.mjs?v=counter-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 
 const $ = id => document.getElementById(id);
@@ -76,7 +76,7 @@ export class Game {
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
-      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint',
+      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
@@ -583,7 +583,7 @@ export class Game {
     });
   }
 
-  hit(unit,amount,origin,knock) {
+  hit(unit,amount,origin,knock,tint=this.weapon.tone) {
     if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
     if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
     const boss=unit.kind==='boss';
@@ -602,7 +602,7 @@ export class Game {
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
-    this.view.spark(unit.x,unit.spec.height*.47,unit.z,this.weapon.tone,unit.hp<=0?24:10,1.15,
+    this.view.spark(unit.x,unit.spec.height*.47,unit.z,tint,unit.hp<=0?24:10,1.15,
       unit.hp<=0?unit.spec.effect:'feather');
     if (phaseBoundary && unit.hp<=nextPhaseHp) {
       unit.bossPhase++;
@@ -709,6 +709,7 @@ export class Game {
       this.view.spark(x,.58,z,unit.spec.tint,18,.86,'void');
     }
     if (boss) {
+      this.bossArena?.counters.resolveAttack(attack);
       this.view.shake=Math.max(this.view.shake,.13);
       this.audio.play('heavy');
     }
@@ -728,6 +729,8 @@ export class Game {
       unit.phaseGuard-=dt;
       unit.morale-=dt;
       if (unit.lured>0) unit.lured-=dt;
+      const arena=this.bossArena?.boss===unit?this.bossArena:null;
+      if (arena?.counters.stagger>0||arena?.counters.moveCharge(dt)) continue;
       this.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
@@ -742,7 +745,10 @@ export class Game {
       const dx=(h.x-unit.x)/dist, dz=(h.z-unit.z)/dist;
       if (Math.abs(dx)>.14) unit.face=Math.sign(dx);
       const attackRange=h===this.hero ? spec.reach : Math.min(spec.reach,spec.ranged??1.85);
-      if (unit.cool<=0&&dist<attackRange+3.2&&this.bossArena?.boss===unit&&this.bossArena.tactics.tryAttack()) continue;
+      if (unit.cool<=0&&arena) {
+        if (arena.counters.tryCharge(dist)) continue;
+        if (dist<attackRange+3.2&&arena.tactics.tryAttack()) continue;
+      }
       if (dist<attackRange && unit.cool<0) {
         this.beginEnemyAttack(unit);
         continue;
@@ -922,6 +928,7 @@ export class Game {
     for (const unit of this.enemies) {
       const boss=unit.kind==='boss';
       const shielded=boss&&this.bossArena?.locked;
+      const staggered=boss&&this.bossArena?.counters.stagger>0;
       const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
       const oscillation=Math.sin(t* (boss?7:13)+unit.phase);
       const fierce=unit.bossPhase>0;
@@ -931,10 +938,10 @@ export class Game {
         poseSize:owlDive?.84:1,
         bob:Math.abs(oscillation)*unit.move*.14+(unit.spec.float??0)*(1.7+oscillation)+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
         squash:1+oscillation*(.028+unit.move*.032)-wind*.095,
-        tilt:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
+        tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
         warm:wind*.55+(fierce?.42:0),
-        aura:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
+        aura:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+        rim:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
         phase:unit.bossPhase,
       });
     }
@@ -994,6 +1001,15 @@ export class Game {
     if (!arenaHint.hidden) {
       const line=arena.status();
       if (arenaHint.textContent!==line) arenaHint.textContent=line;
+    }
+    const weakness=this.ui['boss-weakness'];
+    weakness.hidden=arenaHint.hidden;
+    if (!weakness.hidden) {
+      const counter=arena.counters;
+      const hint=counter.hint;
+      weakness.classList.toggle('open',counter.stagger>0);
+      weakness.classList.toggle('windup',counter.chargeHint>0);
+      if (weakness.textContent!==hint) weakness.textContent=hint;
     }
     const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(h.attackPeriod*1.34)];
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));

@@ -1,7 +1,8 @@
 import {arenaTerrain} from './arena-layouts.mjs?v=arena-1';
-import {withinThreat} from './threats.mjs?v=shifting-2';
+import {withinThreat} from './threats.mjs?v=counter-1';
 import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
+import {BossCounters} from './boss-counters.mjs?v=counter-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const interaction = {
@@ -16,6 +17,7 @@ export class BossArena {
     this.boss=boss;
     this.encounter=drawBossEncounter(game.stage,layout,seed);
     this.tactics=new BossTactics(this);
+    this.counters=new BossCounters(this);
     this.phase=0;
     this.points=[];
   }
@@ -43,6 +45,7 @@ export class BossArena {
     this.shieldCue=0;
     this.floorDamage=0;
     this.tactics.reset();
+    this.counters.reset(phase);
     this.game.view.transformBossArena(this);
     this.game.setupMissionPins();
     this.game.objective(this.locked?this.plan.hint:'擊敗 '+this.boss.spec.name);
@@ -126,7 +129,10 @@ export class BossArena {
   resolve(hazard) {
     if (hazard.arena!==this||hazard.arenaPhase!==this.phase||!this.locked) return;
     for (const point of this.points) {
-      if (withinThreat(point,hazard)) this.activate(point);
+      if (!point.done&&withinThreat(point,hazard)) {
+        this.activate(point);
+        this.counters.mirror(point);
+      }
     }
   }
 
@@ -135,6 +141,7 @@ export class BossArena {
     this.tactics.observe(dt);
     this.shift+=dt;
     this.grace-=dt;
+    this.counters.tick(dt);
     this.shieldCue-=dt;
     this.floorDamage-=dt;
     if (this.grace>0) return;

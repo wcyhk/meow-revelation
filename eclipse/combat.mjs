@@ -1,3 +1,5 @@
+import {comboMove} from './weapon-combos.mjs?v=combos-1';
+
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
   const foes=game.enemies.filter(foe=>foe.hp>0 && foe.age>=.23);
@@ -19,96 +21,140 @@ function closest(units,from,limit) {
   return found;
 }
 
-function lineTargets(units,origin,dx,dz,range,width) {
+function lineTargets(units,origin,dx,dz,range,width,start=0) {
   return units.filter(unit=>{
     const x=unit.x-origin.x, z=unit.z-origin.z;
     const margin=unit.kind==='boss'?.69:.22;
     const along=x*dx+z*dz;
-    return along>=-.29 && along<=range+margin && Math.abs(-x*dz+z*dx)<width+margin;
+    return along>=Math.max(-.29,start-margin)&&along<=range+margin&&Math.abs(-x*dz+z*dx)<width+margin;
   });
 }
 
-export function strikeWith(game,dx,dz) {
+function arcTargets(units,origin,dx,dz,reach,halfAngle,all=false) {
+  const edge=Math.cos(halfAngle);
+  return units.filter(unit=>{
+    const x=unit.x-origin.x,z=unit.z-origin.z;
+    const gap=Math.hypot(x,z);
+    return gap<=reach+(unit.kind==='boss'?.73:.22)
+      && (all||gap<.89||(x*dx+z*dz)/Math.max(.03,gap)>=edge);
+  });
+}
+
+function turned(dx,dz,angle) {
+  return [dx*Math.cos(angle)-dz*Math.sin(angle),dx*Math.sin(angle)+dz*Math.cos(angle)];
+}
+
+function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
+  const touched=new Set();
+  const duration=reach/(heavy?58:47);
+  const rays=(move.angles??[0]).map(angle=>turned(dx,dz,angle));
+  for (const [x,z] of rays) game.view.comboArrow(origin,x,z,reach,tint,duration,heavy);
+  const sections=4;
+  for (let index=1;index<=sections;index++) {
+    game.schedule(duration*index/sections,()=>{
+      let hits=0;
+      for (const [x,z] of rays) {
+        for (const foe of lineTargets(active(game),origin,x,z,reach*index/sections,move.width,reach*(index-1)/sections)) {
+          if (touched.has(foe)) continue;
+          touched.add(foe);
+          if (land(foe,1,origin)) hits++;
+        }
+      }
+      if (hits) confirm?.(hits);
+    });
+  }
+}
+
+export function strikeWith(game,dx,dz,move=comboMove(game.weapon,game.hero.combo),powerScale=1,confirm) {
   const {hero:h,view,weapon:arm}=game;
   const finish=h.combo===3;
   const targets=active(game);
-  const reach=h.reach+(finish?.4:0);
-  const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1);
-  const land=(unit,amount,source,knock)=>game.hit(unit,amount,source,knock,arm.tone,finish?'heavy':'light');
+  const reach=h.reach*move.reach;
+  const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1)*powerScale;
+  const source={x:h.x,z:h.z};
+  const weight=finish?'heavy':'light';
+  const land=(unit,scale=1,origin=source,force=move.force)=>game.hit(unit,power*scale,origin,force,arm.tone,weight);
   let hits=0;
-  if (arm.id==='dragon') {
-    const aimPoint={x:h.x+dx*reach*.72,z:h.z+dz*reach*.72};
-    const candidates=lineTargets(targets,h,dx,dz,reach,1.1);
-    const first=closest(candidates,aimPoint,reach) || closest(targets,h,Math.min(1.8,reach));
-    const end=first?point(first,.84):{x:h.x+dx*reach,y:.73,z:h.z+dz*reach};
-    view.bolt(point(h,.78),end,arm.tone,finish?1.6:1);
+  if (move.shape==='arrow') {
+    bowShot(game,source,dx,dz,reach,move,arm.tone,finish,land,confirm);
+    return 0;
+  }
+  if (move.shape==='chain') {
+    const aimPoint={x:source.x+dx*reach*.72,z:source.z+dz*reach*.72};
+    const candidates=lineTargets(targets,source,dx,dz,reach,move.width);
+    const first=closest(candidates,aimPoint,reach)||closest(targets,source,Math.min(1.8,reach));
+    const end=first?point(first,.84):{x:source.x+dx*reach,y:.73,z:source.z+dz*reach};
+    view.bolt(point(source,.91),end,arm.tone,finish?2.15:1.08);
     if (!first) return 0;
-    if (land(first,power,h,.28)) hits++;
-    const second=closest(targets.filter(foe=>foe!==first),first,3.45);
-    if (second) {
-      view.bolt(end,point(second,.65),arm.tone);
-      if (land(second,power*.56,first,.21)) hits++;
+    const struck=new Set([first]);
+    if (land(first)) hits++;
+    let last=first;
+    for (let index=0;index<(move.hops??0);index++) {
+      const next=closest(targets.filter(foe=>!struck.has(foe)),last,3.45);
+      if (!next) break;
+      view.bolt(point(last,.81),point(next,.66),arm.tone,finish?1.43:1.01);
+      struck.add(next);
+      if (land(next,index===0?.64:.43,last,move.force*.47)) hits++;
+      last=next;
     }
-  } else if (arm.id==='phoenix') {
-    view.wave(h.x,h.z,dx,dz,reach,arm.tone,false,'fire');
-    for (const foe of lineTargets(targets,h,dx,dz,reach,.80)) {
-      if (land(foe,power,h,finish?1.15:.42)) hits++;
-    }
-  } else if (arm.id==='qilin') {
-    view.thrust(h.x,h.z,dx,dz,reach,arm.tone,finish);
-    for (const foe of lineTargets(targets,h,dx,dz,reach,finish?.99:.61)) {
-      if (land(foe,power,h,finish?2.65:.93)) hits++;
-    }
-  } else if (arm.id==='stormbow') {
-    const touched=new Set();
-    for (const offset of finish?[-.16,0,.16]:[0]) {
-      const x=dx*Math.cos(offset)-dz*Math.sin(offset), z=dx*Math.sin(offset)+dz*Math.cos(offset);
-      view.thrust(h.x,h.z,x,z,reach,arm.tone,false);
-      for (const enemy of lineTargets(targets,h,x,z,reach,.44)) {
-        if (!touched.has(enemy)&&land(enemy,power,h,.48)) hits++;
-        touched.add(enemy);
+    if (move.burst) {
+      view.shock(first.x,first.z,arm.tone,move.burst,.61);
+      for (const foe of targets) {
+        if (!struck.has(foe)&&distance(foe,first)<move.burst&&land(foe,.44,first)) hits++;
       }
     }
-  } else if (arm.id==='frostlute') {
-    view.wave(h.x,h.z,dx,dz,reach,arm.tone,finish,'ice');
-    for (const enemy of lineTargets(targets,h,dx,dz,reach,finish?1.08:.68)) {
-      enemy.chill=Math.max(enemy.chill,finish?2.5:1.7);
-      if (land(enemy,power,h,.55)) hits++;
-    }
-  } else if (arm.id==='chakra') {
-    const source={x:h.x,z:h.z};
-    view.spinningDisk(source.x,source.z,dx,dz,reach,arm.tone);
-    for (const enemy of lineTargets(targets,source,dx,dz,reach,.7)) {
-      if (land(enemy,power,source,.38)) hits++;
-    }
+    return hits;
+  }
+  if (move.shape==='disk') {
+    const curve=move.curve??0;
+    view.spinningDisk(source.x,source.z,dx,dz,reach,arm.tone,curve,finish);
+    const path={x:source.x-dz*curve*.52,z:source.z+dx*curve*.52};
+    for (const foe of lineTargets(targets,path,dx,dz,reach,move.width)) if (land(foe)) hits++;
     game.schedule(.38,()=>{
       const end={x:source.x+dx*reach,z:source.z+dz*reach};
-      view.spinningDisk(end.x,end.z,-dx,-dz,reach,arm.tone);
-      for (const enemy of lineTargets(active(game),end,-dx,-dz,reach,.73)) land(enemy,power*.72,end,.44);
-    });
-  } else {
-    view.slash(h.x,h.z,dx,dz,arm.tone,reach,finish);
-    const wide=arm.id==='windhalberd';
-    if ((arm.id==='tiger'||wide)&&finish) view.shock(h.x,h.z,arm.tone,reach,.54);
-    for (const foe of targets) {
-      const x=foe.x-h.x, z=foe.z-h.z;
-      const d=Math.hypot(x,z);
-      const facing=(dx*x+dz*z)/Math.max(.03,d);
-      const margin=foe.kind==='boss'?.73:.22;
-      const sweepsAll=(arm.id==='tiger'||wide)&&finish;
-      if (d>reach+margin || (!sweepsAll && d>1.02 && facing<(wide?-.17:finish?-.16:.12))) continue;
-      if (arm.id==='turtle') foe.chill=Math.max(foe.chill,finish?2.2:1.55);
-      if (land(foe,power,h,finish?(wide?2.75:1.6):.88)) {
-        hits++;
-        if (finish&&arm.id==='flameblade') {
-          const center={x:foe.x,z:foe.z};
-          game.schedule(.18,()=>{
-            view.threatImpact({...center,kind:'circle',radius:1.45,tint:arm.tone,effect:'fire',pattern:'burst'});
-            for (const enemy of active(game)) if (distance(enemy,center)<1.57) land(enemy,power*.35,center,.53);
-          });
-        }
+      view.spinningDisk(end.x,end.z,-dx,-dz,reach,arm.tone,curve,finish);
+      const returning={x:end.x+dz*curve*.48,z:end.z-dx*curve*.48};
+      let contacts=0;
+      for (const foe of lineTargets(active(game),returning,-dx,-dz,reach,move.width+.03)) {
+        if (land(foe,finish?.78:.69,end,move.force*.62)) contacts++;
       }
+      if (contacts) confirm?.(contacts);
+    });
+    return hits;
+  }
+
+  view.comboTrail(source,dx,dz,reach,arm.tone,move,finish,arm.id);
+  let affected;
+  if (move.shape==='fan') {
+    const lanes=new Set();
+    for (const angle of [-.245,0,.245]) {
+      const [x,z]=turned(dx,dz,angle);
+      for (const foe of lineTargets(targets,source,x,z,reach,move.width)) lanes.add(foe);
     }
+    affected=lanes;
+  } else if (move.shape==='line'||move.shape==='wave') {
+    affected=lineTargets(targets,source,dx,dz,reach,move.width);
+  } else {
+    affected=arcTargets(targets,source,dx,dz,reach,move.width,move.shape==='circle');
+  }
+  let impact;
+  for (const foe of affected) {
+    if (move.chill) foe.chill=Math.max(foe.chill,move.chill);
+    if (!land(foe)) continue;
+    hits++;
+    if (!impact||distance(source,foe)<distance(source,impact)) impact={x:foe.x,z:foe.z};
+  }
+  if (move.shape==='cleave') {
+    const center=impact??{x:source.x+dx*reach*.73,z:source.z+dz*reach*.73};
+    game.bound(center);
+    game.schedule(.12,()=>{
+      view.threatImpact({...center,kind:'circle',radius:move.burst,tint:arm.tone,effect:'fire',pattern:'burst'});
+      let contacts=0;
+      for (const enemy of active(game)) {
+        if (distance(enemy,center)<move.burst+.10&&land(enemy,.34,center,.53)) contacts++;
+      }
+      if (contacts) confirm?.(contacts);
+    });
   }
   return hits;
 }

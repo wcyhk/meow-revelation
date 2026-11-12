@@ -1,17 +1,18 @@
-import {Scenery} from './scenery.mjs?v=impact-1';
-import {Audio} from './audio.mjs?v=impact-1';
+import {Scenery} from './scenery.mjs?v=combos-1';
+import {Audio} from './audio.mjs?v=combos-1';
 import {Input} from './input.mjs?v=armory-1';
-import {arms} from './armory.mjs?v=battle-1';
+import {arms} from './armory.mjs?v=combos-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=impact-1';
-import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=impact-1';
+import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=combos-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
-import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=impact-1';
+import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=combos-1';
+import {comboMove, comboNames, comboTiming} from './weapon-combos.mjs?v=combos-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -34,7 +35,7 @@ function shuffle(list) {
 function makeHero() {
   return {
     x:0,z:7.7,hp:100,maxHp:100,face:1,dx:0,dz:-1,vx:0,vz:0,move:0,
-    invulnerable:0,flash:0,atk:0,attackAge:1,slash:null,combo:0,comboLeft:0,
+    invulnerable:0,flash:0,atk:0,atkTotal:1,attackAge:1,slash:null,combo:0,comboLeft:0,
     rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
     ward:0,surge:0,rush:null,snared:0,reaction:null,motion:null,
   };
@@ -108,10 +109,13 @@ export class Game {
       const text=document.createElement('div');
       text.className='arm-text';
       const role=document.createElement('small'), name=document.createElement('b');
-      const basic=document.createElement('span'), skill=document.createElement('strong'), detail=document.createElement('span');
+      const basic=document.createElement('span'), moves=document.createElement('span');
+      const skill=document.createElement('strong'), detail=document.createElement('span');
       role.textContent=weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
+      moves.className='arm-combo';
+      moves.textContent=comboNames(weapon).join(' → ');
       skill.textContent=weapon.skill; detail.textContent=weapon.detail;
-      text.append(role,name,basic,skill,detail);
+      text.append(role,name,moves,basic,skill,detail);
       choice.append(image,text);
       grid.append(choice);
     }
@@ -158,6 +162,7 @@ export class Game {
     this.ui.equipped.textContent=weapon.name;
     this.ui.equipped.style.color=weapon.ink;
     this.action('strike',weapon.attack,'✦',weapon.ink);
+    this.ui.strike.title=comboNames(weapon).join(' → ');
     this.action('spell',weapon.skill,weapon.mark,weapon.ink);
   }
 
@@ -447,6 +452,7 @@ export class Game {
       h.invulnerable = Math.max(h.invulnerable,.35);
       h.rollX = movement>.07 ? input.x/movement : h.dx;
       h.rollZ = movement>.07 ? input.z/movement : h.dz;
+      if (h.slash) h.atk=Math.min(h.atk,.20);
       h.slash = null;
       h.attackAge = 1;
       h.motion=null;
@@ -465,23 +471,20 @@ export class Game {
         for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,h.ember,h,.6);
       }
     } else {
-      const speed = h.moveSpeed*(h.attackAge<.18?.65:1)*(h.snared>0?.57:1);
+      const charging=h.slash?.move&&h.combo===3&&h.attackAge<h.slash.timing.hits[0].at;
+      const speed = h.moveSpeed*(charging?.55:h.attackAge<.18?.65:1)*(h.snared>0?.57:1);
       const drag = blend(movement>.07?18:22,dt);
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
       this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
       const canFight=!this.discovery&&!this.mission?.plan.points;
-      if (canFight && this.buffered.spell>0 && h.spellCool<=0) {
+      while (h.slash?.timing&&h.attackAge>=h.slash.timing.hits[h.slash.next].at) this.landSlash();
+      if (canFight && !h.slash && this.buffered.spell>0 && h.spellCool<=0) {
         this.buffered.spell=0;
         this.cast(input);
-      }
-      if (canFight && h.rolling<=0 && this.buffered.strike>0 && h.atk<=0) {
+      } else if (canFight && !h.slash && h.rolling<=0 && this.buffered.strike>0 && h.atk<=0) {
         this.buffered.strike=0;
         this.attack(input);
-      }
-      if (h.slash) {
-        h.slash.delay -= dt;
-        if (h.slash.delay<=0) this.landSlash();
       }
     }
     this.bound(h);
@@ -543,33 +546,43 @@ export class Game {
     h.dx = dx; h.dz = dz;
     if (Math.abs(dx)>.12) h.face = Math.sign(dx);
     h.combo = h.comboLeft>0 ? h.combo%3+1 : 1;
-    h.comboLeft = .86;
-    h.atk = h.attackPeriod*(h.combo===3?1.34:1);
+    const move=comboMove(this.weapon,h.combo);
+    const timing=comboTiming(this.weapon,move,h.attackPeriod);
+    h.comboLeft=timing.cycle+.57;
+    h.atk=h.atkTotal=timing.cycle;
     h.attackAge = 0;
-    h.slash = {dx,dz,delay:this.weapon.delay};
-    heroAction(h,this.weapon,'strike');
-    const lunge = this.weapon.id==='tiger' ? .26 : this.weapon.id==='dragon' ? .04 : .12;
-    this.moveUnit(h,dx*lunge,dz*lunge,.38);
+    h.slash={dx,dz,move,timing,next:0,step:h.combo,confirmed:false};
+    heroAction(h,'strike',move,timing);
+    this.audio.attack(this.weapon.id,h.combo,'wind');
   }
 
   landSlash() {
-    const h = this.hero, {dx,dz} = h.slash;
-    h.slash = null;
-    const final = h.combo===3;
-    const hits = strikeWith(this,dx,dz);
-    this.audio.play('swing');
-    if (hits) {
+    const h=this.hero, strike=h.slash;
+    const {dx,dz}=strike;
+    const move=strike.move??comboMove(this.weapon,h.combo);
+    const step=strike.step??h.combo;
+    const index=strike.next??0;
+    const pulse=strike.timing?.hits[index];
+    if (!strike.timing||++strike.next>=strike.timing.hits.length) h.slash=null;
+    if (index===0&&move.step) this.moveUnit(h,dx*move.step,dz*move.step,.38);
+    const final=step===3;
+    const confirm=hits=>{
+      if (!hits||this.state!=='play') return;
       this.hitstop = Math.max(this.hitstop,final?.061:.026);
       this.view.shake = Math.max(this.view.shake,final?.177:.074);
-      if (final) invokeSchool(this,'wind');
-    }
+      if (final&&!strike.confirmed) invokeSchool(this,'wind');
+      strike.confirmed=true;
+    };
+    this.audio.attack(this.weapon.id,step,'release',index);
+    confirm(strikeWith(this,dx,dz,move,pulse?.power??1,confirm));
   }
 
   cast(input) {
     const h = this.hero;
     h.spellCool = h.spellTime;
     invokeArm(this,input);
-    if (!h.rush) heroAction(h,this.weapon,'cast');
+    if (!h.rush) heroAction(h,'cast');
+    h.atk=Math.max(h.atk,.16);
     invokeSchool(this,'fire');
     this.view.shake = Math.max(this.view.shake,.12);
     this.audio.arm(this.weapon.id);
@@ -580,12 +593,13 @@ export class Game {
   }
 
   updateRituals(dt) {
-    this.rituals=this.rituals.filter(event=>{
+    const pending=this.rituals;
+    this.rituals=[];
+    for (const event of pending) {
       event.delay-=dt;
-      if (event.delay>0) return true;
-      event.fire();
-      return false;
-    });
+      if (event.delay>0) this.rituals.push(event);
+      else event.fire();
+    }
   }
 
   impact(unit,origin,kind,tint) {
@@ -1021,7 +1035,7 @@ export class Game {
     }
     this.buffered.dodge = input.dodge ? .39 : this.buffered.dodge-dt;
     this.buffered.spell = input.spell ? .35 : this.buffered.spell-dt;
-    this.buffered.strike = input.strike ? .23 : this.buffered.strike-dt;
+    this.buffered.strike = input.strike ? Math.max(.23,this.hero.atk+.09) : this.buffered.strike-dt;
     if (this.hitstop>0) {
       this.hitstop-=dt;
       return;
@@ -1072,7 +1086,9 @@ export class Game {
       weakness.classList.toggle('windup',counter.chargeHint>0);
       if (weakness.textContent!==hint) weakness.textContent=hint;
     }
-    const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(h.attackPeriod*1.34)];
+    const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/h.atkTotal];
+    const combo=String(h.comboLeft>0?h.combo:0);
+    if (this.ui.strike.dataset.combo!==combo) this.ui.strike.dataset.combo=combo;
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
     const mission=this.mission;

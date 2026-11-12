@@ -6,7 +6,7 @@ export const arms = [
     detail:'化為風刃向前突襲，穿過敵人時造成傷害，途中可避開攻擊。',
     damage:18,reach:2.35,period:.22,delay:.052,cooldown:5.4,range:6.5,power:57},
   {id:'dragon', name:'青龍之聖珠', mark:'ϟ', tone:0x80c8ff, ink:'#b1e0ff', role:'遠程 · 連鎖',
-    attack:'流雷', basic:'雷擊可跳至附近另一個目標。', skill:'天衣雷陣',
+    attack:'流雷', basic:'先引雷，再連鎖，最後以震雷波及近敵。', skill:'天衣雷陣',
     detail:'三道天雷依次追擊敵人，每道波及落點附近。對群敵有利。',
     damage:19,reach:6.45,period:.36,delay:.09,cooldown:6.4,range:7.6,power:34},
   {id:'phoenix', name:'朱雀之聖嘴', mark:'❂', tone:0xff7d54, ink:'#ffc19c', role:'中距 · 破防',
@@ -18,27 +18,27 @@ export const arms = [
     detail:'冰甲維持 3 秒並降低傷害。受擊時向攻擊者反震冰刺。',
     damage:26,reach:2.78,period:.31,delay:.088,cooldown:7.3,range:2.9,power:35},
   {id:'qilin', name:'麒麟之聖角', mark:'◈', tone:0xffc269, ink:'#ffdc99', role:'中距 · 聚敵',
-    attack:'地角', basic:'直線重刺可貫穿敵人，第三擊擊退。', skill:'潛能漩渦',
+    attack:'地角', basic:'短刺接兩下快刺，最後踏前重突貫穿敵人。', skill:'潛能漩渦',
     detail:'在前方留下吸引敵人的漩渦。漩渦持續時，重刺傷害提高。',
     damage:30,reach:3.27,period:.39,delay:.105,cooldown:7,range:4.3,power:25},
   {id:'flameblade',name:'天王火劍',mark:'♨',tone:0xff6836,ink:'#ffc099',role:'近身 · 火陣',
-    attack:'烈斬',basic:'寬弧劍斬，第三擊會引爆附近敵人。',skill:'炎龍殺陣',
+    attack:'烈斬',basic:'挑斬接橫劍，最後舉劍蓄力，重劈引爆落點。',skill:'炎龍殺陣',
     detail:'三柄火劍落在目標周圍，先後爆開，適合截擊聚集的敵群。',
     damage:27,reach:2.88,period:.32,delay:.08,cooldown:6.8,range:6.2,power:42},
   {id:'stormbow',name:'天王雷弓',mark:'ϟ',tone:0x83d8ff,ink:'#a9eaff',role:'遠程 · 貫穿',
-    attack:'疾雷箭',basic:'貫穿遠處直線敵人，第三擊射出三箭。',skill:'天弓雷擊',
+    attack:'疾雷箭',basic:'快箭接雙矢，最後拉滿弦射出一支貫穿重箭。',skill:'天弓雷擊',
     detail:'沿瞄準方向連續落下四道雷擊，貫穿長列敵人。',
     damage:18,reach:7.35,period:.34,delay:.072,cooldown:6.0,range:9.5,power:31},
   {id:'windhalberd',name:'天王風戟',mark:'≋',tone:0xbbefb5,ink:'#d4f5c4',role:'近身 · 退敵',
-    attack:'戟風',basic:'戟刃覆蓋寬弧，第三擊大幅擊退。',skill:'風龍閃',
+    attack:'戟風',basic:'向前挑刺、回勾拉近，再旋身將敵人掃開。',skill:'風龍閃',
     detail:'連續三次以自身為中心橫掃，走位時也會繼續出招。',
     damage:25,reach:3.13,period:.35,delay:.083,cooldown:6.1,range:3.65,power:32},
   {id:'frostlute',name:'天王琵琶',mark:'❄',tone:0x98e9ec,ink:'#c6f5f4',role:'中距 · 冰控',
-    attack:'清弦',basic:'琴聲掃過直線，令敵人減速。',skill:'清冰激流',
+    attack:'清弦',basic:'勾弦後連撥兩聲，最後以闊冰浪延長減速。',skill:'清冰激流',
     detail:'指定範圍連續湧起三道冰浪，延長減速並限制追擊。',
     damage:20,reach:5.65,period:.39,delay:.10,cooldown:6.9,range:6.4,power:37},
   {id:'chakra',name:'毗濕奴的圓盤',mark:'◎',tone:0xffd16a,ink:'#ffe2a4',role:'中距 · 回旋',
-    attack:'回輪',basic:'圓盤飛出再折返，來回都可以傷敵。',skill:'電擊鉤',
+    attack:'回輪',basic:'直擲接側掠，最後甩出大圓盤。去程和回程都能傷敵。',skill:'電擊鉤',
     detail:'三層電環由外向內收縮，近遠敵人會喺不同時間中招。',
     damage:19,reach:5.9,period:.36,delay:.077,cooldown:6.5,range:5.1,power:42},
 ];
@@ -147,12 +147,20 @@ export function forge(weapon) {
         new T.Vector3(.06,-.82,0),new T.Vector3(-.31,-.53,0),new T.Vector3(-.18,0,0),
         new T.Vector3(-.31,.53,0),new T.Vector3(.06,.82,0),
       ]);
-      piece(root,new T.TubeGeometry(path,22,.058,7,false),brass);
-      piece(root,new T.CylinderGeometry(.014,.014,1.63,5),stone,.061);
+      const limbs=piece(root,new T.TubeGeometry(path,22,.058,7,false),brass);
+      const string=Array.from({length:2},()=>piece(root,new T.CylinderGeometry(.014,.014,1,5),ivory));
+      const arrow=piece(root,new T.CylinderGeometry(.024,.019,.71,6).rotateZ(Math.PI*.5),stone);
+      arrow.visible=false;
+      const tips=[];
       for (const end of [-1,1]) {
         const tip=piece(root,new T.OctahedronGeometry(.16),stone,.04,end*.79);
         tip.scale.set(.63,1.27,.63);
+        tips.push(tip);
       }
+      const position=limbs.geometry.getAttribute('position');
+      position.setUsage(T.DynamicDrawUsage);
+      root.userData.bow={limbs,position,rest:position.array.slice(),string,arrow,tips,draw:-1,nocked:false};
+      shapeBow(root,0,false);
       break;
     }
     case 'windhalberd':
@@ -182,6 +190,38 @@ export function forge(weapon) {
       break;
   }
   return root;
+}
+
+const up=new T.Vector3(0,1,0);
+const stringDirection=new T.Vector3();
+
+export function shapeBow(root,pull,nocked) {
+  const bow=root.userData.bow;
+  if (!bow) return;
+  const draw=Math.round(pull*96)/96;
+  if (draw===bow.draw&&nocked===bow.nocked) return;
+  bow.draw=draw;
+  bow.nocked=nocked;
+  const {position,rest,string,arrow,tips}=bow;
+  for (let index=0;index<position.count;index++) {
+    const i=index*3;
+    const y=rest[i+1];
+    const bend=Math.min(1,Math.abs(y)/.81)**2;
+    position.setXYZ(index,rest[i]+draw*.133*bend,y*(1-draw*.075),rest[i+2]);
+  }
+  position.needsUpdate=true;
+  const nock=.061+draw*.59;
+  for (const [index,sign] of [-1,1].entries()) {
+    const x=.061+draw*.133,y=sign*(.813-draw*.061);
+    const strand=string[index];
+    strand.position.set((nock+x)*.5,y*.5,0);
+    stringDirection.set(x-nock,y,0);
+    strand.scale.y=stringDirection.length();
+    strand.quaternion.setFromUnitVectors(up,stringDirection.normalize());
+    tips[index].position.set(x-.018,sign*(.79-draw*.059),0);
+  }
+  arrow.position.set(nock-.36,0,.015);
+  arrow.visible=nocked;
 }
 
 export function disposeForge(group) {

@@ -45,6 +45,21 @@ function jetRibbon() {
   });
 }
 
+function fallingBladeRibbon() {
+  return ribbon(32,(u,v)=>{
+    const sweep=u*1.88-.26;
+    const radius=.80+.23*v*Math.sin(u*PI);
+    return [.22+Math.sin(sweep)*radius,Math.cos(sweep)*radius,
+      (v-.5)*.23*Math.sin(u*PI)];
+  });
+}
+
+function arrowHead() {
+  return new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute([
+    .22,0,0, -.13,0,-.084, -.07,0,0, .22,0,0, -.07,0,0, -.13,0,.084,
+  ],3));
+}
+
 function cleaveRibbon(halfAngle) {
   return ribbon(34,(u,v)=>{
     const angle=(u*2-1)*halfAngle;
@@ -201,6 +216,8 @@ export class MotionArt {
     this.cut=slashRibbon();
     this.spiral=spiralRibbon();
     this.jet=jetRibbon();
+    this.downstroke=fallingBladeRibbon();
+    this.arrowhead=arrowHead();
     this.blade=shardGeometry();
     this.disk=serratedDisk();
     this.star=flashGeometry();
@@ -225,16 +242,16 @@ export class MotionArt {
     return this.view.addEffect(geometry,point,tint,duration,{...settings,owned,material,fade:true});
   }
 
-  slash(x,z,dx,dz,tint,reach,finisher) {
+  slash(x,z,dx,dz,tint,reach,finisher,direction=1,lift=.61) {
     const angle=-Math.atan2(dz,dx);
-    const p={x:x+dx*.23,y:.61,z:z+dz*.23};
+    const p={x:x+dx*.23,y:lift,z:z+dz*.23};
     const scale=reach*.46;
     const hit=this.ribbon(this.cut,p,tint,finisher?.35:.24,{scale,angle,growth:.25,opacity:1.02,order:90});
-    hit.spin=finisher?-3.2:-2.55;
+    hit.spin=(finisher?-3.2:-2.55)*direction;
     if (this.accent()) {
-      const echo=this.ribbon(this.cut,{...p,y:.88},tint,finisher?.31:.21,
-        {scale:scale*.92,angle:angle+.46,growth:.14,opacity:.54,order:89});
-      echo.spin=finisher?3.1:1.1;
+      const echo=this.ribbon(this.cut,{...p,y:lift+.22},tint,finisher?.31:.21,
+        {scale:scale*.92,angle:angle+.46*direction,growth:.14,opacity:.54,order:89});
+      echo.spin=(finisher?3.1:1.1)*direction;
     }
   }
 
@@ -257,6 +274,29 @@ export class MotionArt {
     this.ribbon(this.jet,point,tint,heavy?.28:.19,{kind:1,scale:reach,angle,opacity:.94,order:94});
     if (heavy&&this.accent()) this.ribbon(this.jet,{...point,y:.88},tint,.24,
       {scale:reach*.92,angle:angle+.064,growth:.19,opacity:.59,order:93});
+  }
+
+  overhead(origin,dx,dz,reach,tint) {
+    const angle=-Math.atan2(dz,dx);
+    this.ribbon(this.downstroke,{x:origin.x,y:.66,z:origin.z},tint,.37,
+      {scale:reach*.98,angle,opacity:1.12,order:93});
+    if (this.accent()) this.ribbon(this.downstroke,{x:origin.x,y:.47,z:origin.z},0xffb873,.29,
+      {scale:reach*.83,angle:angle+.13,growth:.24,opacity:.69,order:91});
+  }
+
+  arrow(origin,dx,dz,range,tint,duration,heavy) {
+    const angle=-Math.atan2(dz,dx);
+    const point={x:origin.x+dx*.19,y:.92,z:origin.z+dz*.19};
+    const travel={x:dx*range/duration,z:dz*range/duration};
+    const head=this.view.addEffect(this.arrowhead,point,tint,duration+.02,
+      {scale:heavy?1.95:1.18,angle,opacity:1.04,order:94});
+    head.travel=travel;
+    head.combatClock=true;
+    const trail=this.ribbon(this.jet,{x:point.x-dx*.84,y:.91,z:point.z-dz*.84},tint,duration+.02,
+      {kind:1,scale:heavy?1.65:1.07,angle,opacity:.98,order:93});
+    trail.travel=travel;
+    trail.combatClock=true;
+    if (heavy&&this.accent()) this.flash(point,0xc6edff,.73);
   }
 
   bolt(from,to,tint,intensity) {
@@ -320,14 +360,16 @@ export class MotionArt {
     }
   }
 
-  spinningDisk(x,z,dx,dz,range,tint) {
+  spinningDisk(x,z,dx,dz,range,tint,curve=0,heavy=false) {
     const point={x,y:.68,z};
     const travel={x:dx*range/.38,z:dz*range/.38};
-    const rim=this.view.addEffect(this.disk,point,tint,.38,{scale:1.32,growth:.14,opacity:.94,order:85});
+    const rim=this.view.addEffect(this.disk,point,tint,.38,{scale:heavy?1.72:1.32,growth:.14,opacity:.94,order:85});
     rim.spin=29;
     rim.travel=travel;
-    const filigree=this.view.addEffect(this.view.ring,{...point,y:.75},0xffe2a1,.37,{scale:.52,growth:.10,opacity:.87,order:86});
+    const filigree=this.view.addEffect(this.view.ring,{...point,y:.75},0xffe2a1,.37,
+      {scale:heavy?.72:.52,growth:.10,opacity:.87,order:86});
     filigree.travel=travel;
+    if (curve) for (const fx of [rim,filigree]) fx.drift={x:-dz*curve,z:dx*curve,last:0};
   }
 
   bladefall(x,z,tint,wait,index) {

@@ -1,5 +1,17 @@
 const chords = [[45,52,57,60],[43,50,55,62],[41,48,53,57],[40,47,55,59]];
 const hz = note => 440 * 2 ** ((note - 69) / 12);
+const attackVoices={
+  tiger:{noise:2160,pitch:219,shape:'triangle'},
+  dragon:{noise:3010,pitch:291,shape:'sawtooth'},
+  phoenix:{noise:1330,pitch:430,shape:'triangle'},
+  turtle:{noise:760,pitch:177,shape:'triangle'},
+  qilin:{noise:2530,pitch:162,shape:'triangle'},
+  flameblade:{noise:1590,pitch:198,shape:'sawtooth'},
+  stormbow:{noise:3320,pitch:495,shape:'triangle'},
+  windhalberd:{noise:1880,pitch:142,shape:'triangle'},
+  frostlute:{noise:1070,pitch:392,shape:'sine'},
+  chakra:{noise:2790,pitch:570,shape:'triangle'},
+};
 
 export class Audio {
   constructor() {
@@ -143,6 +155,31 @@ export class Audio {
       this.note(106,37,now,.20,.20*level,'triangle',.007);
       this.rasp(now,.14,.14*level,660);
     } else if (boss) this.note(233,97,now,.16,.092,'triangle',.012);
+  }
+
+  attack(weapon,step,phase,pulse=0) {
+    if (!this.context||this.muted) return;
+    const {noise,pitch,shape}=attackVoices[weapon];
+    const now=this.context.currentTime;
+    if (phase==='wind') {
+      if (weapon==='stormbow') {
+        this.note(step===3?181:271,step===3?590:371,now,step===3?.27:.10,.067,'triangle',.021);
+        this.rasp(now,.074,.062,1120+step*95);
+      } else if (step===3) {
+        this.note(pitch*.58,pitch*.92,now,weapon==='flameblade'?.22:.14,.083,shape,.037);
+      }
+      return;
+    }
+    const heavy=step===3;
+    const pitchShift=step===2?1.13:heavy?.91:1;
+    if (weapon==='frostlute') {
+      this.note(pitch*pitchShift*(pulse?1.25:1),pitch*pitchShift*.985,now,heavy?.34:.19,.145,'sine',.005);
+      this.note(pitch*pitchShift*(heavy?1.5:2),pitch*pitchShift,now+.015,.16,.073,'triangle',.007);
+    } else {
+      this.rasp(now,heavy?.17:.080,pulse?.14:heavy?.24:.16,noise*pitchShift);
+      this.note(pitch*pitchShift,pitch*(heavy?.32:.53),now,heavy?.22:.115,.12,shape,.006);
+    }
+    if (heavy&&weapon!=='frostlute') this.note(98,34,now+.020,.23,.18,'triangle',.009);
   }
 
   arm(id) {

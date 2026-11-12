@@ -1,14 +1,16 @@
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge} from './armory.mjs?v=battle-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=combos-1';
 import {pictures, stages} from './expedition.mjs?v=battle-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=impact-1';
+import {MotionArt} from './motion-art.mjs?v=combos-1';
 
 const PI = Math.PI;
 const color = new T.Color();
 const unit = new T.Vector3(0, 0, 0);
+const weaponUp = new T.Vector3(0,1,0);
+const weaponPoint = new T.Vector3();
 const plane = new T.PlaneGeometry(1, 1);
 const actorPlane = new T.PlaneGeometry(1,1,4,6);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
@@ -542,18 +544,30 @@ export class Scenery {
         const dz=grip.dx*Math.sin(sweep)+grip.dz*Math.cos(sweep);
         model.position.x=x+direction*.31+dx*grip.reach;
         model.position.z=z+dz*grip.reach+.12;
-        model.position.y=.89+grip.raise+grip.weight*.17;
-        model.rotation.set(-.24-dz*grip.pass*.73,-Math.atan2(dz,dx)+PI*.5,
-          direction*(-.38+grip.sweep*.91-grip.pass*.89));
+        model.position.y=.94+grip.raise;
+        if (grip.pointed) {
+          const slant=Math.sin(grip.pitch);
+          weaponPoint.set(dx*slant,Math.cos(grip.pitch),dz*slant).normalize();
+          model.quaternion.setFromUnitVectors(weaponUp,weaponPoint);
+          model.rotateY(grip.roll);
+        } else {
+          const yaw=id==='stormbow'?Math.atan2(dz,-dx)+(1-Math.abs(dx))*direction*.38:-Math.atan2(dz,dx)+PI*.5;
+          model.rotation.set(-.21-grip.pitch*.31,yaw,
+            direction*grip.roll);
+        }
       }
       if (fall>0) {
         model.position.y=Math.max(.12,model.position.y*(1-fall)+.12*fall);
         model.rotation.x-=fall*.93;
       }
       if (id==='dragon') {
-        model.rotation.y=this.time*2.1;
+        model.rotation.y+=this.time*(grip?4.2:2.1);
         model.position.y+=.085*Math.sin(this.time*5);
       }
+      if (id==='stormbow') shapeBow(model,grip?.draw??0,grip?.nocked??false);
+      const charge=grip?.charge??0;
+      glow.material.opacity=.32+charge*.31;
+      glow.scale.set(1.55+charge*.64,1.55+charge*.64,1);
       model.scale.setScalar((id==='tiger'||id==='dragon'?.83:.95)*(roll?.77:1)*(1-fall*.16));
       model.visible=(spec.fade??1)>.19;
       model.renderOrder=art.renderOrder+1;
@@ -839,8 +853,8 @@ export class Scenery {
     return fx;
   }
 
-  slash(x, z, dx, dz, tint, radius, finisher) {
-    this.motion.slash(x,z,dx,dz,tint,radius,finisher);
+  slash(x, z, dx, dz, tint, radius, finisher,direction=1,lift=.61) {
+    this.motion.slash(x,z,dx,dz,tint,radius,finisher,direction,lift);
     if (finisher) this.addEffect(this.ring,{x,y:.045,z},tint,.30,{scale:.3,growth:radius*1.25,opacity:.59});
     this.spark(x+dx*.96,.54,z+dz*.96,tint,finisher?24:12,1.12,'flare',Math.atan2(dz,dx));
   }
@@ -877,9 +891,49 @@ export class Scenery {
     this.spark(x,.46,z,tint,18,1.22);
   }
 
-  spinningDisk(x,z,dx,dz,range,tint) {
-    this.motion.spinningDisk(x,z,dx,dz,range,tint);
+  spinningDisk(x,z,dx,dz,range,tint,curve,heavy) {
+    this.motion.spinningDisk(x,z,dx,dz,range,tint,curve,heavy);
     this.spark(x,.66,z,tint,7,.64,'gold');
+  }
+
+  comboArrow(origin,dx,dz,range,tint,duration,heavy) {
+    this.motion.arrow(origin,dx,dz,range,tint,duration,heavy);
+    this.spark(origin.x,.95,origin.z,tint,heavy?11:4,heavy?1.17:.67,'flare',Math.atan2(dz,dx));
+  }
+
+  comboTrail(origin,dx,dz,reach,tint,move,heavy,weapon) {
+    const {x,z}=origin;
+    if (move.shape==='cleave') {
+      this.motion.overhead(origin,dx,dz,reach,tint);
+      this.spark(x+dx*reach*.78,.28,z+dz*reach*.78,tint,18,1.31,'fire',Math.atan2(dz,dx));
+      return;
+    }
+    if (move.shape==='line') {
+      this.thrust(x,z,dx,dz,reach,tint,heavy);
+      return;
+    }
+    if (move.shape==='wave'||move.shape==='fan') {
+      const style=weapon==='frostlute'?'ice':'fire';
+      this.wave(x,z,dx,dz,reach,tint,heavy||move.pose==='wings',style);
+      if (move.shape==='fan'&&this.motion.accent()) {
+        for (const side of [-1,1]) {
+          const angle=side*.30;
+          this.wave(x-dz*side*.27,z+dx*side*.27,dx*Math.cos(angle)-dz*Math.sin(angle),
+            dx*Math.sin(angle)+dz*Math.cos(angle),reach*.82,tint,false,style);
+        }
+      }
+      return;
+    }
+    if (move.pose==='shell') {
+      this.threatImpact({kind:'circle',x,z,radius:reach,tint,pattern:'burst',effect:'ice'});
+      return;
+    }
+    const reverse=['return','brace','hook','backfire'].includes(move.pose)?-1:1;
+    const lift=move.pose==='lift'||move.pose==='ember'?.82:.61;
+    this.slash(x,z,dx,dz,tint,reach,heavy,reverse,lift);
+    if (move.shape==='circle'&&this.motion.accent()) {
+      this.motion.slash(x,z,-dx,-dz,tint,reach,true,reverse,.46);
+    }
   }
 
   sealFx(x,z,tint,radius,duration=.50) {
@@ -1123,7 +1177,8 @@ export class Scenery {
     }
     for (let i=this.effects.length-1;i>=0;i--) {
       const fx = this.effects[i];
-      if (!paused && !(fx.combatClock&&freezeWarnings)) fx.age += dt;
+      const running=!paused&&!(fx.combatClock&&freezeWarnings);
+      if (running) fx.age += dt;
       const age = fx.age / fx.ttl;
       if (age >= 1 || (fx.active && !fx.active())) {
         this.release(fx);
@@ -1138,10 +1193,17 @@ export class Scenery {
           material.uniforms.opacity.value=opacity;
         } else material.opacity=opacity;
         if (fx.drop) fx.mesh.position.y=.4+fx.drop*(1-age)**1.65;
-        if (!paused && fx.spin) fx.mesh.rotation.y+=fx.spin*dt;
-        if (!paused && fx.travel) {
+        if (running && fx.spin) fx.mesh.rotation.y+=fx.spin*dt;
+        if (running && fx.travel) {
           fx.mesh.position.x+=fx.travel.x*dt;
           fx.mesh.position.z+=fx.travel.z*dt;
+        }
+        if (running&&fx.drift) {
+          const offset=Math.sin(age*PI);
+          const change=offset-fx.drift.last;
+          fx.mesh.position.x+=fx.drift.x*change;
+          fx.mesh.position.z+=fx.drift.z*change;
+          fx.drift.last=offset;
         }
       }
     }

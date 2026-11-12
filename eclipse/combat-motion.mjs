@@ -5,10 +5,6 @@ const PI=Math.PI;
 
 export const reactionTime={light:.19,heavy:.38,block:.23,break:.53,fall:.78};
 const severity={light:1,block:1,heavy:2,break:3,fall:4};
-const weaponStyle={
-  tiger:'slash',dragon:'focus',phoenix:'focus',turtle:'slash',qilin:'thrust',
-  flameblade:'slash',stormbow:'bow',windhalberd:'slash',frostlute:'focus',chakra:'throw',
-};
 const enemyStyle={
   pounce:'charge',counterCharge:'charge',cleave:'sweep',lance:'thrust',
   sweep:'sweep',cross:'thrust',cinders:'slam',burst:'slam',roots:'slam',
@@ -37,11 +33,51 @@ export function advanceReaction(unit,dt) {
   if (reaction.kind!=='fall'&&reaction.age>=reactionTime[reaction.kind]) unit.reaction=null;
 }
 
-export function heroAction(hero,weapon,kind) {
+// Pose components are hand reach, lift, horizontal sweep, tip pitch, grip roll, and body weight.
+const hold=[.12,.04,0,.25,0,0];
+const gestures={
+  rake:       [[-.20,.14,-1.08,.89,.29,-.44],[.64,.12,1.08,1.29,-.58,.68]],
+  return:     [[-.22,.29,1.17,.84,-.30,-.39],[.67,-.04,-1.20,1.43,.51,.73]],
+  spin:       [[-.31,.02,-2.11,.97,.41,-.61],[.76,.18,2.30,1.36,-.76,.91]],
+  spark:      [[.10,.18,-.18,.27,.11,-.16],[.47,.27,.10,.64,-.18,.39]],
+  relay:      [[-.08,.23,.52,.43,-.26,-.28],[.55,.41,-.42,.81,.28,.57]],
+  thunder:    [[-.03,.81,.18,.11,-.22,-.55],[.74,.35,0,1.11,-.38,.86]],
+  peck:       [[-.14,.12,-.18,.51,.16,-.28],[.63,.27,.18,1.24,-.36,.57]],
+  wings:      [[-.27,.39,-.98,.55,.23,-.37],[.69,.19,.95,1.12,-.39,.70]],
+  phoenix:    [[-.24,.83,-1.30,.22,.24,-.61],[.75,.37,1.02,1.28,-.57,.91]],
+  lift:       [[-.20,-.27,-.43,1.73,.28,-.34],[.54,.54,.50,.32,-.42,.61]],
+  brace:      [[-.08,.30,.93,.49,-.20,-.43],[.59,-.01,-1.17,1.39,.32,.71]],
+  shell:      [[-.22,.88,-.14,.20,.17,-.60],[.55,-.21,.21,2.03,-.28,.92]],
+  jab:        [[-.31,.10,-.11,1.17,.02,-.43],[.89,.13,.03,1.49,-.16,.78]],
+  double:     [[-.31,.13,.15,1.17,.16,-.46],[.93,.19,-.08,1.44,-.11,.77]],
+  lunge:      [[-.48,.15,-.13,1.32,.04,-.70],[1.20,.15,.02,1.58,-.14,1.12]],
+  ember:      [[-.28,-.20,-.77,1.61,.18,-.39],[.72,.42,.67,.70,-.40,.64]],
+  backfire:   [[-.20,.35,1.12,.91,-.29,-.53],[.74,.22,-1.27,1.40,.43,.82]],
+  overhead:   [[-.43,1.17,-.61,-.40,.21,-.71],[.77,-.15,.09,2.06,-.39,1.04]],
+  draw:       [[.29,.30,-.09,.17,.07,-.20],[.71,.30,0,.24,-.10,.38]],
+  splitdraw:  [[.22,.39,.28,.24,-.13,-.32],[.76,.25,-.10,.31,-.22,.48]],
+  fulldraw:   [[.22,.46,.04,.12,.02,-.66],[.83,.32,.01,.24,-.07,.78]],
+  spear:      [[-.28,.08,-.29,1.11,.12,-.40],[.87,.28,.19,1.23,-.26,.71]],
+  hook:       [[.53,.42,.92,1.10,-.27,-.24],[-.17,.09,-1.28,1.31,.58,.73]],
+  whirl:      [[-.35,.27,-2.24,.87,.27,-.62],[.82,.20,2.25,1.56,-.62,.95]],
+  pluck:      [[.02,.15,-.40,.36,.27,-.18],[.43,.22,.47,.41,-.42,.36]],
+  chord:      [[-.10,.22,.52,.28,-.39,-.28],[.49,.39,-.44,.42,.33,.47]],
+  frost:      [[-.09,.75,-.59,.19,.37,-.53],[.56,.48,.59,.58,-.53,.79]],
+  toss:       [[-.25,.23,-1.13,.61,.38,-.31],[.72,.23,.36,1.15,-.42,.58]],
+  bank:       [[-.28,.38,.85,.69,-.33,-.45],[.79,.11,-.67,1.27,.46,.72]],
+  moon:       [[-.29,.78,-1.50,.42,.51,-.64],[.95,.34,1.20,1.26,-.64,.88]],
+  cast:       [[-.13,.59,-.48,.29,.29,-.38],[.56,.48,.31,.77,-.33,.62]],
+};
+const pointed=new Set(['lift','shell','jab','double','lunge','ember','backfire','overhead','spear','hook','whirl']);
+const bowDraw={draw:.46,splitdraw:.72,fulldraw:1};
+const sweepMoves=new Set(['spin','whirl']);
+const chargedMoves=new Set(['spin','thunder','phoenix','shell','lunge','overhead','fulldraw','whirl','frost','moon']);
+
+export function heroAction(hero,kind,move,timing) {
+  const casting=kind==='cast';
   hero.motion={
-    style:kind==='cast'?'cast':weaponStyle[weapon.id]??'slash',
-    dx:hero.dx,dz:hero.dz,face:hero.face,wind:kind==='cast'?.105:weapon.delay,
-    combo:hero.combo,heavy:kind==='cast'||hero.combo===3,
+    name:casting?'cast':move.pose,dx:hero.dx,dz:hero.dz,face:hero.face,
+    timing:casting?{cycle:.32,hits:[{at:.105}]}:timing,
   };
 }
 
@@ -49,34 +85,48 @@ function directionX(x,z,face) {
   return Math.abs(x)>.1?x:(face||1)*Math.max(.31,Math.abs(z)*.39);
 }
 
+function poseBetween(from,to,portion) {
+  const amount=ease(portion);
+  return from.map((value,index)=>value+(to[index]-value)*amount);
+}
+
 export function heroPose(hero) {
   const action=hero.motion;
   if (!action||hero.rolling>0) return null;
-  const {style,dx,dz,face,wind,heavy,combo}=action;
+  const {name,dx,dz,face,timing}=action;
   const age=hero.attackAge;
-  const swing=style==='slash'||style==='throw';
-  const release=heavy?.142:.10;
-  const length=wind+release+(heavy?.18:.12);
-  if (age>=length) return null;
-  const load=ease(age/wind);
-  const pass=ease((age-wind)/release);
-  const settling=fade((age-wind-release)/(length-wind-release));
-  const strength=heavy?1.24:1;
-  const weight=(load*(1-pass)*-.47+pass*.79)*settling*strength;
+  if (age>=timing.cycle) return null;
+  const [ready,contact]=gestures[name];
+  const first=timing.hits[0].at;
+  const last=timing.hits.at(-1).at;
+  const backswing=first*(name==='fulldraw'?.91:.72);
+  let hand;
+  if (age<backswing) {
+    hand=poseBetween(hold,ready,age/backswing);
+  } else if (age<first) {
+    hand=poseBetween(ready,contact,(age-backswing)/(first-backswing));
+  } else if (age<last) {
+    const pulse=(age-first)/(last-first);
+    hand=pulse<.62?poseBetween(contact,ready,pulse/.62):poseBetween(ready,contact,(pulse-.62)/.38);
+  } else {
+    hand=poseBetween(contact,hold,(age-last)/(timing.cycle-last));
+  }
+  const [reach,raise,sweep,pitch,roll,weight]=hand;
   const side=directionX(dx,dz,face);
-  const reverse=combo===2?-1:1;
-  const rise=style==='cast'||style==='bow'?Math.sin(clamp(age/length)*PI)*.34:0;
+  const turn=sweepMoves.has(name)?sweep*.19:sweep*.10;
+  const draw=bowDraw[name]??0;
   return {
     face,
-    bend:weight*side*.24,
-    offsetX:dx*weight*.30,offsetZ:dz*weight*.30,
-    tilt:-side*weight*.32,
-    squash:1-(load*(1-pass)*.10)+pass*settling*.045+rise*.19,
-    stretch:1+Math.abs(weight)*.11,
-    bob:rise+pass*settling*(swing?.08:.03),
-    grip:{dx,dz,weight,reach:(swing?.60:style==='thrust'?.88:.44)*pass*settling,
-      raise:rise+load*(1-pass)*(style==='cast'?.35:.22),
-      sweep:swing?reverse*((pass*2-1)*load*1.05)*settling:0,style,pass},
+    bend:weight*side*.25+turn*.28,
+    offsetX:dx*weight*.34,offsetZ:dz*weight*.34,
+    tilt:-side*weight*.30+turn,
+    squash:1+Math.min(0,weight)*.13+Math.max(0,raise)*.09,
+    stretch:1+Math.max(0,weight)*.13,
+    bob:Math.max(0,raise)*.21+Math.max(0,weight)*.054,
+    grip:{dx,dz,reach,raise,sweep,pitch,roll,pointed:pointed.has(name),
+      draw:age<first?draw*ease(age/Math.max(.001,backswing)):0,
+      charge:age<first&&chargedMoves.has(name)?ease(age/first):0,
+      nocked:draw>0&&age<first},
   };
 }
 

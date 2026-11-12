@@ -1,4 +1,5 @@
 import {comboMove} from './weapon-combos.mjs?v=links-1';
+import {linkResonances} from './link-blessings.mjs?v=resonance-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
@@ -316,6 +317,59 @@ export function invokeArm(game,input) {
   }
 }
 
+function resonanceTarget(game,unit) {
+  return unit.kind!=='arenaAnchor'&&unit.hp>0&&unit.age>=.23&&unit.phaseGuard<=0
+    && !(unit.kind==='boss'&&game.bossArena?.locked);
+}
+
+function linkedResonance(game,power,tier) {
+  const {view,weapon:arm}=game;
+  let spent=false;
+  return (unit,source)=>{
+    if (spent||unit.kind==='arenaAnchor') return;
+    spent=true;
+    const target={x:unit.x,z:unit.z};
+    const seed=arm.id==='flameblade'?{x:source.x,z:source.z}:target;
+    const echoes=linkResonances.fire.echoes[tier.fire];
+    if (echoes) {
+      const lit=new Set([unit]), burns=new Map();
+      const blast=(spot,index)=>{
+        const next=closest(game.enemies.filter(foe=>!lit.has(foe)&&resonanceTarget(game,foe)),spot,3.40);
+        if (next) lit.add(next);
+        const center=next?{x:next.x,z:next.z}:spot;
+        const tint=0xff945c;
+        const radius=arm.id==='flameblade'?2.34:1.92;
+        const gap=distance(spot,center);
+        if (gap>.07) view.wave(spot.x,spot.z,(center.x-spot.x)/gap,(center.z-spot.z)/gap,gap,tint,false,'fire');
+        view.threatImpact({...center,kind:'circle',radius,tint,effect:'fire',pattern:'burst'});
+        for (const foe of game.enemies) {
+          const count=burns.get(foe)??0;
+          if (count>=2||!resonanceTarget(game,foe)||distance(center,foe)>radius+.17) continue;
+          if (game.hit(foe,power*(arm.id==='flameblade'?.54:.43)*(count?.66:1),center,.45,tint)) burns.set(foe,count+1);
+        }
+        if (index+1<echoes) game.schedule(.17,()=>blast(center,index+1));
+      };
+      game.schedule(.16,()=>blast(seed,0));
+    }
+    const hops=arm.id==='stormbow'?0:linkResonances.thunder.hops[tier.thunder];
+    if (hops) {
+      const struck=new Set([unit]);
+      const jump=(from,remaining)=>{
+        const next=closest(game.enemies.filter(foe=>!struck.has(foe)&&resonanceTarget(game,foe)),from,linkResonances.thunder.range[tier.thunder]);
+        if (!next) return;
+        struck.add(next);
+        const tint=0x9bdcff;
+        const spot={x:next.x,z:next.z};
+        view.bolt(point(from,.84),point(next,.71),tint,1.55);
+        view.spark(next.x,.72,next.z,tint,6,.75);
+        game.hit(next,power*.52,from,.35,tint);
+        if (remaining>1) game.schedule(.10,()=>jump(spot,remaining-1));
+      };
+      game.schedule(.10,()=>jump(target,hops));
+    }
+  };
+}
+
 export function invokeLinkedArm(game,link,wind) {
   const {hero:h,view,weapon:arm}=game;
   const {tone}=arm;
@@ -334,7 +388,13 @@ export function invokeLinkedArm(game,link,wind) {
   if (Math.abs(dx)>.12) h.face=Math.sign(dx);
   h.attackAge=0;
   const power=h.spellDamage, range=h.spellRadius;
-  const hit=(unit,scale,source,force)=>game.hit(unit,power*scale,source,force,tone);
+  const tier=h.resonance;
+  const connect=tier.fire||tier.thunder&&arm.id!=='stormbow'?linkedResonance(game,power,tier):null;
+  const hit=(unit,scale,source,force)=>{
+    const landed=game.hit(unit,power*scale,source,force,tone);
+    if (landed) connect?.(unit,source);
+    return landed;
+  };
   const release=(callback,after=0)=>game.schedule(wind+after,callback);
   const impact=(center,radius,effect,pattern)=>view.threatImpact({x:center.x,z:center.z,kind:'circle',radius,tint:tone,effect,pattern});
   const area=(center,radius,callback)=>{
@@ -348,7 +408,7 @@ export function invokeLinkedArm(game,link,wind) {
       h.invulnerable=Math.max(h.invulnerable,.40);
       h.attackAge=1;
       h.rush=new Set();
-      h.rushLink=true;
+      h.rushLink={connect};
       view.shock(h.x,h.z,tone,1.55,.76);
       break;
     case 'dragon':
@@ -373,7 +433,7 @@ export function invokeLinkedArm(game,link,wind) {
       break;
     }
     case 'turtle':
-      h.ward=4.3;
+      h.ward=4.3+linkResonances.ward.wardTime[tier.ward];
       h.linkWard=true;
       release(()=>{
         const center={x:h.x,z:h.z};
@@ -403,6 +463,18 @@ export function invokeLinkedArm(game,link,wind) {
             foe.guardOpen=Math.max(foe.guardOpen,1.62);
             foe.exposed=Math.max(foe.exposed,1.62);
             foe.stun=Math.max(foe.stun,.40);
+            const pursuits=linkResonances.wind.pursuit[tier.wind];
+            for (let i=0;i<pursuits;i++) game.schedule(.15+i*.17,()=>{
+              if (!live(foe)||!resonanceTarget(game,foe)||foe.guardOpen<=0||distance(from,foe)>reach+.9) return;
+              const [tx,tz]=toward(from,foe);
+              const length=distance(from,foe)+.28;
+              const ghost={x:from.x-tz*(i?.28:-.28),z:from.z+tx*(i?.28:-.28)};
+              view.comboTrail(ghost,tx,tz,length,0xf6e4b6,{shape:'line',width:.47,pose:'jab'},false,arm.id);
+              if (game.hit(foe,power*(tier.wind===1?.57:.70),ghost,.52,0xf6e4b6,'light')) {
+                view.spark(foe.x,.91,foe.z,0xffd591,8,.82);
+                game.audio.attack(arm.id,2,'release',i);
+              }
+            });
           }
         }
         const swirl={x:center.x,z:center.z};
@@ -438,16 +510,18 @@ export function invokeLinkedArm(game,link,wind) {
     case 'stormbow':
       release(()=>{
         const seen=new Set([primary.unit]);
+        const maxHops=3+linkResonances.thunder.hops[tier.thunder];
+        const jumpRange=linkResonances.thunder.range[tier.thunder]||3.48;
         const chain=(from,foe,hop)=>{
           const end=foe??from;
           if (hop===0) view.bolt(point(end,6.5),point(end,.7),tone,2.53);
           else view.bolt(point(from,.82),point(end,.72),tone,1.69-hop*.15);
           view.shock(end.x,end.z,tone,hop===0?1.32:.77,.59);
           if (foe) hit(foe,Math.max(.53,1.53-hop*.29),from,hop===0?1.07:.48);
-          if (hop>=3) return;
+          if (hop>=maxHops) return;
           const spot={x:end.x,z:end.z};
           game.schedule(.09,()=>{
-            const next=closest(active(game).filter(unit=>!seen.has(unit)&&unit.phaseGuard<=0),spot,3.48);
+            const next=closest(game.enemies.filter(unit=>!seen.has(unit)&&resonanceTarget(game,unit)),spot,jumpRange);
             if (!next) return;
             seen.add(next);
             chain(spot,next,hop+1);
@@ -505,7 +579,7 @@ export function rushHit(game,start) {
   for (const foe of lineTargets(active(game),start,h.rollX,h.rollZ,step+.27,.86)) {
     if (h.rush.has(foe)) continue;
     h.rush.add(foe);
-    game.hit(foe,h.spellDamage,start,1.28);
+    if (game.hit(foe,h.spellDamage,start,1.28)) h.rushLink?.connect?.(foe,start);
   }
   if (Math.random()<.65) view.spark(h.x,.36,h.z,arm.tone,4,.78);
 }
@@ -516,7 +590,7 @@ export function finishLinkedRush(game) {
   view.comboTrail(center,-h.rollX,-h.rollZ,2.65,arm.tone,{shape:'arc',width:1.45,pose:'return'},true,arm.id);
   view.shock(center.x,center.z,arm.tone,2.05,.65);
   for (const foe of arcTargets(active(game),center,-h.rollX,-h.rollZ,2.65,1.45)) {
-    game.hit(foe,h.spellDamage*.78,center,1.18);
+    if (game.hit(foe,h.spellDamage*.78,center,1.18)) h.rushLink?.connect?.(foe,center);
   }
 }
 

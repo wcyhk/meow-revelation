@@ -1,18 +1,19 @@
-import {Scenery} from './scenery.mjs?v=combos-1';
+import {Scenery} from './scenery.mjs?v=resonance-1';
 import {Audio} from './audio.mjs?v=links-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=combos-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
-import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
+import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=resonance-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=impact-1';
-import {finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=links-1';
+import {finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=resonance-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
-import {invokeSchool} from './schools.mjs';
+import {invokeSchool} from './schools.mjs?v=resonance-1';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=links-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=links-1';
+import {linkResonances, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -38,7 +39,7 @@ function makeHero() {
     invulnerable:0,flash:0,atk:0,atkTotal:1,attackAge:1,slash:null,combo:0,comboLeft:0,
     rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
     ward:0,surge:0,rush:null,snared:0,reaction:null,motion:null,
-    link:null,linkFlash:0,linkWard:false,rushLink:false,
+    link:null,linkFlash:0,linkWard:false,rushLink:null,linkGuard:null,
   };
 }
 
@@ -120,6 +121,13 @@ export class Game {
       const follow=skillLinks[weapon.id];
       link.textContent='接技 · '+follow.name+'：'+follow.detail;
       text.append(role,name,moves,basic,skill,detail,link);
+      const signature={qilin:'wind',flameblade:'fire',stormbow:'thunder',turtle:'ward'}[weapon.id];
+      if (milestone&&signature&&this.hero.resonance[signature]) {
+        const resonance=document.createElement('span');
+        resonance.className='arm-resonance';
+        resonance.textContent=linkResonances[signature].mark+' 已有共鳴｜'+resonanceText(weapon,signature,this.hero.resonance[signature]);
+        text.append(resonance);
+      }
       choice.append(image,text);
       grid.append(choice);
     }
@@ -220,7 +228,8 @@ export class Game {
     h.slash = h.rush = null;
     h.link=null;
     h.linkFlash=0;
-    h.linkWard=h.rushLink=false;
+    h.linkWard=false;
+    h.rushLink=h.linkGuard=null;
     h.reaction=h.motion=null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
@@ -447,6 +456,8 @@ export class Game {
     if (h.link?.until>0 && h.link.until<=this.t) h.link=null;
     h.invulnerable -= dt;
     h.ward -= dt;
+    if (h.ward<=0) h.linkWard=false;
+    if (h.linkGuard&&(h.linkGuard.left-=dt)<=0) h.linkGuard=null;
     h.surge -= dt;
     h.snared-=dt;
     h.flash = Math.max(0,h.flash-dt*4.3);
@@ -480,7 +491,7 @@ export class Game {
       if (h.rolling<=0) {
         if (h.rushLink) finishLinkedRush(this);
         h.rush=null;
-        h.rushLink=false;
+        h.rushLink=null;
       }
       if (h.rolling<=0 && h.ember) {
         this.view.shock(h.x,h.z,0xff783c,2.05,.64);
@@ -574,7 +585,7 @@ export class Game {
     h.attackAge = 0;
     h.slash={dx,dz,move,timing,next:0,step:h.combo,confirmed:false};
     if (h.combo===3) {
-      h.link={pending:true,until:0,contacts:[],dx,dz};
+      h.link={pending:true,until:0,window:linkWindow+linkResonances.wind.window[h.resonance.wind],contacts:[],dx,dz};
       h.slash.link=h.link;
     }
     heroAction(h,'strike',move,timing);
@@ -614,12 +625,12 @@ export class Game {
 
   confirmLink(link,unit,kind) {
     const h=this.hero;
-    if (h.link!==link||h.spellCool>linkWindow||link.contacts.some(mark=>mark.unit===unit)) return;
+    if (h.link!==link||h.spellCool>link.window||link.contacts.some(mark=>mark.unit===unit)) return;
     const first=link.contacts.length===0;
     if (link.contacts.length===6&&kind==='break'&&!link.contacts.some(mark=>mark.kind==='break')) link.contacts.pop();
     if (link.contacts.length<6) link.contacts.push({unit,kind,x:unit.x,z:unit.z});
     if (first) {
-      link.until=this.t+linkWindow;
+      link.until=this.t+link.window;
       if (h.spellCool<=0) this.audio.link(this.weapon.id,false);
     }
     if (this.weapon.id==='flameblade'&&link.contacts.length<=3) this.view.sealFx(unit.x,unit.z,this.weapon.tone,.72,.92);
@@ -645,12 +656,17 @@ export class Game {
     if (link) {
       const profile=skillLinks[this.weapon.id];
       const wind=profile.wind;
+      const recovery=.22-linkResonances.wind.recovery[h.resonance.wind];
       invokeLinkedArm(this,link,wind);
-      if (!h.rush) heroAction(h,'link',profile,{cycle:wind+.22,hits:[{at:wind}]});
-      h.atk=h.rush?.size===0 ? .26 : wind+.22;
+      if (!h.rush) heroAction(h,'link',profile,{cycle:wind+recovery,hits:[{at:wind}]});
+      h.atk=h.rush ? .26 : wind+recovery;
       h.atkTotal=h.atk;
       h.combo=h.comboLeft=0;
       h.linkFlash=.77;
+      if (h.resonance.ward) {
+        h.linkGuard={left:2.8,scale:1-linkResonances.ward.guard[h.resonance.ward]};
+        this.view.sealFx(h.x,h.z,0xa9eee0,1.10,.46);
+      }
       this.audio.link(this.weapon.id,true);
     } else {
       invokeArm(this,input);
@@ -752,20 +768,24 @@ export class Game {
     const h = this.hero;
     if (h.invulnerable>0 || this.state!=='play') return false;
     const guarded=h.ward>0;
-    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1));
+    const barrier=h.linkGuard;
+    h.linkGuard=null;
+    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1));
     h.invulnerable = .64;
     const heavy=['cleave','pounce','lance','burst','counterCharge','sweep','arenaBait'].includes(pattern)
       || amount>=h.maxHp*.15;
     const origin=Math.hypot(h.x-x,h.z-z)<.18&&attacker ? attacker : {x,z};
-    const kind=h.hp===0?'fall':guarded?'block':heavy?'heavy':'light';
-    this.impact(h,origin,kind,guarded?0x91eee0:0xffad7d);
+    const blocked=guarded||barrier;
+    const kind=h.hp===0?'fall':blocked?'block':heavy?'heavy':'light';
+    this.impact(h,origin,kind,blocked?0x91eee0:0xffad7d);
+    if (barrier) this.view.shock(h.x,h.z,0xa9eee0,1.65,.63);
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
     this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
     this.interruptLink();
     h.slash = null;
     h.motion=null;
     this.bound(h);
-    this.damageFlash = guarded?.24:heavy?.70:.42;
+    this.damageFlash = blocked?.24:heavy?.70:.42;
     this.hitstop = Math.max(this.hitstop,heavy?.061:.032);
     if (guarded&&this.weapon.id==='turtle') reflectHit(this,attacker);
     if (h.hp>0) invokeSchool(this,'ward',attacker);
@@ -1176,9 +1196,11 @@ export class Game {
       hint.hidden=!linkState;
       const name=skillLinks[this.weapon.id].name;
       spell.setAttribute('aria-label',ready?'接技：'+name:this.weapon.skill);
-      if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name:name+'！';
+      const marks=resonanceMarks(h.resonance);
+      const suffix=marks?' '+marks:'';
+      if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name+suffix:name+'！'+suffix;
     }
-    if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/linkWindow*360)+'deg');
+    if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/ready.window*360)+'deg');
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
     const mission=this.mission;
@@ -1249,14 +1271,18 @@ export class Game {
     grid.className='relic-grid';
     const shuffled=shuffle(blessings);
     const suggested=shuffled.find(boon=>!this.ranks.has(boon.id)&&schoolProgress(this.ranks,boon.school).distinct>0);
-    const options=suggested?shuffle([suggested,...shuffled.filter(boon=>boon!==suggested).slice(0,2)]):shuffled.slice(0,3);
-    for (const relic of options) {
+    const options=[];
+    for (const boon of suggested?[suggested,...shuffled]:shuffled) {
+      if (!options.some(other=>other.school===boon.school)) options.push(boon);
+      if (options.length===3) break;
+    }
+    for (const relic of shuffle(options)) {
       const button=makeButton('',()=>this.choose(relic),'relic');
       const mark=document.createElement('strong'), name=document.createElement('b'), detail=document.createElement('span');
-      const branch=document.createElement('small');
+      const branch=document.createElement('small'), resonance=document.createElement('small');
       const rank=this.ranks.get(relic.id)||0;
       const school=schools[relic.school];
-      const count=schoolProgress(this.ranks,relic.school).distinct;
+      const {distinct:count,total}=schoolProgress(this.ranks,relic.school);
       branch.className='relic-school';
       branch.style.color=school.ink;
       const next=Math.min(3,count+Number(rank===0));
@@ -1264,12 +1290,17 @@ export class Game {
       branch.title=school.detail;
       mark.textContent=relic.mark;
       name.textContent=relic.name+(rank?' · '+rank+' → '+(rank+1):'');
-      detail.textContent=next===3&&count<3?school.detail:relic.detail;
-      button.append(mark,name,detail,branch);
+      detail.textContent=relic.detail;
+      const preview=resonancePreview(this.weapon,relic.school,total);
+      resonance.className='relic-resonance'+(preview.upgrade?' upgrade':'');
+      resonance.style.setProperty('--resonance-ink',school.ink);
+      resonance.textContent=preview.text;
+      if (next===3&&count<3) branch.textContent+='（解鎖）';
+      button.append(mark,name,detail,resonance,branch);
       grid.append(button);
     }
-    this.openModal({mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
-      copy:'回復 '+heal+' 點生命。集齊同一流派嘅三款祝福，就會解鎖自動招式。',content:grid});
+    this.openModal({kind:'blessing',mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
+      copy:'回復 '+heal+' 點生命。同流派祝福累積 1、3、6 份會強化接技；集齊三款唔同祝福會解鎖自動招式。',content:grid});
   }
 
   choose(relic) {

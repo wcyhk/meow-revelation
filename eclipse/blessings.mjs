@@ -1,3 +1,5 @@
+import {linkLoadout} from './link-blessings.mjs?v=resonance-1';
+
 const curve = (count,limit) => limit*count/(count+5);
 
 export const blessings = [
@@ -49,5 +51,6 @@ export function buildStats(hero,weapon,floor,relics) {
   hero.moveSpeed=5.7*(1+curve(rank('wind'),.28));
   hero.attackPeriod=weapon.period*(1-curve(rank('wind'),.27));
   hero.recovery=curve(rank('spring'),.18);
+  hero.resonance=linkLoadout(relics);
   return ranks;
 }

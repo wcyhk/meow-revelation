@@ -137,6 +137,8 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
 .relic b{font:900 16px/1.25 var(--serif);letter-spacing:.05em}
 .relic strong{font:400 24px/1 Georgia,serif;color:#ffb57a}
 .relic span{font-size:11px;line-height:1.5;color:#dec29b}
+.relic .relic-resonance{display:block;font:700 11px/1.45 var(--sans);color:var(--resonance-ink);padding:4px 6px;border-left:1px solid currentColor;text-align:left}
+.relic .relic-resonance.upgrade{background:color-mix(in srgb,var(--resonance-ink) 10%,transparent)}
 .results{display:flex;justify-content:center;gap:20px;font-size:12px;letter-spacing:.06em;color:#ffd4a5}
 #modal[data-kind=armory]{z-index:11;background:#100f0ab3}
 #modal[data-kind=armory] .panel{width:min(800px,100%);background:radial-gradient(ellipse at top,#3c2c22,#181b17 73%)}
@@ -151,6 +153,7 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
 .arm-card span{font-size:11px;line-height:1.45;color:#dbc3a6}
 .arm-card .arm-combo{color:var(--arm-ink);font-weight:700}
 .arm-card .arm-link{color:var(--arm-ink);border-top:1px solid #a87c544f;padding-top:4px}
+.arm-card .arm-resonance{color:var(--arm-ink);font-weight:700}
 .arm-card strong{font-size:12px;letter-spacing:.08em;color:var(--arm-ink);margin-top:6px}
 .story-prose,.journal-entries{max-width:420px;margin:15px auto 5px;text-align:left}
 .story-prose p,.journal-entries p{font-size:14px;line-height:1.78;color:#e8d2af;letter-spacing:.06em;margin:0 0 13px}
@@ -182,7 +185,7 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
   #boss-hud{top:max(76px,calc(env(safe-area-inset-top) + 56px));width:64vw}
   #mission-status{top:max(73px,calc(env(safe-area-inset-top) + 57px));min-width:149px;padding:4px 8px 6px}
   #school-toast{bottom:max(181px,calc(env(safe-area-inset-bottom) + 153px));font-size:11px}
-  .relic .relic-school{grid-column:2 / -1;margin-top:0}
+  .relic :is(.relic-school,.relic-resonance){grid-column:2 / -1;margin-top:0}
   .relic-grid{grid-template-columns:1fr;gap:6px}
   .relic{min-height:55px;display:grid;grid-template-columns:29px 78px 1fr;text-align:left;justify-items:start;padding:8px 7px}
   .relic b{font-size:13px}.relic strong{font-size:19px}

@@ -742,13 +742,13 @@ export class Scenery {
   }
 
   setWard(hero) {
-    this.ward.visible=hero.ward>0;
+    this.ward.visible=hero.ward>0||!!hero.linkGuard;
     if (!this.ward.visible) return;
     this.ward.position.set(hero.x,0,hero.z);
     const shell=this.ward.userData.shell;
     shell.rotation.y=this.time*.48;
     shell.material.uniforms.time.value=this.time;
-    shell.material.uniforms.opacity.value=.14+Math.min(.42,hero.ward*.18);
+    shell.material.uniforms.opacity.value=.14+Math.min(.42,Math.max(hero.ward,hero.linkGuard?hero.linkGuard.left*.7:0)*.18);
   }
 
   createParticleSystem(capacity) {

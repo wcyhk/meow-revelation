@@ -1,4 +1,4 @@
-import {Scenery} from './scenery.mjs?v=counter-1';
+import {Scenery} from './scenery.mjs?v=forge-1';
 import {Audio} from './audio.mjs?v=battle-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=battle-1';
@@ -6,7 +6,7 @@ import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=counter-1';
-import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=arena-1';
+import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=forge-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
 import {BossArena} from './boss-arena.mjs?v=counter-1';
@@ -604,6 +604,7 @@ export class Game {
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
     this.view.spark(unit.x,unit.spec.height*.47,unit.z,tint,unit.hp<=0?24:10,1.15,
       unit.hp<=0?unit.spec.effect:'feather');
+    if (knock>0) this.view.contactFx(unit,origin,tint,knock>1.4||unit.hp<=0);
     if (phaseBoundary && unit.hp<=nextPhaseHp) {
       unit.bossPhase++;
       unit.phaseGuard=.91;

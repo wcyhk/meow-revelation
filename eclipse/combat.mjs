@@ -49,7 +49,7 @@ export function strikeWith(game,dx,dz) {
       if (game.hit(second,power*.56,first,.21)) hits++;
     }
   } else if (arm.id==='phoenix') {
-    view.wave(h.x,h.z,dx,dz,reach,arm.tone);
+    view.wave(h.x,h.z,dx,dz,reach,arm.tone,false,'fire');
     for (const foe of lineTargets(targets,h,dx,dz,reach,.80)) {
       if (game.hit(foe,power,h,finish?1.15:.42)) hits++;
     }
@@ -69,7 +69,7 @@ export function strikeWith(game,dx,dz) {
       }
     }
   } else if (arm.id==='frostlute') {
-    view.wave(h.x,h.z,dx,dz,reach,arm.tone,finish);
+    view.wave(h.x,h.z,dx,dz,reach,arm.tone,finish,'ice');
     for (const enemy of lineTargets(targets,h,dx,dz,reach,finish?1.08:.68)) {
       enemy.chill=Math.max(enemy.chill,finish?2.5:1.7);
       if (game.hit(enemy,power,h,.55)) hits++;
@@ -137,6 +137,7 @@ export function invokeArm(game,input) {
       h.attackAge=1; h.slash=null;
       h.rush=new Set();
       view.shock(h.x,h.z,arm.tone,1.67,.78);
+      view.sealFx(h.x,h.z,arm.tone,1.24,.38);
       break;
     case 'dragon': {
       const aim=targetCenter(game,dx,dz,range);
@@ -149,6 +150,7 @@ export function invokeArm(game,input) {
           struck.add(focus);
           view.bolt(point(focus,7.0),point(focus,.28),arm.tone,2.45);
           view.shock(focus.x,focus.z,arm.tone,range*.31,.84);
+          view.sealFx(focus.x,focus.z,arm.tone,range*.28,.56);
           for (const foe of enemies) {
             if (distance(foe,focus)<range*.31+.25) game.hit(foe,power,focus,.71);
           }
@@ -159,7 +161,7 @@ export function invokeArm(game,input) {
     case 'phoenix':
       for (let pulse=0;pulse<3;pulse++) {
         game.schedule(.02+pulse*.19,()=>{
-          view.wave(origin.x,origin.z,dx,dz,range,arm.tone,true);
+          view.wave(origin.x,origin.z,dx,dz,range,arm.tone,true,'fire');
           for (const foe of lineTargets(active(game),origin,dx,dz,range,1.17)) {
             game.hit(foe,power,origin,.65);
             foe.exposed=3.3;
@@ -170,6 +172,7 @@ export function invokeArm(game,input) {
     case 'turtle':
       h.ward=3;
       view.shock(h.x,h.z,arm.tone,range,.76);
+      view.sealFx(h.x,h.z,arm.tone,range*.92,.67);
       for (const foe of active(game)) {
         if (distance(h,foe)<range+.22) {
           game.hit(foe,power*.72,h,.97);
@@ -201,6 +204,7 @@ export function invokeArm(game,input) {
       for (let pulse=0;pulse<3;pulse++) {
         const angle=pulse*Math.PI*2/3;
         const point={x:center.x+Math.cos(angle)*.8,z:center.z+Math.sin(angle)*.8};
+        view.motion.bladefall(point.x,point.z,arm.tone,.12+pulse*.24,pulse);
         game.schedule(.12+pulse*.24,()=>{
           view.threatImpact({...point,kind:'circle',radius:2.52,tint:arm.tone,effect:'fire',pattern:'burst'});
           for (const enemy of active(game)) if (distance(enemy,point)<2.69) game.hit(enemy,power,point,.87);
@@ -216,6 +220,7 @@ export function invokeArm(game,input) {
         game.schedule(pulse*.13,()=>{
           view.bolt(point(spot,6.7),point(spot,.22),arm.tone,1.95);
           view.shock(spot.x,spot.z,arm.tone,1.84,.61);
+          if (pulse===4) view.sealFx(spot.x,spot.z,arm.tone,2.02,.55);
           for (const enemy of active(game)) if (distance(spot,enemy)<2.05) game.hit(enemy,power,spot,.43);
         });
       }
@@ -232,6 +237,7 @@ export function invokeArm(game,input) {
       const center=targetCenter(game,dx,dz,range);
       game.bound(center);
       for (let pulse=0;pulse<3;pulse++) game.schedule(.12+pulse*.42,()=>{
+        view.sealFx(center.x,center.z,arm.tone,2.12+pulse*.24,.52);
         view.threatImpact({...center,kind:'circle',radius:2.76+pulse*.23,tint:arm.tone,effect:'ice',pattern:'icicles'});
         for (const enemy of active(game)) {
           if (distance(center,enemy)>2.95+pulse*.23) continue;
@@ -244,6 +250,7 @@ export function invokeArm(game,input) {
     case 'chakra':
       for (let pulse=0;pulse<3;pulse++) game.schedule(.08+pulse*.27,()=>{
         const radius=range*(1-pulse*.25);
+        view.sealFx(origin.x,origin.z,arm.tone,radius*.76,.49);
         view.threatImpact({...origin,kind:'ring',radius,width:radius*.38,tint:arm.tone,effect:'gold',pattern:'ring'});
         for (const enemy of active(game)) {
           const gap=distance(origin,enemy);
@@ -257,6 +264,7 @@ export function invokeArm(game,input) {
 export function rushHit(game,start) {
   const {hero:h,view,weapon:arm}=game;
   const step=distance(h,start);
+  view.motion.rush(start,h,arm.tone);
   for (const foe of lineTargets(active(game),start,h.rollX,h.rollZ,step+.27,.86)) {
     if (h.rush.has(foe)) continue;
     h.rush.add(foe);

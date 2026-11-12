@@ -2,7 +2,9 @@ import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge} from './armory.mjs?v=battle-1';
 import {pictures, stages} from './expedition.mjs?v=battle-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
-import {ArenaArt} from './arena-art.mjs?v=counter-1';
+import {ArenaArt} from './arena-art.mjs?v=forge-1';
+import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
+import {MotionArt} from './motion-art.mjs?v=forge-1';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -113,26 +115,30 @@ function circle(radius, width, fraction = Math.PI * 2) {
   return geometry;
 }
 
-function swingGeometry() {
-  const vertices = [], indices = [];
-  const slices = 34;
-  for (let index = 0; index <= slices; index++) {
-    const f = index / slices;
-    const theta = -1.11 + f * 2.22;
-    const width = Math.pow(Math.sin(f * PI), 1.15) * .43 + .025;
-    const outer = 1.22 + f * .07;
-    for (const radius of [outer - width, outer]) {
-      vertices.push(Math.cos(theta) * radius, Math.sin(theta) * .29, Math.sin(theta) * radius);
-    }
-    if (index < slices) {
-      const a = index * 2;
-      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-    }
+function laneEdges(length,width) {
+  const vertices=[];
+  for (const sign of [-1,1]) {
+    const z=width*sign, inner=(width-.045)*sign;
+    const a=[-length*.5,0,z],b=[length*.5,0,z],c=[length*.5,0,inner],d=[-length*.5,0,inner];
+    vertices.push(...a,...b,...c,...a,...c,...d);
   }
-  const geometry = new T.BufferGeometry();
-  geometry.setAttribute('position', new T.Float32BufferAttribute(vertices, 3));
-  geometry.setIndex(indices);
-  return geometry;
+  return new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+}
+
+function warningMaterial() {
+  return new T.ShaderMaterial({side:T.DoubleSide,transparent:true,depthWrite:false,
+    uniforms:{life:{value:0},opacity:{value:.41}},
+    vertexShader:`varying vec2 tex; void main(){tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`
+      varying vec2 tex; uniform float life,opacity;
+      void main(){
+        float threads=pow(.5+.5*sin((tex.x+tex.y*.43)*68.-life*9.),4.);
+        float urgency=smoothstep(.52,.99,life);
+        gl_FragColor=vec4(.48+threads*.18,.025+threads*.041,.014,
+          opacity*(.53+urgency*.21+threads*.32));
+        #include <colorspace_fragment>
+      }
+    `});
 }
 
 const pictureLights = {
@@ -192,15 +198,12 @@ export class Scenery {
     this.scene.add(this.back);
     this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
-    this.arc = swingGeometry();
-    this.lance = new T.BufferGeometry();
-    this.lance.setAttribute('position',new T.Float32BufferAttribute([0,0,0,.42,.06,-.11,1.0,0,0,.42,.06,.11],3));
-    this.lance.setIndex([0,1,2,0,2,3]);
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
     this.motes = this.createParticleSystem(this.mobile ? 215 : 385);
     this.leaves = this.createLeaves(this.mobile ? 15 : 28);
     this.effects = [];
+    this.motion = new MotionArt(this);
     this.clue = this.makeClue();
     this.ward = this.makeWard();
     this.fixtures = new T.Group();
@@ -307,39 +310,13 @@ export class Scenery {
     for (const material of materials) material.dispose();
     this.fixtures.clear();
     const tone=stage.zone.color;
-    const rock=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x746966),.84),roughness:.94,
-      map:this.battleTextures.stone,bumpMap:this.battleTextures.stone,bumpScale:.115});
-    const metal=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x604e3c),.53),roughness:.58,metalness:.35});
-    const gem=new T.MeshStandardMaterial({color:tone,emissive:tone,emissiveIntensity:.40,roughness:.34});
     const place=(parent,geometry,material,y)=>{
       const mesh=new T.Mesh(geometry,material);
       mesh.position.y=y;
       parent.add(mesh);
       return mesh;
     };
-    for (const prop of stage.props) {
-      const monument=new T.Group();
-      const {x,z,radius,angle,style}=prop;
-      monument.position.set(x,0,z);
-      monument.rotation.y=angle;
-      this.fixtures.add(monument);
-      const sides=style===2?5:style===1?8:6;
-      place(monument,new T.CylinderGeometry(radius*.79,radius,.17,sides),rock,.08);
-      place(monument,new T.CylinderGeometry(radius*.60,radius*.73,.16,sides),metal,.23);
-      const height=.51+style*.21;
-      place(monument,new T.CylinderGeometry(radius*.44,radius*.60,height,sides),rock,.31+height*.5);
-      place(monument,new T.CylinderGeometry(radius*.55,radius*.43,.115,sides),metal,.36+height);
-      const crystal=place(monument,new T.OctahedronGeometry(radius*(.23+style*.055)),gem,.49+height);
-      crystal.scale.y=1.2+style*.25;
-      const shade=this.ground(this.shadow,0xeeeeee,.74,radius*3.4,radius*2.2);
-      shade.position.set(x,.011,z);
-      this.fixtures.add(shade);
-    }
-    if (!stage.props.length) {
-      rock.dispose();
-      metal.dispose();
-      gem.dispose();
-    }
+    for (const prop of stage.props) this.fixtures.add(monument(this,prop,tone));
     const glyph=new T.Group();
     const radius=(stage.boss?3.75:1.8+stage.room*.10);
     glyph.position.set((stage.room%3-1)*.72,.016,stage.boss?-2.1:-2.65);
@@ -401,6 +378,7 @@ export class Scenery {
   ground(map, tint, opacity, sizeX, sizeZ) {
     const mat = new T.MeshBasicMaterial({map,color:tint,transparent:true,opacity,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
     const mesh = new T.Mesh(plane, mat);
+    mesh.userData.sharedGeometry=true;
     mesh.rotation.x = -PI / 2;
     mesh.scale.set(sizeX, sizeZ, 1);
     mesh.renderOrder = -8;
@@ -576,24 +554,7 @@ export class Scenery {
   }
 
   makeClue(parent=this.scene) {
-    const root = new T.Group();
-    const brass = new T.MeshStandardMaterial({color:0xa57345,metalness:.45,roughness:.43});
-    const wax = new T.MeshBasicMaterial({color:0xffd188});
-    const base = new T.Mesh(new T.CylinderGeometry(.30,.41,.11,8),brass);
-    const frame = new T.Mesh(new T.CylinderGeometry(.22,.33,.53,6,1,true),new T.MeshBasicMaterial({color:0xcb7c40,wireframe:true,transparent:true,opacity:.85}));
-    const cap = new T.Mesh(new T.ConeGeometry(.34,.19,6),brass);
-    const flame = new T.Mesh(new T.OctahedronGeometry(.18),wax);
-    frame.position.y=.31;
-    cap.position.y=.64;
-    flame.position.y=.35;
-    flame.scale.set(.78,1.37,.78);
-    const halo = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:0xffad64,opacity:.77,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
-    halo.position.y=.37;
-    halo.scale.set(2.08,2.08,1);
-    const marker = new T.Mesh(circle(.85,.026),new T.MeshBasicMaterial({color:0xffca85,transparent:true,opacity:.83,blending:T.AdditiveBlending,depthWrite:false}));
-    marker.position.y=.026;
-    root.add(base,frame,cap,flame,marker,halo);
-    root.userData={flame,halo,marker};
+    const root=lantern(this);
     root.visible=false;
     parent.add(root);
     return root;
@@ -607,7 +568,7 @@ export class Scenery {
   setMission(mission) {
     const materials=new Set();
     this.missionObjects.traverse(piece=>{
-      if (piece.isMesh) piece.geometry.dispose();
+      if (piece.isMesh&&piece.geometry!==plane) piece.geometry.dispose();
       if (piece.material) materials.add(piece.material);
     });
     for (const material of materials) material.dispose();
@@ -674,11 +635,9 @@ export class Scenery {
     if (!this.mission || !hero) return;
     const mission=this.mission;
     if (this.missionLight) {
-      const {flame,halo}=this.missionLight.userData;
+      const {flame}=this.missionLight.userData;
       const fraction=mission.light/mission.plan.maxLight;
-      flame.visible=fraction>0;
-      flame.rotation.y=this.time*1.4;
-      halo.material.opacity=fraction*(.61+.13*Math.sin(this.time*8.2));
+      lightLantern(this.missionLight,fraction>0,this.time,fraction);
       flame.material.color.setHex(fraction<.38?0xff6e45:0xffd58d);
     }
     if (this.missionGate) {
@@ -700,13 +659,35 @@ export class Scenery {
 
   makeWard() {
     const group = new T.Group();
-    const shell = new T.Mesh(new T.IcosahedronGeometry(1.55,1),
-      new T.MeshBasicMaterial({color:0x9cf3d9,wireframe:true,transparent:true,opacity:.25,depthWrite:false,blending:T.AdditiveBlending}));
-    shell.position.y=.83;
+    const shell = new T.Mesh(new T.SphereGeometry(1.57,32,18),
+      new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,
+        uniforms:{opacity:{value:.34},time:{value:0}},
+        vertexShader:`
+          varying vec3 eyeNormal; varying vec2 tex;
+          void main(){tex=uv; eyeNormal=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}
+        `,
+        fragmentShader:`
+          varying vec3 eyeNormal; varying vec2 tex; uniform float opacity,time;
+          void main(){
+            float rim=pow(1.-max(0.,normalize(eyeNormal).z),2.1);
+            float lattice=abs(sin(tex.x*69.+sin(tex.y*29.)*1.2)*sin(tex.y*57.));
+            float lines=1.-smoothstep(.016,.14,lattice);
+            float pulse=pow(.5+.5*sin(tex.y*24.-time*5.),16.);
+            float lower=smoothstep(.04,.23,tex.y);
+            vec3 light=mix(vec3(.16,.62,.58),vec3(.78,1.,.92),rim*.84+pulse*.12);
+            gl_FragColor=vec4(light,lower*opacity*(.13+rim*.86+lines*.34+pulse*.22));
+            #include <colorspace_fragment>
+          }
+        `}));
+    shell.position.y=.98;
+    shell.scale.y=.82;
     const seal = new T.Mesh(circle(1.53,.039),
       new T.MeshBasicMaterial({color:0x9cf3d9,transparent:true,opacity:.82,depthWrite:false,blending:T.AdditiveBlending}));
     seal.position.y=.032;
-    group.add(shell,seal);
+    const crest=this.ground(this.battleTextures.glyph,0x8cdecf,.46,3.22,3.22);
+    crest.position.y=.046;
+    crest.material.blending=T.AdditiveBlending;
+    group.add(shell,seal,crest);
     this.scene.add(group);
     group.visible=false;
     group.userData.shell=shell;
@@ -717,8 +698,10 @@ export class Scenery {
     this.ward.visible=hero.ward>0;
     if (!this.ward.visible) return;
     this.ward.position.set(hero.x,0,hero.z);
-    this.ward.userData.shell.rotation.y=this.time*.48;
-    this.ward.userData.shell.material.opacity=.12+Math.min(.24,hero.ward*.1);
+    const shell=this.ward.userData.shell;
+    shell.rotation.y=this.time*.48;
+    shell.material.uniforms.time.value=this.time;
+    shell.material.uniforms.opacity.value=.14+Math.min(.42,hero.ward*.18);
   }
 
   createParticleSystem(capacity) {
@@ -743,9 +726,11 @@ export class Scenery {
         void main(){vec2 p=gl_PointCoord-.5;float contour=length(p);
         if(motif>0.5&&motif<1.5) contour=abs(p.x)*.88+abs(p.y);
         if(motif>1.5&&motif<2.5) contour=length(vec2((p.x+p.y)*1.7,(p.x-p.y)*.75));
-        if(motif>2.5) contour=max(abs(p.x),abs(p.y))*.88+abs(p.x*p.y)*1.2;
+        if(motif>2.5&&motif<3.5) contour=max(abs(p.x),abs(p.y))*.88+abs(p.x*p.y)*1.2;
+        if(motif>3.5) contour=min(max(abs(p.x)*2.8,abs(p.y)),max(abs(p.y)*2.8,abs(p.x)));
         float fall=1.-smoothstep(.045,.50,contour);
-        if (ink.a<.01) discard;gl_FragColor=vec4(ink.rgb,fall*fall*ink.a);}
+        float shine=pow(1.-smoothstep(.01,.22,contour),2.);
+        if (ink.a<.01) discard;gl_FragColor=vec4(mix(ink.rgb,vec3(1.,.95,.78),shine*.49),fall*fall*ink.a);}
       `,
     });
     const particles = new T.Points(geometry, material);
@@ -792,106 +777,92 @@ export class Scenery {
     mesh.instanceMatrix.needsUpdate=true;
   }
 
-  spark(x, y, z, tint, count, force=1, effect) {
+  spark(x, y, z, tint, count, force=1, effect, bearing) {
     const {items} = this.motes;
     color.setHex(tint);
     for (let index=0;index<count;index++) {
       const point = items[this.motes.cursor++ % items.length];
-      const theta = Math.random() * PI * 2;
+      const theta = bearing===undefined?Math.random()*PI*2:bearing+(Math.random()-.5)*2.2;
       const speed = (.8 + Math.random() * 2.4) * force;
       const life = .30 + Math.random() * .53;
       Object.assign(point,{x,y,z,dx:Math.cos(theta)*speed,dz:Math.sin(theta)*speed,dy:Math.random()*2.8+.25,life,ttl:life,
-        r:color.r,g:color.g,b:color.b,size:2.8+Math.random()*8,gravity:3.5,shape:particleShapes[effect]??0});
+        r:color.r,g:color.g,b:color.b,size:2.8+Math.random()*8,gravity:3.5,shape:effect==='flare'?4:particleShapes[effect]??0});
     }
   }
 
   addEffect(geometry, position, tint, duration, settings = {}) {
-    const {opacity=1, scale=1, growth=0, angle=0, blend=true, owned=false, map=null} = settings;
-    const mat = new T.MeshBasicMaterial({color:tint,map,transparent:true,opacity,depthWrite:false,side:T.DoubleSide,
+    const {opacity=1, scale=1, growth=0, angle=0, blend=true, owned=false, map=null, fade=false, material} = settings;
+    const mat = material??new T.MeshBasicMaterial({color:tint,map,transparent:true,opacity,depthWrite:false,side:T.DoubleSide,
       blending:blend ? T.AdditiveBlending : T.NormalBlending});
     const mesh = new T.Mesh(geometry,mat);
     mesh.position.set(position.x, position.y, position.z);
-    mesh.rotation.y = angle;
-    if (map) mesh.rotateX(-PI/2);
+    if (map) mesh.rotation.set(-PI/2,angle,0,'YXZ');
+    else mesh.rotation.y=angle;
     mesh.scale.setScalar(scale);
     mesh.renderOrder = settings.order ?? 30;
     this.scene.add(mesh);
-    const fx = {mesh,ttl:duration,age:0,scale,growth,opacity,owned};
+    const fx = {mesh,ttl:duration,age:0,scale,growth,opacity,owned,fade};
     this.effects.push(fx);
     return fx;
   }
 
   slash(x, z, dx, dz, tint, radius, finisher) {
-    const a = -Math.atan2(dz, dx);
-    const pos = {x:x+dx*.30,y:.58,z:z+dz*.30};
-    const wide = radius / 1.56;
-    this.addEffect(this.arc,pos,tint,.24,{scale:wide,growth:.29,angle:a,opacity:.78,order:90});
-    this.addEffect(this.arc,{...pos,y:pos.y+.11},0xffe3a3,.14,{scale:wide*.96,growth:.21,angle:a,opacity:.91,order:91});
+    this.motion.slash(x,z,dx,dz,tint,radius,finisher);
     if (finisher) this.addEffect(this.ring,{x,y:.045,z},tint,.30,{scale:.3,growth:radius*1.25,opacity:.59});
-    this.spark(x+dx*.96,.54,z+dz*.96,tint,finisher?24:12,1.12);
+    this.spark(x+dx*.96,.54,z+dz*.96,tint,finisher?24:12,1.12,'flare',Math.atan2(dz,dx));
   }
 
-  shock(x,z,tint,radius,power = 1) {
-    this.addEffect(this.ring,{x,y:.04,z},tint,.55,{scale:.25,growth:radius,opacity:.95});
-    this.addEffect(this.ring,{x,y:.15,z},0xffdca5,.36,{scale:.16,growth:radius*.76,opacity:.86});
-    this.addEffect(this.disc,{x,y:.06,z},tint,.36,{scale:.30,growth:radius,opacity:.16});
-    this.spark(x,.65,z,tint,Math.floor(34 * power),power);
+  shock(x,z,tint,radius,power=1) {
+    this.addEffect(this.ring,{x,y:.042,z},tint,.55,{scale:.25,growth:radius,opacity:.95,order:27});
+    this.addEffect(this.ring,{x,y:.15,z},0xffebcd,.36,{scale:.16,growth:radius*.76,opacity:.78,order:28});
+    if (this.motion.accent()) this.addEffect(plane,{x,y:.057,z},tint,.48,
+      {map:this.halo,scale:radius*.74,growth:radius*1.68,opacity:.30,order:20});
+    this.spark(x,.65,z,tint,Math.floor(34*power),power);
   }
 
   bolt(from,to,tint,intensity=1) {
-    const a = new T.Vector3(from.x,from.y,from.z), b = new T.Vector3(to.x,to.y,to.z);
-    const path = [a];
-    for (let index=1;index<8;index++) {
-      const point=a.clone().lerp(b,index/8);
-      point.x+=(Math.random()-.5)*.41;
-      point.y+=(Math.random()-.5)*.28;
-      point.z+=(Math.random()-.5)*.38;
-      path.push(point);
-    }
-    path.push(b);
-    const route = new T.CurvePath();
-    for (let i=1;i<path.length;i++) route.add(new T.LineCurve3(path[i-1],path[i]));
-    const geometry=new T.TubeGeometry(route,14,.033*intensity,4,false);
-    this.addEffect(geometry,{x:0,y:0,z:0},tint,.23,{owned:true,opacity:.94,order:93});
-    this.spark(to.x,to.y,to.z,tint,intensity>1?13:5,.72);
+    this.motion.bolt(from,to,tint,intensity);
+    this.spark(to.x,to.y,to.z,tint,intensity>1?13:5,.72,'flare');
   }
 
-  wave(x,z,dx,dz,reach,tint,strong=false) {
-    const angle = -Math.atan2(dz,dx);
-    const width = strong ? 2.18 : 1.40;
-    const pos={x:x+dx*reach*.46,y:.66,z:z+dz*reach*.46};
-    const size = strong ? 2.0 : 1.22;
-    const effect = this.addEffect(this.arc,pos,tint,strong?.39:.23,{scale:size,growth:.31,angle,opacity:.76,order:94});
-    effect.stretchZ=width;
-    effect.travel={x:dx*(strong?9:6),z:dz*(strong?9:6)};
-    this.spark(pos.x,.50,pos.z,tint,strong?19:7,strong?1.28:.77);
+  wave(x,z,dx,dz,reach,tint,strong=false,style) {
+    const point={x:x+dx*reach*.46,y:.66,z:z+dz*reach*.46};
+    this.motion.wave(point,dx,dz,tint,strong,style);
+    this.spark(point.x,.50,point.z,tint,strong?19:7,strong?1.28:.77,style??'feather',Math.atan2(dz,dx));
   }
 
   thrust(x,z,dx,dz,reach,tint,heavy) {
-    const angle=-Math.atan2(dz,dx);
     const origin={x,y:.55,z};
-    this.addEffect(this.lance,origin,tint,.23,{scale:reach,angle,growth:.13,opacity:.85,order:94});
-    this.addEffect(this.lance,{...origin,y:.67},0xffeed0,.15,{scale:reach*.98,angle,opacity:.82,order:95});
+    this.motion.thrust(origin,dx,dz,reach,tint,heavy);
     if (heavy) this.shock(x+dx*reach*.70,z+dz*reach*.70,tint,1.68,.70);
-    this.spark(x+dx*reach*.78,.58,z+dz*reach*.78,tint,heavy?16:7,1.05);
+    this.spark(x+dx*reach*.78,.58,z+dz*reach*.78,tint,heavy?16:7,1.05,'flare',Math.atan2(dz,dx));
   }
 
   vortex(x,z,radius,tint) {
-    for (const [part,angle] of [[.95,0],[.82,2.1],[.66,4.2]]) {
-      const arc = circle(radius*part,.045,PI*1.38);
-      const fx=this.addEffect(arc,{x,y:.13+part*.11,z},tint,.62,{owned:true,angle,opacity:.92,scale:.83,growth:.24});
-      fx.spin=4.2;
-    }
-    this.addEffect(plane,{x,y:.045,z},tint,.56,{map:this.halo,scale:radius*2,growth:.7,opacity:.38});
+    this.motion.vortex(x,z,radius,tint);
+    if (this.motion.accent()) this.sealFx(x,z,tint,radius,.57);
     this.spark(x,.46,z,tint,18,1.22);
   }
 
   spinningDisk(x,z,dx,dz,range,tint) {
-    const angle=-Math.atan2(dz,dx);
-    const fx=this.addEffect(this.coinShape,{x,y:.68,z},tint,.38,{scale:2.1,growth:.13,angle,opacity:.93,order:88});
-    fx.travel={x:dx*range/.38,z:dz*range/.38};
-    fx.spin=23;
+    this.motion.spinningDisk(x,z,dx,dz,range,tint);
     this.spark(x,.66,z,tint,7,.64,'gold');
+  }
+
+  sealFx(x,z,tint,radius,duration=.50) {
+    const seal=this.addEffect(plane,{x,y:.083,z},tint,duration,
+      {map:this.battleTextures.glyph,scale:radius*1.82,growth:radius*.37,opacity:.51,order:22});
+    seal.spin=-1.24;
+  }
+
+  contactFx(unit,origin,tint,heavy) {
+    if (!this.motion.accent()) return;
+    const angle=Math.atan2(unit.z-origin.z,unit.x-origin.x);
+    const height=unit.spec.height*.48;
+    this.addEffect(this.ring,{x:unit.x,y:.065,z:unit.z},tint,heavy?.34:.24,
+      {scale:.25,growth:heavy?1.64:.85,opacity:.66,order:21});
+    if (heavy) this.motion.flash({x:unit.x,y:height,z:unit.z},tint,.84);
+    this.spark(unit.x,height,unit.z,tint,heavy?11:5,heavy?1.45:.96,'flare',angle);
   }
 
   fallingShard(x,z,radius,delay,tint,active) {
@@ -911,6 +882,10 @@ export class Scenery {
     this.addEffect(plane,{x,y:.075,z},spec.tint,1.06,{map:this.battleTextures.glyph,scale:size*.83,growth:1.34,
       opacity:.77,order:15});
     this.spark(x,.44,z,spec.tint,phase==='defeat'?38:30,1.43,spec.effect);
+    if (this.motion.accent()) {
+      this.sealFx(x,z,spec.tint,size*.49,.96);
+      this.motion.vortex(x,z,phase==='entrance'?2.55:3.15,spec.tint);
+    }
     this.shake=Math.max(this.shake,phase==='entrance'?.21:.32);
   }
 
@@ -921,43 +896,49 @@ export class Scenery {
       effect.combatClock=true;
       effect.active=active;
     };
+    const shade=(geometry,settings)=>paint(geometry,point,0xde442f,
+      {...settings,material:warningMaterial(),opacity:.47,order:35});
+    const edge=(geometry,settings)=>paint(geometry,{...point,y:.055},0xff8c60,
+      {...settings,opacity:.92,order:37});
     if (kind === 'line') {
       const fill=new T.PlaneGeometry(radius,width*2).rotateX(-PI/2);
-      paint(fill,point,0xde442f,{owned:true,angle,opacity:.38,blend:false,order:2});
-      const edge=new T.PlaneGeometry(radius,.054).rotateX(-PI/2);
-      paint(edge,{...point,y:.054},0xff996e,{owned:true,angle,opacity:.83,order:3});
+      shade(fill,{owned:true,angle});
+      edge(laneEdges(radius,width),{owned:true,angle});
       return;
     }
     if (kind==='ring') {
-      paint(circle(radius,width),point,0xd74735,{owned:true,opacity:.43,blend:false,order:2});
-      paint(circle(radius,.055),{...point,y:.052},0xff895e,{owned:true,opacity:.85,order:3});
-      paint(circle(radius-width,.055),{...point,y:.052},0xff895e,{owned:true,opacity:.85,order:3});
+      shade(circle(radius,width),{owned:true});
+      edge(circle(radius,.061),{owned:true});
+      edge(circle(radius-width,.052),{owned:true});
       return;
     }
     if (kind==='cone') {
       const fan=new T.CircleGeometry(radius,34,-width,width*2).rotateX(-PI/2);
-      paint(fan,point,0xcd3e32,{owned:true,angle,opacity:.39,blend:false,order:2});
-      const edge=new T.RingGeometry(radius-.065,radius,36,1,-width,width*2).rotateX(-PI/2);
-      paint(edge,{...point,y:.052},0xffa17d,{owned:true,angle,opacity:.84,order:3});
+      shade(fan,{owned:true,angle});
+      edge(new T.RingGeometry(radius-.065,radius,36,1,-width,width*2).rotateX(-PI/2),{owned:true,angle});
       return;
     }
     if (kind==='aura') {
-      paint(this.ring,point,tint,{scale:radius,opacity:.73,order:3});
+      paint(this.ring,point,tint,{scale:radius,opacity:.73,order:37});
       return;
     }
-    paint(this.disc,{x,y:.036,z},0x9b2017,{scale:radius,opacity:.39,blend:false,order:2});
-    paint(this.ring,point,0xff7448,{scale:radius,opacity:.72,order:3});
+    shade(this.disc,{scale:radius});
+    edge(this.ring,{scale:radius});
   }
 
   threatImpact(hazard) {
     const {kind,x,z,radius,tint,width,angle,pattern,effect}=hazard;
     const point={x,y:.08,z};
     if (kind==='cone') {
-      this.addEffect(this.arc,{x,y:.75,z},tint,.37,{scale:radius*.77,growth:.31,angle:-angle,opacity:.92,order:87});
+      this.motion.slash(x,z,Math.cos(angle),Math.sin(angle),tint,radius,true);
       this.spark(x+Math.cos(angle)*radius*.55,.57,z+Math.sin(angle)*radius*.55,tint,16,1.16,effect);
     } else if (kind==='line') {
       const strip=new T.PlaneGeometry(radius,width*1.64).rotateX(-PI/2);
       this.addEffect(strip,point,tint,.29,{owned:true,angle:-angle,opacity:.65,growth:.12});
+      if (this.motion.accent()) {
+        const dx=Math.cos(angle),dz=Math.sin(angle);
+        this.motion.thrust({x:x-dx*radius*.5,y:.53,z:z-dz*radius*.5},dx,dz,radius,tint,true);
+      }
       for (let i=-2;i<=2;i++) {
         const offset=i*radius*.17;
         this.spark(x+Math.cos(angle)*offset,.48,z+Math.sin(angle)*offset,tint,5,1.1,effect);
@@ -976,14 +957,15 @@ export class Scenery {
       this.shock(x,z,tint,radius,pattern==='burst'?.92:.63);
     }
     if (effect==='ice'||effect==='root'||effect==='fire') {
-      const count=kind==='line'?3:5;
+      const count=kind==='line'?3:this.mobile?4:6;
       for (let index=0;index<count;index++) {
         const theta=index*PI*2/count;
         const offset=kind==='line'?(index-1)*radius*.30:radius*.54;
         const cx=x+Math.cos(kind==='line'?angle:theta)*offset;
         const cz=z+Math.sin(kind==='line'?angle:theta)*offset;
-        const spike=this.addEffect(this.shardShape,{x:cx,y:.65,z:cz},tint,.34+index*.024,
-          {scale:.43+radius*.084,growth:.28,opacity:.64,angle:theta});
+        const plume=effect==='fire'?this.motion.flame:this.shardShape;
+        const spike=this.addEffect(plume,{x:cx,y:.43+(index%3)*.19,z:cz},tint,.38+index*.024,
+          {scale:.44+radius*.115,growth:.31,opacity:.75,angle:theta,fade:true,order:70});
         spike.mesh.rotation.z=Math.sin(theta)*.27;
       }
     } else if (effect==='void'||effect==='web'||effect==='gold') {
@@ -1074,10 +1056,8 @@ export class Scenery {
       cloud.material.opacity = this.air.mist + darkness*.035 + Math.sin(time*.63+index)*.024;
     }
     if (this.clue.visible) {
-      const {flame,halo,marker}=this.clue.userData;
-      flame.position.y=.35+Math.sin(time*7.6)*.035;
-      flame.rotation.y=time*.61;
-      halo.material.opacity=.68+.16*Math.sin(time*6.7);
+      const {marker}=this.clue.userData;
+      lightLantern(this.clue,true,time);
       marker.material.opacity=.69+.20*Math.sin(time*2.8);
       if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
     }
@@ -1091,7 +1071,12 @@ export class Scenery {
       } else {
         fx.mesh.scale.setScalar(fx.scale + fx.growth * (1 - (1 - age) ** 2));
         if (fx.stretchZ) fx.mesh.scale.z *= fx.stretchZ;
-        fx.mesh.material.opacity = fx.opacity * (fx.growth > 0 ? (1-age)**1.2 : .7+.3*Math.sin(age*PI*5));
+        const opacity=fx.opacity*(fx.fade?(1-age)**.83:fx.growth>0?(1-age)**1.2:.7+.3*Math.sin(age*PI*5));
+        const {material}=fx.mesh;
+        if (material.uniforms?.life) {
+          material.uniforms.life.value=age;
+          material.uniforms.opacity.value=opacity;
+        } else material.opacity=opacity;
         if (fx.drop) fx.mesh.position.y=.4+fx.drop*(1-age)**1.65;
         if (!paused && fx.spin) fx.mesh.rotation.y+=fx.spin*dt;
         if (!paused && fx.travel) {
@@ -1105,6 +1090,7 @@ export class Scenery {
     this.renderMission(hero,dt);
     this.arenaArt.render(time);
     this.renderer.render(this.scene,this.camera);
+    this.motion.budget=0;
   }
 
   renderParticles(dt) {

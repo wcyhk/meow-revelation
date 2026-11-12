@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge} from './armory.mjs';
+import {pictures, stages} from './expedition.mjs';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -11,6 +12,11 @@ const atlasBoxes = [
   [60, 55, 329, 371], [431, 77, 782, 343], [865, 84, 1210, 383],
   [37, 451, 387, 767], [456, 426, 770, 770], [855, 408, 1235, 780],
   [18, 782, 389, 1224], [395, 819, 863, 1206], [865, 810, 1214, 1198],
+];
+const bossBoxes = [
+  [0,0,415,393],[421,0,831,395],[837,0,1254,396],
+  [0,399,415,789],[418,401,835,788],[840,399,1254,789],
+  [0,789,387,1254],[388,791,838,1254],[840,790,1254,1254],
 ];
 
 function texture(canvas) {
@@ -31,14 +37,52 @@ function radialTexture(stops) {
   return texture(canvas);
 }
 
+function isolateBoss(ctx,width,height) {
+  const frame=ctx.getImageData(0,0,width,height);
+  const {data}=frame;
+  const labels=new Uint32Array(width*height);
+  const queue=new Uint32Array(labels.length);
+  let id=0, largest=0, largestSize=0;
+  for (let pixel=0;pixel<labels.length;pixel++) {
+    if (labels[pixel] || data[pixel*4+3]<38) continue;
+    labels[pixel]=++id;
+    queue[0]=pixel;
+    let length=1;
+    for (let head=0;head<length;head++) {
+      const point=queue[head];
+      const x=point%width,y=Math.floor(point/width);
+      for (let dy=-1;dy<=1;dy++) {
+        if (y+dy<0 || y+dy>=height) continue;
+        for (let dx=-1;dx<=1;dx++) {
+          if (x+dx<0 || x+dx>=width) continue;
+          const neighbor=point+dy*width+dx;
+          if (labels[neighbor] || data[neighbor*4+3]<38) continue;
+          labels[neighbor]=id;
+          queue[length++]=neighbor;
+        }
+      }
+    }
+    if (length>largestSize) {
+      largest=id;
+      largestSize=length;
+    }
+  }
+  for (let pixel=0;pixel<labels.length;pixel++) {
+    if (labels[pixel]!==largest) data[pixel*4+3]=0;
+  }
+  ctx.putImageData(frame,0,0);
+}
+
 async function loadCast() {
   const image = new Image();
   image.src = './cast.png';
   const hero = new Image();
   hero.src = './unarmed.png';
-  await Promise.all([image.decode(),hero.decode()]);
-  return atlasBoxes.map(([left, top, right, bottom],index) => {
-    const source = index < 3 ? hero : image;
+  const bosses = new Image();
+  bosses.src = './bosses.webp';
+  await Promise.all([image.decode(),hero.decode(),bosses.decode()]);
+  return [...atlasBoxes,...bossBoxes].map(([left, top, right, bottom],index) => {
+    const source = index<3 ? hero : index<atlasBoxes.length ? image : bosses;
     const canvas = document.createElement('canvas');
     const scale = source.width / 1254;
     canvas.width = Math.round((right - left) * 0.76);
@@ -46,6 +90,7 @@ async function loadCast() {
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(source, left * scale, top * scale, (right - left) * scale, (bottom - top) * scale, 0, 0, canvas.width, canvas.height);
+    if (index>=atlasBoxes.length) isolateBoss(ctx,canvas.width,canvas.height);
     return texture(canvas);
   });
 }
@@ -78,11 +123,32 @@ function swingGeometry() {
   return geometry;
 }
 
-const pictureSettings = [
-  {src:'grove.jpg', hue:0xffb377, glows:[[.278,.283],[.397,.267],[.659,.267],[.849,.323],[.113,.399]]},
-  {src:'fen.jpg', hue:0x9fe6d4, glows:[[.21,.315],[.36,.333],[.64,.333],[.80,.315]]},
-  {src:'throne.jpg', hue:0xff7342, glows:[[.273,.305],[.386,.305],[.620,.305],[.724,.305]]},
-];
+const pictureLights = {
+  'grove.jpg':[[.278,.283],[.397,.267],[.659,.267],[.849,.323],[.113,.399]],
+  'fen.jpg':[[.21,.315],[.36,.333],[.64,.333],[.80,.315]],
+  'lotus.jpg':[[.35,.24],[.68,.24],[.08,.39],[.92,.39]],
+  'frost.jpg':[[.32,.25],[.69,.25],[.49,.16]],
+  'forge.jpg':[[.5,.22],[.11,.13],[.89,.13],[.06,.39],[.94,.39]],
+  'grave.jpg':[[.21,.26],[.81,.25],[.49,.18]],
+  'vault-gold.jpg':[[.12,.26],[.27,.25],[.72,.25],[.86,.26]],
+  'dunes.jpg':[[.5,.15],[.81,.24],[.19,.24]],
+  'fungus.jpg':[[.12,.24],[.77,.25],[.92,.25],[.49,.21]],
+  'cathedral.jpg':[[.12,.22],[.36,.22],[.64,.22],[.88,.22],[.49,.14]],
+  'throne.jpg':[[.273,.305],[.386,.305],[.620,.305],[.724,.305]],
+};
+
+const weather = {
+  leaves:{dx:-.54,dy:.42,mist:.055,scale:1},
+  mist:{dx:.42,dy:.22,mist:.12,scale:1.08},
+  snow:{dx:-.69,dy:-.75,mist:.065,scale:.95},
+  embers:{dx:.3,dy:1.35,mist:.075,scale:1.4},
+  wisps:{dx:.21,dy:.47,mist:.107,scale:1.29},
+  dust:{dx:.38,dy:.28,mist:.05,scale:.85},
+  sand:{dx:-2.25,dy:.13,mist:.13,scale:.80},
+  spores:{dx:.31,dy:.60,mist:.105,scale:1.41},
+  stars:{dx:-.19,dy:.13,mist:.065,scale:1.12},
+  cinders:{dx:1.08,dy:1.1,mist:.09,scale:1.36},
+};
 
 export class Scenery {
   constructor(canvas) {
@@ -118,9 +184,11 @@ export class Scenery {
     this.motes = this.createParticleSystem(this.mobile ? 150 : 270);
     this.leaves = this.createLeaves(this.mobile ? 15 : 28);
     this.effects = [];
-    this.portal = this.makePortal();
     this.clue = this.makeClue();
     this.ward = this.makeWard();
+    this.fixtures = new T.Group();
+    this.scene.add(this.fixtures);
+    this.projectileShape = new T.OctahedronGeometry(.19);
     this.shake = 0;
     this.time = 0;
     this.lastStamp = 0;
@@ -129,17 +197,17 @@ export class Scenery {
 
   async load() {
     const loader = new T.TextureLoader();
-    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictureSettings.map(({src}) => loader.loadAsync(src)))]);
+    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictures.map(src => loader.loadAsync(src)))]);
     this.atlas = atlas;
     for (const image of images) {
       image.colorSpace = T.SRGBColorSpace;
       image.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
       this.renderer.initTexture(image);
     }
-    this.pictures = images;
+    this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
     for (const image of this.atlas) this.renderer.initTexture(image);
     this.armIcons = this.previewArms();
-    this.setStage(0);
+    this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -157,11 +225,15 @@ export class Scenery {
     this.renderer.setSize(this.width, this.height, false);
   }
 
-  setStage(index) {
-    this.stage = index;
-    this.back.material.map = this.pictures[index];
+  setStage(stage) {
+    this.stage = stage;
+    this.back.material.map = this.pictures.get(stage.picture);
+    const warmth=(stage.room%4)*.014;
+    this.back.material.color.setRGB(1-warmth*.26,1-warmth,1-warmth*.6);
     this.back.material.needsUpdate = true;
-    const {hue, glows} = pictureSettings[index];
+    const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
+    const glows=pictureLights[stage.picture];
+    this.air=weather[stage.zone.style];
     this.accent = hue;
     for (const [i, lamp] of this.candles.entries()) {
       lamp.visible = i < glows.length;
@@ -172,14 +244,75 @@ export class Scenery {
       lamp.position.x = (x - .5) * ART_SIZE;
       lamp.material.color.setHex(hue);
     }
-    for (const cloud of this.mist) cloud.material.color.setHex(index === 1 ? 0x80b4a9 : 0xeac098);
-    this.leaves.mesh.material.color.setHex(index === 1 ? 0x82aaa0 : index === 2 ? 0xd36a3f : 0xbd7250);
-    this.portal.visible = false;
+    for (const cloud of this.mist) cloud.material.color.setHex(hue);
+    this.leaves.mesh.material.color.setHex(hue);
+    this.leaves.mesh.visible=stage.zone.style==='leaves'||stage.zone.style==='cinders';
+    this.replaceFixtures(stage);
     this.clue.visible = false;
     this.ward.visible = false;
     for (const fx of this.effects) this.release(fx);
     this.effects.length = 0;
     for (const mote of this.motes.items) mote.life = 0;
+  }
+
+  replaceFixtures(stage) {
+    const materials=new Set();
+    this.fixtures.traverse(piece=>{
+      if (!piece.isMesh) return;
+      if (piece.geometry!==plane) piece.geometry.dispose();
+      materials.add(piece.material);
+    });
+    for (const material of materials) material.dispose();
+    this.fixtures.clear();
+    const tone=stage.zone.color;
+    const rock=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x3b3a36),.81),roughness:.96});
+    const metal=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x604e3c),.53),roughness:.58,metalness:.35});
+    const gem=new T.MeshStandardMaterial({color:tone,emissive:tone,emissiveIntensity:.40,roughness:.34});
+    const place=(parent,geometry,material,y)=>{
+      const mesh=new T.Mesh(geometry,material);
+      mesh.position.y=y;
+      parent.add(mesh);
+      return mesh;
+    };
+    for (const prop of stage.props) {
+      const monument=new T.Group();
+      const {x,z,radius,angle,style}=prop;
+      monument.position.set(x,0,z);
+      monument.rotation.y=angle;
+      this.fixtures.add(monument);
+      const sides=style===2?5:style===1?8:6;
+      place(monument,new T.CylinderGeometry(radius*.79,radius,.17,sides),rock,.08);
+      place(monument,new T.CylinderGeometry(radius*.60,radius*.73,.16,sides),metal,.23);
+      const height=.51+style*.21;
+      place(monument,new T.CylinderGeometry(radius*.44,radius*.60,height,sides),rock,.31+height*.5);
+      place(monument,new T.CylinderGeometry(radius*.55,radius*.43,.115,sides),metal,.36+height);
+      const crystal=place(monument,new T.OctahedronGeometry(radius*(.23+style*.055)),gem,.49+height);
+      crystal.scale.y=1.2+style*.25;
+      const shade=this.ground(this.shadow,0xeeeeee,.74,radius*3.4,radius*2.2);
+      shade.position.set(x,.011,z);
+      this.fixtures.add(shade);
+    }
+    if (!stage.props.length) {
+      rock.dispose();
+      metal.dispose();
+      gem.dispose();
+    }
+    const glyph=new T.Group();
+    const radius=(stage.boss?3.75:1.8+stage.room*.10);
+    glyph.position.set((stage.room%3-1)*.72,.016,stage.boss?-2.1:-2.65);
+    glyph.rotation.y=stage.bearing;
+    const glow=new T.MeshBasicMaterial({color:tone,transparent:true,opacity:stage.boss?.39:.20,blending:T.AdditiveBlending,depthWrite:false});
+    place(glyph,circle(radius,.035),glow,0);
+    place(glyph,circle(radius*.79,.023),glow,.005);
+    const points=4+(stage.chapter+stage.room)%6;
+    for (let i=0;i<points;i++) {
+      const angle=i*PI*2/points;
+      const rune=place(glyph,new T.BoxGeometry(.072,.013,.32+(stage.room%4)*.10),glow,.009);
+      rune.position.x=Math.sin(angle)*radius*.9;
+      rune.position.z=Math.cos(angle)*radius*.9;
+      rune.rotation.y=angle;
+    }
+    this.fixtures.add(glyph);
   }
 
   makeAirGlow(index) {
@@ -212,7 +345,7 @@ export class Scenery {
 
   createActor(frame, height) {
     const spriteMaterial = new T.ShaderMaterial({
-      uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0}},
+      uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0},ink:{value:new T.Color(0xffffff)}},
       vertexShader:`
         varying vec2 artUV;
         void main() { artUV=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }
@@ -222,11 +355,12 @@ export class Scenery {
         uniform float flash;
         uniform float fade;
         uniform float warm;
+        uniform vec3 ink;
         varying vec2 artUV;
         void main() {
           vec4 art=texture2D(picture,artUV);
           if(art.a < .09) discard;
-          vec3 paint=art.rgb*1.22 + vec3(.014,.010,.009);
+          vec3 paint=(art.rgb*1.22 + vec3(.014,.010,.009))*mix(vec3(1.),ink,.43);
           paint=mix(paint,vec3(1.,.35,.10),warm*.24);
           paint=mix(paint,vec3(1.,.78,.53),flash);
           gl_FragColor=vec4(paint,art.a*fade);
@@ -279,6 +413,7 @@ export class Scenery {
   }
 
   equip(actor, weapon) {
+    this.unequip(actor);
     const model = forge(weapon);
     const glow = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.32,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
     glow.scale.set(1.55,1.55,1);
@@ -298,6 +433,7 @@ export class Scenery {
     art.material.uniforms.flash.value = spec.flash || 0;
     art.material.uniforms.fade.value = spec.fade ?? 1;
     art.material.uniforms.warm.value = spec.warm || 0;
+    art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     art.position.set(unit.x, .02, unit.z);
     const roll = spec.roll || 0;
     const displayedHeight = figureHeight * (spec.squash || 1);
@@ -340,37 +476,18 @@ export class Scenery {
     rim.material.dispose();
   }
 
-  removeEquippedActor(actor) {
+  unequip(actor) {
     if (actor.weapon) {
       this.scene.remove(actor.weapon.model);
       disposeForge(actor.weapon.model);
       actor.weapon.glow.material.dispose();
+      actor.weapon=null;
     }
-    this.removeActor(actor);
   }
 
-  makePortal() {
-    const portal = new T.Group();
-    const gold = new T.MeshBasicMaterial({color:0xffcf8c,transparent:true,opacity:.86,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending});
-    const lower = new T.Mesh(circle(1.34,.034), gold);
-    lower.position.y = .04;
-    const inner = new T.Mesh(circle(1.06,.022), gold.clone());
-    inner.position.y = .05;
-    const key = new T.Mesh(new T.OctahedronGeometry(.26), new T.MeshBasicMaterial({color:0xffd298}));
-    const light = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:0xffa64b,depthWrite:false,blending:T.AdditiveBlending,transparent:true,opacity:.72}));
-    light.scale.set(2.5, 2.5, 1);
-    portal.add(lower,inner,key,light);
-    for (let i = 0; i < 8; i++) {
-      const rune = new T.Mesh(new T.BoxGeometry(.065,.05,.15), gold);
-      rune.position.set(Math.sin(i * PI / 4) * 1.2,.06,Math.cos(i * PI / 4) * 1.2);
-      rune.rotation.y = i * PI / 4 + PI / 4;
-      portal.add(rune);
-    }
-    portal.position.set(0, 0, -6.75);
-    portal.visible = false;
-    portal.userData = {key, light};
-    this.scene.add(portal);
-    return portal;
+  removeEquippedActor(actor) {
+    this.unequip(actor);
+    this.removeActor(actor);
   }
 
   makeClue() {
@@ -585,14 +702,73 @@ export class Scenery {
     this.spark(x,.46,z,tint,18,1.22);
   }
 
-  warning(kind,x,z,radius,time,angle = 0) {
+  warning(kind,x,z,radius,time,angle=0,width=0) {
+    const point={x,y:.049,z};
+    const paint=(geometry,location,tint,settings)=>{
+      const effect=this.addEffect(geometry,location,tint,time,settings);
+      effect.combatClock=true;
+    };
     if (kind === 'line') {
-      const mesh = new T.PlaneGeometry(radius, 1.45);
-      mesh.rotateX(-PI / 2);
-      return this.addEffect(mesh,{x,y:.049,z},0xf84e31,time,{owned:true,angle,opacity:.39,blend:false,order:3});
+      const fill=new T.PlaneGeometry(radius,width*2).rotateX(-PI/2);
+      paint(fill,point,0xde442f,{owned:true,angle,opacity:.38,blend:false,order:2});
+      const edge=new T.PlaneGeometry(radius,.054).rotateX(-PI/2);
+      paint(edge,{...point,y:.054},0xff996e,{owned:true,angle,opacity:.83,order:3});
+      return;
     }
-    this.addEffect(this.disc,{x,y:.036,z},0x9b2017,time,{scale:radius,opacity:.39,blend:false,order:2});
-    return this.addEffect(this.ring,{x,y:.048,z},0xff7448,time,{scale:radius,opacity:.72,order:3});
+    if (kind==='ring') {
+      paint(circle(radius,width),point,0xd74735,{owned:true,opacity:.43,blend:false,order:2});
+      paint(circle(radius,.055),{...point,y:.052},0xff895e,{owned:true,opacity:.85,order:3});
+      paint(circle(radius-width,.055),{...point,y:.052},0xff895e,{owned:true,opacity:.85,order:3});
+      return;
+    }
+    paint(this.disc,{x,y:.036,z},0x9b2017,{scale:radius,opacity:.39,blend:false,order:2});
+    paint(this.ring,point,0xff7448,{scale:radius,opacity:.72,order:3});
+  }
+
+  threatImpact(hazard) {
+    const {kind,x,z,radius,tint,width,angle,pattern}=hazard;
+    const point={x,y:.08,z};
+    if (kind==='line') {
+      const strip=new T.PlaneGeometry(radius,width*1.64).rotateX(-PI/2);
+      this.addEffect(strip,point,tint,.29,{owned:true,angle:-angle,opacity:.65,growth:.12});
+      for (let i=-2;i<=2;i++) {
+        const offset=i*radius*.17;
+        this.spark(x+Math.cos(angle)*offset,.48,z+Math.sin(angle)*offset,tint,5,1.1);
+      }
+    } else if (kind==='ring') {
+      const band=circle(radius,width*.61);
+      this.addEffect(band,point,tint,.48,{owned:true,opacity:.85,growth:.16});
+      this.addEffect(circle(radius,.10),{...point,y:.18},0xffe3bf,.30,{owned:true,opacity:.85,growth:.13});
+      for (let i=0;i<8;i++) {
+        const theta=i*PI/4;
+        this.spark(x+Math.sin(theta)*radius,.30,z+Math.cos(theta)*radius,tint,3,.63);
+      }
+    } else if (pattern==='prison'||pattern==='eclipse') {
+      this.vortex(x,z,radius,tint);
+    } else {
+      this.shock(x,z,tint,radius,pattern==='burst'?.92:.63);
+    }
+  }
+
+  makeProjectile(x,z,tint) {
+    const dart=new T.Mesh(this.projectileShape,new T.MeshBasicMaterial({color:tint}));
+    const glow=new T.Sprite(new T.SpriteMaterial({map:this.halo,color:tint,opacity:.83,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+    glow.scale.set(.92,.92,1);
+    dart.add(glow);
+    this.scene.add(dart);
+    this.moveProjectile(dart,x,z);
+    return dart;
+  }
+
+  moveProjectile(dart,x,z) {
+    dart.position.set(x,.57,z);
+    dart.rotation.y=this.time*7.4;
+  }
+
+  removeProjectile(dart) {
+    this.scene.remove(dart);
+    dart.material.dispose();
+    dart.children[0].material.dispose();
   }
 
   release(fx) {
@@ -606,7 +782,7 @@ export class Scenery {
     return {x:(point.x + 1) * .5 * this.width, y:(1 - point.y) * .5 * this.height};
   }
 
-  render(dt, hero, paused = false) {
+  render(dt, hero, paused=false, freezeWarnings=false) {
     if (!paused) this.time += dt;
     const time = this.time;
     if (hero) {
@@ -628,14 +804,7 @@ export class Scenery {
     }
     for (const [index, cloud] of this.mist.entries()) {
       cloud.position.x = (index-2)*5.4 + Math.sin(time*.27+index*2.4)*2.3;
-      cloud.material.opacity = .064 + Math.sin(time*.63+index)*.025;
-    }
-    if (this.portal.visible) {
-      const {key,light} = this.portal.userData;
-      key.position.y = 1.01 + .15*Math.sin(time*2.4);
-      key.rotation.y = time;
-      light.position.y = key.position.y;
-      if (!paused && Math.random() < dt * 11) this.spark(0,.26,-6.75,0xffcb7c,2,.36);
+      cloud.material.opacity = this.air.mist + Math.sin(time*.63+index)*.024;
     }
     if (this.clue.visible) {
       const {flame,halo,marker}=this.clue.userData;
@@ -647,7 +816,7 @@ export class Scenery {
     }
     for (let i=this.effects.length-1;i>=0;i--) {
       const fx = this.effects[i];
-      if (!paused) fx.age += dt;
+      if (!paused && !(fx.combatClock&&freezeWarnings)) fx.age += dt;
       const age = fx.age / fx.ttl;
       if (age >= 1) {
         this.release(fx);
@@ -664,7 +833,7 @@ export class Scenery {
       }
     }
     this.renderParticles(paused ? 0 : dt);
-    this.renderLeaves(time);
+    if (this.leaves.mesh.visible) this.renderLeaves(time);
     this.renderer.render(this.scene,this.camera);
   }
 
@@ -675,8 +844,9 @@ export class Scenery {
       const z = (Math.random() - .5) * 24;
       const point = items[this.motes.cursor++ % items.length];
       color.setHex(this.accent);
-      Object.assign(point,{x,y:Math.random()*2+.2,z,dx:-.45,dz:.14,dy:.3+Math.random()*.23,life:4,ttl:4,
-        r:color.r,g:color.g,b:color.b,size:2.5+Math.random()*5,gravity:0});
+      const air=this.air;
+      Object.assign(point,{x,y:Math.random()*4+.35,z,dx:air.dx,dz:.14,dy:air.dy+Math.random()*.23,life:4,ttl:4,
+        r:color.r,g:color.g,b:color.b,size:(2.5+Math.random()*5)*air.scale,gravity:0});
     }
     for (let i=0;i<items.length;i++) {
       const p = items[i];

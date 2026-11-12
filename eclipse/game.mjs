@@ -1,8 +1,11 @@
-import {Scenery} from './scenery.mjs?v=armory-1';
+import {Scenery} from './scenery.mjs?v=hundred-1';
 import {Audio} from './audio.mjs?v=armory-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs';
-import {ending, stages} from './campaign.mjs';
+import {ending} from './campaign.mjs';
+import {enemySpec, patterns, stages} from './expedition.mjs';
+import {blessings, buildStats} from './blessings.mjs';
+import {advanceThreats, telegraph} from './threats.mjs';
 import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs';
 
 const $ = id => document.getElementById(id);
@@ -14,22 +17,6 @@ const fixed = value => Math.max(0, Math.ceil(value));
 const random = (low,high) => low + Math.random() * (high-low);
 const actionIds = ['dodge','spell','strike'];
 
-const kinds = {
-  imp:     {frame:3, height:1.71, hp:34, speed:3.30, reach:1.60, radius:1.55, time:.52, hurt:10, mass:.70},
-  cultist: {frame:4, height:2.02, hp:42, speed:2.10, reach:6.8, radius:1.55, time:.92, hurt:11, mass:.95},
-  knight:  {frame:5, height:2.58, hp:68, speed:2.05, reach:2.12, radius:2.05, time:.77, hurt:16, mass:1.65},
-  boss:    {frame:6, height:5.05, hp:500, speed:2.66, reach:3.45, radius:3.7, time:.92, hurt:22, mass:4.1},
-};
-
-const relics = [
-  {id:'thorn', mark:'✦',name:'荊棘之力',detail:'普通攻擊傷害提高 35%。', apply:h=>h.damage*=1.35},
-  {id:'moon', mark:'☽',name:'銀月印',detail:'神器技能冷卻縮短 25%，射程或範圍增加。',apply:h=>{h.spellTime*=.75;h.spellRadius+=.85;}},
-  {id:'flower',mark:'❋',name:'白花',detail:'最大生命增加 25，立即回滿。',apply:h=>{h.maxHp+=25;h.hp=h.maxHp;}},
-  {id:'step',mark:'»',name:'餘燼步',detail:'翻滾更快，落地會灼傷附近敵人。',apply:h=>{h.ember=true;h.rollTime=.7;}},
-  {id:'star',mark:'✷',name:'流星露',detail:'每次擊倒敵人回復 5 點生命，神器技能傷害增加。',apply:h=>{h.leech=5;h.spellDamage*=1.25;}},
-  {id:'reach',mark:'◈',name:'長夜',detail:'普通攻擊距離增加，第三擊傷害提高。',apply:h=>{h.reach+=.62;h.finisher+=.28;}},
-];
-
 function shuffle(list) {
   const mixed = [...list];
   for (let i = mixed.length-1; i > 0; i--) {
@@ -39,13 +26,12 @@ function shuffle(list) {
   return mixed;
 }
 
-function makeHero(weapon) {
+function makeHero() {
   return {
     x:0,z:7.7,hp:100,maxHp:100,face:1,dx:0,dz:-1,vx:0,vz:0,move:0,
     invulnerable:0,flash:0,atk:0,attackAge:1,slash:null,combo:0,comboLeft:0,
-    rolling:0,rollCool:0,rollTime:.96,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,spellTime:weapon.cooldown,
-    damage:weapon.damage,reach:weapon.reach,finisher:1.46,spellRadius:weapon.range,spellDamage:weapon.power,
-    ember:false,leech:0,ward:0,surge:0,rush:null,
+    rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
+    ward:0,surge:0,rush:null,
   };
 }
 
@@ -84,7 +70,7 @@ export class Game {
     this.buffered = {dodge:0,spell:0,strike:0};
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
-      'relic-icons','route-name','route-dots','damage-vignette','announce','announce-kicker','announce-title','announce-line',
+      'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
@@ -98,14 +84,15 @@ export class Game {
     this.loop = this.loop.bind(this);
   }
 
-  prepare() {
+  prepare(milestone=false) {
     this.audio.start().catch(() => {});
     this.state='armory';
     this.audio.active=false;
     const grid=document.createElement('div');
     grid.className='armory-grid';
-    for (const weapon of shuffle(arms).slice(0,3)) {
-      const choice=makeButton('',()=>this.start(weapon),'arm-card');
+    const pool=milestone?arms.filter(arm=>arm!==this.weapon):arms;
+    for (const weapon of shuffle(pool).slice(0,3)) {
+      const choice=makeButton('',()=>milestone?this.swapWeapon(weapon):this.start(weapon),'arm-card');
       choice.dataset.arm=weapon.id;
       choice.style.setProperty('--arm-ink',weapon.ink);
       const image=document.createElement('img');
@@ -121,24 +108,21 @@ export class Game {
       choice.append(image,text);
       grid.append(choice);
     }
-    this.openModal({kind:'armory',mark:'◇',kicker:'神獸遺物',title:'向林火借一件神器',
-      copy:'三件神器回應了你。選擇一件，帶着牠的力量走到王座。',content:grid,
-      buttons:[makeButton('返回主畫面',()=>this.showCover())]});
+    this.openModal({kind:'armory',mark:'◇',
+      kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
+      title:milestone?'換上神器迎戰':'向林火借一件神器',
+      copy:milestone?'揀一件新神器對付'+this.stage.zone.boss+'。已獲得的祝福會繼續生效。'
+        :'三件神器回應了你。選擇一件，踏上百關尋名之路。',content:grid,
+      buttons:milestone?[]:[makeButton('返回主畫面',()=>this.showCover())]});
   }
 
   start(weapon) {
     if (this.heroVisual) this.view.removeEquippedActor(this.heroVisual);
-    this.weapon = weapon;
-    this.hero = makeHero(weapon);
+    this.hero = makeHero();
     this.heroVisual = this.view.createActor(0,2.68);
-    this.view.equip(this.heroVisual,weapon);
     this.relics = [];
     this.journal = [];
     this.ui['relic-icons'].replaceChildren();
-    this.ui.equipped.textContent=weapon.name;
-    this.ui.equipped.style.color=weapon.ink;
-    this.action('strike',weapon.attack,'✦',weapon.ink);
-    this.action('spell',weapon.skill,weapon.mark,weapon.ink);
     this.elapsed = 0;
     this.kills = 0;
     this.hitstop = 0;
@@ -146,6 +130,7 @@ export class Game {
     this.buffered = {dodge:0,spell:0,strike:0};
     this.level = 0;
     this.wave = 0;
+    this.equip(weapon);
     this.state = 'play';
     this.audio.active = true;
     this.ui.cover.hidden = true;
@@ -153,6 +138,26 @@ export class Game {
     this.closeModal();
     this.enter(0);
     this.view.canvas.focus();
+  }
+
+  equip(weapon) {
+    this.weapon=weapon;
+    this.view.equip(this.heroVisual,weapon);
+    this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics);
+    this.ui.equipped.textContent=weapon.name;
+    this.ui.equipped.style.color=weapon.ink;
+    this.action('strike',weapon.attack,'✦',weapon.ink);
+    this.action('spell',weapon.skill,weapon.mark,weapon.ink);
+  }
+
+  swapWeapon(weapon) {
+    if (this.state!=='armory') return;
+    this.equip(weapon);
+    this.startDelay=1.15;
+    this.state='play';
+    this.audio.active=true;
+    this.audio.play('blessing');
+    this.closeModal();
   }
 
   action(id,label,mark,tone) {
@@ -164,35 +169,48 @@ export class Game {
     control.style.setProperty('--action-ink',tone);
   }
 
-  enter(level) {
-    for (const unit of [...this.enemies,...this.fallen,...this.pickups]) this.view.removeActor(unit.visual);
-    this.enemies.length = this.fallen.length = this.hazards.length = this.pickups.length = 0;
+  enter(level,retry=false) {
+    const actors = new Set([...this.enemies,...this.fallen,...this.pickups]);
+    for (const unit of actors) this.view.removeActor(unit.visual);
+    this.enemies.length = this.fallen.length = this.pickups.length = 0;
+    this.clearThreats();
     this.rituals.length=0;
     this.level = level;
     this.wave = 0;
     this.clearDelay = 0;
-    const stage = stages[level];
+    const stage = this.stage = stages[level];
     const h = this.hero;
-    h.x = 0; h.z = 7.45; h.vx = h.vz = 0;
+    const oldMax=h.maxHp;
+    this.ranks=buildStats(h,this.weapon,stage.floor,this.relics);
+    h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
+    this.entryHp=h.hp;
+    this.entryKills=this.kills;
+    h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
     h.invulnerable = 1;
     h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = 0;
     h.slash = h.rush = null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
+    this.ambientClock=4.1+(stage.room%4)*.47;
     this.view.focus.set(0,0,-.65);
-    this.view.setStage(level);
-    this.audio.danger = level === 2;
+    this.view.setStage(stage);
+    this.audio.danger = stage.boss;
     this.ui['boss-hud'].hidden = true;
     this.ui['route-name'].textContent = stage.name;
-    this.ui['route-dots'].replaceChildren(...stages.map((_,index) => {
+    this.ui['route-floor'].textContent='第 '+stage.floor+' / 100 關';
+    this.ui['route-dots'].replaceChildren(...Array.from({length:10},(_,index) => {
       const gem = document.createElement('i');
-      gem.className = 'route-gem '+(index===level?'current':index<level?'done':'');
+      gem.className = 'route-gem '+(index===stage.chapter?'current':index<stage.chapter?'done':'');
       return gem;
     }));
-    this.placeStory(stage.clue);
-    this.announce('緋月之森  /  '+stage.roman,stage.name,stage.line,2.5);
-    this.startDelay = Infinity;
+    const clue=this.journal.some(entry=>entry.chapter===stage.zone.name)?null:stage.clue;
+    this.placeStory(clue);
+    if (!clue) this.objective(stage.boss?'迎戰 '+stage.zone.boss:patterns[stage.hazard]+' · 留意地面預警');
+    const arrival=clue?'循祭燈調查線索':stage.boss?stage.zone.boss:patterns[stage.hazard];
+    this.announce(stage.zone.name+'  /  第 '+stage.floor+' 關',stage.name,arrival,2.15);
+    this.startDelay = clue || (stage.boss&&!retry) ? Infinity : 1.05;
     this.renderUI();
+    if (stage.boss&&!retry) this.prepare(true);
   }
 
   announce(kicker,title,line,duration=2) {
@@ -231,7 +249,7 @@ export class Game {
       paragraph.textContent=line;
       prose.append(paragraph);
     }
-    if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:stages[this.level].name});
+    if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:this.stage.zone.name});
     const final=clue===ending;
     const proceed=makeButton(final?'望向山下':'收起線索',()=>{
       this.closeModal();
@@ -241,7 +259,7 @@ export class Game {
       }
       this.state='play';
       this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':'前方的封印正在鬆動');
-      this.startDelay=this.level===2 ? .92 : 1.07;
+      this.startDelay=1.07;
     },'primary');
     this.openModal({kind:'story',mark:final?'✶':'✦',kicker:final?'尾聲':stages[this.level].name,title:clue.title,
       copy:'',content:prose,buttons:[proceed]});
@@ -267,34 +285,45 @@ export class Game {
   }
 
   spawn(kind,x,z) {
-    const spec = kinds[kind];
+    const spec = enemySpec(this.stage,kind);
     const unit = {
       kind,spec,x,z,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
-      kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,
+      kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
+    this.bound(unit);
+    if (this.isBlocked(unit,.45)) {
+      const angle=this.stage.bearing;
+      for (let index=0;index<8;index++) {
+        const turn=angle+index*TAU/8;
+        unit.x=x+Math.cos(turn)*2.05;
+        unit.z=z+Math.sin(turn)*2.05;
+        this.bound(unit);
+        if (!this.isBlocked(unit,.45)) break;
+      }
+    }
     this.enemies.push(unit);
-    this.view.spark(x,.27,z,this.level===1?0x7ce3cc:0xe49461,12,.68);
+    this.view.spark(unit.x,.27,unit.z,this.stage.zone.color,12,.68);
     return unit;
   }
 
   startWave() {
-    const waves = stages[this.level].waves;
+    const {waves,positions,zone,boss}=this.stage;
     const units = shuffle(waves[this.wave]);
     const count = units.length;
-    const patterns = shuffle([[0,-1],[-3.7,1],[3.7,1],[-5.4,-3],[5.4,-3]]);
     for (let i=0;i<count;i++) {
-      const [x,z] = units[i]==='boss'?[0,-2.8]:patterns[i];
+      const {x,z} = units[i]==='boss'?{x:0,z:-3.2}:positions[i];
       this.spawn(units[i],x+random(-.46,.46),z+random(-.46,.46));
     }
     this.startDelay = Infinity;
     this.wave++;
-    this.objective(this.level===2 ? '斬斷王冠的封印' : '清除敵人  ·  '+this.wave+' / '+waves.length);
-    if (this.level===2) {
+    this.objective(boss ? '擊敗 '+zone.boss : '清除敵人 · '+this.wave+' / '+waves.length+' · '+patterns[this.stage.hazard]);
+    if (boss) {
+      this.ui['boss-name'].textContent=zone.boss;
       this.ui['boss-hud'].hidden = false;
-      this.view.shock(0,-2.8,0xe47048,3.3);
+      this.view.shock(0,-3.2,zone.color,3.3);
       this.audio.play('heavy');
-      this.announce('最後的封印','王冠守夜者','「我替牠們記住了一切。」',2.35);
+      this.announce('第 '+this.stage.floor+' 關 · 頭目',zone.boss,zone.signature,2.35);
     }
   }
 
@@ -350,23 +379,21 @@ export class Game {
     }
     if (h.rolling>0) {
       const previous=h.rush?{x:h.x,z:h.z}:null;
-      h.x += h.rollX*h.rollSpeed*dt;
-      h.z += h.rollZ*h.rollSpeed*dt;
-      this.bound(h);
+      this.moveUnit(h,h.rollX*h.rollSpeed*dt,h.rollZ*h.rollSpeed*dt,.38);
       if (previous) rushHit(this,previous);
       h.rolling -= dt;
       h.vx = h.rollX * 4; h.vz = h.rollZ * 4;
       if (h.rolling<=0) h.rush=null;
       if (h.rolling<=0 && h.ember) {
         this.view.shock(h.x,h.z,0xff783c,2.05,.64);
-        for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,16,h,.6);
+        for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,h.ember,h,.6);
       }
     } else {
-      const speed = h.attackAge<.18 ? 3.55 : 5.7;
+      const speed = h.moveSpeed*(h.attackAge<.18?.65:1);
       const drag = blend(movement>.07?18:22,dt);
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
-      h.x += h.vx*dt; h.z += h.vz*dt;
+      this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
       if (!this.discovery && this.buffered.spell>0 && h.spellCool<=0) {
         this.buffered.spell=0;
         this.cast(input);
@@ -391,10 +418,6 @@ export class Game {
       }
       return;
     }
-    if (this.view.portal.visible && this.nearPortal() && (input.interact || h.z < -6.05)) {
-      this.view.portal.visible = false;
-      this.enter(this.level+1);
-    }
   }
 
   bound(unit) {
@@ -403,7 +426,20 @@ export class Game {
     unit.x = clamp(unit.x,-edge,edge);
   }
 
-  nearPortal() {return Math.hypot(this.hero.x,this.hero.z+6.75)<1.65;}
+  isBlocked(unit,margin) {
+    return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin);
+  }
+
+  moveUnit(unit,dx,dz,margin) {
+    const oldX=unit.x, oldZ=unit.z;
+    unit.x+=dx;
+    this.bound(unit);
+    if (this.isBlocked(unit,margin)) unit.x=oldX;
+    unit.z+=dz;
+    this.bound(unit);
+    if (this.isBlocked(unit,margin)) unit.z=oldZ;
+    return Math.hypot(unit.x-oldX,unit.z-oldZ);
+  }
 
   attack(input) {
     const h = this.hero;
@@ -412,12 +448,11 @@ export class Game {
     if (Math.abs(dx)>.12) h.face = Math.sign(dx);
     h.combo = h.comboLeft>0 ? h.combo%3+1 : 1;
     h.comboLeft = .86;
-    h.atk = this.weapon.period*(h.combo===3?1.34:1);
+    h.atk = h.attackPeriod*(h.combo===3?1.34:1);
     h.attackAge = 0;
     h.slash = {dx,dz,delay:this.weapon.delay};
     const lunge = this.weapon.id==='tiger' ? .26 : this.weapon.id==='dragon' ? .04 : .12;
-    h.x += dx*lunge;
-    h.z += dz*lunge;
+    this.moveUnit(h,dx*lunge,dz*lunge,.38);
   }
 
   landSlash() {
@@ -455,20 +490,26 @@ export class Game {
   }
 
   hit(unit,amount,origin,knock) {
-    if (unit.hp<=0 || unit.age<.23) return false;
-    unit.hp -= amount*(unit.exposed>0?1.24:1);
+    if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
+    const boss=unit.kind==='boss';
+    const phaseBoundary=boss ? (unit.bossPhase===0?.58:unit.bossPhase===1&&this.stage.chapter>=2?.25:0) : 0;
+    const nextPhaseHp=phaseBoundary*unit.spec.hp;
+    const shield=(unit.kind==='knight'||unit.kind==='sentinel')&&unit.attack&&unit.attack.time>unit.spec.time*.34;
+    unit.hp -= amount*(unit.exposed>0?1.24:1)*(shield?.73:1);
+    if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     unit.flash = .78;
     unit.stun = unit.kind==='boss' ? .033 : .14;
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
     this.view.spark(unit.x,unit.spec.height*.47,unit.z,this.weapon.tone,unit.hp<=0?24:10,1.15);
-    if (unit.kind==='boss' && unit.hp>0 && unit.hp<unit.spec.hp*.53 && !unit.phaseTwo) {
-      unit.phaseTwo=true;
-      unit.step=2;
-      unit.cool=Math.min(unit.cool,.36);
-      this.view.spark(unit.x,2.6,unit.z,0xffa259,34,1.43);
-      this.announce('王冠守夜者','王冠碎裂','森林開始吐出失落的名字。',1.65);
+    if (phaseBoundary && unit.hp<=nextPhaseHp) {
+      unit.bossPhase++;
+      unit.phaseGuard=.91;
+      unit.step=Math.max(unit.step,unit.bossPhase);
+      this.beginEnemyAttack(unit);
+      this.view.spark(unit.x,2.6,unit.z,this.stage.zone.color,34,1.43);
+      this.announce(unit.spec.name,unit.bossPhase===2?'最後攻勢':'封印碎裂',this.stage.zone.signature,1.4);
       this.audio.play('heavy');
     }
     if (unit.hp<=0) {
@@ -492,12 +533,11 @@ export class Game {
     const h = this.hero;
     if (h.invulnerable>0 || this.state!=='play') return false;
     const guarded=h.ward>0;
-    h.hp = Math.max(0,h.hp-(guarded?amount*.24:amount));
+    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1));
     h.invulnerable = .64;
     h.flash = .9;
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
-    h.x += (h.x-x)/len*.48;
-    h.z += (h.z-z)/len*.48;
+    this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
     h.slash = null;
     this.bound(h);
     this.damageFlash = guarded?.25:.78;
@@ -514,69 +554,40 @@ export class Game {
     const d=Math.max(.05,distance(unit,h));
     const dx=(h.x-unit.x)/d, dz=(h.z-unit.z)/d;
     if (Math.abs(dx)>.1) unit.face=Math.sign(dx);
-    const attack={kind:'circle',time:spec.time,radius:spec.radius,x:unit.x+dx*.5,z:unit.z+dz*.5,damage:spec.hurt,dx,dz};
-    if (unit.kind==='cultist') {
-      attack.x=h.x; attack.z=h.z;
+    const boss=unit.kind==='boss';
+    const phase=unit.bossPhase;
+    let index=unit.step++;
+    if (!boss) index+=this.stage.room+this.wave;
+    let pattern=spec.attacks[index%spec.attacks.length];
+    if (unit.kind==='oracle'&&this.stage.room>=6&&unit.step%4===0) {
+      pattern=this.stage.enemyPattern==='summon'?'marked':this.stage.enemyPattern;
     }
-    if (unit.kind==='boss') {
-      const phase = unit.hp < unit.spec.hp*.53 ? 2 : 1;
-      const pattern = unit.step++ % 3;
-      attack.time *= phase===2?.78:1;
-      attack.damage += phase===2?3:0;
-      if (pattern===1) {
-        attack.kind='line';
-        attack.radius=7.7;
-        attack.x=unit.x+dx*attack.radius*.48;
-        attack.z=unit.z+dz*attack.radius*.48;
-      } else if (pattern===2) {
-        attack.kind='sigils';
-        attack.radius=2.12;
-        attack.x=h.x; attack.z=h.z;
-      }
-    }
-    unit.attack = attack;
-    this.view.warning(attack.kind==='line'?'line':'circle',attack.x,attack.z,attack.radius,attack.time,-Math.atan2(dz,dx));
-    if (attack.kind==='sigils') {
-      const start = random(0,TAU);
-      for (let i=0;i<4;i++) {
-        const angle=start+i*TAU/4;
-        const x=clamp(attack.x+Math.cos(angle)*4.3,-10.8,10.8);
-        const z=clamp(attack.z+Math.sin(angle)*4.3,-7.2,10.5);
-        this.hazards.push({kind:'seal',x,z,radius:1.60,delay:attack.time+.26+i*.085,damage:14,owner:unit});
-        this.view.warning('circle',x,z,1.60,attack.time+.26+i*.085);
-      }
+    if (pattern==='summon'&&unit.summons>=2) pattern='prison';
+    const time=spec.time*(1-phase*.12);
+    unit.attack={pattern,time,dx,dz};
+    telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
+    if (boss && phase>=1 && index%3===2) {
+      const echo=this.stage.zone.pattern[(index+1)%spec.attacks.length];
+      telegraph(this,echo==='summon'?'marked':echo,unit,h,
+        {delay:time+.52,damage:spec.hurt*.72,radius:spec.radius*.72,owner:unit,phase});
     }
     this.audio.play('warning');
   }
 
   resolveEnemyAttack(unit) {
-    const a=unit.attack, h=this.hero;
+    const attack=unit.attack;
+    const boss=unit.kind==='boss';
     unit.attack=null;
-    unit.recover = unit.kind==='boss' ? .67 : .29;
-    unit.cool = (unit.kind==='boss' ? (unit.hp < unit.spec.hp*.53 ? .83 : 1.16) : 1.16) + random(.11,.52);
-    if (a.kind==='line') {
-      const along = (h.x-a.x)*a.dx+(h.z-a.z)*a.dz;
-      const across = (h.x-a.x)*-a.dz+(h.z-a.z)*a.dx;
-      for (let n=1;n<=4;n++) this.view.shock(unit.x+a.dx*n*1.54,unit.z+a.dz*n*1.54,0xff6239,1.0,.34);
-      if (Math.abs(along)<a.radius*.54 && Math.abs(across)<1.04) this.hurt(a.damage,a.x,a.z,unit);
-      unit.kx = a.dx*5; unit.kz = a.dz*5;
-    } else {
-      this.view.shock(a.x,a.z,unit.kind==='cultist'?0xffad56:0xe65334,a.radius,unit.kind==='boss'?1:.38);
-      if (distance(h,a)<a.radius+.16) this.hurt(a.damage,a.x,a.z,unit);
+    unit.recover=boss?.56-unit.bossPhase*.08:.29;
+    unit.cool=(boss?1.16-unit.bossPhase*.19:1.21/this.stage.pace)+random(.12,.45);
+    if (attack.pattern==='pounce') {
+      const impulse=boss?19:15;
+      unit.kx=attack.dx*impulse;
+      unit.kz=attack.dz*impulse;
     }
-    if (unit.kind==='boss') {
-      this.view.shake=Math.max(this.view.shake,.15);
+    if (boss) {
+      this.view.shake=Math.max(this.view.shake,.13);
       this.audio.play('heavy');
-      if (unit.hp<unit.spec.hp*.53 && a.kind==='circle') this.bossSparks(unit);
-    }
-  }
-
-  bossSparks(unit) {
-    const start = random(0,TAU);
-    for (let i=0;i<9;i++) {
-      const angle=start+i*TAU/9;
-      const dx=Math.cos(angle), dz=Math.sin(angle);
-      this.hazards.push({kind:'spark',x:unit.x+dx*.6,z:unit.z+dz*.6,dx,dz,delay:2.25,damage:13,owner:unit});
     }
   }
 
@@ -592,7 +603,8 @@ export class Game {
       unit.cool-=dt;
       unit.chill-=dt;
       unit.exposed-=dt;
-      unit.x+=unit.kx*dt; unit.z+=unit.kz*dt;
+      unit.phaseGuard-=dt;
+      this.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
       if (unit.attack) {
@@ -608,8 +620,8 @@ export class Game {
         this.beginEnemyAttack(unit);
         continue;
       }
-      const target = unit.kind==='cultist'?4.4:spec.reach*.77;
-      const direction = dist>target ? 1 : unit.kind==='cultist'&&dist<2.7 ? -.82 : 0;
+      const target = spec.ranged??(unit.kind==='boss'?2.8:spec.reach*.67);
+      const direction = dist>target ? 1 : spec.ranged&&dist<target*.63 ? -.82 : 0;
       let sx=0,sz=0;
       for (const other of this.enemies) {
         if (unit===other || other.hp<=0) continue;
@@ -619,30 +631,39 @@ export class Game {
           sz+=(unit.z-other.z)/between*(1.30-between)*2.3;
         }
       }
-      const aggression = (unit.kind==='boss'&&unit.hp<spec.hp*.53 ? 1.28 : 1)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1);
-      unit.x += (dx*direction*spec.speed*aggression+sx)*dt;
-      unit.z += (dz*direction*spec.speed*aggression+sz)*dt;
+      const aggression = (1+unit.bossPhase*.17)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1);
+      const advance=direction*spec.speed*aggression*dt;
+      const traveled=this.moveUnit(unit,dx*advance+sx*dt,dz*advance+sz*dt,.35);
+      if (direction && traveled<Math.abs(advance)*.38) {
+        const side=unit.phase>Math.PI?-1:1;
+        const sidestep=Math.abs(advance)*side;
+        if (this.moveUnit(unit,-dz*sidestep,dx*sidestep,.35)<Math.abs(sidestep)*.35) {
+          this.moveUnit(unit,dz*sidestep,-dx*sidestep,.35);
+        }
+      }
       unit.move=Math.min(1,unit.move+Math.abs(direction)*dt*9);
-      this.bound(unit);
     }
     this.enemies = this.enemies.filter(unit=>unit.hp>0);
   }
 
   updateHazards(dt) {
-    this.hazards = this.hazards.filter(hazard=>{
-      hazard.delay-=dt;
-      if (hazard.kind==='spark') {
-        hazard.x+=hazard.dx*4.7*dt;
-        hazard.z+=hazard.dz*4.7*dt;
-        this.view.spark(hazard.x,.36,hazard.z,0xff7248,1,.18);
-        if (distance(this.hero,hazard)<.65 && this.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner)) return false;
-        return hazard.delay>0;
+    if (this.stage.hazard && this.enemies.length) {
+      this.ambientClock-=dt;
+      if (this.ambientClock<=0) {
+        const {zone,room,bearing,damage,hazard}=this.stage;
+        const origin={x:Math.cos(bearing)*4.9,z:-3.8+Math.sin(bearing)*1.8};
+        telegraph(this,hazard,origin,this.hero,{delay:1.05+(room%4)*.11,damage:(7+zone.frame*.39)*damage,radius:1.34+room*.08});
+        this.ambientClock=Math.max(4.2,7.1-room*.19-this.stage.chapter*.13);
       }
-      if (hazard.delay>0) return true;
-      this.view.shock(hazard.x,hazard.z,0xff6944,hazard.radius,.47);
-      if (distance(this.hero,hazard)<hazard.radius) this.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
-      return false;
-    });
+    }
+    advanceThreats(this,dt);
+  }
+
+  clearThreats() {
+    for (const hazard of this.hazards) {
+      if (hazard.visual) this.view.removeProjectile(hazard.visual);
+    }
+    this.hazards.length=0;
   }
 
   updatePickups(dt) {
@@ -674,20 +695,17 @@ export class Game {
       if (this.startDelay<=0) this.startWave();
       return;
     }
-    if (this.enemies.length || this.view.portal.visible) return;
+    if (this.enemies.length) return;
     this.clearDelay+=dt;
     if (this.clearDelay<.89) return;
     this.clearDelay=0;
-    this.hazards.length=0;
+    this.clearThreats();
     this.rituals.length=0;
-    if (this.wave<stages[this.level].waves.length) {
+    if (this.wave<this.stage.waves.length) {
       this.announce('結界再起','下一波','月蝕正在召喚更多的影子。',1.2);
       this.startDelay=1.18;
-    } else if (this.level===2) {
-      this.ui['boss-hud'].hidden=true;
-      this.placeStory(ending);
-      this.announce('名字重見天日',ending.title,'往王座走，讓牠們聽見鐘聲。',2.0);
     } else {
+      this.ui['boss-hud'].hidden=true;
       this.blessing();
     }
   }
@@ -713,16 +731,17 @@ export class Game {
       const boss=unit.kind==='boss';
       const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
       const oscillation=Math.sin(t* (boss?7:13)+unit.phase);
-      const fierce=boss&&unit.hp<unit.spec.hp*.53;
+      const fierce=unit.bossPhase>0;
+      const owlDive=unit.spec.frame===6&&(wind>.42||unit.recover>.37);
       this.view.actor(unit.visual,unit,{
-        frame:boss&&(wind>.42 || unit.recover>.37)?7:unit.spec.frame,face:unit.face,flash:unit.flash,
-        poseSize:boss&&(wind>.42||unit.recover>.37)?.84:1,
+        frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
+        poseSize:owlDive?.84:1,
         bob:Math.abs(oscillation)*unit.move*.14+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
         squash:1+oscillation*(.028+unit.move*.032)-wind*.095,
         tilt:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
         warm:wind*.55+(fierce?.42:0),
-        aura:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:unit.chill>0?0x8de2de:unit.exposed>0?0xff8255:unit.attack||fierce?0xfb5a33:0xb0764d,
+        aura:unit.phaseGuard>0?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+        rim:unit.chill>0?0x8de2de:unit.exposed>0?0xff8255:unit.attack||fierce?this.stage.zone.color:0xb0764d,
       });
     }
     this.fallen=this.fallen.filter(unit=>{
@@ -740,7 +759,7 @@ export class Game {
   }
 
   step(dt,input) {
-    this.buffered.dodge = input.dodge ? .21 : this.buffered.dodge-dt;
+    this.buffered.dodge = input.dodge ? .39 : this.buffered.dodge-dt;
     this.buffered.spell = input.spell ? .35 : this.buffered.spell-dt;
     this.buffered.strike = input.strike ? .23 : this.buffered.strike-dt;
     if (this.hitstop>0) {
@@ -770,8 +789,8 @@ export class Game {
       this.meter.setAttribute('aria-valuenow',hp);
     }
     const boss=this.enemies.find(unit=>unit.kind==='boss');
-    if (this.level===2) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
-    const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(this.weapon.period*1.34)];
+    if (this.stage.boss) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
+    const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(h.attackPeriod*1.34)];
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
   }
@@ -781,6 +800,7 @@ export class Game {
     const dt=clamp((now-this.previousTime)/1000,0,.045);
     this.previousTime=now;
     if (!this.hero || document.hidden) return;
+    const freezeWarnings=this.hitstop>0;
     if (this.state==='play') {
       this.step(dt,this.input.read());
       this.damageFlash=Math.max(0,this.damageFlash-dt*1.74);
@@ -789,7 +809,7 @@ export class Game {
       this.renderUI();
       this.audio.update();
     }
-    this.view.render(dt,this.hero,this.state!=='play');
+    this.view.render(dt,this.hero,this.state!=='play',freezeWarnings);
   }
 
   openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
@@ -819,35 +839,46 @@ export class Game {
   blessing() {
     this.state='blessing';
     this.audio.play('blessing');
-    this.hero.hp=Math.min(this.hero.maxHp,this.hero.hp+16);
+    const h=this.hero;
+    const heal=Math.round(h.maxHp*((this.stage.boss?.36:.14)+h.recovery));
+    h.hp=Math.min(h.maxHp,h.hp+heal);
     const grid=document.createElement('div');
     grid.className='relic-grid';
-    const options=shuffle(relics.filter(relic=>!this.relics.includes(relic))).slice(0,3);
+    const options=shuffle(blessings).slice(0,3);
     for (const relic of options) {
       const button=makeButton('',()=>this.choose(relic),'relic');
       const mark=document.createElement('strong'), name=document.createElement('b'), detail=document.createElement('span');
-      mark.textContent=relic.mark; name.textContent=relic.name; detail.textContent=relic.detail;
+      const rank=this.ranks.get(relic.id)||0;
+      mark.textContent=relic.mark;
+      name.textContent=relic.name+(rank?' · '+rank+' → '+(rank+1):'');
+      detail.textContent=relic.detail;
       button.append(mark,name,detail);
       grid.append(button);
     }
-    this.openModal({mark:'✧',kicker:'林火不熄',title:'亡者的祝福',
-      copy:'亡魂為你回復了 16 點生命。帶走一個祝福，繼續你的旅程。',content:grid});
+    this.openModal({mark:'✧',kicker:'第 '+this.stage.floor+' 關已完成',title:'亡者的祝福',
+      copy:'回復 '+heal+' 點生命。選擇一個祝福，效果可累積。',content:grid});
   }
 
   choose(relic) {
     if (this.state!=='blessing') return;
     this.relics.push(relic);
-    relic.apply(this.hero);
-    const mark=document.createElement('span');
-    mark.textContent=relic.mark;
-    mark.title=relic.name;
-    this.ui['relic-icons'].append(mark);
+    const h=this.hero;
+    const oldMax=h.maxHp;
+    this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics);
+    const extra=relic.id==='spring'?h.maxHp*.31:relic.id==='flower'?h.maxHp*.19:0;
+    h.hp=Math.min(h.maxHp,h.hp+(h.maxHp-oldMax)+extra);
+    this.ui['relic-icons'].textContent='✦ '+this.relics.length;
+    this.ui['relic-icons'].title=blessings.filter(item=>this.ranks.has(item.id))
+      .map(item=>item.name+' ×'+this.ranks.get(item.id)).join('、');
     this.audio.play('blessing');
-    this.view.portal.visible=true;
-    this.view.shock(0,-6.75,0xffc480,1.85,.84);
-    this.objective('走入北面的金色月印');
     this.state='play';
     this.closeModal();
+    if (this.stage.floor<stages.length) {
+      this.enter(this.level+1);
+      return;
+    }
+    this.placeStory(ending);
+    this.announce('名字重見天日',ending.title,'往王座走，讓牠們聽見鐘聲。',2.0);
   }
 
   togglePause() {
@@ -869,6 +900,17 @@ export class Game {
     this.prepare();
   }
 
+  retryFloor() {
+    if (this.state!=='lost') return;
+    this.kills=this.entryKills;
+    this.hero.hp=Math.max(this.entryHp,this.hero.maxHp*.60);
+    this.hitstop=this.damageFlash=0;
+    this.state='play';
+    this.audio.active=true;
+    this.closeModal();
+    this.enter(this.level,true);
+  }
+
   finish(won) {
     this.state=won?'won':'lost';
     this.audio.active=false;
@@ -876,16 +918,19 @@ export class Game {
     const seconds=Math.floor(this.elapsed), time=Math.floor(seconds/60)+'分 '+seconds%60+'秒';
     const results=document.createElement('div');
     results.className='results';
-    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'線索 '+this.journal.length+'/3']) {
+    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'線索 '+this.journal.length+'/10']) {
       const item=document.createElement('span');
       item.textContent=line;
       results.append(item);
     }
-    const buttons=[makeButton(won?'再闖森林':'再試一次',()=>this.restart(),'primary'),makeButton('返回主畫面',()=>this.showCover())];
+    const buttons=won
+      ? [makeButton('再闖森林',()=>this.restart(),'primary')]
+      : [makeButton('重試第 '+this.stage.floor+' 關',()=>this.retryFloor(),'primary'),makeButton('重新開始',()=>this.restart())];
+    buttons.push(makeButton('返回主畫面',()=>this.showCover()));
     this.openModal(won ? {mark:'✷',kicker:'緋月之森 · 完成',title:'星火歸家',
       copy:'天亮之前，你和小燈一起回家。',content:results,buttons} :
-      {mark:'☽',kicker:stages[this.level].name,title:'燈火熄滅',
-        copy:'風把你的名字帶回了起點。下一次，記得在紅印亮起時翻滾。',content:results,buttons});
+      {mark:'☽',kicker:'第 '+this.stage.floor+' 關 · '+this.stage.name,title:'燈火熄滅',
+        copy:'重試此關會保留你的神器與祝福。',content:results,buttons});
   }
 
   showCover() {

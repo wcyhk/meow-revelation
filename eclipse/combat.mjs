@@ -1,4 +1,4 @@
-import {comboMove} from './weapon-combos.mjs?v=combos-1';
+import {comboMove} from './weapon-combos.mjs?v=links-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
@@ -44,9 +44,16 @@ function turned(dx,dz,angle) {
   return [dx*Math.cos(angle)-dz*Math.sin(angle),dx*Math.sin(angle)+dz*Math.cos(angle)];
 }
 
+export function strikeTravel(move,reach,heavy) {
+  if (move.shape==='arrow') return reach/(heavy?58:47);
+  if (move.shape==='disk') return .38;
+  if (move.shape==='cleave') return .12;
+  return 0;
+}
+
 function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
   const touched=new Set();
-  const duration=reach/(heavy?58:47);
+  const duration=strikeTravel(move,reach,heavy);
   const rays=(move.angles??[0]).map(angle=>turned(dx,dz,angle));
   for (const [x,z] of rays) game.view.comboArrow(origin,x,z,reach,tint,duration,heavy);
   const sections=4;
@@ -65,7 +72,7 @@ function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
   }
 }
 
-export function strikeWith(game,dx,dz,move=comboMove(game.weapon,game.hero.combo),powerScale=1,confirm) {
+export function strikeWith(game,dx,dz,move=comboMove(game.weapon,game.hero.combo),powerScale=1,confirm,onContact) {
   const {hero:h,view,weapon:arm}=game;
   const finish=h.combo===3;
   const targets=active(game);
@@ -73,7 +80,7 @@ export function strikeWith(game,dx,dz,move=comboMove(game.weapon,game.hero.combo
   const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1)*powerScale;
   const source={x:h.x,z:h.z};
   const weight=finish?'heavy':'light';
-  const land=(unit,scale=1,origin=source,force=move.force)=>game.hit(unit,power*scale,origin,force,arm.tone,weight);
+  const land=(unit,scale=1,origin=source,force=move.force)=>game.hit(unit,power*scale,origin,force,arm.tone,weight,onContact);
   let hits=0;
   if (move.shape==='arrow') {
     bowShot(game,source,dx,dz,reach,move,arm.tone,finish,land,confirm);
@@ -218,6 +225,7 @@ export function invokeArm(game,input) {
       break;
     case 'turtle':
       h.ward=3;
+      h.linkWard=false;
       view.shock(h.x,h.z,arm.tone,range,.76);
       view.sealFx(h.x,h.z,arm.tone,range*.92,.67);
       for (const foe of active(game)) {
@@ -308,6 +316,188 @@ export function invokeArm(game,input) {
   }
 }
 
+export function invokeLinkedArm(game,link,wind) {
+  const {hero:h,view,weapon:arm}=game;
+  const {tone}=arm;
+  const marks=link.contacts;
+  const origin={x:h.x,z:h.z};
+  const live=unit=>unit.hp>0&&unit.phaseGuard<=0&&game.enemies.includes(unit);
+  const primary=marks.find(mark=>mark.kind==='break'&&live(mark.unit))
+    ??marks.find(mark=>live(mark.unit))??marks[0];
+  const focus=()=>live(primary.unit)&&distance(primary.unit,primary)<3.6?primary.unit:primary;
+  const toward=(from,to)=>{
+    const d=distance(from,to);
+    return d>.09?[(to.x-from.x)/d,(to.z-from.z)/d]:[link.dx,link.dz];
+  };
+  const [dx,dz]=toward(origin,focus());
+  h.dx=dx; h.dz=dz;
+  if (Math.abs(dx)>.12) h.face=Math.sign(dx);
+  h.attackAge=0;
+  const power=h.spellDamage, range=h.spellRadius;
+  const hit=(unit,scale,source,force)=>game.hit(unit,power*scale,source,force,tone);
+  const release=(callback,after=0)=>game.schedule(wind+after,callback);
+  const impact=(center,radius,effect,pattern)=>view.threatImpact({x:center.x,z:center.z,kind:'circle',radius,tint:tone,effect,pattern});
+  const area=(center,radius,callback)=>{
+    for (const foe of active(game)) if (distance(foe,center)<=radius+(foe.kind==='boss'?.42:.15)) callback(foe);
+  };
+  switch (arm.id) {
+    case 'tiger':
+      h.rolling=h.rollDuration=.32;
+      h.rollX=dx; h.rollZ=dz;
+      h.rollSpeed=Math.min(range,Math.max(3.7,distance(origin,focus())+1.8))/.32;
+      h.invulnerable=Math.max(h.invulnerable,.40);
+      h.attackAge=1;
+      h.rush=new Set();
+      h.rushLink=true;
+      view.shock(h.x,h.z,tone,1.55,.76);
+      break;
+    case 'dragon':
+      for (let pulse=0;pulse<3;pulse++) release(()=>{
+        const center=focus();
+        view.bolt(point(center,7),point(center,.28),tone,2.42);
+        view.shock(center.x,center.z,tone,1.93,.82);
+        area(center,1.95,foe=>hit(foe,foe===primary.unit?1.12:.64,center,.69));
+      },pulse*.19);
+      break;
+    case 'phoenix': {
+      const center={x:focus().x,z:focus().z};
+      for (let pulse=0;pulse<3;pulse++) release(()=>{
+        const [fx,fz]=turned(dx,dz,(pulse-1)*.45);
+        const from={x:center.x-fx*2.2,z:center.z-fz*2.2};
+        view.wave(from.x,from.z,fx,fz,4.4,tone,true,'fire');
+        if (pulse===2) view.shock(center.x,center.z,tone,1.8,.75);
+        for (const foe of lineTargets(active(game),from,fx,fz,4.4,.95)) {
+          if (hit(foe,1.08,from,.57)) foe.exposed=Math.max(foe.exposed,3.8);
+        }
+      },pulse*.15);
+      break;
+    }
+    case 'turtle':
+      h.ward=4.3;
+      h.linkWard=true;
+      release(()=>{
+        const center={x:h.x,z:h.z};
+        impact(center,range+.45,'ice','icicles');
+        view.sealFx(center.x,center.z,tone,range,.73);
+        area(center,range+.45,foe=>{
+          if (hit(foe,1.08,center,.94)) foe.chill=Math.max(foe.chill,3.45);
+        });
+      });
+      break;
+    case 'qilin': {
+      h.surge=2.6;
+      release(()=>{
+        const center=focus();
+        const [fx,fz]=toward(h,center);
+        const gap=distance(h,center);
+        const step=h.rolling>0?0:Math.min(1.56,Math.max(0,gap-1.23));
+        for (let i=0;i<4&&step>0;i++) {
+          if (game.moveUnit(h,fx*step/4,fz*step/4,.38)<.03) break;
+        }
+        const from={x:h.x,z:h.z};
+        const reach=Math.min(range+1.55,Math.max(2.25,distance(from,center)+.5));
+        view.comboTrail(from,fx,fz,reach,tone,{shape:'line',width:.62,pose:'lunge'},true,arm.id);
+        for (const foe of lineTargets(active(game),from,fx,fz,reach,.61)) {
+          const broken=foe===primary.unit&&primary.kind==='break';
+          if (hit(foe,broken?1.70:1.12,from,1.28)&&broken) {
+            foe.guardOpen=Math.max(foe.guardOpen,1.62);
+            foe.exposed=Math.max(foe.exposed,1.62);
+            foe.stun=Math.max(foe.stun,.40);
+          }
+        }
+        const swirl={x:center.x,z:center.z};
+        for (const delay of [.06,.33]) game.schedule(delay,()=>{
+          view.vortex(swirl.x,swirl.z,2.20,tone);
+          area(swirl,2.2,foe=>hit(foe,.56,swirl,-1.18));
+        });
+      });
+      break;
+    }
+    case 'flameblade': {
+      const fires=[];
+      for (const mark of marks) {
+        if (!fires.some(fire=>distance(fire,mark)<1.15)) fires.push(mark);
+        if (fires.length>=3) break;
+      }
+      const touched=new Set();
+      fires.forEach((center,index)=>release(()=>{
+        const radius=index===0?2.79:2.27;
+        view.motion.bladefall(center.x,center.z,tone,.06,index);
+        impact(center,radius,'fire','burst');
+        area(center,radius,foe=>{
+          if (touched.has(foe)) return;
+          if (hit(foe,foe===center.unit?1.58:1.18,center,1.18)) touched.add(foe);
+        });
+      },index*.08));
+      release(()=>{
+        impact(primary,2.04,'fire','cinders');
+        area(primary,2.10,foe=>hit(foe,.75,primary,.65));
+      },.33);
+      break;
+    }
+    case 'stormbow':
+      release(()=>{
+        const seen=new Set([primary.unit]);
+        const chain=(from,foe,hop)=>{
+          const end=foe??from;
+          if (hop===0) view.bolt(point(end,6.5),point(end,.7),tone,2.53);
+          else view.bolt(point(from,.82),point(end,.72),tone,1.69-hop*.15);
+          view.shock(end.x,end.z,tone,hop===0?1.32:.77,.59);
+          if (foe) hit(foe,Math.max(.53,1.53-hop*.29),from,hop===0?1.07:.48);
+          if (hop>=3) return;
+          const spot={x:end.x,z:end.z};
+          game.schedule(.09,()=>{
+            const next=closest(active(game).filter(unit=>!seen.has(unit)&&unit.phaseGuard<=0),spot,3.48);
+            if (!next) return;
+            seen.add(next);
+            chain(spot,next,hop+1);
+          });
+        };
+        chain(focus(),live(primary.unit)?primary.unit:null,0);
+      });
+      break;
+    case 'windhalberd':
+      release(()=>{
+        const center={x:h.x,z:h.z};
+        view.vortex(center.x,center.z,range+1.25,tone);
+        area(center,range+1.34,foe=>hit(foe,.87,center,-2.52));
+      });
+      release(()=>{
+        const center={x:h.x,z:h.z};
+        view.comboTrail(center,dx,dz,range+.71,tone,{shape:'circle',pose:'whirl'},true,arm.id);
+        view.shock(center.x,center.z,tone,range+.71,.83);
+        area(center,range+.71,foe=>hit(foe,1.46,center,2.38));
+      },.29);
+      break;
+    case 'frostlute': {
+      const center={x:focus().x,z:focus().z};
+      for (let pulse=0;pulse<2;pulse++) release(()=>{
+        const radius=2.18+pulse*.65;
+        view.sealFx(center.x,center.z,tone,radius*.88,.55);
+        impact(center,radius,'ice','icicles');
+        area(center,radius,foe=>{
+          if (hit(foe,foe.chill>0?1.36:.77,center,.54)) foe.chill=Math.max(foe.chill,4.3);
+        });
+      },pulse*.25);
+      break;
+    }
+    case 'chakra':
+      release(()=>{
+        const center=focus(), end={x:h.x,z:h.z};
+        const [fx,fz]=toward(center,end);
+        const length=Math.max(.65,distance(center,end));
+        view.spinningDisk(center.x,center.z,fx,fz,length,tone,-.42,true);
+        for (const foe of lineTargets(active(game),center,fx,fz,length,1.05)) hit(foe,1.28,end,1.26);
+        game.schedule(.30,()=>{
+          view.shock(end.x,end.z,tone,2.71,.85);
+          view.sealFx(end.x,end.z,tone,2.4,.49);
+          area(end,2.72,foe=>hit(foe,1.11,end,-.83));
+        });
+      });
+      break;
+  }
+}
+
 export function rushHit(game,start) {
   const {hero:h,view,weapon:arm}=game;
   const step=distance(h,start);
@@ -320,6 +510,16 @@ export function rushHit(game,start) {
   if (Math.random()<.65) view.spark(h.x,.36,h.z,arm.tone,4,.78);
 }
 
+export function finishLinkedRush(game) {
+  const {hero:h,view,weapon:arm}=game;
+  const center={x:h.x,z:h.z};
+  view.comboTrail(center,-h.rollX,-h.rollZ,2.65,arm.tone,{shape:'arc',width:1.45,pose:'return'},true,arm.id);
+  view.shock(center.x,center.z,arm.tone,2.05,.65);
+  for (const foe of arcTargets(active(game),center,-h.rollX,-h.rollZ,2.65,1.45)) {
+    game.hit(foe,h.spellDamage*.78,center,1.18);
+  }
+}
+
 export function reflectHit(game,attacker) {
   const {hero:h,view,weapon:arm}=game;
   const range=h.spellRadius;
@@ -327,6 +527,6 @@ export function reflectHit(game,attacker) {
   const target=attacker?.hp>0 ? attacker : closest(active(game),h,range+.8);
   if (!target) return;
   view.bolt(point(h,.61),point(target,.77),arm.tone,1.68);
-  game.hit(target,h.spellDamage*1.15,h,1.22);
-  target.chill=2.4;
+  game.hit(target,h.spellDamage*(h.linkWard?1.60:1.15),h,1.22);
+  target.chill=h.linkWard?3.45:2.4;
 }

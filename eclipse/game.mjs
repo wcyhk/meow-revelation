@@ -1,18 +1,18 @@
 import {Scenery} from './scenery.mjs?v=combos-1';
-import {Audio} from './audio.mjs?v=combos-1';
+import {Audio} from './audio.mjs?v=links-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=combos-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=impact-1';
-import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=combos-1';
+import {finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=links-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
-import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=combos-1';
-import {comboMove, comboNames, comboTiming} from './weapon-combos.mjs?v=combos-1';
+import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=links-1';
+import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=links-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -38,6 +38,7 @@ function makeHero() {
     invulnerable:0,flash:0,atk:0,atkTotal:1,attackAge:1,slash:null,combo:0,comboLeft:0,
     rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
     ward:0,surge:0,rush:null,snared:0,reaction:null,motion:null,
+    link:null,linkFlash:0,linkWard:false,rushLink:false,
   };
 }
 
@@ -78,7 +79,7 @@ export class Game {
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
-      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness',
+      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
@@ -110,12 +111,15 @@ export class Game {
       text.className='arm-text';
       const role=document.createElement('small'), name=document.createElement('b');
       const basic=document.createElement('span'), moves=document.createElement('span');
-      const skill=document.createElement('strong'), detail=document.createElement('span');
+      const skill=document.createElement('strong'), detail=document.createElement('span'), link=document.createElement('span');
       role.textContent=weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
       moves.className='arm-combo';
       moves.textContent=comboNames(weapon).join(' → ');
       skill.textContent=weapon.skill; detail.textContent=weapon.detail;
-      text.append(role,name,moves,basic,skill,detail);
+      link.className='arm-link';
+      const follow=skillLinks[weapon.id];
+      link.textContent='接技 · '+follow.name+'：'+follow.detail;
+      text.append(role,name,moves,basic,skill,detail,link);
       choice.append(image,text);
       grid.append(choice);
     }
@@ -164,6 +168,8 @@ export class Game {
     this.action('strike',weapon.attack,'✦',weapon.ink);
     this.ui.strike.title=comboNames(weapon).join(' → ');
     this.action('spell',weapon.skill,weapon.mark,weapon.ink);
+    this.ui.spell.title=weapon.skill+' · 第三擊命中後接技：'+skillLinks[weapon.id].name;
+    this.hero.link=null;
   }
 
   swapWeapon(weapon) {
@@ -212,6 +218,9 @@ export class Game {
     h.invulnerable = 1;
     h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = h.snared = 0;
     h.slash = h.rush = null;
+    h.link=null;
+    h.linkFlash=0;
+    h.linkWard=h.rushLink=false;
     h.reaction=h.motion=null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
@@ -434,6 +443,8 @@ export class Game {
     h.attackAge += dt;
     h.rollCool -= dt;
     h.spellCool -= dt;
+    h.linkFlash -= dt;
+    if (h.link?.until>0 && h.link.until<=this.t) h.link=null;
     h.invulnerable -= dt;
     h.ward -= dt;
     h.surge -= dt;
@@ -453,6 +464,7 @@ export class Game {
       h.rollX = movement>.07 ? input.x/movement : h.dx;
       h.rollZ = movement>.07 ? input.z/movement : h.dz;
       if (h.slash) h.atk=Math.min(h.atk,.20);
+      this.interruptLink();
       h.slash = null;
       h.attackAge = 1;
       h.motion=null;
@@ -465,7 +477,11 @@ export class Game {
       if (previous) rushHit(this,previous);
       h.rolling -= dt;
       h.vx = h.rollX * 4; h.vz = h.rollZ * 4;
-      if (h.rolling<=0) h.rush=null;
+      if (h.rolling<=0) {
+        if (h.rushLink) finishLinkedRush(this);
+        h.rush=null;
+        h.rushLink=false;
+      }
       if (h.rolling<=0 && h.ember) {
         this.view.shock(h.x,h.z,0xff783c,2.05,.64);
         for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,h.ember,h,.6);
@@ -479,10 +495,15 @@ export class Game {
       this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
       const canFight=!this.discovery&&!this.mission?.plan.points;
       while (h.slash?.timing&&h.attackAge>=h.slash.timing.hits[h.slash.next].at) this.landSlash();
-      if (canFight && !h.slash && this.buffered.spell>0 && h.spellCool<=0) {
+      const ready=this.readyLink();
+      const waitForHit=h.link?.pending&&!h.link.contacts.length;
+      const queuesFinisher=!ready&&h.combo===2&&h.comboLeft>0&&h.atk<=.12&&this.buffered.strike>0;
+      const cast=canFight&&!h.slash&&this.buffered.spell>0&&h.spellCool<=0&&!waitForHit&&!queuesFinisher;
+      if (cast) {
         this.buffered.spell=0;
-        this.cast(input);
-      } else if (canFight && !h.slash && h.rolling<=0 && this.buffered.strike>0 && h.atk<=0) {
+        this.cast(input,ready);
+      } else if (canFight && !h.slash && this.buffered.strike>0 && h.atk<=0
+          && !(waitForHit&&this.buffered.spell>0&&h.spellCool<=0)) {
         this.buffered.strike=0;
         this.attack(input);
       }
@@ -552,6 +573,10 @@ export class Game {
     h.atk=h.atkTotal=timing.cycle;
     h.attackAge = 0;
     h.slash={dx,dz,move,timing,next:0,step:h.combo,confirmed:false};
+    if (h.combo===3) {
+      h.link={pending:true,until:0,contacts:[],dx,dz};
+      h.slash.link=h.link;
+    }
     heroAction(h,'strike',move,timing);
     this.audio.attack(this.weapon.id,h.combo,'wind');
   }
@@ -566,6 +591,7 @@ export class Game {
     if (!strike.timing||++strike.next>=strike.timing.hits.length) h.slash=null;
     if (index===0&&move.step) this.moveUnit(h,dx*move.step,dz*move.step,.38);
     const final=step===3;
+    const link=strike.link;
     const confirm=hits=>{
       if (!hits||this.state!=='play') return;
       this.hitstop = Math.max(this.hitstop,final?.061:.026);
@@ -574,18 +600,66 @@ export class Game {
       strike.confirmed=true;
     };
     this.audio.attack(this.weapon.id,step,'release',index);
-    confirm(strikeWith(this,dx,dz,move,pulse?.power??1,confirm));
+    confirm(strikeWith(this,dx,dz,move,pulse?.power??1,confirm,link?(unit,kind)=>this.confirmLink(link,unit,kind):undefined));
+    if (link) {
+      const travel=strikeTravel(move,h.reach*move.reach,true);
+      const settle=()=>{
+        link.pending=false;
+        if (h.link===link&&!link.contacts.length) h.link=null;
+      };
+      if (travel) this.schedule(travel+.001,settle);
+      else settle();
+    }
   }
 
-  cast(input) {
+  confirmLink(link,unit,kind) {
+    const h=this.hero;
+    if (h.link!==link||h.spellCool>linkWindow||link.contacts.some(mark=>mark.unit===unit)) return;
+    const first=link.contacts.length===0;
+    if (link.contacts.length===6&&kind==='break'&&!link.contacts.some(mark=>mark.kind==='break')) link.contacts.pop();
+    if (link.contacts.length<6) link.contacts.push({unit,kind,x:unit.x,z:unit.z});
+    if (first) {
+      link.until=this.t+linkWindow;
+      if (h.spellCool<=0) this.audio.link(this.weapon.id,false);
+    }
+    if (this.weapon.id==='flameblade'&&link.contacts.length<=3) this.view.sealFx(unit.x,unit.z,this.weapon.tone,.72,.92);
+    if (this.weapon.id==='stormbow'&&first) this.view.spark(unit.x,1.04,unit.z,this.weapon.tone,9,.79);
+  }
+
+  readyLink() {
+    const h=this.hero;
+    return h.spellCool<=0&&h.link?.until>this.t?h.link:null;
+  }
+
+  interruptLink() {
+    if (this.hero.link?.pending&&!this.hero.link.contacts.length) {
+      this.hero.link=null;
+      this.buffered.spell=0;
+    }
+  }
+
+  cast(input,link=this.readyLink()) {
     const h = this.hero;
     h.spellCool = h.spellTime;
-    invokeArm(this,input);
-    if (!h.rush) heroAction(h,'cast');
-    h.atk=Math.max(h.atk,.16);
+    h.link=null;
+    if (link) {
+      const profile=skillLinks[this.weapon.id];
+      const wind=profile.wind;
+      invokeLinkedArm(this,link,wind);
+      if (!h.rush) heroAction(h,'link',profile,{cycle:wind+.22,hits:[{at:wind}]});
+      h.atk=h.rush?.size===0 ? .26 : wind+.22;
+      h.atkTotal=h.atk;
+      h.combo=h.comboLeft=0;
+      h.linkFlash=.77;
+      this.audio.link(this.weapon.id,true);
+    } else {
+      invokeArm(this,input);
+      if (!h.rush) heroAction(h,'cast');
+      h.atk=Math.max(h.atk,.16);
+      this.audio.arm(this.weapon.id);
+    }
     invokeSchool(this,'fire');
     this.view.shake = Math.max(this.view.shake,.12);
-    this.audio.arm(this.weapon.id);
   }
 
   schedule(delay, fire) {
@@ -617,7 +691,7 @@ export class Game {
     if (kind==='break') this.hitstop=Math.max(this.hitstop,.066);
   }
 
-  hit(unit,amount,origin,knock,tint=this.weapon.tone,weight) {
+  hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report) {
     if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
     if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
     const boss=unit.kind==='boss';
@@ -664,6 +738,7 @@ export class Game {
       if (boss) this.view.bossCue(unit,'defeat');
       if (unit.kind!=='boss' && (this.kills%4===0 || Math.random()<.10)) this.drop(unit);
     }
+    report?.(unit,kind);
     return true;
   }
 
@@ -686,6 +761,7 @@ export class Game {
     this.impact(h,origin,kind,guarded?0x91eee0:0xffad7d);
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
     this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
+    this.interruptLink();
     h.slash = null;
     h.motion=null;
     this.bound(h);
@@ -1034,7 +1110,9 @@ export class Game {
       return;
     }
     this.buffered.dodge = input.dodge ? .39 : this.buffered.dodge-dt;
-    this.buffered.spell = input.spell ? .35 : this.buffered.spell-dt;
+    const h=this.hero;
+    const finishing=h.link?.pending||(h.combo===2&&h.comboLeft>0&&h.atk<.14&&(input.strike||this.buffered.strike>0));
+    this.buffered.spell = input.spell ? (finishing?.96:.35) : this.buffered.spell-(this.hitstop>0?0:dt);
     this.buffered.strike = input.strike ? Math.max(.23,this.hero.atk+.09) : this.buffered.strike-dt;
     if (this.hitstop>0) {
       this.hitstop-=dt;
@@ -1089,6 +1167,18 @@ export class Game {
     const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/h.atkTotal];
     const combo=String(h.comboLeft>0?h.combo:0);
     if (this.ui.strike.dataset.combo!==combo) this.ui.strike.dataset.combo=combo;
+    const ready=this.readyLink();
+    const queued=h.link?.pending&&!ready&&this.buffered.spell>0&&h.spellCool<=0;
+    const linkState=ready?'ready':queued?'queued':h.linkFlash>0?'cast':'';
+    const spell=this.ui.spell, hint=this.ui['skill-link'];
+    if (spell.dataset.link!==linkState) {
+      spell.dataset.link=linkState;
+      hint.hidden=!linkState;
+      const name=skillLinks[this.weapon.id].name;
+      spell.setAttribute('aria-label',ready?'接技：'+name:this.weapon.skill);
+      if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name:name+'！';
+    }
+    if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/linkWindow*360)+'deg');
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
     const mission=this.mission;

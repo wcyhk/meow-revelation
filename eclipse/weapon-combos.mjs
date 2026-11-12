@@ -57,6 +57,21 @@ const combos={
   ],
 };
 
+export const linkWindow=1.40;
+
+export const skillLinks={
+  tiger:       {name:'回牙風斬',pose:'return',wind:.10,detail:'旋斬命中後，風刃穿敵突進，落腳時再回斬一次。'},
+  dragon:      {name:'引雷入陣',pose:'relay',wind:.10,detail:'震雷命中後，三道天雷集中追打同一個目標。'},
+  phoenix:     {name:'三鳴聚焰',pose:'wings',wind:.08,detail:'鳳鳴命中後，三道火浪在命中處交會，令敵人易傷。'},
+  turtle:      {name:'鎮地反甲',pose:'brace',wind:.09,detail:'鎮地命中後，獲得更持久的冰甲，冰刺反擊亦會加強。'},
+  qilin:       {name:'破陣追刺',pose:'followLunge',wind:.09,detail:'重突命中後踏步追刺並引出小漩渦，破盾時追刺更強。'},
+  flameblade:  {name:'踏焰引爆',pose:'ignite',wind:.11,detail:'重劈留下火痕，接技會引爆火痕及附近的敵人。'},
+  stormbow:    {name:'滿弦奔雷',pose:'looseThunder',wind:.11,detail:'滿弦箭射中後，技能從中箭目標起跳，連鎖至附近敵人。'},
+  windhalberd: {name:'回風擲陣',pose:'hook',wind:.07,detail:'風環命中後先將敵人扯回，再以風龍橫掃震開。'},
+  frostlute:   {name:'碎霜雙響',pose:'chord',wind:.10,detail:'冰浪命中後，兩道回音擊碎寒霜，延長敵人減速。'},
+  chakra:      {name:'牽月收輪',pose:'bank',wind:.09,detail:'裂輪命中後召回圓盤，斬過沿途敵人，再收成一圈電環。'},
+};
+
 export function comboMove(weapon,step) {
   return combos[weapon.id][Math.max(1,step)-1];
 }

@@ -66,9 +66,12 @@ const gestures={
   toss:       [[-.25,.23,-1.13,.61,.38,-.31],[.72,.23,.36,1.15,-.42,.58]],
   bank:       [[-.28,.38,.85,.69,-.33,-.45],[.79,.11,-.67,1.27,.46,.72]],
   moon:       [[-.29,.78,-1.50,.42,.51,-.64],[.95,.34,1.20,1.26,-.64,.88]],
+  followLunge:[[-.38,.23,.35,1.43,.28,-.37],[1.28,.31,-.04,1.42,-.36,1.22]],
+  ignite:     [[-.11,.03,1.08,1.73,.32,-.33],[.64,.58,-.66,.48,-.43,.72]],
+  looseThunder:[[.36,.48,-.12,.34,.12,-.27],[.88,.53,.26,.28,-.38,.69]],
   cast:       [[-.13,.59,-.48,.29,.29,-.38],[.56,.48,.31,.77,-.33,.62]],
 };
-const pointed=new Set(['lift','shell','jab','double','lunge','ember','backfire','overhead','spear','hook','whirl']);
+const pointed=new Set(['lift','shell','jab','double','lunge','ember','backfire','overhead','spear','hook','whirl','followLunge','ignite']);
 const bowDraw={draw:.46,splitdraw:.72,fulldraw:1};
 const sweepMoves=new Set(['spin','whirl']);
 const chargedMoves=new Set(['spin','thunder','phoenix','shell','lunge','overhead','fulldraw','whirl','frost','moon']);

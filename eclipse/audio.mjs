@@ -182,6 +182,22 @@ export class Audio {
     if (heavy&&weapon!=='frostlute') this.note(98,34,now+.020,.23,.18,'triangle',.009);
   }
 
+  link(id,cast) {
+    if (!this.context||this.muted) return;
+    const now=this.context.currentTime;
+    const {noise,pitch,shape}=attackVoices[id];
+    if (!cast) {
+      this.note(pitch*1.8,pitch*2.32,now,.095,.075,'sine',.008);
+      return;
+    }
+    this.note(pitch*1.12,pitch*1.64,now,.13,.084,'triangle',.012);
+    this.rasp(now+.075,.13,.20,noise*1.13);
+    this.note(pitch*.88,pitch*.33,now+.085,.22,.14,shape,.009);
+    if (id==='flameblade'||id==='qilin') this.note(100,42,now+.10,.27,.15,'triangle',.008);
+    if (id==='stormbow') [1,1.36,1.62].forEach((factor,i)=>this.note(415*factor,170*factor,now+.10+i*.09,.12,.086,'triangle',.007));
+    if (id==='frostlute') this.note(622,610,now+.34,.33,.11,'sine',.01);
+  }
+
   arm(id) {
     if (!this.context) return;
     const now=this.context.currentTime;

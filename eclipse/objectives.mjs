@@ -1,4 +1,3 @@
-const modes=['defend','survive','circuit','search','defend','survive','circuit'];
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const relics=[
   ['一張分糧票','一戶兩人簽收，名冊上只留一個名字。有人把另一個寫喺票背，摺埋收好。','石柱下的畫','小燈畫咗兩個人提燈返屋企。第二個人嘅面俾水化開，手上盞燈仲睇得見。'],
@@ -18,9 +17,12 @@ function monument(x,z,radius,style,angle=0) {
 }
 
 export function planObjective(chapter,room) {
-  if (room===0||room===5||room===9) return null;
-  const slot=room<5?room-1:room-2;
-  const type=modes[(slot+chapter*2)%modes.length];
+  const timedRoom=chapter%3===1?3:2;
+  const discoveryRoom=chapter%3===2?6:7;
+  if (room!==timedRoom&&room!==discoveryRoom) return null;
+  const type=room===timedRoom
+    ? (chapter%2===0?'defend':'survive')
+    : (chapter%2===0?'circuit':'search');
   const side=(chapter+room)%2===0?-1:1;
   const variant=(chapter+room)%3;
   const xShift=variant===2?side*1.35:0;

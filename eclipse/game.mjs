@@ -1,13 +1,14 @@
-import {Scenery} from './scenery.mjs?v=objectives-1';
-import {Audio} from './audio.mjs?v=armory-1';
+import {Scenery} from './scenery.mjs?v=battle-1';
+import {Audio} from './audio.mjs?v=battle-1';
 import {Input} from './input.mjs?v=armory-1';
-import {arms} from './armory.mjs';
+import {arms} from './armory.mjs?v=battle-1';
 import {ending} from './campaign.mjs';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=objectives-1';
-import {blessings, buildStats} from './blessings.mjs';
-import {advanceThreats, telegraph} from './threats.mjs?v=objectives-1';
-import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs';
-import {RoomObjective} from './objectives.mjs';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
+import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=battle-1';
+import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=battle-1';
+import {RoomObjective} from './objectives.mjs?v=battle-1';
+import {invokeSchool} from './schools.mjs';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -32,7 +33,7 @@ function makeHero() {
     x:0,z:7.7,hp:100,maxHp:100,face:1,dx:0,dz:-1,vx:0,vz:0,move:0,
     invulnerable:0,flash:0,atk:0,attackAge:1,slash:null,combo:0,comboLeft:0,
     rolling:0,rollCool:0,rollX:0,rollZ:-1,rollDuration:.30,rollSpeed:13.6,spellCool:0,
-    ward:0,surge:0,rush:null,
+    ward:0,surge:0,rush:null,snared:0,
   };
 }
 
@@ -72,7 +73,7 @@ export class Game {
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
-      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins',
+      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
@@ -112,8 +113,8 @@ export class Game {
     }
     this.openModal({kind:'armory',mark:'◇',
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
-      title:milestone?'換上神器迎戰':'向林火借一件神器',
-      copy:milestone?'揀一件新神器對付'+this.stage.zone.boss+'。已獲得的祝福會繼續生效。'
+      title:milestone?'領取頭目遺物':'向林火借一件神器',
+      copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
         :'三件神器回應了你。選擇一件，踏上百關尋名之路。',content:grid,
       buttons:milestone?[]:[makeButton('返回主畫面',()=>this.showCover())]});
   }
@@ -124,6 +125,10 @@ export class Game {
     this.heroVisual = this.view.createActor(0,2.68);
     this.relics = [];
     this.journal = [];
+    this.learned=new Set();
+    this.autoReady=new Map();
+    this.schoolToast=0;
+    this.ui['school-toast'].hidden=true;
     this.ui['relic-icons'].replaceChildren();
     this.elapsed = 0;
     this.kills = 0;
@@ -155,11 +160,11 @@ export class Game {
   swapWeapon(weapon) {
     if (this.state!=='armory') return;
     this.equip(weapon);
-    this.startDelay=1.15;
     this.state='play';
     this.audio.active=true;
     this.audio.play('blessing');
     this.closeModal();
+    this.advanceAfterReward();
   }
 
   action(id,label,mark,tone) {
@@ -177,7 +182,7 @@ export class Game {
     this.enemies.length = this.fallen.length = this.pickups.length = 0;
   }
 
-  enter(level,retry=false) {
+  enter(level) {
     this.clearActors();
     this.clearThreats();
     this.rituals.length=0;
@@ -195,7 +200,7 @@ export class Game {
     this.entryKills=this.kills;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
     h.invulnerable = 1;
-    h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = 0;
+    h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = h.snared = 0;
     h.slash = h.rush = null;
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
@@ -205,6 +210,7 @@ export class Game {
     this.view.setMission(this.mission);
     this.setupMissionPins();
     this.audio.danger = stage.boss;
+    this.audio.dread=stage.dread;
     this.ui['boss-hud'].hidden = true;
     this.ui['route-name'].textContent = stage.name;
     this.ui['route-floor'].textContent='第 '+stage.floor+' / 100 關';
@@ -215,12 +221,11 @@ export class Game {
     }));
     const clue=this.journal.some(entry=>!entry.hiddenClue&&entry.chapter===stage.zone.name)?null:stage.clue;
     this.placeStory(clue);
-    if (!clue) this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.zone.boss:patterns[stage.hazard]+' · 留意地面預警'));
-    const arrival=clue?'循祭燈調查線索':this.mission?.plan.title??(stage.boss?stage.zone.boss:patterns[stage.hazard]);
+    if (!clue) this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.guardian.name:patterns[stage.hazard]+' · 留意地面預警'));
+    const arrival=clue?'循祭燈調查線索':this.mission?.plan.title??(stage.boss?stage.guardian.name:patterns[stage.hazard]);
     this.announce(stage.zone.name+'  /  第 '+stage.floor+' 關',stage.name,arrival,2.15);
-    this.startDelay = clue || (stage.boss&&!retry) ? Infinity : 1.05;
+    this.startDelay = clue ? Infinity : 1.05;
     this.renderUI();
-    if (stage.boss&&!retry) this.prepare(true);
   }
 
   announce(kicker,title,line,duration=2) {
@@ -329,9 +334,10 @@ export class Game {
     const spec = enemySpec(this.stage,kind);
     const unit = {
       kind,spec,x,z,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
-      kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,
+      kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,morale:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
+    if (kind==='boss') this.view.prepareBoss(unit.visual,spec);
     this.bound(unit);
     if (this.isBlocked(unit,.45)) {
       const angle=this.stage.bearing;
@@ -344,27 +350,33 @@ export class Game {
       }
     }
     this.enemies.push(unit);
-    this.view.spark(unit.x,.27,unit.z,this.stage.zone.color,12,.68);
+    this.view.spark(unit.x,.27,unit.z,spec.tint,12,.68,spec.effect);
     return unit;
   }
 
   startWave() {
-    const {waves,positions,zone,boss}=this.stage;
+    const {waves,positions,guardian}=this.stage;
     const units = shuffle(waves[this.wave]);
+    let head;
     const count = units.length;
     for (let i=0;i<count;i++) {
       const {x,z} = units[i]==='boss'?{x:0,z:-3.2}:positions[i];
-      this.spawn(units[i],x+random(-.46,.46),z+random(-.46,.46));
+      const unit=this.spawn(units[i],x+random(-.46,.46),z+random(-.46,.46));
+      if (unit.kind==='boss') head=unit;
     }
     this.startDelay = Infinity;
     this.wave++;
-    this.objective(boss ? '擊敗 '+zone.boss : '清除敵人 · '+this.wave+' / '+waves.length+' · '+patterns[this.stage.hazard]);
+    const boss=!!head;
+    this.objective(boss ? '擊敗 '+guardian.name : '清除敵人 · '+this.wave+' / '+waves.length+
+      (guardian?' · 頭目尚未現身':' · '+patterns[this.stage.hazard]));
     if (boss) {
-      this.ui['boss-name'].textContent=zone.boss;
+      head.phaseGuard=1.17;
+      head.recover=1.04;
+      this.ui['boss-name'].textContent=guardian.name;
       this.ui['boss-hud'].hidden = false;
-      this.view.shock(0,-3.2,zone.color,3.3);
-      this.audio.play('heavy');
-      this.announce('第 '+this.stage.floor+' 關 · 頭目',zone.boss,zone.signature,2.35);
+      this.view.bossCue(head,'entrance');
+      this.audio.boss(guardian.effect);
+      this.announce('第 '+this.stage.floor+' 關 · 頭目',guardian.name,guardian.signature,2.35);
     }
   }
 
@@ -399,6 +411,7 @@ export class Game {
     h.invulnerable -= dt;
     h.ward -= dt;
     h.surge -= dt;
+    h.snared-=dt;
     h.flash = Math.max(0,h.flash-dt*4.3);
     const movement = Math.hypot(input.x,input.z);
     if (movement>.07 && h.rolling<=0 && !h.slash) {
@@ -430,7 +443,7 @@ export class Game {
         for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,h.ember,h,.6);
       }
     } else {
-      const speed = h.moveSpeed*(h.attackAge<.18?.65:1);
+      const speed = h.moveSpeed*(h.attackAge<.18?.65:1)*(h.snared>0?.57:1);
       const drag = blend(movement>.07?18:22,dt);
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
@@ -517,6 +530,7 @@ export class Game {
       this.hitstop = final ? .067 : .034;
       this.view.shake = final ? .195 : .089;
       this.audio.play(final?'heavy':'hit');
+      if (final) invokeSchool(this,'wind');
     }
   }
 
@@ -524,6 +538,7 @@ export class Game {
     const h = this.hero;
     h.spellCool = h.spellTime;
     invokeArm(this,input);
+    invokeSchool(this,'fire');
     this.view.shake = Math.max(this.view.shake,.12);
     this.audio.arm(this.weapon.id);
   }
@@ -544,9 +559,9 @@ export class Game {
   hit(unit,amount,origin,knock) {
     if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
     const boss=unit.kind==='boss';
-    const phaseBoundary=boss ? (unit.bossPhase===0?.58:unit.bossPhase===1&&this.stage.chapter>=2?.25:0) : 0;
+    const phaseBoundary=boss ? unit.spec.phases[unit.bossPhase]??0 : 0;
     const nextPhaseHp=phaseBoundary*unit.spec.hp;
-    const shield=(unit.kind==='knight'||unit.kind==='sentinel')&&unit.attack&&unit.attack.time>unit.spec.time*.34;
+    const shield=unit.spec.guard&&unit.attack&&unit.attack.time>unit.spec.time*.34;
     unit.hp -= amount*(unit.exposed>0?1.24:1)*(shield?.73:1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     unit.flash = .78;
@@ -555,15 +570,17 @@ export class Game {
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
-    this.view.spark(unit.x,unit.spec.height*.47,unit.z,this.weapon.tone,unit.hp<=0?24:10,1.15);
+    this.view.spark(unit.x,unit.spec.height*.47,unit.z,this.weapon.tone,unit.hp<=0?24:10,1.15,
+      unit.hp<=0?unit.spec.effect:'feather');
     if (phaseBoundary && unit.hp<=nextPhaseHp) {
       unit.bossPhase++;
       unit.phaseGuard=.91;
       unit.step=Math.max(unit.step,unit.bossPhase);
-      this.beginEnemyAttack(unit);
-      this.view.spark(unit.x,2.6,unit.z,this.stage.zone.color,34,1.43);
-      this.announce(unit.spec.name,unit.bossPhase===2?'最後攻勢':'封印碎裂',this.stage.zone.signature,1.4);
-      this.audio.play('heavy');
+      this.beginEnemyAttack(unit,unit.spec.attacks[0]);
+      this.view.bossCue(unit,'phase');
+      this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
+      this.announce(unit.spec.name,unit.bossPhase===2?'最後攻勢':unit.spec.form,unit.spec.signature,1.4);
+      this.audio.boss(unit.spec.effect,true);
     }
     if (unit.hp<=0) {
       this.kills++;
@@ -571,6 +588,7 @@ export class Game {
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
       unit.death = 0;
       this.fallen.push(unit);
+      if (boss) this.view.bossCue(unit,'defeat');
       if (unit.kind!=='boss' && (this.kills%4===0 || Math.random()<.10)) this.drop(unit);
     }
     return true;
@@ -597,7 +615,8 @@ export class Game {
     this.view.shake = .26;
     this.hitstop = .067;
     this.audio.play('hurt');
-    if (guarded) reflectHit(this,attacker);
+    if (guarded&&this.weapon.id==='turtle') reflectHit(this,attacker);
+    if (h.hp>0) invokeSchool(this,'ward',attacker);
     if (h.hp===0) this.finish(false);
     return true;
   }
@@ -610,7 +629,7 @@ export class Game {
     return unit.raider && !(unit.lured>0) ? this.lanternTarget()??this.hero : this.hero;
   }
 
-  beginEnemyAttack(unit) {
+  beginEnemyAttack(unit,forcedPattern) {
     const h=this.enemyTarget(unit), spec=unit.spec;
     const d=Math.max(.05,distance(unit,h));
     const dx=(h.x-unit.x)/d, dz=(h.z-unit.z)/d;
@@ -619,17 +638,17 @@ export class Game {
     const phase=unit.bossPhase;
     let index=unit.step++;
     if (!boss) index+=this.stage.room+this.wave;
-    let pattern=spec.attacks[index%spec.attacks.length];
+    let pattern=forcedPattern??spec.attacks[index%spec.attacks.length];
     if (unit.kind==='oracle'&&this.stage.room>=6&&unit.step%4===0) {
       pattern=this.stage.enemyPattern==='summon'?'marked':this.stage.enemyPattern;
     }
     if (pattern==='summon'&&unit.summons>=2) pattern='prison';
     const time=spec.time*(1-phase*.12);
     unit.attack={pattern,time,dx,dz};
-    telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
+    unit.attack.landing=telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
     if (boss && phase>=1 && index%3===2) {
-      const echo=this.stage.zone.pattern[(index+1)%spec.attacks.length];
-      telegraph(this,echo==='summon'?'marked':echo,unit,h,
+      const echo=spec.attacks[(index+1)%spec.attacks.length];
+      telegraph(this,['summon','blink','rally'].includes(echo)?'marked':echo,unit,h,
         {delay:time+.52,damage:spec.hurt*.72,radius:spec.radius*.72,owner:unit,phase});
     }
     this.audio.play('warning');
@@ -645,6 +664,13 @@ export class Game {
       const impulse=boss?19:15;
       unit.kx=attack.dx*impulse;
       unit.kz=attack.dz*impulse;
+    }
+    if (attack.landing) {
+      const {x,z}=attack.landing;
+      this.view.bolt({x:unit.x,y:.72,z:unit.z},{x,y:.61,z},unit.spec.tint,1.65);
+      unit.x=x;
+      unit.z=z;
+      this.view.spark(x,.58,z,unit.spec.tint,18,.86,'void');
     }
     if (boss) {
       this.view.shake=Math.max(this.view.shake,.13);
@@ -664,6 +690,7 @@ export class Game {
       unit.chill-=dt;
       unit.exposed-=dt;
       unit.phaseGuard-=dt;
+      unit.morale-=dt;
       if (unit.lured>0) unit.lured-=dt;
       this.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
@@ -694,7 +721,7 @@ export class Game {
           sz+=(unit.z-other.z)/between*(1.30-between)*2.3;
         }
       }
-      const aggression = (1+unit.bossPhase*.17)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1);
+      const aggression = (1+unit.bossPhase*.17)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1)*(unit.morale>0?1.31:1);
       const advance=direction*spec.speed*aggression*dt;
       const traveled=this.moveUnit(unit,dx*advance+sx*dt,dz*advance+sz*dt,.35);
       if (direction && traveled<Math.abs(advance)*.38) {
@@ -847,12 +874,13 @@ export class Game {
       this.view.actor(unit.visual,unit,{
         frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
         poseSize:owlDive?.84:1,
-        bob:Math.abs(oscillation)*unit.move*.14+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
+        bob:Math.abs(oscillation)*unit.move*.14+(unit.spec.float??0)*(1.7+oscillation)+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
         squash:1+oscillation*(.028+unit.move*.032)-wind*.095,
         tilt:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
         warm:wind*.55+(fierce?.42:0),
         aura:unit.phaseGuard>0?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:unit.chill>0?0x8de2de:unit.exposed>0?0xff8255:unit.attack||fierce?this.stage.zone.color:0xb0764d,
+        rim:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
+        phase:unit.bossPhase,
       });
     }
     this.fallen=this.fallen.filter(unit=>{
@@ -863,7 +891,7 @@ export class Game {
         return false;
       }
       this.view.actor(unit.visual,unit,{frame:unit.spec.frame,face:unit.face,flash:fade*.6,
-        fade,squash:.3+fade*.7,tilt:.43*(1-fade)*unit.face,aura:.03});
+        fade,squash:.3+fade*.7,tilt:.43*(1-fade)*unit.face,aura:.03,phase:unit.bossPhase});
       return true;
     });
     for (const item of this.pickups) this.view.actor(item.visual,item,{frame:8,bob:.34+Math.sin(t*4.4)*.15,aura:.55,rim:0xffbf78});
@@ -884,6 +912,7 @@ export class Game {
     this.updateRituals(dt);
     this.updateEnemies(dt);
     this.updateHazards(dt);
+    if (this.state==='play'&&!this.discovery&&this.enemies.length) invokeSchool(this,'thunder');
     this.updatePickups(dt);
     if (this.state==='play') this.updateFlow(dt);
     this.animateActors(dt);
@@ -927,6 +956,10 @@ export class Game {
       this.damageFlash=Math.max(0,this.damageFlash-dt*1.74);
       this.announceLeft-=dt;
       if (this.announceLeft<=0) this.ui.announce.classList.remove('visible');
+      if (this.schoolToast>0) {
+        this.schoolToast-=dt;
+        if (this.schoolToast<=0) this.ui['school-toast'].hidden=true;
+      }
       this.renderUI();
       this.audio.update();
     }
@@ -966,19 +999,29 @@ export class Game {
     h.hp=Math.min(h.maxHp,h.hp+heal);
     const grid=document.createElement('div');
     grid.className='relic-grid';
-    const options=shuffle(blessings).slice(0,3);
+    const shuffled=shuffle(blessings);
+    const suggested=shuffled.find(boon=>!this.ranks.has(boon.id)&&schoolProgress(this.ranks,boon.school).distinct>0);
+    const options=suggested?shuffle([suggested,...shuffled.filter(boon=>boon!==suggested).slice(0,2)]):shuffled.slice(0,3);
     for (const relic of options) {
       const button=makeButton('',()=>this.choose(relic),'relic');
       const mark=document.createElement('strong'), name=document.createElement('b'), detail=document.createElement('span');
+      const branch=document.createElement('small');
       const rank=this.ranks.get(relic.id)||0;
+      const school=schools[relic.school];
+      const count=schoolProgress(this.ranks,relic.school).distinct;
+      branch.className='relic-school';
+      branch.style.color=school.ink;
+      const next=Math.min(3,count+Number(rank===0));
+      branch.textContent=school.name+' '+next+'/3'+(next===3?' · '+school.skill:'');
+      branch.title=school.detail;
       mark.textContent=relic.mark;
       name.textContent=relic.name+(rank?' · '+rank+' → '+(rank+1):'');
-      detail.textContent=relic.detail;
-      button.append(mark,name,detail);
+      detail.textContent=next===3&&count<3?school.detail:relic.detail;
+      button.append(mark,name,detail,branch);
       grid.append(button);
     }
     this.openModal({mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
-      copy:'回復 '+heal+' 點生命。選擇一個祝福，效果可累積。',content:grid});
+      copy:'回復 '+heal+' 點生命。集齊同一流派嘅三款祝福，就會解鎖自動招式。',content:grid});
   }
 
   choose(relic) {
@@ -989,12 +1032,28 @@ export class Game {
     this.ranks=buildStats(h,this.weapon,this.stage.floor,this.relics);
     const extra=relic.id==='spring'?h.maxHp*.31:relic.id==='flower'?h.maxHp*.19:0;
     h.hp=Math.min(h.maxHp,h.hp+(h.maxHp-oldMax)+extra);
-    this.ui['relic-icons'].textContent='✦ '+this.relics.length;
+    const branch=relic.school;
+    if (!this.learned.has(branch)&&schoolProgress(this.ranks,branch).distinct===3) {
+      this.learned.add(branch);
+      const note=this.ui['school-toast'];
+      note.textContent='解鎖 '+schools[branch].skill+' · '+schools[branch].detail;
+      note.hidden=false;
+      this.schoolToast=3.2;
+    }
+    this.ui['relic-icons'].textContent='✦ '+this.relics.length+' '+[...this.learned].map(id=>schools[id].mark).join('');
     this.ui['relic-icons'].title=blessings.filter(item=>this.ranks.has(item.id))
       .map(item=>item.name+' ×'+this.ranks.get(item.id)).join('、');
     this.audio.play('blessing');
+    if (this.stage.boss) {
+      this.prepare(true);
+      return;
+    }
     this.state='play';
     this.closeModal();
+    this.advanceAfterReward();
+  }
+
+  advanceAfterReward() {
     if (this.stage.floor<stages.length) {
       this.enter(this.level+1);
       return;
@@ -1030,7 +1089,7 @@ export class Game {
     this.state='play';
     this.audio.active=true;
     this.closeModal();
-    this.enter(this.level,true);
+    this.enter(this.level);
   }
 
   finish(won,reason) {
@@ -1042,7 +1101,7 @@ export class Game {
     results.className='results';
     const storyClues=this.journal.filter(entry=>!entry.hiddenClue).length;
     const hiddenClues=this.journal.length-storyClues;
-    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'主線 '+storyClues+'/10','隱藏 '+hiddenClues+'/20']) {
+    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'主線 '+storyClues+'/10','隱藏 '+hiddenClues+'/10']) {
       const item=document.createElement('span');
       item.textContent=line;
       results.append(item);

@@ -8,23 +8,25 @@ function direction(origin,target) {
 
 export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=null,phase=0}) {
   const stage=game.stage;
-  const tint=stage.zone.color;
+  const tint=owner?.spec.tint??stage.zone.color;
+  const effect=owner?.spec.effect??stage.zone.effect;
   const [dx,dz]=direction(origin,target);
   const bearing=Math.atan2(dz,dx);
   const stageBearing=stage.bearing+phase*.36;
   const boss=owner?.kind==='boss';
   const source={x:origin.x,z:origin.z};
   const aim={x:target.x,z:target.z};
-  const zone=(kind,center,size,wait=delay,width=0,angle=0)=>{
-    const effect={kind,...center,radius:size,width,angle,delay:wait,damage,owner,tint,pattern};
-    game.hazards.push(effect);
-    game.view.warning(kind,center.x,center.z,size,wait,-angle,width);
+  const zone=(kind,center,size,wait=delay,width=0,angle=0,residue=null)=>{
+    const hazard={kind,...center,radius:size,width,angle,delay:wait,damage,owner,tint,pattern,effect,residue};
+    game.hazards.push(hazard);
+    game.view.warning(kind,center.x,center.z,size,wait,-angle,width,tint);
+    if (pattern==='icicles') game.view.fallingShard(center.x,center.z,size,wait,tint);
   };
   const ring=(center,outer,band,wait)=>zone('ring',center,outer,wait,band);
   const line=(center,length,width,angle,wait)=>zone('line',center,length,wait,width,angle);
   const circle=(center,size,wait)=>zone('circle',center,size,wait);
-  const rays=(center,angles,speed,wait)=>{
-    game.hazards.push({kind:'release',...center,angles,speed,delay:wait,damage,owner,tint,pattern});
+  const rays=(center,angles,speed,wait,returning=false)=>{
+    game.hazards.push({kind:'release',...center,angles,speed,delay:wait,damage,owner,tint,pattern,effect,returning});
   };
   const around=(center,angle,length)=>({x:center.x+Math.cos(angle)*length,z:center.z+Math.sin(angle)*length});
   switch (pattern) {
@@ -87,6 +89,77 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
       circle(source,1.40,delay);
       if (owner?.summons<2) game.hazards.push({kind:'summon',...source,delay,owner,tint});
       break;
+    case 'cleave':
+      zone('cone',source,boss?5.6:3.6,delay,boss?1.00:.73,bearing);
+      if (boss) zone('cone',source,6.3,delay+.43,.69,bearing+(phase%2?-.91:.91));
+      break;
+    case 'icicles': {
+      const count=boss?5:2;
+      for (let index=0;index<count;index++) {
+        const offset=index===0?0:1.75+(index%2)*.65;
+        const center=around(aim,stageBearing+index*1.64,offset);
+        circle(center,(boss?1.6:1.19)+index*.06,delay+index*.20);
+      }
+      break;
+    }
+    case 'cinders': {
+      const span=boss?12.5:6.3;
+      zone('line',around(source,bearing,span*.43),span,delay,boss?1.12:.74,bearing,'embers');
+      if (boss) zone('line',aim,10.4,delay+.52,.91,bearing+1.12,'embers');
+      break;
+    }
+    case 'web':
+      zone('circle',aim,boss?2.66:1.93,delay,0,0,'snare');
+      if (boss) zone('circle',around(aim,stageBearing,3.38),2.20,delay+.44,0,0,'snare');
+      break;
+    case 'rally':
+      game.hazards.push({kind:'rally',...source,delay,owner,tint,effect,radius:boss?6.1:4.0});
+      game.view.warning('aura',source.x,source.z,boss?6.1:4.0,delay,0,0,tint);
+      if (boss) circle(aim,1.55,delay+.35);
+      break;
+    case 'feathers': {
+      const count=boss?9:3;
+      const angles=Array.from({length:count},(_,index)=>bearing+(index-(count-1)/2)*.19);
+      line(around(source,bearing,3.2),6.4,.66,bearing,delay);
+      rays(source,angles,boss?8.4:7.3,delay);
+      if (boss) rays(source,angles.filter((_,index)=>index%2===0).map(angle=>angle+.11),8.9,delay+.34);
+      break;
+    }
+    case 'roots':
+      for (let i=0;i<(boss?5:3);i++) {
+        const center=around(aim,bearing+(i%2?Math.PI/2:-Math.PI/2),i*.98);
+        zone('circle',center,boss?1.6:1.09,delay+i*.16,0,0,'snare');
+      }
+      break;
+    case 'coins': {
+      const count=boss?8:4;
+      const angles=Array.from({length:count},(_,index)=>bearing+(index-(count-1)/2)*.23);
+      circle(source,1.2,delay);
+      rays(source,angles,boss?6.8:5.4,delay,true);
+      if (boss) rays(source,angles.map(angle=>angle+Math.PI),6.1,delay+.23,true);
+      break;
+    }
+    case 'blink': {
+      const destination=around(aim,bearing+(boss?.75:1.22),boss?2.45:1.92);
+      game.bound(destination);
+      const landing=game.isBlocked(destination,.45)?source:destination;
+      circle(landing,boss?2.35:1.56,delay);
+      if (boss) circle(aim,1.48,delay+.40);
+      return landing;
+    }
+    case 'gravity':
+      zone('circle',aim,boss?3.55:2.39,delay,0,0,'pull');
+      if (boss) ring(aim,5.05,.99,delay+.58);
+      break;
+    case 'lance': {
+      const length=boss?14.2:8.4;
+      line(around(source,bearing,length*.44),length,boss?.88:.63,bearing,delay);
+      if (boss) {
+        line(around(source,bearing+.36,length*.43),length,.74,bearing+.36,delay+.23);
+        line(around(source,bearing-.36,length*.43),length,.74,bearing-.36,delay+.44);
+      }
+      break;
+    }
   }
 }
 
@@ -97,6 +170,12 @@ export function withinThreat(point,hazard) {
     return Math.abs(x*cos+z*sin)<hazard.radius*.5 && Math.abs(-x*sin+z*cos)<hazard.width+.13;
   }
   const d=distance(point,hazard);
+  if (hazard.kind==='cone') {
+    if (d>hazard.radius+.13) return false;
+    if (d<.24) return true;
+    const dot=((point.x-hazard.x)*Math.cos(hazard.angle)+(point.z-hazard.z)*Math.sin(hazard.angle))/d;
+    return dot>Math.cos(hazard.width+.05);
+  }
   if (hazard.kind==='ring') return d<hazard.radius+.12 && d>hazard.radius-hazard.width-.12;
   return d<hazard.radius+.12;
 }
@@ -109,14 +188,33 @@ export function advanceThreats(game,dt) {
   for (const hazard of queued) {
     hazard.delay-=dt;
     if (hazard.kind==='projectile') {
+      if (hazard.returning && !hazard.reversed && hazard.delay<1.65) {
+        hazard.reversed=true;
+        hazard.dx*=-1;
+        hazard.dz*=-1;
+      }
       hazard.x+=hazard.dx*hazard.speed*dt;
       hazard.z+=hazard.dz*hazard.speed*dt;
-      view.moveProjectile(hazard.visual,hazard.x,hazard.z);
+      view.moveProjectile(hazard.visual,hazard.x,hazard.z,Math.atan2(hazard.dz,hazard.dx));
       if (hazard.delay<=0 || Math.abs(hazard.x)>12 || hazard.z<-8.5 || hazard.z>12 || game.isBlocked(hazard,.17)
         || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner))
         || (lantern && hazard.owner?.raider && distance(lantern,hazard)<.74 && game.mission.hurtLantern(hazard.damage))) {
         view.removeProjectile(hazard.visual);
       } else game.hazards.push(hazard);
+      continue;
+    }
+    if (hazard.kind==='residue') {
+      if (hazard.delay>0) {
+        if (withinThreat(hero,{...hazard,kind:hazard.shape}) && hero.rolling<=0) {
+          if (hazard.residue==='embers') game.hurt(hazard.damage*.46,hazard.x,hazard.z,hazard.owner);
+          if (hazard.residue==='snare') hero.snared=.19;
+          if (hazard.residue==='pull') {
+            const [x,z]=direction(hero,hazard);
+            if (distance(hero,hazard)>.35) game.moveUnit(hero,x*dt*3.35,z*dt*3.35,.38);
+          }
+        }
+        game.hazards.push(hazard);
+      }
       continue;
     }
     if (hazard.owner?.hp<=0) continue;
@@ -128,9 +226,15 @@ export function advanceThreats(game,dt) {
       for (const angle of hazard.angles) {
         const dx=Math.cos(angle),dz=Math.sin(angle);
         const x=hazard.x+dx*.6,z=hazard.z+dz*.6;
-        game.hazards.push({...hazard,kind:'projectile',x,z,dx,dz,delay:2.9,visual:view.makeProjectile(x,z,hazard.tint)});
+        game.hazards.push({...hazard,kind:'projectile',x,z,dx,dz,delay:2.9,
+          visual:view.makeProjectile(x,z,hazard.tint,hazard.effect,hazard.pattern)});
       }
       view.spark(hazard.x,.7,hazard.z,hazard.tint,13,1.1);
+      continue;
+    }
+    if (hazard.kind==='rally') {
+      for (const ally of game.enemies) if (ally.hp>0 && distance(ally,hazard)<hazard.radius) ally.morale=3.5;
+      view.vortex(hazard.x,hazard.z,hazard.radius,hazard.tint);
       continue;
     }
     if (hazard.kind==='summon') {
@@ -143,7 +247,15 @@ export function advanceThreats(game,dt) {
       continue;
     }
     view.threatImpact(hazard);
-    if (withinThreat(hero,hazard)) game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
+    if (withinThreat(hero,hazard)) {
+      const struck=game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
+      if (struck && hazard.pattern==='icicles') hero.snared=1.08;
+    }
     if (lantern && hazard.owner?.raider && withinThreat(lantern,hazard)) game.mission.hurtLantern(hazard.damage);
+    if (hazard.residue) {
+      const duration=hazard.residue==='embers'?2.1:2.7;
+      game.hazards.push({...hazard,shape:hazard.kind,kind:'residue',delay:duration});
+      view.lingeringThreat(hazard,duration);
+    }
   }
 }

@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge} from './armory.mjs';
-import {pictures, stages} from './expedition.mjs?v=objectives-1';
+import {armLighting, arms, disposeForge, forge} from './armory.mjs?v=battle-1';
+import {pictures, stages} from './expedition.mjs?v=battle-1';
+import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -12,11 +13,6 @@ const atlasBoxes = [
   [60, 55, 329, 371], [431, 77, 782, 343], [865, 84, 1210, 383],
   [37, 451, 387, 767], [456, 426, 770, 770], [855, 408, 1235, 780],
   [18, 782, 389, 1224], [395, 819, 863, 1206], [865, 810, 1214, 1198],
-];
-const bossBoxes = [
-  [0,0,415,393],[421,0,831,395],[837,0,1254,396],
-  [0,399,415,789],[418,401,835,788],[840,399,1254,789],
-  [0,789,387,1254],[388,791,838,1254],[840,790,1254,1254],
 ];
 
 function texture(canvas) {
@@ -78,11 +74,14 @@ async function loadCast() {
   image.src = './cast.png';
   const hero = new Image();
   hero.src = './unarmed.png';
-  const bosses = new Image();
-  bosses.src = './bosses.webp';
-  await Promise.all([image.decode(),hero.decode(),bosses.decode()]);
-  return [...atlasBoxes,...bossBoxes].map(([left, top, right, bottom],index) => {
-    const source = index<3 ? hero : index<atlasBoxes.length ? image : bosses;
+  const atlases=[['nightmares.webp',3,9],['creatures.webp',4,12],['wardens.webp',5,10]].map(([url,columns,count])=>{
+    const sheet=new Image();
+    sheet.src='./'+url;
+    return {sheet,columns,count};
+  });
+  await Promise.all([image.decode(),hero.decode(),...atlases.map(({sheet})=>sheet.decode())]);
+  const frames=atlasBoxes.map(([left, top, right, bottom],index) => {
+    const source = index<3 ? hero : image;
     const canvas = document.createElement('canvas');
     const scale = source.width / 1254;
     canvas.width = Math.round((right - left) * 0.76);
@@ -90,9 +89,21 @@ async function loadCast() {
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(source, left * scale, top * scale, (right - left) * scale, (bottom - top) * scale, 0, 0, canvas.width, canvas.height);
-    if (index>=atlasBoxes.length) isolateBoss(ctx,canvas.width,canvas.height);
     return texture(canvas);
   });
+  for (const {sheet,columns,count} of atlases) {
+    const tile=sheet.width/columns;
+    for (let index=0;index<count;index++) {
+      const canvas=document.createElement('canvas');
+      canvas.width=canvas.height=284;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.imageSmoothingQuality='high';
+      ctx.drawImage(sheet,index%columns*tile,Math.floor(index/columns)*tile,tile,tile,0,0,284,284);
+      isolateBoss(ctx,284,284);
+      frames.push(texture(canvas));
+    }
+  }
+  return frames;
 }
 
 function circle(radius, width, fraction = Math.PI * 2) {
@@ -134,7 +145,9 @@ const pictureLights = {
   'dunes.jpg':[[.5,.15],[.81,.24],[.19,.24]],
   'fungus.jpg':[[.12,.24],[.77,.25],[.92,.25],[.49,.21]],
   'cathedral.jpg':[[.12,.22],[.36,.22],[.64,.22],[.88,.22],[.49,.14]],
+  'desecrated-cathedral.jpg':[[.14,.261],[.37,.236],[.63,.236],[.86,.261],[.51,.16]],
   'throne.jpg':[[.273,.305],[.386,.305],[.620,.305],[.724,.305]],
+  'crimson-throne.jpg':[[.16,.28],[.33,.267],[.67,.267],[.84,.28],[.50,.205]],
 };
 
 const weather = {
@@ -153,6 +166,7 @@ const weather = {
 export class Scenery {
   constructor(canvas) {
     this.canvas = canvas;
+    this.shroudElement=document.getElementById('boss-shroud');
     this.mobile = matchMedia('(pointer:coarse)').matches;
     this.renderer = new T.WebGLRenderer({canvas, antialias:!this.mobile, alpha:false, powerPreference:'high-performance'});
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.mobile ? 1.35 : 1.65));
@@ -167,6 +181,8 @@ export class Scenery {
     this.halo = radialTexture([[0,'#ffffe7ff'],[.19,'#fff4ceb0'],[.44,'#ffd89e47'],[1,'#ffe1bd00']]);
     this.smoke = radialTexture([[0,'#fffffff0'],[.3,'#ffffff80'],[.65,'#ffffff24'],[1,'#ffffff00']]);
     this.shadow = radialTexture([[0,'#12120ce8'],[.47,'#12110ca2'],[.72,'#15120b4b'],[1,'#00000000']]);
+    this.battleTextures=battleTextures();
+    for (const map of Object.values(this.battleTextures)) map.colorSpace=T.SRGBColorSpace;
     this.back = new T.Mesh(plane, new T.MeshBasicMaterial({color:0xffffff,depthWrite:false}));
     this.back.quaternion.copy(this.camera.quaternion);
     this.back.position.copy(sceneAngle).multiplyScalar(-16);
@@ -181,7 +197,7 @@ export class Scenery {
     this.lance.setIndex([0,1,2,0,2,3]);
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
-    this.motes = this.createParticleSystem(this.mobile ? 150 : 270);
+    this.motes = this.createParticleSystem(this.mobile ? 215 : 385);
     this.leaves = this.createLeaves(this.mobile ? 15 : 28);
     this.effects = [];
     this.clue = this.makeClue();
@@ -191,6 +207,8 @@ export class Scenery {
     this.missionObjects=new T.Group();
     this.scene.add(this.missionObjects);
     this.projectileShape = new T.OctahedronGeometry(.19);
+    this.coinShape=new T.TorusGeometry(.21,.038,5,12);
+    this.shardShape=new T.ConeGeometry(.24,1.38,5);
     this.shake = 0;
     this.time = 0;
     this.lastStamp = 0;
@@ -231,11 +249,12 @@ export class Scenery {
     this.stage = stage;
     this.back.material.map = this.pictures.get(stage.picture);
     const warmth=(stage.room%4)*.014;
-    this.back.material.color.setRGB(1-warmth*.26,1-warmth,1-warmth*.6);
+    const dread=stage.dread;
+    this.back.material.color.setRGB(1-warmth*.26-dread*.07,1-warmth-dread*.17,1-warmth*.6-dread*.13);
     this.back.material.needsUpdate = true;
     const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
     const glows=pictureLights[stage.picture];
-    this.air=weather[stage.zone.style];
+    this.air={...weather[stage.zone.style],mist:weather[stage.zone.style].mist+dread*.027};
     this.accent = hue;
     for (const [i, lamp] of this.candles.entries()) {
       lamp.visible = i < glows.length;
@@ -250,6 +269,9 @@ export class Scenery {
     this.leaves.mesh.material.color.setHex(hue);
     this.leaves.mesh.visible=stage.zone.style==='leaves'||stage.zone.style==='cinders';
     this.replaceFixtures(stage);
+    this.shroud=0;
+    this.shroudElement.style.setProperty('--dread',String(.14+dread*.39));
+    this.shroudElement.style.setProperty('--omen','0');
     this.clue.visible = false;
     this.ward.visible = false;
     for (const fx of this.effects) this.release(fx);
@@ -267,7 +289,8 @@ export class Scenery {
     for (const material of materials) material.dispose();
     this.fixtures.clear();
     const tone=stage.zone.color;
-    const rock=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x3b3a36),.81),roughness:.96});
+    const rock=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x746966),.84),roughness:.94,
+      map:this.battleTextures.stone,bumpMap:this.battleTextures.stone,bumpScale:.115});
     const metal=new T.MeshStandardMaterial({color:new T.Color(tone).lerp(new T.Color(0x604e3c),.53),roughness:.58,metalness:.35});
     const gem=new T.MeshStandardMaterial({color:tone,emissive:tone,emissiveIntensity:.40,roughness:.34});
     const place=(parent,geometry,material,y)=>{
@@ -315,6 +338,27 @@ export class Scenery {
       rune.rotation.y=angle;
     }
     this.fixtures.add(glyph);
+    if (stage.dread>.055) {
+      const count=Math.floor(1+stage.dread*8);
+      for (let index=0;index<count;index++) {
+        const angle=stage.bearing+index*2.39;
+        const reach=2.6+index*.81+(stage.room%3)*.38;
+        const size=1.8+stage.dread*3.1+(index%3)*.44;
+        const stain=this.ground(this.battleTextures.stain,0xffffff,.20+stage.dread*.52,size,size*.81);
+        stain.position.set(Math.cos(angle)*reach,.014,Math.sin(angle)*reach*.86);
+        stain.rotateZ(angle+stage.dread);
+        stain.renderOrder=-12;
+        this.fixtures.add(stain);
+      }
+      if (stage.boss||stage.dread>.68) {
+        const seal=this.ground(this.battleTextures.glyph,stage.dread>.62?0xa8454b:stage.guardian?.tint??tone,
+          .19+stage.dread*.28,stage.boss?8.4:5.4,stage.boss?8.4:5.4);
+        seal.position.set(0,.021,stage.boss?-2.2:-1.6);
+        seal.material.blending=T.AdditiveBlending;
+        seal.rotateZ(stage.bearing);
+        this.fixtures.add(seal);
+      }
+    }
   }
 
   makeAirGlow(index) {
@@ -377,6 +421,11 @@ export class Scenery {
     rim.material.blending = T.AdditiveBlending;
     this.scene.add(art, shade, rim);
     return {art, shade, rim, height};
+  }
+
+  prepareBoss(visual,spec) {
+    visual.form=nightmareForm(spec);
+    this.scene.add(visual.form);
   }
 
   previewArms() {
@@ -444,6 +493,18 @@ export class Scenery {
     art.rotateZ((spec.tilt || 0) + roll);
     art.scale.set(displayedHeight * aspect * direction * (spec.stretch || 1), displayedHeight, 1);
     art.renderOrder = 50 + unit.z;
+    if (visual.form) {
+      const {form}=visual;
+      form.visible=(spec.phase??0)>0;
+      if (form.visible) {
+        const corruption=.66+(this.stage.dread??0)*.22+spec.phase*.09;
+        const bloom=1+Math.sin(this.time*4.8+unit.z)*.055;
+        form.position.copy(art.position).addScaledVector(sceneAngle,-.29);
+        form.quaternion.copy(this.camera.quaternion);
+        form.scale.set(displayedHeight*.55*corruption*bloom,displayedHeight*.63*corruption,1);
+        for (const part of form.children) part.renderOrder=art.renderOrder-1;
+      }
+    }
     shade.position.set(unit.x, .022, unit.z + .03);
     shade.material.opacity = .73 * (spec.fade ?? 1);
     rim.position.set(unit.x, .027, unit.z);
@@ -471,11 +532,15 @@ export class Scenery {
     }
   }
 
-  removeActor({art, shade, rim}) {
+  removeActor({art, shade, rim, form}) {
     this.scene.remove(art, shade, rim);
     art.material.dispose();
     shade.material.dispose();
     rim.material.dispose();
+    if (form) {
+      this.scene.remove(form);
+      disposeForm(form);
+    }
   }
 
   unequip(actor) {
@@ -643,20 +708,25 @@ export class Scenery {
     const colors = new Float32Array(capacity * 3);
     const radius = new Float32Array(capacity);
     const alpha = new Float32Array(capacity);
+    const shape = new Float32Array(capacity);
     const geometry = new T.BufferGeometry();
-    for (const [key, data, size] of [['position',positions,3],['tint',colors,3],['radius',radius,1],['alpha',alpha,1]]) {
+    for (const [key, data, size] of [['position',positions,3],['tint',colors,3],['radius',radius,1],['alpha',alpha,1],['shape',shape,1]]) {
       geometry.setAttribute(key,new T.BufferAttribute(data,size).setUsage(T.DynamicDrawUsage));
     }
     const material = new T.ShaderMaterial({
       transparent:true, depthWrite:false, blending:T.AdditiveBlending,
       vertexShader:`
-        attribute vec3 tint; attribute float radius; attribute float alpha;
-        varying vec4 ink;
-        void main(){ink=vec4(tint,alpha);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=radius;}
+        attribute vec3 tint; attribute float radius; attribute float alpha; attribute float shape;
+        varying vec4 ink; varying float motif;
+        void main(){ink=vec4(tint,alpha);motif=shape;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_PointSize=radius;}
       `,
       fragmentShader:`
-        varying vec4 ink;
-        void main(){vec2 p=gl_PointCoord-.5;float fall=1.-smoothstep(.045,.50,length(p));
+        varying vec4 ink; varying float motif;
+        void main(){vec2 p=gl_PointCoord-.5;float contour=length(p);
+        if(motif>0.5&&motif<1.5) contour=abs(p.x)*.88+abs(p.y);
+        if(motif>1.5&&motif<2.5) contour=length(vec2((p.x+p.y)*1.7,(p.x-p.y)*.75));
+        if(motif>2.5) contour=max(abs(p.x),abs(p.y))*.88+abs(p.x*p.y)*1.2;
+        float fall=1.-smoothstep(.045,.50,contour);
         if (ink.a<.01) discard;gl_FragColor=vec4(ink.rgb,fall*fall*ink.a);}
       `,
     });
@@ -664,7 +734,7 @@ export class Scenery {
     particles.frustumCulled = false;
     particles.renderOrder = 100;
     this.scene.add(particles);
-    return {geometry, positions, colors, radius, alpha, cursor:0, items:Array.from({length:capacity}, () => ({life:0}))};
+    return {geometry, positions, colors, radius, alpha, shape, cursor:0, items:Array.from({length:capacity}, () => ({life:0}))};
   }
 
   createLeaves(count) {
@@ -704,7 +774,7 @@ export class Scenery {
     mesh.instanceMatrix.needsUpdate=true;
   }
 
-  spark(x, y, z, tint, count, force = 1) {
+  spark(x, y, z, tint, count, force=1, effect) {
     const {items} = this.motes;
     color.setHex(tint);
     for (let index=0;index<count;index++) {
@@ -713,7 +783,7 @@ export class Scenery {
       const speed = (.8 + Math.random() * 2.4) * force;
       const life = .30 + Math.random() * .53;
       Object.assign(point,{x,y,z,dx:Math.cos(theta)*speed,dz:Math.sin(theta)*speed,dy:Math.random()*2.8+.25,life,ttl:life,
-        r:color.r,g:color.g,b:color.b,size:2.8+Math.random()*8,gravity:3.5});
+        r:color.r,g:color.g,b:color.b,size:2.8+Math.random()*8,gravity:3.5,shape:particleShapes[effect]??0});
     }
   }
 
@@ -798,7 +868,34 @@ export class Scenery {
     this.spark(x,.46,z,tint,18,1.22);
   }
 
-  warning(kind,x,z,radius,time,angle=0,width=0) {
+  spinningDisk(x,z,dx,dz,range,tint) {
+    const angle=-Math.atan2(dz,dx);
+    const fx=this.addEffect(this.coinShape,{x,y:.68,z},tint,.38,{scale:2.1,growth:.13,angle,opacity:.93,order:88});
+    fx.travel={x:dx*range/.38,z:dz*range/.38};
+    fx.spin=23;
+    this.spark(x,.66,z,tint,7,.64,'gold');
+  }
+
+  fallingShard(x,z,radius,delay,tint) {
+    const fx=this.addEffect(this.shardShape,{x,y:6.7,z},tint,delay,{scale:radius*.66,opacity:.47,order:34});
+    fx.drop=6.7;
+    fx.combatClock=true;
+  }
+
+  bossCue(unit,phase) {
+    const {x,z,spec}=unit;
+    const size=phase==='defeat'?7.6:5.9+(this.stage.dread??0)*2.8;
+    this.shroud=phase==='entrance'?.72:phase==='defeat'?.36:.61;
+    const haze=this.addEffect(plane,{x,y:.063,z},0xffffff,phase==='entrance'?1.3:.86,
+      {map:this.battleTextures.dark,blend:false,scale:size,growth:1.6,opacity:.94,order:12});
+    haze.spin=-.40;
+    this.addEffect(plane,{x,y:.075,z},spec.tint,1.06,{map:this.battleTextures.glyph,scale:size*.83,growth:1.34,
+      opacity:.77,order:15});
+    this.spark(x,.44,z,spec.tint,phase==='defeat'?38:30,1.43,spec.effect);
+    this.shake=Math.max(this.shake,phase==='entrance'?.21:.32);
+  }
+
+  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780) {
     const point={x,y:.049,z};
     const paint=(geometry,location,tint,settings)=>{
       const effect=this.addEffect(geometry,location,tint,time,settings);
@@ -817,19 +914,33 @@ export class Scenery {
       paint(circle(radius-width,.055),{...point,y:.052},0xff895e,{owned:true,opacity:.85,order:3});
       return;
     }
+    if (kind==='cone') {
+      const fan=new T.CircleGeometry(radius,34,-width,width*2).rotateX(-PI/2);
+      paint(fan,point,0xcd3e32,{owned:true,angle,opacity:.39,blend:false,order:2});
+      const edge=new T.RingGeometry(radius-.065,radius,36,1,-width,width*2).rotateX(-PI/2);
+      paint(edge,{...point,y:.052},0xffa17d,{owned:true,angle,opacity:.84,order:3});
+      return;
+    }
+    if (kind==='aura') {
+      paint(this.ring,point,tint,{scale:radius,opacity:.73,order:3});
+      return;
+    }
     paint(this.disc,{x,y:.036,z},0x9b2017,{scale:radius,opacity:.39,blend:false,order:2});
     paint(this.ring,point,0xff7448,{scale:radius,opacity:.72,order:3});
   }
 
   threatImpact(hazard) {
-    const {kind,x,z,radius,tint,width,angle,pattern}=hazard;
+    const {kind,x,z,radius,tint,width,angle,pattern,effect}=hazard;
     const point={x,y:.08,z};
-    if (kind==='line') {
+    if (kind==='cone') {
+      this.addEffect(this.arc,{x,y:.75,z},tint,.37,{scale:radius*.77,growth:.31,angle:-angle,opacity:.92,order:87});
+      this.spark(x+Math.cos(angle)*radius*.55,.57,z+Math.sin(angle)*radius*.55,tint,16,1.16,effect);
+    } else if (kind==='line') {
       const strip=new T.PlaneGeometry(radius,width*1.64).rotateX(-PI/2);
       this.addEffect(strip,point,tint,.29,{owned:true,angle:-angle,opacity:.65,growth:.12});
       for (let i=-2;i<=2;i++) {
         const offset=i*radius*.17;
-        this.spark(x+Math.cos(angle)*offset,.48,z+Math.sin(angle)*offset,tint,5,1.1);
+        this.spark(x+Math.cos(angle)*offset,.48,z+Math.sin(angle)*offset,tint,5,1.1,effect);
       }
     } else if (kind==='ring') {
       const band=circle(radius,width*.61);
@@ -837,17 +948,47 @@ export class Scenery {
       this.addEffect(circle(radius,.10),{...point,y:.18},0xffe3bf,.30,{owned:true,opacity:.85,growth:.13});
       for (let i=0;i<8;i++) {
         const theta=i*PI/4;
-        this.spark(x+Math.sin(theta)*radius,.30,z+Math.cos(theta)*radius,tint,3,.63);
+        this.spark(x+Math.sin(theta)*radius,.30,z+Math.cos(theta)*radius,tint,3,.63,effect);
       }
     } else if (pattern==='prison'||pattern==='eclipse') {
       this.vortex(x,z,radius,tint);
     } else {
       this.shock(x,z,tint,radius,pattern==='burst'?.92:.63);
     }
+    if (effect==='ice'||effect==='root'||effect==='fire') {
+      const count=kind==='line'?3:5;
+      for (let index=0;index<count;index++) {
+        const theta=index*PI*2/count;
+        const offset=kind==='line'?(index-1)*radius*.30:radius*.54;
+        const cx=x+Math.cos(kind==='line'?angle:theta)*offset;
+        const cz=z+Math.sin(kind==='line'?angle:theta)*offset;
+        const spike=this.addEffect(this.shardShape,{x:cx,y:.65,z:cz},tint,.34+index*.024,
+          {scale:.43+radius*.084,growth:.28,opacity:.64,angle:theta});
+        spike.mesh.rotation.z=Math.sin(theta)*.27;
+      }
+    } else if (effect==='void'||effect==='web'||effect==='gold') {
+      this.addEffect(plane,{...point,y:.092},tint,.56,{map:this.battleTextures.glyph,scale:Math.min(radius,4.5)*1.73,growth:.53,opacity:.61});
+    }
   }
 
-  makeProjectile(x,z,tint) {
-    const dart=new T.Mesh(this.projectileShape,new T.MeshBasicMaterial({color:tint}));
+  lingeringThreat(hazard,duration) {
+    const {x,z,tint,kind,width,angle,radius,residue}=hazard;
+    if (kind==='line') {
+      const ash=new T.PlaneGeometry(radius,width*1.64).rotateX(-PI/2);
+      this.addEffect(ash,{x,y:.055,z},tint,duration,{angle:-angle,opacity:.27,owned:true});
+      return;
+    }
+    const map=residue==='snare'?this.battleTextures.glyph:this.battleTextures.dark;
+    const fx=this.addEffect(plane,{x,y:.061,z},tint,duration,
+      {map,scale:radius*2.05,opacity:residue==='pull'?.78:.58,blend:residue!=='pull'});
+    fx.spin=residue==='pull'?2.6:.15;
+  }
+
+  makeProjectile(x,z,tint,effect,pattern) {
+    const disc=pattern==='coins';
+    const dart=new T.Mesh(disc?this.coinShape:this.projectileShape,new T.MeshBasicMaterial({color:tint}));
+    dart.userData={disc,tail:effect==='ice'||pattern==='feathers'};
+    if (dart.userData.tail) dart.scale.set(2.55,.75,.73);
     const glow=new T.Sprite(new T.SpriteMaterial({map:this.halo,color:tint,opacity:.83,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
     glow.scale.set(.92,.92,1);
     dart.add(glow);
@@ -856,9 +997,9 @@ export class Scenery {
     return dart;
   }
 
-  moveProjectile(dart,x,z) {
+  moveProjectile(dart,x,z,direction=0) {
     dart.position.set(x,.57,z);
-    dart.rotation.y=this.time*7.4;
+    dart.rotation.y=dart.userData.tail?-direction:this.time*(dart.userData.disc?14:7.4);
   }
 
   removeProjectile(dart) {
@@ -881,6 +1022,10 @@ export class Scenery {
   render(dt, hero, paused=false, freezeWarnings=false) {
     if (!paused) this.time += dt;
     const time = this.time;
+    if (this.shroud>0) {
+      this.shroud=Math.max(0,this.shroud-dt*.72);
+      this.shroudElement.style.setProperty('--omen',String(this.shroud));
+    }
     if (hero) {
       const aspect = this.width / this.height;
       const follow = 1 - Math.exp(-dt * 5);
@@ -921,6 +1066,7 @@ export class Scenery {
         fx.mesh.scale.setScalar(fx.scale + fx.growth * (1 - (1 - age) ** 2));
         if (fx.stretchZ) fx.mesh.scale.z *= fx.stretchZ;
         fx.mesh.material.opacity = fx.opacity * (fx.growth > 0 ? (1-age)**1.2 : .7+.3*Math.sin(age*PI*5));
+        if (fx.drop) fx.mesh.position.y=.4+fx.drop*(1-age)**1.65;
         if (!paused && fx.spin) fx.mesh.rotation.y+=fx.spin*dt;
         if (!paused && fx.travel) {
           fx.mesh.position.x+=fx.travel.x*dt;
@@ -935,7 +1081,7 @@ export class Scenery {
   }
 
   renderParticles(dt) {
-    const {items,geometry,positions,colors,radius,alpha} = this.motes;
+    const {items,geometry,positions,colors,radius,alpha,shape} = this.motes;
     if (Math.random() < dt * 15) {
       const x = (Math.random() - .5) * 28;
       const z = (Math.random() - .5) * 24;
@@ -943,7 +1089,7 @@ export class Scenery {
       color.setHex(this.accent);
       const air=this.air;
       Object.assign(point,{x,y:Math.random()*4+.35,z,dx:air.dx,dz:.14,dy:air.dy+Math.random()*.23,life:4,ttl:4,
-        r:color.r,g:color.g,b:color.b,size:(2.5+Math.random()*5)*air.scale,gravity:0});
+        r:color.r,g:color.g,b:color.b,size:(2.5+Math.random()*5)*air.scale,gravity:0,shape:0});
     }
     for (let i=0;i<items.length;i++) {
       const p = items[i];
@@ -961,6 +1107,7 @@ export class Scenery {
       colors.set([p.r,p.g,p.b],i*3);
       alpha[i] = Math.max(0, p.life/p.ttl) * (p.gravity ? 1 : .63);
       radius[i] = p.size * this.renderer.getPixelRatio();
+      shape[i] = p.shape;
     }
     for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;
   }

@@ -7,6 +7,7 @@ export class Audio {
     this.active = false;
     this.step = 0;
     this.danger = false;
+    this.dread = 0;
   }
 
   async start() {
@@ -114,10 +115,32 @@ export class Audio {
       this.rasp(now,.17,.18,1100);
     } else if (id==='turtle') {
       [293,463,587].forEach((pitch,index)=>this.note(pitch,pitch*.96,now+index*.07,.52,.12,'sine',.03));
+    } else if (id==='flameblade') {
+      for (let i=0;i<3;i++) this.rasp(now+i*.22,.17,.17,1070+i*160);
+      this.note(103,41,now,.48,.19,'triangle',.028);
+    } else if (id==='stormbow') {
+      for (let i=0;i<4;i++) this.note(290-i*31,65,now+i*.13,.13,.095,'sawtooth');
+    } else if (id==='windhalberd') {
+      for (let i=0;i<3;i++) this.rasp(now+i*.23,.16,.17,1400+i*340);
+    } else if (id==='frostlute') {
+      [330,392,523,659].forEach((pitch,i)=>this.note(pitch,pitch*.994,now+i*.05,.63,.11,'sine',.014));
+    } else if (id==='chakra') {
+      this.note(540,110,now,.52,.11,'triangle',.022);
+      this.note(680,360,now+.18,.39,.068,'sine',.021);
     } else {
       this.note(92,32,now,1.08,.20,'triangle',.065);
       this.rasp(now,.19,.16,610);
     }
+  }
+
+  boss(effect,phase=false) {
+    if (!this.context) return;
+    const now=this.context.currentTime;
+    const pitch={water:53,ice:64,fire:44,root:46,feather:69,web:51,gold:55,void:41,blood:37}[effect]??48;
+    this.note(pitch*1.49,pitch,now,phase?.73:1.29,.28,'triangle',.06);
+    this.note(pitch*1.61,pitch*1.05,now+.10,phase?.64:1.07,.11,'sawtooth',.11);
+    this.rasp(now+.11,.17,.26,phase?430:290);
+    if (phase) this.note(pitch*4.4,pitch*1.8,now+.27,.52,.073,'sine',.038);
   }
 
   update() {
@@ -131,6 +154,10 @@ export class Audio {
     if (beat === 0) {
       this.note(hz(chord[0]-12),hz(chord[0]-12),this.next,3.2,.085,'sine',.44);
       this.note(hz(chord[1]),hz(chord[1]),this.next+.12,2.8,.042,'sine',.50);
+      if (this.dread>.2) {
+        const dissonance=hz(chord[0]-6);
+        this.note(dissonance*1.012,dissonance,this.next+.11,2.75,.058*this.dread,'triangle',.46);
+      }
     }
     if ([0,2,3,5,7].includes(beat)) {
       const pitch = hz(chord[beat % 3 + 1] + (beat === 5 ? 12 : 0));
@@ -140,6 +167,6 @@ export class Audio {
     if (this.danger && (beat === 0 || beat === 4)) {
       this.note(76,34,this.next,.41,.15,'triangle');
     }
-    this.next += this.danger ? .32 : .45;
+    this.next += this.danger ? .32-this.dread*.039 : .45-this.dread*.028;
   }
 }

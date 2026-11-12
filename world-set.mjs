@@ -1,5 +1,5 @@
 import * as T from "./three.min.mjs";
-import { haloFragment, planeVertex } from "./world-light.mjs?v=moonlight";
+import { haloFragment, planeVertex } from "./world-light.mjs?v=inkbound";
 
 export const PITCH = 55 * Math.PI / 180;
 export const DEPTH = Math.sin(PITCH);
@@ -26,6 +26,10 @@ const profiles = {
   temple:{set:"sanctum", wet:.91, floor:.43, stone:0x49314a, steel:0xa68186},
 };
 export const profileFor = id => profiles[id] || profiles.village;
+export const lanternX = (location,right) => {
+  const x=location==="village"?.182:.085;
+  return right?1-x:x;
+};
 
 function stoneGrain() {
   const canvas = document.createElement("canvas");
@@ -196,13 +200,14 @@ export class TideSet {
     this.tide.color.setHex(palette.cool).lerp(new T.Color(0xffffff),.33).multiplyScalar(1.28);
     const type = profile.set;
     for(const side of [-1,1]) {
-      const edge = side<0?.060:.940;
+      const near = id==="village"?.060:.020;
+      const edge = side<0?near:1-near;
       const rear = this.anchor(edge,profile.floor+.085);
       if(id==="village")this.branches(rear,side);
       else if(type==="crystal")this.cluster(rear,113,side);
       else if(type==="coast"||type==="grove")this.branches(rear,side);
       else this.pillar(rear,type==="sanctum"?185:128,side*.035);
-      const sconce = this.anchor(side<0?.182:.818,profile.floor+.10);
+      const sconce = this.anchor(lanternX(id,side>0),profile.floor+.10);
       this.lantern(sconce,type==="vault"?82:65,type==="crystal"||side>0);
       const front = this.anchor(side<0?.015:.985,.84 + (side>0?.026:0));
       if(type==="crystal"||type==="sanctum")this.cluster(front,105,side);

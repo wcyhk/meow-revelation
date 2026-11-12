@@ -71,18 +71,19 @@ export const floorFragment = `
   uniform float floorStart;
   uniform float wet;
   uniform float orbit;
+  uniform float economy;
   ${gradeUniforms}
   ${noise}
   void main() {
     vec2 g = groundPoint.xz;
     vec2 screen = vec2(g.x / size.x + .5, .5 - g.y * .819152 / size.y);
     float blend = smoothstep(floorStart, floorStart + .155, 1.0 - screen.y);
-    float broad = haze(g * .015);
+    float broad = economy > .5 ? noise2(g * .015) : haze(g * .015);
     vec3 base = illustration(screen);
     float tileScale = mix(79.0, 55.0, kind);
     vec2 stone = g / vec2(tileScale * 1.7, tileScale);
     stone.x += floor(stone.y) * .47;
-    stone += (haze(g * .028) - .5) * .12;
+    stone += ((economy > .5 ? noise2(g * .028) : haze(g * .028)) - .5) * .12;
     vec2 grid = abs(fract(stone) - .5);
     float edge = max(grid.x, grid.y);
     float mortar = smoothstep(.468, .50, edge);
@@ -95,12 +96,15 @@ export const floorFragment = `
     base += (cool * .114 + flash * flashColor * .24) * pool * (.60 + broad);
     vec2 delta = g - keyLight;
     float lane = exp(-abs(delta.x + sin(delta.y * .046 + time * 1.16) * 9.0) / (69.0 + abs(delta.y) * .09));
-    float smear = haze(vec2(g.x * .034 + time * .10, g.y * .19));
+    vec2 motion = vec2(g.x * .034 + time * .10, g.y * .19);
+    float smear = economy > .5 ? noise2(motion) : haze(motion);
     float streak = pow(smear, 3.4) * lane * exp(-abs(delta.y) / 390.0);
     float puddles = smoothstep(.44,.63,broad) * wet;
     base += (cool * .36 + warm * .23) * streak * puddles;
-    float foil = smoothstep(.38,.66,haze(g * vec2(.022,.057) + vec2(time * .17,-time * .28)));
-    base += mix(cool, warm, .17) * foil * puddles * .048;
+    if(economy < .5){
+      float foil = smoothstep(.38,.66,haze(g * vec2(.022,.057) + vec2(time * .17,-time * .28)));
+      base += mix(cool, warm, .17) * foil * puddles * .048;
+    }
     vec2 boundary = smoothstep(vec2(-.02),vec2(.095),screen) * (1.0 - smoothstep(vec2(.905),vec2(1.02),screen));
     blend *= mix(1.0, boundary.x * boundary.y, smoothstep(.015,.32,orbit));
     gl_FragColor = vec4(base, blend * .98);
@@ -176,33 +180,16 @@ export const sigilFragment = `
   }
 `;
 
-export const actorFragment = `
+export const propFragment = `
   varying vec2 panel;
   uniform sampler2D atlas;
   uniform vec4 cell;
   uniform vec3 tint;
-  uniform vec3 fire;
-  uniform float opacity;
-  uniform float hit;
-  uniform float facing;
-  uniform float gleam;
-  float cut(vec2 p) {
-    if(any(lessThan(p,vec2(0))) || any(greaterThan(p,vec2(1)))) return 0.0;
-    return texture2D(atlas,cell.xy + cell.zw * p).a;
-  }
   void main() {
-    vec2 p = vec2(mix(1.0 - panel.x, panel.x, facing), panel.y);
-    vec4 src = texture2D(atlas, cell.xy + cell.zw * p);
-    vec2 d = vec2(.010,.012);
-    float rim = max(cut(p+vec2(d.x,0)),cut(p+vec2(0,d.y)));
-    rim = max(rim,max(cut(p-vec2(d.x,0)),cut(p-vec2(0,d.y))));
-    float ink = max(0.0,rim-src.a) * .29;
-    if (max(src.a, ink) < .025) discard;
-    vec3 body = src.rgb * (.89 + p.y * .25);
-    body += tint * src.a * (.018 + p.y * .033) + fire * gleam * src.a * .16;
-    body = mix(body, vec3(1.0,.76,.53), hit * .82);
-    vec3 color = mix(tint * .68, body, smoothstep(.06,.47,src.a));
-    gl_FragColor = vec4(color, max(src.a, ink) * opacity);
+    vec4 src = texture2D(atlas, cell.xy + cell.zw * panel);
+    if (src.a < .025) discard;
+    vec3 shaded = src.rgb * (.83 + panel.y * .24) + tint * src.a * .025;
+    gl_FragColor = vec4(shaded, src.a);
     #include <colorspace_fragment>
   }
 `;

@@ -77,7 +77,7 @@ class TideRun{
     this.phase="village";
     this.location="village";
     this.floor=.27;
-    this.player={x:width*.50,y:height*.70,angle:-Math.PI/2,hp:4+village.lamp,maxHp:4+village.lamp,attackCd:0,castCd:0,dashCd:0,invulnerable:0};
+    this.player={x:width*.50,y:height*.70,angle:Math.PI/2,hp:4+village.lamp,maxHp:4+village.lamp,attackCd:0,castCd:0,dashCd:0,invulnerable:0};
     this.enemies=[];this.bolts=[];this.particles=[];this.effects=[];
     this.clock=0;this.freeze=0;this.shake=0;this.intent={x:0,y:0};this.combo=0;this.comboUntil=0;
   }
@@ -115,6 +115,7 @@ class TideRun{
     const p=this.player;
     p.x=this.width*.5;p.y=this.height*.75;p.angle=-Math.PI/2;
     p.attackCd=0;p.castCd=0;p.dashCd=0;p.attack=null;p.dash=null;p.invulnerable=.28;
+    p.walking=false;p.hit=0;p.castPose=0;
     p.fervor=Math.max(2,p.fervor||0);
     const lineup=area.guardian?[area.guardian]:area.waves[Math.floor(this.random()*area.waves.length)];
     this.enemies=[];
@@ -163,7 +164,7 @@ class TideRun{
       if(p.dashCd>0){if(p.dashCd<.15)this.bufferDash=this.clock+.16;return;}
       const d=this.intent.x||this.intent.y?unit(this.intent.x,this.intent.y):{x:Math.cos(p.angle),y:Math.sin(p.angle)};
       p.angle=Math.atan2(d.y,d.x);
-      p.dash={...d,left:.20};p.invulnerable=.27;p.dashCd=r.dashWait;p.attack=null;
+      p.dash={...d,left:.20,total:.20};p.invulnerable=.27;p.dashCd=r.dashWait;p.attack=null;p.castPose=0;
       this.burst(p.x,p.y,0xa9b6c0,14,112,true);
       this.effect("ring",p.x,p.y,0x97d8d8,.27,45);
       CatAudio.play("dash");
@@ -180,7 +181,7 @@ class TideRun{
       const e=this.target(420);
       if(e)p.angle=Math.atan2(e.y-p.y,e.x-p.x);
       const angle=p.angle;
-      p.fervor-=1;p.castCd=r.castWait;
+      p.fervor-=1;p.castCd=r.castWait;p.castPose=.29;
       this.effect("spark",p.x,p.y-18,0x86f7df,.26,28);
       if(r.invocation==="ward"){
         p.invulnerable=Math.max(p.invulnerable,.92);
@@ -216,7 +217,8 @@ class TideRun{
     this.combo=this.clock<this.comboUntil?(this.combo+1)%3:0;
     this.comboUntil=this.clock+.66;
     const heavy=this.combo===2;
-    p.attack={left:(heavy?.31:.22)*weapon.speed,impact:(heavy?.21:.15)*weapon.speed,angle:p.angle,fired:false,heavy};
+    const total=(heavy?.31:.22)*weapon.speed;
+    p.attack={left:total,total,impact:(heavy?.21:.15)*weapon.speed,angle:p.angle,fired:false,heavy};
     p.attackCd=(heavy?.35:.237)*weapon.speed;
     CatAudio.play("swipe");
   }
@@ -268,7 +270,7 @@ class TideRun{
   hurt(){
     const p=this.player;
     if(p.invulnerable>0)return;
-    p.hp--;p.invulnerable=.68;p.attack=null;this.hurtFlash=.38;
+    p.hp--;p.invulnerable=.68;p.attack=null;p.hit=.23;p.castPose=0;this.hurtFlash=.38;
     this.shake=8;this.freeze=.052;
     this.burst(p.x,p.y-18,0xf792a3,16,175);
     this.effect("ring",p.x,p.y,0xfa657f,.28,49);
@@ -381,7 +383,7 @@ class TideRun{
       return;
     }
     this.roomTime+=dt;
-    for(const key of ["attackCd","dashCd","castCd","invulnerable"])p[key]=Math.max(0,p[key]-dt);
+    for(const key of ["attackCd","dashCd","castCd","invulnerable","hit","castPose"])p[key]=Math.max(0,p[key]-dt);
     if(this.bufferDash>this.clock&&p.dashCd===0){this.bufferDash=0;this.input("dash");}
     if(this.bufferCast>this.clock&&p.castCd===0){this.bufferCast=0;this.input("cast");}
     if((held||this.bufferAttack>this.clock)&&p.attackCd===0){this.bufferAttack=0;this.input("attack");}

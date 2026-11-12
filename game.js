@@ -538,7 +538,7 @@ class ShoreScene extends Phaser.Scene{
   }
   async loadWorld(){
     try{
-      const {MoonlightWorld}=await import("./world3d.mjs?v=moonlight");
+      const {MoonlightWorld}=await import("./world3d.mjs?v=inkbound");
       this.world3d=MoonlightWorld.create(stage,this.game.canvas,
         key=>this.textures.get(key).getSourceImage(),shoreLights,applyGraphics);
       applyGraphics();
@@ -557,7 +557,10 @@ class ShoreScene extends Phaser.Scene{
   }
   update(_,delta){
     if(!started||!state)return;
-    const dt=Math.min(.066,delta/1000);
+    const now=performance.now();
+    const elapsed=this.frameAt===undefined?delta:now-this.frameAt;
+    this.frameAt=now;
+    const dt=Math.min(.10,elapsed/1000);
     this.visualTime=(this.visualTime||0)+dt;
     if(surveyMode){
       const {x,y}=intent();
@@ -565,7 +568,7 @@ class ShoreScene extends Phaser.Scene{
     }
     if(modal.hidden&&!surveyMode){
       state.intent=intent();
-      this.timeLeft=Math.min(.09,(this.timeLeft||0)+dt);
+      this.timeLeft=Math.min(.10,(this.timeLeft||0)+dt);
       while(this.timeLeft>=1/60){
         const previous=state;
         state.tick(1/60,heldAttack!==null||keyboard.has("f"));
@@ -605,11 +608,6 @@ class ShoreScene extends Phaser.Scene{
     const width=size*factor*(hit?1.08:1);
     const height=size*factor*(1+pulse)*(hit?.95:1);
     const alpha=hero&&actor.invulnerable>.30&&Math.floor(b.clock*22)%2===1?.51:1;
-    if(this.world3d?.active){
-      sprite.setVisible(false);
-      this.world3d.actor(actor.x,actor.y+jump,frame,width,height,sheet,face,tilt,hit,alpha,hero&&(actor.attack||actor.dash)?1:.28);
-      return;
-    }
     this.shadow(actor.x,actor.y,size*factor);
     if(sprite.texture.key!==sheet)sprite.setTexture(sheet,frame);
     else sprite.setFrame(frame);
@@ -631,8 +629,7 @@ class ShoreScene extends Phaser.Scene{
     if(world){
       world.begin(b,areaArt(b.location),this.visualTime,sx,sy,reducedMotion.matches,surveyMode,dt,b.enemies.find(e=>e.hp>0&&isBoss(e)));
       for(const sprite of this.cinema.villageArt){
-        if(sprite.visible)world.actor(sprite.x,sprite.y+sprite.displayHeight*.10,Number(sprite.frame.name),sprite.displayWidth,
-          sprite.displayHeight,"village-props",false,0,false,1,0,false);
+        if(sprite.visible)world.prop(sprite.x,sprite.y+sprite.displayHeight*.10,Number(sprite.frame.name),sprite.displayWidth,sprite.displayHeight);
       }
     }
     for(let i=0;i<(world?0:30);i++){
@@ -648,27 +645,38 @@ class ShoreScene extends Phaser.Scene{
     }
     for(const e of b.enemies)if(e.hp>0&&e.warning)this.paintWarning(e.warning);
     let count=0;
+    const draw=(actor,kind,frame,size,sheet,key=actor)=>{
+      if(world)world.figure(key,kind,actor,size,kind==="hero"?b.run?.weapon:undefined);
+      else{
+        const sprite=kind==="hero"?this.playerSprite:this.sprite(count++);
+        this.paintSprite(sprite,actor,frame,size,kind==="hero",sheet);
+      }
+    };
     for(const e of b.enemies){
-      if(e.hp<=0)continue;
       const data=enemies[e.kind];
-      this.paintSprite(this.sprite(count++),e,e.kind==="boss"&&(e.warning||e.recoil>0)?9:data.frame,data.size,false,data.sheet);
+      if(e.hp<=0){
+        if(world)world.figure(e,e.kind,e,data.size);
+        continue;
+      }
+      draw(e,e.kind,e.kind==="boss"&&(e.warning||e.recoil>0)?9:data.frame,data.size,data.sheet);
       if(!isBoss(e)&&e.hp<e.maxHp){
         front.fillStyle(0x171320,.85).fillRect(e.x-15,e.y-data.size*.89,30,4);
         front.fillStyle(0xf58195,.95).fillRect(e.x-15,e.y-data.size*.89,30*e.hp/e.maxHp,4);
       }
     }
     if(b.phase==="village"){
-      this.paintSprite(this.sprite(count++),{x:b.width*.25,y:b.height*.45},10,72);
-      this.paintSprite(this.sprite(count++),{x:b.width*.75,y:b.height*.45,angle:Math.PI},7,69);
+      draw({x:b.width*.25,y:b.height*.45,angle:1.16},"smith",10,72,"cast","smith");
+      draw({x:b.width*.75,y:b.height*.45,angle:1.98},"keeper",7,69,"cast","keeper");
       for(let i=0;i<Math.min(village.rescued,4);i++){
         const walk=t*.73+i*1.7;
         const x=b.width*(.32+(i%2)*.36)+Math.sin(walk)*17,y=b.height*(.60+Math.floor(i/2)*.13)+Math.cos(walk)*7;
-        this.paintSprite(this.sprite(count++),{x,y,angle:Math.cos(walk)<0?Math.PI:0,walking:!reducedMotion.matches},7,59);
+        draw({x,y,angle:Math.cos(walk)<0?2.2:.91,walking:!reducedMotion.matches},["kit","ink","gray","kit"][i],7,59,"cast","resident-"+i);
       }
     }
     for(let i=count;i<this.actorSprites.length;i++)this.actorSprites[i].setVisible(false);
     const frame=p.dash?11:p.attack?.fired?3:p.walking?1+Math.floor(t*11)%2:0;
-    this.paintSprite(this.playerSprite,p,frame,90,true);
+    this.playerSprite.setVisible(!world);
+    draw(p,"hero",frame,90,"cast");
     if(!surveyMode)front.fillStyle(0xc3f7dd,.80).fillTriangle(p.x,p.y+13,p.x+4,p.y+17,p.x-4,p.y+17);
     for(const bolt of b.bolts)this.cinema.bolt(front,bolt,t);
     for(const particle of world?[]:b.particles){
@@ -680,7 +688,7 @@ class ShoreScene extends Phaser.Scene{
       }
     }
     for(const effect of b.effects){
-      if(world&&effect.kind==="slash")continue;
+      if(world&&(effect.kind==="slash"||effect.kind==="echo"))continue;
       if(!this.cinema.effect(front,effect))this.paintEffect(effect);
     }
     this.cinema.finish(b);

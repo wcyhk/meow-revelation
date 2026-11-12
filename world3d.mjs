@@ -1,9 +1,10 @@
 import * as T from "./three.min.mjs";
-import { DEPTH, PITCH, profileFor, TideSet } from "./world-set.mjs?v=moonlight";
+import { CharacterStage } from "./character-rig.mjs?v=inkbound";
+import { DEPTH, PITCH, lanternX, profileFor, TideSet } from "./world-set.mjs?v=inkbound";
 import {
-  actorFragment, floorFragment, floorVertex, haloFragment, matteFragment, mistFragment,
+  propFragment, floorFragment, floorVertex, haloFragment, matteFragment, mistFragment,
   planeVertex, ribbonFragment, shaftFragment, sigilFragment, sparksFragment, sparksVertex,
-} from "./world-light.mjs?v=moonlight";
+} from "./world-light.mjs?v=inkbound";
 
 const SECOND = Math.PI * 2;
 const MAX_POINTS = 420;
@@ -50,7 +51,7 @@ export class MoonlightWorld {
     this.lost = false;
     this.scaleFactor = 1;
     this.location = "";
-    this.actors = [];
+    this.props = [];
     this.ribbons = [];
     this.glyphs = [];
     this.motes = seedMotes();
@@ -92,8 +93,7 @@ export class MoonlightWorld {
     const source = this.getImage(key);
     const map = new T.Texture(source);
     map.colorSpace = T.SRGBColorSpace;
-    const atlas = key==="cast"||key==="tide-cast"||key==="village-props";
-    if(atlas){
+    if(key==="village-props"){
       map.generateMipmaps = false;
       map.minFilter = T.LinearFilter;
     }else{
@@ -116,7 +116,7 @@ export class MoonlightWorld {
     this.floorUniforms = {
       ...this.common,size:uniform(new T.Vector2(1,1)),hero:uniform(new T.Vector2()),
       keyLight:uniform(new T.Vector2(0,-220)),floorStart:uniform(.35),wet:uniform(.8),
-      flash:uniform(0),flashColor:uniform(this.impactPoint),orbit:uniform(0),
+      flash:uniform(0),flashColor:uniform(this.impactPoint),orbit:uniform(0),economy:uniform(0),
     };
     this.floor = new T.Mesh(this.plane,new T.ShaderMaterial({
       uniforms:this.floorUniforms,vertexShader:floorVertex,fragmentShader:floorFragment,
@@ -143,6 +143,7 @@ export class MoonlightWorld {
     this.seal.scale.set(240,208,1);
     this.seal.visible = false;
     this.shadow = colorMaterial(haloFragment,0x050716,.86);
+    this.characters = new CharacterStage(this.stage,this.plane,this.shadow,this.coolPoint,this.warmPoint,DEPTH);
 
     const geo = new T.BufferGeometry();
     for(const [name,n] of [["position",3],["tint",3],["radius",1],["alpha",1]]){
@@ -247,6 +248,8 @@ export class MoonlightWorld {
     this.resize(b.width,b.height);
     if(this.location!==b.location)this.dress(b.location,art);
     this.drawn = 0;
+    const crowd=b.enemies.length>4||b.location==="village"&&b.village.rescued>1;
+    this.characters.begin(dt,visualTime,reduced,b.width<650&&crowd);
     this.time = visualTime;
     this.state = b;
     this.still = reduced;
@@ -271,12 +274,17 @@ export class MoonlightWorld {
     this.set.update(visualTime,reduced);
     this.placeAir(b,time,flash,guardian);
     this.placeMagic(b,time);
-    if(!survey&&dt>.022)this.slow=(this.slow||0)+1;
+    if(!survey&&dt>.027)this.slow=(this.slow||0)+1;
     else this.slow=Math.max(0,(this.slow||0)-1);
-    if(this.slow>72&&this.scaleFactor>.70){
-      this.scaleFactor*=.86;
+    if(this.slow>=12&&this.scaleFactor>.65){
+      this.scaleFactor=Math.max(.65,this.scaleFactor*.84);
       this.slow=0;
       this.renderSize();
+      if(this.scaleFactor<=.72){
+        this.floorUniforms.economy.value=1;
+        this.mists[1].visible=false;
+        this.shafts[2].visible=false;
+      }
     }
   }
   billboard(mesh,x,y,width,height,lift=0) {
@@ -289,7 +297,7 @@ export class MoonlightWorld {
     const temple = location==="temple";
     const sanctuary = profileFor(location).set==="sanctum";
     for(const [i,light] of this.lanternLights.entries()){
-      this.worldPoint(w*(i?.818:.182),h*(profileFor(location).floor+.10),0,light.position);
+      this.worldPoint(w*lanternX(location,i===1),h*(profileFor(location).floor+.10),0,light.position);
       light.position.y = 53;
       light.intensity = 4500 + 750*Math.sin(time*3.3+i) + flash*850;
     }
@@ -301,7 +309,7 @@ export class MoonlightWorld {
       mist.material.uniforms.time.value = time+i*4.4;
     }
     for(const [i,shaft] of this.shafts.entries()){
-      const x = [.24,.76,.51][i]+Math.sin(time*.49+i)*.012;
+      const x = (i===2?.51:lanternX(location,i===1)+(i===0?.054:-.054))+Math.sin(time*.49+i)*.012;
       const y = [.32,.37,.25][i];
       this.billboard(shaft,w*x,h*y,Math.min(w*.8,232+i*32),330+i*30,15);
       shaft.rotateZ(i===0?-.29:i===1?.29:.075);
@@ -309,7 +317,8 @@ export class MoonlightWorld {
       shaft.material.uniforms.strength.value = (i===2&&!sanctuary?.25:.44)+flash*.1;
     }
     for(const [i,flare] of this.flares.entries()){
-      const x = [.182,.818,.50][i],y = [profileFor(location).floor+.055,profileFor(location).floor+.055,temple?.372:.24][i];
+      const x = i===2?.50:lanternX(location,i===1);
+      const y = i===2?(temple?.372:.24):profileFor(location).floor+.055;
       const size = i===2?(temple?180:144):134;
       this.billboard(flare,w*x,h*y,size,size,28);
       flare.material.uniforms.strength.value = (i===2&&location!=="village"&&!temple?.35:.89)+Math.sin(time*2.7+i)*.09+flash*.17;
@@ -395,46 +404,35 @@ export class MoonlightWorld {
     for(let i=cuts;i<this.ribbons.length;i++)this.ribbons[i].visible=false;
     for(let i=seals;i<this.glyphs.length;i++)this.glyphs[i].visible=false;
   }
-  actor(x,y,frame,w,h,sheet,flip,tilt,hit,opacity,gleam,shadow=true) {
+  figure(key,kind,actor,size,weapon) {
+    const scale = size*(.93+actor.y/this.height*.13);
+    this.characters.draw(key,kind,actor,this.worldPoint(actor.x,actor.y),scale,weapon);
+  }
+  prop(x,y,frame,w,h) {
     const index = this.drawn++;
-    const b = this.actors[index] || this.newActor();
-    const map = this.image(sheet);
-    const frameSize = sheet==="village-props"?232:256;
+    const mesh = this.props[index] || this.newProp();
+    const map = this.image("village-props");
+    const frameSize = 232;
     const columns = map.image.width/frameSize, rows = map.image.height/frameSize;
-    b.mesh.visible = true;
-    this.billboard(b.mesh,x,y,w,h);
-    b.mesh.rotateZ(-tilt);
-    const u = b.mesh.material.uniforms;
+    mesh.visible = true;
+    this.billboard(mesh,x,y,w,h);
+    const u = mesh.material.uniforms;
     const inset = .6/frameSize;
     u.atlas.value = map;
     u.cell.value.set((frame%columns+inset)/columns,1-(Math.floor(frame/columns)+1-inset)/rows,(1-2*inset)/columns,(1-2*inset)/rows);
-    u.facing.value = flip?0:1;
-    u.hit.value = hit?1:0;
-    u.opacity.value = opacity;
-    u.gleam.value = gleam;
-    b.shadow.visible = shadow;
-    if(shadow){
-      this.worldPoint(x,y+3,1.7,b.shadow.position);
-      b.shadow.scale.set(w*.86,w*.34,1);
-    }
   }
-  newActor() {
+  newProp() {
     const material = new T.ShaderMaterial({
       uniforms:{
-        atlas:uniform(null),cell:uniform(new T.Vector4()),tint:uniform(this.coolPoint),fire:uniform(this.warmPoint),
-        opacity:uniform(1),hit:uniform(0),facing:uniform(1),gleam:uniform(0),
+        atlas:uniform(null),cell:uniform(new T.Vector4()),tint:uniform(this.coolPoint),
       },
-      vertexShader:planeVertex,fragmentShader:actorFragment,transparent:true,depthWrite:false,
+      vertexShader:planeVertex,fragmentShader:propFragment,transparent:true,depthWrite:false,
     });
     const mesh = new T.Mesh(this.spriteGeometry,material);
     mesh.renderOrder = 4;
-    const shadow = new T.Mesh(this.plane,this.shadow);
-    shadow.rotation.x = -Math.PI/2;
-    shadow.renderOrder = 1;
-    this.stage.add(mesh,shadow);
-    const actor = {mesh,shadow};
-    this.actors.push(actor);
-    return actor;
+    this.stage.add(mesh);
+    this.props.push(mesh);
+    return mesh;
   }
   writeSparks() {
     const b = this.state, time = this.still?0:this.time;
@@ -479,9 +477,8 @@ export class MoonlightWorld {
     for(const attribute of Object.values(attributes))attribute.needsUpdate=true;
   }
   end() {
-    for(let i=this.drawn;i<this.actors.length;i++){
-      this.actors[i].mesh.visible = this.actors[i].shadow.visible = false;
-    }
+    for(let i=this.drawn;i<this.props.length;i++)this.props[i].visible = false;
+    this.characters.end();
     this.writeSparks();
     this.renderer.clear();
     this.renderer.render(this.matte,this.flatCamera);

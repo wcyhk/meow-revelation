@@ -187,6 +187,7 @@ export function advanceThreats(game,dt) {
   const lantern=game.lanternTarget();
   for (const hazard of queued) {
     hazard.delay-=dt;
+    if (hazard.tactic&&(hazard.owner.hp<=0||hazard.encounter.phase!==hazard.arenaPhase)) continue;
     if (hazard.kind==='projectile') {
       if (hazard.returning && !hazard.reversed && hazard.delay<1.65) {
         hazard.reversed=true;
@@ -255,8 +256,10 @@ export function advanceThreats(game,dt) {
     if (lantern && hazard.owner?.raider && withinThreat(lantern,hazard)) game.mission.hurtLantern(hazard.damage);
     if (hazard.residue) {
       const duration=hazard.residue==='embers'?2.1:2.7;
-      game.hazards.push({...hazard,shape:hazard.kind,kind:'residue',delay:duration});
-      view.lingeringThreat(hazard,duration);
+      const residue={...hazard,shape:hazard.kind,kind:'residue',delay:hazard.tactic==='seal'?2.75:duration};
+      game.hazards.push(residue);
+      if (hazard.tactic==='seal') view.openBossFissure(residue);
+      else view.lingeringThreat(hazard,duration);
     }
   }
 }

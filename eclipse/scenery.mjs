@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge} from './armory.mjs?v=battle-1';
 import {pictures, stages} from './expedition.mjs?v=battle-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
-import {ArenaArt} from './arena-art.mjs?v=arena-1';
+import {ArenaArt} from './arena-art.mjs?v=shifting-2';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -291,6 +291,10 @@ export class Scenery {
 
   transformBossArena(arena) {
     this.arenaArt.transform(arena);
+  }
+
+  openBossFissure(hazard) {
+    this.arenaArt.openFissure(hazard);
   }
 
   replaceFixtures(stage) {
@@ -890,10 +894,11 @@ export class Scenery {
     this.spark(x,.66,z,tint,7,.64,'gold');
   }
 
-  fallingShard(x,z,radius,delay,tint) {
+  fallingShard(x,z,radius,delay,tint,active) {
     const fx=this.addEffect(this.shardShape,{x,y:6.7,z},tint,delay,{scale:radius*.66,opacity:.47,order:34});
     fx.drop=6.7;
     fx.combatClock=true;
+    fx.active=active;
   }
 
   bossCue(unit,phase) {
@@ -909,11 +914,12 @@ export class Scenery {
     this.shake=Math.max(this.shake,phase==='entrance'?.21:.32);
   }
 
-  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780) {
+  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780,active) {
     const point={x,y:.049,z};
     const paint=(geometry,location,tint,settings)=>{
       const effect=this.addEffect(geometry,location,tint,time,settings);
       effect.combatClock=true;
+      effect.active=active;
     };
     if (kind === 'line') {
       const fill=new T.PlaneGeometry(radius,width*2).rotateX(-PI/2);
@@ -1079,7 +1085,7 @@ export class Scenery {
       const fx = this.effects[i];
       if (!paused && !(fx.combatClock&&freezeWarnings)) fx.age += dt;
       const age = fx.age / fx.ttl;
-      if (age >= 1) {
+      if (age >= 1 || (fx.active && !fx.active())) {
         this.release(fx);
         this.effects.splice(i,1);
       } else {

@@ -2,7 +2,6 @@ import * as T from '../three.min.mjs';
 
 const PI=Math.PI;
 const glowOptions={transparent:true,depthWrite:false,blending:T.AdditiveBlending};
-const lanternPositions=[[-6.4,-4.4],[6.4,-4.4],[0,8.5]];
 
 function mesh(parent,geometry,material,x=0,y=0,z=0) {
   const piece=new T.Mesh(geometry,material);
@@ -147,7 +146,8 @@ export class ArenaArt {
     this.fragments=[];
     this.columns=[];
     this.sites=[];
-    this.lamps=arena?lanternPositions.map(([x,z])=>{
+    this.transient=[];
+    this.lamps=arena?arena.encounter.lamps.map(({x,z})=>{
       const lamp=this.view.makeClue(this.root);
       lamp.position.set(x,0,z);
       lamp.scale.setScalar(1.14);
@@ -159,6 +159,7 @@ export class ArenaArt {
 
   transform(arena) {
     this.clear(this.phaseRoot);
+    this.transient=[];
     const {ink,stone}=arena.terrain;
     this.fragments=arena.hazards.map(zone=>(zone.kind==='line'?fissure:pool)(this.phaseRoot,zone,ink,stone));
     this.columns=arena.pillars.map(point=>pillar(this.phaseRoot,point,stone,ink,this.view.battleTextures.stone));
@@ -174,14 +175,21 @@ export class ArenaArt {
     this.view.shake=Math.max(this.view.shake,.46);
   }
 
+  openFissure(hazard) {
+    const rock=this.arena.terrain.stone;
+    this.transient.push({...fissure(this.phaseRoot,hazard,0xff7957,rock),hazard});
+  }
+
   render(time) {
     const arena=this.arena;
     if (!arena) return;
     const fade=1-Math.exp(-(arena.shift??0)*5.4);
     const dark=arena.darkness;
+    const becomesMechanism=arena.phase>0&&arena.encounter.first.mode==='light';
     for (const [index,lamp] of this.lamps.entries()) {
       const {flame,halo}=lamp.userData;
-      const lit=1-dark>index*.16+.23;
+      lamp.visible=!becomesMechanism;
+      const lit=!becomesMechanism&&1-dark>index*.16+.23;
       flame.visible=halo.visible=lit;
       flame.rotation.y=time*.78+index;
       halo.material.opacity=(1-dark)*(.68+.13*Math.sin(time*7+index));
@@ -191,6 +199,15 @@ export class ArenaArt {
       ember.material.opacity=fade*(.51+.21*Math.sin(time*4+index*1.8));
     }
     for (const column of this.columns) column.position.y=-1.8*(1-fade);
+    this.transient=this.transient.filter(({group,ember,hazard})=>{
+      if (hazard.delay<=0||arena.boss.hp<=0) {
+        this.phaseRoot.remove(group);
+        this.clear(group);
+        return false;
+      }
+      ember.material.opacity=Math.min(1,hazard.delay*2)*(.76+.19*Math.sin(time*7));
+      return true;
+    });
     for (const [index,site] of this.sites.entries()) {
       const {root,point,lamp,gem,light,charge}=site;
       if (lamp) {

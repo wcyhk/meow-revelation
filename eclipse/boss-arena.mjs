@@ -1,5 +1,7 @@
 import {arenaTerrain} from './arena-layouts.mjs?v=arena-1';
-import {withinThreat} from './threats.mjs?v=arena-1';
+import {withinThreat} from './threats.mjs?v=shifting-2';
+import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
+import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const interaction = {
@@ -8,23 +10,23 @@ const interaction = {
 };
 
 export class BossArena {
-  constructor(game,layout,boss) {
+  constructor(game,layout,boss,seed) {
     this.game=game;
     this.layout=layout;
     this.boss=boss;
+    this.encounter=drawBossEncounter(game.stage,layout,seed);
+    this.tactics=new BossTactics(this);
     this.phase=0;
     this.points=[];
   }
 
   transform(phase) {
     this.phase=phase;
-    this.plan=phase===2&&this.layout.last ? this.layout.last : this.layout;
+    this.plan=phase===2 ? this.encounter.last : this.encounter.first;
     this.terrain=arenaTerrain(this.plan.style);
     this.pillars=this.plan.pillars??[];
-    this.aftershock=phase===2&&!this.layout.last;
-    this.hazards=this.plan.hazards.map(hazard=>this.aftershock
-      ? {...hazard,z:4-hazard.z,angle:hazard.kind==='line'?-.86*hazard.angle+.27:0}
-      : {...hazard});
+    this.aftershock=phase===2&&this.encounter.aftershock;
+    this.hazards=this.plan.hazards;
     // Each later arena needs one clear. The final arena has a second set of mechanisms.
     const reset=phase===1||!!this.layout.last;
     if (reset) {
@@ -37,8 +39,10 @@ export class BossArena {
     this.shift=0;
     this.grace=.85;
     this.castReady=1.4;
+    this.baitCooldown=0;
     this.shieldCue=0;
     this.floorDamage=0;
+    this.tactics.reset();
     this.game.view.transformBossArena(this);
     this.game.setupMissionPins();
     this.game.objective(this.locked?this.plan.hint:'擊敗 '+this.boss.spec.name);
@@ -128,6 +132,7 @@ export class BossArena {
 
   tick(dt) {
     if (!this.phase||this.boss.hp<=0) return;
+    this.tactics.observe(dt);
     this.shift+=dt;
     this.grace-=dt;
     this.shieldCue-=dt;
@@ -151,8 +156,16 @@ export class BossArena {
         if (point.charge>=this.plan.hold) this.activate(point);
       }
     }
-    if (this.plan.mode==='bait'&&(this.castReady-=dt)<=0&&!this.boss.attack) {
+    if (this.plan.mode!=='bait') return;
+    this.baitCooldown-=dt;
+    this.castReady-=dt;
+    // Stepping onto a fresh seal draws the boss's attention without waiting for its regular cycle.
+    if (this.baitCooldown<=0&&hero.rolling<=0&&this.points.some(point=>!point.done&&distance(point,hero)<1.03)) {
+      this.castReady=Math.min(this.castReady,.16);
+    }
+    if (this.castReady<=0&&!this.boss.attack) {
       this.castReady=4.8;
+      this.baitCooldown=1.75;
       const {x,z}=hero;
       const radius=1.76, delay=1.10;
       this.boss.attack={pattern:'arenaBait',time:delay};
@@ -166,6 +179,7 @@ export class BossArena {
   }
 
   status() {
+    if (this.tactics.cueTime>0) return this.tactics.cue;
     const {mode,hold}=this.plan;
     const done=this.points.filter(point=>point.done).length;
     const total=this.points.length;

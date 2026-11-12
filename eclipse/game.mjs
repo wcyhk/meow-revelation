@@ -1,15 +1,15 @@
-import {Scenery} from './scenery.mjs?v=arena-1';
+import {Scenery} from './scenery.mjs?v=shifting-2';
 import {Audio} from './audio.mjs?v=battle-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=battle-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=arena-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=shifting-2';
 import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=arena-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
-import {BossArena} from './boss-arena.mjs?v=arena-1';
+import {BossArena} from './boss-arena.mjs?v=shifting-2';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 
 const $ = id => document.getElementById(id);
@@ -53,6 +53,7 @@ export class Game {
     this.view = view;
     this.audio = audio;
     this.state = 'cover';
+    this.arenaSeed=Math.floor(Math.random()*0x100000000);
     this.level = 0;
     this.wave = 0;
     this.enemies = [];
@@ -379,7 +380,8 @@ export class Game {
     this.objective(boss ? '擊敗 '+guardian.name : '清除敵人 · '+this.wave+' / '+waves.length+
       (guardian?' · 頭目尚未現身':' · '+patterns[this.stage.hazard]));
     if (boss) {
-      this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head);
+      this.arenaSeed=(this.arenaSeed+0x9e3779b9)>>>0;
+      this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head,this.arenaSeed);
       this.view.setBossArena(this.bossArena);
       head.phaseGuard=1.17;
       head.recover=1.04;
@@ -740,6 +742,7 @@ export class Game {
       const dx=(h.x-unit.x)/dist, dz=(h.z-unit.z)/dist;
       if (Math.abs(dx)>.14) unit.face=Math.sign(dx);
       const attackRange=h===this.hero ? spec.reach : Math.min(spec.reach,spec.ranged??1.85);
+      if (unit.cool<=0&&dist<attackRange+3.2&&this.bossArena?.boss===unit&&this.bossArena.tactics.tryAttack()) continue;
       if (dist<attackRange && unit.cool<0) {
         this.beginEnemyAttack(unit);
         continue;
@@ -986,6 +989,7 @@ export class Game {
     const arena=this.bossArena;
     const arenaHint=this.ui['boss-arena-hint'];
     arenaHint.hidden=!boss||!arena?.phase;
+    arenaHint.classList.toggle('tactic',!!boss&&arena?.tactics.cueTime>0);
     this.ui['boss-hud'].classList.toggle('shielded',!!boss&&!!arena?.locked);
     if (!arenaHint.hidden) {
       const line=arena.status();

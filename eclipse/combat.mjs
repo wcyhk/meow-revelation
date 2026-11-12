@@ -1,5 +1,9 @@
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
-const active = game => game.enemies.filter(foe=>foe.hp>0 && foe.age>=.23);
+const active = game => {
+  const foes=game.enemies.filter(foe=>foe.hp>0 && foe.age>=.23);
+  const anchors=game.bossArena?.targets;
+  return anchors?.length ? [...anchors,...foes] : foes;
+};
 
 function point(unit,y) {return {x:unit.x,y,z:unit.z};}
 

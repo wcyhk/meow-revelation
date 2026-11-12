@@ -2,6 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge} from './armory.mjs?v=battle-1';
 import {pictures, stages} from './expedition.mjs?v=battle-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
+import {ArenaArt} from './arena-art.mjs?v=arena-1';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -206,6 +207,8 @@ export class Scenery {
     this.scene.add(this.fixtures);
     this.missionObjects=new T.Group();
     this.scene.add(this.missionObjects);
+    this.arenaArt=new ArenaArt(this);
+    this.stageColor=new T.Color();
     this.projectileShape = new T.OctahedronGeometry(.19);
     this.coinShape=new T.TorusGeometry(.21,.038,5,12);
     this.shardShape=new T.ConeGeometry(.24,1.38,5);
@@ -251,6 +254,7 @@ export class Scenery {
     const warmth=(stage.room%4)*.014;
     const dread=stage.dread;
     this.back.material.color.setRGB(1-warmth*.26-dread*.07,1-warmth-dread*.17,1-warmth*.6-dread*.13);
+    this.stageColor.copy(this.back.material.color);
     this.back.material.needsUpdate = true;
     const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
     const glows=pictureLights[stage.picture];
@@ -272,11 +276,21 @@ export class Scenery {
     this.shroud=0;
     this.shroudElement.style.setProperty('--dread',String(.14+dread*.39));
     this.shroudElement.style.setProperty('--omen','0');
+    this.shroudElement.style.setProperty('--arena-shadow','0');
+    this.arenaDarkness=0;
     this.clue.visible = false;
     this.ward.visible = false;
     for (const fx of this.effects) this.release(fx);
     this.effects.length = 0;
     for (const mote of this.motes.items) mote.life = 0;
+  }
+
+  setBossArena(arena) {
+    this.arenaArt.set(arena);
+  }
+
+  transformBossArena(arena) {
+    this.arenaArt.transform(arena);
   }
 
   replaceFixtures(stage) {
@@ -1022,6 +1036,12 @@ export class Scenery {
   render(dt, hero, paused=false, freezeWarnings=false) {
     if (!paused) this.time += dt;
     const time = this.time;
+    const darkness=this.arenaArt.arena?.darkness??0;
+    if (Math.abs(darkness-this.arenaDarkness)>.006) {
+      this.arenaDarkness=darkness;
+      this.back.material.color.copy(this.stageColor).multiplyScalar(1-darkness*.54);
+      this.shroudElement.style.setProperty('--arena-shadow',String(darkness*.46));
+    }
     if (this.shroud>0) {
       this.shroud=Math.max(0,this.shroud-dt*.72);
       this.shroudElement.style.setProperty('--omen',String(this.shroud));
@@ -1041,11 +1061,11 @@ export class Scenery {
       this.camera.updateMatrixWorld();
     }
     for (const [index, lamp] of this.candles.entries()) {
-      lamp.material.opacity = .43 + .13 * Math.sin(time * 7.4 + index * 2.7) + .07 * Math.sin(time * 21.7 + index);
+      lamp.material.opacity = (1-darkness*.94)*(.43 + .13 * Math.sin(time * 7.4 + index * 2.7) + .07 * Math.sin(time * 21.7 + index));
     }
     for (const [index, cloud] of this.mist.entries()) {
       cloud.position.x = (index-2)*5.4 + Math.sin(time*.27+index*2.4)*2.3;
-      cloud.material.opacity = this.air.mist + Math.sin(time*.63+index)*.024;
+      cloud.material.opacity = this.air.mist + darkness*.035 + Math.sin(time*.63+index)*.024;
     }
     if (this.clue.visible) {
       const {flame,halo,marker}=this.clue.userData;
@@ -1077,6 +1097,7 @@ export class Scenery {
     this.renderParticles(paused ? 0 : dt);
     if (this.leaves.mesh.visible) this.renderLeaves(time);
     this.renderMission(hero,dt);
+    this.arenaArt.render(time);
     this.renderer.render(this.scene,this.camera);
   }
 

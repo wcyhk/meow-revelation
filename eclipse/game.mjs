@@ -1,14 +1,16 @@
-import {Scenery} from './scenery.mjs?v=battle-1';
+import {Scenery} from './scenery.mjs?v=arena-1';
 import {Audio} from './audio.mjs?v=battle-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=battle-1';
 import {ending} from './campaign.mjs';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=battle-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=battle-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=battle-1';
-import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=battle-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=arena-1';
+import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs?v=arena-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs';
+import {BossArena} from './boss-arena.mjs?v=arena-1';
+import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -73,7 +75,7 @@ export class Game {
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
-      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast',
+      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
@@ -190,6 +192,7 @@ export class Game {
     this.wave = 0;
     this.clearDelay = 0;
     const stage = this.stage = stages[level];
+    this.bossArena=null;
     this.mission=stage.objective ? new RoomObjective(this,stage.objective) : null;
     this.ui.hud.dataset.mission=this.mission?.plan.type??'';
     const h = this.hero;
@@ -208,6 +211,7 @@ export class Game {
     this.view.focus.set(0,0,-.65);
     this.view.setStage(stage);
     this.view.setMission(this.mission);
+    this.view.setBossArena(null);
     this.setupMissionPins();
     this.audio.danger = stage.boss;
     this.audio.dread=stage.dread;
@@ -255,6 +259,11 @@ export class Game {
     if (this.state!=='play') return;
     if (this.discovery) {
       this.readClue();
+      return;
+    }
+    const arenaPoint=this.bossArena?.nearby(this.hero);
+    if (arenaPoint) {
+      this.bossArena.interact(arenaPoint);
       return;
     }
     const index=this.mission?.nearby()??-1;
@@ -370,6 +379,8 @@ export class Game {
     this.objective(boss ? '擊敗 '+guardian.name : '清除敵人 · '+this.wave+' / '+waves.length+
       (guardian?' · 頭目尚未現身':' · '+patterns[this.stage.hazard]));
     if (boss) {
+      this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head);
+      this.view.setBossArena(this.bossArena);
       head.phaseGuard=1.17;
       head.recover=1.04;
       this.ui['boss-name'].textContent=guardian.name;
@@ -390,14 +401,19 @@ export class Game {
     }
     let nearest = null;
     let shortest = Infinity;
-    for (const foe of this.enemies) {
+    const anchors=this.bossArena?.targets;
+    for (const foe of anchors?.length?[...anchors,...this.enemies]:this.enemies) {
       const d = distance(h,foe);
-      if (foe.hp>0 && d<shortest && d<range+(foe.kind==='boss'?.65:0)) {
+      const priority=foe.kind==='arenaAnchor'?.50:1;
+      if (foe.hp>0 && d*priority<shortest && d<range+(foe.kind==='boss'?.65:0)) {
         nearest = foe;
-        shortest = d;
+        shortest = d*priority;
       }
     }
-    if (nearest && shortest > .03) return [(nearest.x-h.x)/shortest,(nearest.z-h.z)/shortest];
+    if (nearest) {
+      const gap=distance(h,nearest);
+      if (gap>.03) return [(nearest.x-h.x)/gap,(nearest.z-h.z)/gap];
+    }
     return [h.dx,h.dz];
   }
 
@@ -473,6 +489,13 @@ export class Game {
       }
       return;
     }
+    const arenaPoint=this.bossArena?.nearby(h);
+    if (arenaPoint) {
+      this.ui.inspect.hidden=false;
+      this.ui.inspect.querySelector('span').textContent=this.bossArena.label(arenaPoint);
+      if (input.interact) this.interact();
+      return;
+    }
     const point=this.mission?.nearby()??-1;
     this.ui.inspect.hidden=point<0;
     if (point>=0) {
@@ -488,21 +511,23 @@ export class Game {
     unit.x = clamp(unit.x,-edge,edge);
   }
 
-  isBlocked(unit,margin) {
+  isBlocked(unit,margin,previous) {
     const gate=this.mission?.plan.gate;
     if (gate && !this.mission.gateOpen
       && Math.abs(unit.x-gate.x)<gate.width/2+margin && Math.abs(unit.z-gate.z)<gate.depth/2+margin) return true;
-    return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin);
+    return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin)
+      || !!this.bossArena?.blocks(unit,margin,previous);
   }
 
   moveUnit(unit,dx,dz,margin) {
     const oldX=unit.x, oldZ=unit.z;
     unit.x+=dx;
     this.bound(unit);
-    if (this.isBlocked(unit,margin)) unit.x=oldX;
+    if (this.isBlocked(unit,margin,{x:oldX,z:oldZ})) unit.x=oldX;
+    const nextX=unit.x;
     unit.z+=dz;
     this.bound(unit);
-    if (this.isBlocked(unit,margin)) unit.z=oldZ;
+    if (this.isBlocked(unit,margin,{x:nextX,z:oldZ})) unit.z=oldZ;
     return Math.hypot(unit.x-oldX,unit.z-oldZ);
   }
 
@@ -557,8 +582,13 @@ export class Game {
   }
 
   hit(unit,amount,origin,knock) {
+    if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
     if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
     const boss=unit.kind==='boss';
+    if (boss&&this.bossArena?.locked) {
+      this.bossArena.rejectHit();
+      return false;
+    }
     const phaseBoundary=boss ? unit.spec.phases[unit.bossPhase]??0 : 0;
     const nextPhaseHp=phaseBoundary*unit.spec.hp;
     const shield=unit.spec.guard&&unit.attack&&unit.attack.time>unit.spec.time*.34;
@@ -576,10 +606,14 @@ export class Game {
       unit.bossPhase++;
       unit.phaseGuard=.91;
       unit.step=Math.max(unit.step,unit.bossPhase);
+      this.bossArena?.transform(unit.bossPhase);
       this.beginEnemyAttack(unit,unit.spec.attacks[0]);
       this.view.bossCue(unit,'phase');
       this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
-      this.announce(unit.spec.name,unit.bossPhase===2?'最後攻勢':unit.spec.form,unit.spec.signature,1.4);
+      const terrain=this.bossArena?.plan;
+      const form=unit.bossPhase===2?'最後攻勢':unit.spec.form;
+      const title=this.bossArena?.aftershock?'場地再變':terrain?.title;
+      this.announce(unit.spec.name,form+(title?' · '+title:''),terrain?.hint??unit.spec.signature,2.0);
       this.audio.boss(unit.spec.effect,true);
     }
     if (unit.hp<=0) {
@@ -824,16 +858,33 @@ export class Game {
   }
 
   setupMissionPins() {
-    this.pins=(this.mission?.plan.points??[]).map(point=>{
+    const arena=this.bossArena?.phase>0;
+    const points=arena ? this.bossArena.points : this.mission?.plan.points??[];
+    this.pins=points.map(point=>{
       const element=document.createElement('i');
       element.textContent=point.symbol??'✧';
       element.hidden=true;
+      if (arena) element.classList.add('arena-pin');
       return {point,element};
     });
     this.ui['mission-pins'].replaceChildren(...this.pins.map(pin=>pin.element));
   }
 
   updateMissionPins() {
+    if (this.bossArena?.phase>0) {
+      const {width,height}=this.view;
+      const arena=this.bossArena;
+      for (const {point,element} of this.pins) {
+        element.hidden=!arena.locked||point.done||arena.boss.hp<=0;
+        if (element.hidden) continue;
+        const screen=this.view.project(point.x,arena.plan.mode==='hold'?.52:1.35,point.z);
+        const x=clamp(screen.x,24,width-24);
+        const y=clamp(screen.y,Math.min(136,height*.32),Math.max(height-150,height*.72));
+        element.classList.toggle('edge',x!==screen.x||y!==screen.y);
+        element.style.transform='translate('+Math.round(x)+'px,'+Math.round(y)+'px) translate(-50%,-50%)';
+      }
+      return;
+    }
     const mission=this.mission;
     for (const [index,{point,element}] of this.pins.entries()) {
       const taken=mission.found.has(index);
@@ -867,6 +918,7 @@ export class Game {
     this.view.setWard(h);
     for (const unit of this.enemies) {
       const boss=unit.kind==='boss';
+      const shielded=boss&&this.bossArena?.locked;
       const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
       const oscillation=Math.sin(t* (boss?7:13)+unit.phase);
       const fierce=unit.bossPhase>0;
@@ -878,8 +930,8 @@ export class Game {
         squash:1+oscillation*(.028+unit.move*.032)-wind*.095,
         tilt:oscillation*.046*unit.move+unit.face*(wind*.12-(unit.recover>0?.11:0)),
         warm:wind*.55+(fierce?.42:0),
-        aura:unit.phaseGuard>0?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
+        aura:unit.phaseGuard>0||shielded?.65:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+        rim:shielded?this.bossArena.terrain.ink:unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint,
         phase:unit.bossPhase,
       });
     }
@@ -911,6 +963,7 @@ export class Game {
     if (this.state!=='play') return;
     this.updateRituals(dt);
     this.updateEnemies(dt);
+    this.bossArena?.tick(dt);
     this.updateHazards(dt);
     if (this.state==='play'&&!this.discovery&&this.enemies.length) invokeSchool(this,'thunder');
     this.updatePickups(dt);
@@ -930,6 +983,14 @@ export class Game {
     }
     const boss=this.enemies.find(unit=>unit.kind==='boss');
     if (this.stage.boss) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
+    const arena=this.bossArena;
+    const arenaHint=this.ui['boss-arena-hint'];
+    arenaHint.hidden=!boss||!arena?.phase;
+    this.ui['boss-hud'].classList.toggle('shielded',!!boss&&!!arena?.locked);
+    if (!arenaHint.hidden) {
+      const line=arena.status();
+      if (arenaHint.textContent!==line) arenaHint.textContent=line;
+    }
     const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(h.attackPeriod*1.34)];
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);

@@ -247,6 +247,7 @@ export function advanceThreats(game,dt) {
       continue;
     }
     view.threatImpact(hazard);
+    if (hazard.arena) hazard.arena.resolve(hazard);
     if (withinThreat(hero,hazard)) {
       const struck=game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
       if (struck && hazard.pattern==='icicles') hero.snared=1.08;

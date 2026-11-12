@@ -1,5 +1,4 @@
 import * as T from "./three.min.mjs";
-import { CharacterStage } from "./character-rig.mjs?v=guild";
 import { DEPTH, PITCH, lanternX, profileFor, TideSet } from "./world-set.mjs?v=guild";
 import {
   propFragment, floorFragment, floorVertex, haloFragment, matteFragment, mistFragment,
@@ -12,6 +11,21 @@ const RIBBON_STEPS = 36;
 const lean = Math.cos(PITCH);
 const bound = (n,min,max) => Math.max(min,Math.min(max,n));
 const uniform = value => ({value});
+const cutoutFragment = `
+  varying vec2 panel;
+  uniform sampler2D atlas;
+  uniform vec4 cell;
+  uniform vec3 rim;
+  uniform float opacity;
+  uniform float hit;
+  void main() {
+    vec4 src = texture2D(atlas, cell.xy + cell.zw * panel);
+    if (src.a < .035) discard;
+    vec3 lit = src.rgb * (.79 + panel.y * .24) + rim * .032;
+    gl_FragColor = vec4(mix(lit, vec3(1., .81, .64), hit), src.a * opacity);
+    #include <colorspace_fragment>
+  }
+`;
 
 function colorMaterial(fragment, tint, strength, additive = false) {
   return new T.ShaderMaterial({
@@ -52,6 +66,7 @@ export class MoonlightWorld {
     this.scaleFactor = 1;
     this.location = "";
     this.props = [];
+    this.figures = [];
     this.ribbons = [];
     this.glyphs = [];
     this.motes = seedMotes();
@@ -143,7 +158,6 @@ export class MoonlightWorld {
     this.seal.scale.set(240,208,1);
     this.seal.visible = false;
     this.shadow = colorMaterial(haloFragment,0x050716,.86);
-    this.characters = new CharacterStage(this.stage,this.plane,this.shadow,this.coolPoint,this.warmPoint,DEPTH);
 
     const geo = new T.BufferGeometry();
     for(const [name,n] of [["position",3],["tint",3],["radius",1],["alpha",1]]){
@@ -248,8 +262,7 @@ export class MoonlightWorld {
     this.resize(b.width,b.height);
     if(this.location!==b.location)this.dress(b.location,art);
     this.drawn = 0;
-    const crowd=b.enemies.length>4||b.location==="village"&&b.village.rescued>1;
-    this.characters.begin(dt,visualTime,reduced,b.width<650&&crowd);
+    this.drawnFigures = 0;
     this.time = visualTime;
     this.state = b;
     this.still = reduced;
@@ -363,8 +376,9 @@ export class MoonlightWorld {
         cuts++;
         ribbon.visible = true;
         const p = 1-bound(e.left/e.life,0,1);
-        const heading = e.angle-1.28+p*.63;
-        const arc = 2.22-p*.38;
+        const narrow=e.fx==="thrust",ink=e.fx==="ink",wide=e.fx==="whirl";
+        const heading = e.angle-(wide?Math.PI:narrow?.23:ink?1.55:1.28)+p*.63;
+        const arc = wide?SECOND-.06:narrow?.53:ink?2.85:2.22-p*.38;
         const radius = e.size*(.78+p*.25);
         const verts = ribbon.geometry.attributes.position;
         for(let i=0;i<=RIBBON_STEPS;i++){
@@ -372,10 +386,10 @@ export class MoonlightWorld {
           const taper = Math.pow(Math.sin(f*Math.PI),.67);
           const a = heading+arc*f;
           const outer = radius*(.87+.14*taper);
-          const inner = outer-radius*(.15+.29*taper);
+          const inner = outer-radius*(narrow?.61:.15+.29*taper);
           for(let j=0;j<2;j++){
             const r = j?outer:inner;
-            const h = 18 + taper*22 + j*(7+f*10);
+            const h = 18 + taper*(ink?38:22) + j*(7+f*10);
             const v = this.worldPoint(e.x+Math.cos(a)*r,e.y+Math.sin(a)*r,h);
             verts.setXYZ(i*2+j,v.x,v.y,v.z);
           }
@@ -404,9 +418,56 @@ export class MoonlightWorld {
     for(let i=cuts;i<this.ribbons.length;i++)this.ribbons[i].visible=false;
     for(let i=seals;i<this.glyphs.length;i++)this.glyphs[i].visible=false;
   }
-  figure(key,kind,actor,size,weapon) {
-    const scale = size*(.93+actor.y/this.height*.13);
-    this.characters.draw(key,kind,actor,this.worldPoint(actor.x,actor.y),scale,weapon);
+  newCutout(geometry) {
+    const material=new T.ShaderMaterial({
+      uniforms:{atlas:uniform(null),cell:uniform(new T.Vector4()),rim:uniform(this.coolPoint),opacity:uniform(1),hit:uniform(0)},
+      vertexShader:planeVertex,fragmentShader:cutoutFragment,side:T.DoubleSide,transparent:true,depthWrite:false,
+    });
+    const mesh=new T.Mesh(geometry,material);
+    this.stage.add(mesh);
+    return mesh;
+  }
+  newFigure() {
+    const shade=new T.Mesh(this.plane,this.shadow);
+    shade.rotation.x=-Math.PI/2;
+    shade.renderOrder=2;
+    this.stage.add(shade);
+    const figure={body:this.newCutout(this.spriteGeometry),hand:this.newCutout(this.plane),shade};
+    this.figures.push(figure);
+    return figure;
+  }
+  dressCutout(mesh,key,frame,pose) {
+    const map=this.image(key),u=mesh.material.uniforms;
+    u.atlas.value=map;
+    const columns=frame===null?1:map.image.width/256,rows=frame===null?1:map.image.height/256;
+    const cell=frame??0,inset=frame===null?0:.5/256;
+    u.cell.value.set((cell%columns+inset)/columns,1-(Math.floor(cell/columns)+1-inset)/rows,(1-2*inset)/columns,(1-2*inset)/rows);
+    u.opacity.value=pose.alpha;
+    u.hit.value=pose.hit?.57:0;
+  }
+  figure(actor,key,frame,pose,weapon) {
+    const index=this.drawnFigures++;
+    const {body,hand,shade}=this.figures[index]||this.newFigure();
+    shade.visible=true;
+    this.worldPoint(actor.x,actor.y,1.3,shade.position);
+    shade.scale.set(pose.width*.76,pose.width*.29/DEPTH,1);
+    body.visible=true;
+    this.billboard(body,actor.x,actor.y-pose.lift,pose.width*pose.side,pose.height);
+    body.rotateZ(-pose.tilt);
+    body.renderOrder=5+actor.y/this.height*4;
+    this.dressCutout(body,key,frame,pose);
+    hand.visible=Boolean(weapon);
+    if(weapon){
+      hand.position.copy(body.position);
+      hand.quaternion.copy(this.camera.quaternion);
+      hand.translateX(weapon.x);
+      hand.translateY(-weapon.y);
+      hand.translateZ(1.2);
+      hand.rotateZ(-weapon.angle);
+      hand.scale.set(weapon.size*pose.side,weapon.size,1);
+      hand.renderOrder=body.renderOrder+.001;
+      this.dressCutout(hand,weapon.key,null,pose);
+    }
   }
   prop(x,y,frame,w,h) {
     const index = this.drawn++;
@@ -464,7 +525,7 @@ export class MoonlightWorld {
     }
     for(const bolt of b.bolts){
       if(count>=MAX_POINTS)break;
-      this.particleColor.setHex(bolt.friendly?0x7bffcd:0xee87fc);
+      this.particleColor.setHex(bolt.friendly?(bolt.color||0x7bffcd):0xee87fc);
       put(bolt.x,bolt.y-17,24,bolt.friendly?34:26,this.particleColor,.69);
     }
     if(this.state.player.dash){
@@ -478,7 +539,10 @@ export class MoonlightWorld {
   }
   end() {
     for(let i=this.drawn;i<this.props.length;i++)this.props[i].visible = false;
-    this.characters.end();
+    for(let i=this.drawnFigures;i<this.figures.length;i++){
+      const {body,hand,shade}=this.figures[i];
+      body.visible=hand.visible=shade.visible=false;
+    }
     this.writeSparks();
     this.renderer.clear();
     this.renderer.render(this.matte,this.flatCamera);

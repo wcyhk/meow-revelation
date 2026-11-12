@@ -151,6 +151,33 @@ h1{font:950 clamp(3rem,7.3vw,7.4rem)/1.04 var(--serif);color:#fff0d6;letter-spac
 .kit-option strong{display:block;margin:4px 0;font:900 1.04rem var(--serif)}
 .kit-option span{display:block;font-size:.72rem;font-weight:600;line-height:1.35}
 .kit-option[aria-pressed=true]{border-color:#baf3da;background:linear-gradient(145deg,#3c5b65,#2f3c4e);box-shadow:0 3px #1b2936}
+#modal[data-kind=origin] .panel,#modal[data-kind=convoy] .panel{width:min(100%,810px)}
+.origin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.origin-card{overflow:hidden;border:1px solid color-mix(in srgb,var(--guild-accent) 55%,#231829);border-radius:10px;background:#211b2b}
+.origin-card header{display:grid;align-content:end;justify-items:start;min-height:94px;padding:10px 13px;text-shadow:0 2px 4px #130e18;background:linear-gradient(0deg,#211b2b,transparent),var(--guild-art) center/cover}
+.origin-card h3{margin:0;color:var(--guild-accent);font:900 1.45rem var(--serif)}
+.origin-card small{font-weight:700;color:#e8cbb5}
+.origin-card button{display:grid;gap:3px;width:calc(100% - 16px);margin:0 8px 8px;padding:10px;text-align:left;background:#342639;border-color:#735769}
+.origin-card button b{font-family:var(--serif);font-size:1.05rem}
+.origin-card button strong{color:var(--guild-accent);font-size:.83rem}
+.origin-card button span{font-size:.75rem;font-weight:600;color:#eed9c5}
+.expedition-identity{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border:1px solid #8b735f;border-radius:8px;background:#211e2d;color:#e9d4b9;font-size:.85rem;text-align:left}
+.expedition-identity b,.kit-option em{color:#b7e4d8}
+.expedition-identity button{padding:0 11px}
+.kit-option em{display:block;margin-top:6px;font-size:.69rem;font-style:normal}
+.panel .kit-detail{margin:-6px 0 12px;color:#dfc4a7;font-size:.77rem;text-align:left}
+.weapon-preview{display:block;width:45px;height:45px;margin:0 auto;object-fit:contain;filter:drop-shadow(0 0 6px #cf9f804d)}
+.mercenary-portrait{width:54px;height:54px;margin:0 auto;background-image:url("./merc-cast.webp");background-size:300% 200%;background-repeat:no-repeat}
+[data-origin-ally] .mercenary-portrait{width:108px;height:108px}
+.guild-weapon .weapon-preview{width:100%;height:100%;padding:4px}
+.convoy-fork .path-card small+small{color:#b7e4d8;margin-top:4px}
+@media(max-width:560px){
+ .origin-grid{grid-template-columns:1fr}
+ .origin-card{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0 6px 6px}
+ .origin-card header{grid-column:1/-1;min-height:49px;margin:0 -6px;padding:6px 10px;display:flex;align-items:baseline;gap:8px}
+ .origin-card button{width:100%;margin:0;padding:6px}
+ .origin-card button span{font-size:.69rem}
+}
 .village-detail{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:13px 0}
 .village-detail span{padding:6px 9px;background:#221c30;border:1px solid #977891;border-radius:6px;font-size:.83rem}
 .village-detail b{margin-left:3px;color:#c1f3dd}

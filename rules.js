@@ -6,19 +6,31 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(n,b));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const unit=(x,y)=>{const l=Math.hypot(x,y)||1;return {x:x/l,y:y/l};};
 const weapons={
-  scythe:{name:"潮鐮",icon:"☾",detail:"均衡橫掃，第三擊重斬",range:1,power:1,speed:1,arc:.32,tint:0xffe9d2},
-  fang:{name:"幽牙",icon:"✦",detail:"出手最快，貼近敵人連刺",range:.76,power:.75,speed:.72,arc:.48,tint:0xb0e8ed},
-  anchor:{name:"沉錨",icon:"⬥",detail:"揮擊較慢，範圍同威力更大",range:1.27,power:1.36,speed:1.38,arc:.13,tint:0xffc589},
-  spear:{name:"拾骨槍",icon:"⟐",detail:"向前突刺，最長近戰距離",range:1.52,power:1.05,speed:.93,arc:.76,tint:0xd8d8ff,unlock:2},
-  lantern:{name:"返魂燈",icon:"✺",detail:"每次揮擊帶出一束短程潮火",range:.89,power:.83,speed:1.13,arc:.28,tint:0xa4f9d7,unlock:3},
+  scythe:{name:"潮鐮",icon:"☾",detail:"均衡橫掃，第三擊重斬",range:1,power:1,speed:1,arc:.32},
+  fang:{name:"幽牙",icon:"✦",detail:"出手最快，貼近敵人連刺",range:.76,power:.75,speed:.72,arc:.48},
+  anchor:{name:"沉錨",icon:"⬥",detail:"揮擊較慢，範圍同威力更大",range:1.27,power:1.36,speed:1.38,arc:.13},
+  spear:{name:"拾骨槍",icon:"⟐",detail:"向前突刺，最長近戰距離",range:1.52,power:1.05,speed:.93,arc:.76,unlock:2},
+  lantern:{name:"返魂燈",icon:"✺",detail:"每次揮擊帶出一束短程潮火",range:.89,power:.83,speed:1.13,arc:.28,unlock:3},
 };
-const spells={
-  wave:{name:"潮刃",icon:"✧",detail:"發出穿過敵人嘅月刃"},
-  brand:{name:"霧印",icon:"◉",detail:"喺敵人腳下引爆一圈潮火"},
-  ward:{name:"護魂潮",icon:"◎",detail:"震退身邊敵人，短暫抵擋傷害",unlock:1},
-};
-const tradeWeapons=Object.fromEntries(Object.entries(tradeRoles).map(([id,r])=>[id,{...r,name:r.weapon,speed:1,arc:.29,tint:0xffd89d}]));
+const tradeWeapons=Object.fromEntries(Object.entries(tradeRoles).map(([id,r])=>[id,{...r,name:r.weapon,speed:1,arc:.29}]));
 const weaponOf=id=>weapons[id]||tradeWeapons[id];
+const weaponArts={
+  scythe:{name:"潮月迴刃",detail:"迴身斬出一整圈月刃",cd:5,fx:"sweep",color:0xffcadb},
+  fang:{name:"幽牙穿刺",detail:"朝敵人突進，留下穿透刃痕",cd:3.7,fx:"thrust",color:0x8effed},
+  anchor:{name:"沉錨震地",detail:"重砸前方地面，震退一群敵人",cd:6,fx:"slam",color:0xffb06d},
+  spear:{name:"拾骨破陣",detail:"射出一道長槍光，穿過一列敵人",cd:4.5,fx:"thrust",color:0xa5b8ff},
+  lantern:{name:"返魂燈火",detail:"放出三道分岔鬼火",cd:5.2,fx:"flare",color:0x8dffc6},
+  martial:{cd:6,fx:"slam",color:0xffbc80},oracle:{cd:12,fx:"flare",color:0xccadff},
+  samurai:{fx:"sweep",color:0xff8e99},maiden:{cd:6,fx:"chime",color:0xa9ddff},
+  hunter:{fx:"arrow",color:0xb7f2ae},merchant:{cd:6,fx:"ink",color:0xf1b995},
+};
+function weaponSkillOf(run){
+  const art=weaponArts[run.weapon];
+  if(weapons[run.weapon])return art;
+  const role=tradeRoles[run.weapon];
+  if(!run.profile.forged||role.passive)return null;
+  return {...art,name:role.gearSkill,detail:role.gearDetail};
+}
 const gifts={
   claw:{name:"赤月爪",icon:"☾",detail:"武器傷害提高 32%",apply:r=>r.power*=1.32},
   mist:{name:"薄霧步",icon:"≋",detail:"翻滾冷卻縮短 35%",apply:r=>r.dashWait*=.65},
@@ -38,15 +50,15 @@ const enemies={
   weigher:{name:"秤契官",hp:760,speed:72,reach:365,charge:.76,rest:.82,frame:0,size:153,color:0xeeb066,sheet:"tide-cast",pattern:["lane","circle"],rage:["fan","circle","lane"],adds:"bailiff",omen:"磅錘裂開。向側面避開散射嘅糧契。"},
   abbess:{name:"拾骨修女",hp:890,speed:68,reach:380,charge:.76,rest:.79,frame:1,size:159,color:0xb4a5f4,sheet:"tide-cast",pattern:["fan","circle"],rage:["ring","lane","fan"],adds:"wisp",omen:"修女放開所有鹽魂。留意由佢腳下向外散開嘅彈。"},
   undertow:{name:"持契者 · 黑月",hp:1260,speed:83,reach:400,charge:.74,rest:.73,frame:2,size:172,color:0xfc8089,sheet:"tide-cast",pattern:["cross","fan","circle"],rage:["ring","cross","lane","fan"],adds:"sentinel",omen:"黑月撕開契紙。先搵到交錯射線之間嘅空位。"},
-  clay:{name:"泥土士兵",hp:59,speed:100,reach:78,charge:.66,rest:.74,frame:3,size:74,color:0xda9263,sheet:"tide-cast",armor:.82},
-  spirit:{name:"怨靈",hp:46,speed:86,reach:260,charge:.71,rest:.94,frame:5,size:72,color:0xcaa4f6,pattern:["shot"]},
-  ghostCat:{name:"鬼貓",hp:49,speed:117,reach:200,charge:.59,rest:.99,frame:7,size:69,color:0x9fe9fb,pattern:["lane","shot"]},
-  snowDemon:{name:"雪怪",hp:66,speed:85,reach:91,charge:.68,rest:.84,frame:4,size:81,color:0xc8efff},
-  turtle:{name:"海龜",hp:87,speed:67,reach:80,charge:.72,rest:.87,frame:6,size:80,color:0x83cf95,armor:.68},
-  seaHorse:{name:"海馬",hp:51,speed:98,reach:253,charge:.77,rest:1.04,frame:5,size:70,color:0x80ecd5,pattern:["shot"]},
-  qinSoul:{name:"秦始皇之魂",hp:490,speed:62,reach:342,charge:.83,rest:.89,frame:0,size:146,color:0xf5b883,sheet:"tide-cast",pattern:["lane","circle"],rage:["cross","circle","fan"],adds:"clay",omen:"秦陵泥軍出陣，留意十字斬線。"},
-  snowElephant:{name:"雪象",hp:485,speed:70,reach:337,charge:.78,rest:.88,frame:1,size:144,color:0xc3e5ff,sheet:"tide-cast",pattern:["circle","lane"],rage:["fan","cross","circle"],adds:"ghostCat",omen:"冰城塌陷，鬼貓同雪浪一齊湧出。"},
-  seaKing:{name:"海底王",hp:540,speed:72,reach:355,charge:.81,rest:.81,frame:8,size:151,color:0x70ded2,pattern:["fan","circle"],rage:["ring","lane","fan"],adds:"seaHorse",omen:"海底王攪起逆潮，準備避開環形彈幕。"},
+  clay:{name:"泥土士兵",hp:59,speed:100,reach:78,charge:.66,rest:.74,frame:0,sheet:"regional-cast",size:74,color:0xda9263,armor:.82},
+  spirit:{name:"怨靈",hp:46,speed:86,reach:260,charge:.71,rest:.94,frame:1,sheet:"regional-cast",size:72,color:0xcaa4f6,pattern:["shot"]},
+  ghostCat:{name:"鬼貓",hp:49,speed:117,reach:200,charge:.59,rest:.99,frame:3,sheet:"regional-cast",size:69,color:0x9fe9fb,pattern:["lane","shot"]},
+  snowDemon:{name:"雪怪",hp:66,speed:85,reach:91,charge:.68,rest:.84,frame:4,sheet:"regional-cast",size:81,color:0xc8efff},
+  turtle:{name:"海龜",hp:87,speed:67,reach:80,charge:.72,rest:.87,frame:6,sheet:"regional-cast",size:80,color:0x83cf95,armor:.68},
+  seaHorse:{name:"海馬",hp:51,speed:98,reach:253,charge:.77,rest:1.04,frame:7,sheet:"regional-cast",size:70,color:0x80ecd5,pattern:["shot"]},
+  qinSoul:{name:"秦始皇之魂",hp:490,speed:62,reach:342,charge:.83,rest:.89,frame:2,sheet:"regional-cast",size:146,color:0xf5b883,pattern:["lane","circle"],rage:["cross","circle","fan"],adds:"clay",omen:"秦陵泥軍出陣，留意十字斬線。"},
+  snowElephant:{name:"雪象",hp:485,speed:70,reach:337,charge:.78,rest:.88,frame:5,sheet:"regional-cast",size:144,color:0xc3e5ff,pattern:["circle","lane"],rage:["fan","cross","circle"],adds:"ghostCat",omen:"冰城塌陷，鬼貓同雪浪一齊湧出。"},
+  seaKing:{name:"海底王",hp:540,speed:72,reach:355,charge:.81,rest:.81,frame:8,sheet:"regional-cast",size:151,color:0x70ded2,pattern:["fan","circle"],rage:["ring","lane","fan"],adds:"seaHorse",omen:"海底王攪起逆潮，準備避開環形彈幕。"},
 };
 const isBoss=enemy=>Boolean(enemies[enemy.kind].rage);
 const gearUnlocked=(item,village)=>(item.unlock||0)<=village.cleared;
@@ -94,31 +106,35 @@ class TideRun{
   }
   resize(width){
     const ratio=width/this.width;
-    for(const item of [this.player,...this.enemies,...this.bolts,...this.particles,...this.effects,this.companion,this.dragon].filter(Boolean)){
+    for(const item of [this.player,...this.enemies,...this.bolts,...this.particles,...this.effects,this.companion,this.dragon,this.lockField].filter(Boolean)){
       item.x*=ratio;
       if(item.warning)item.warning.x*=ratio;
     }
     this.width=width;
   }
-  depart(weapon="scythe",spell="wave",chapter=0,trial=false){
-    const v=this.village,story=chapters[chapter];
-    if(this.phase!=="village"||!story||chapter>v.cleared||trial&&!v.ending)return;
-    if(!weapons[weapon]||!spells[spell]||!gearUnlocked(weapons[weapon],v)||!gearUnlocked(spells[spell],v))return;
-    this.startRun(weapon,spell,chapter,story,trial);
+  depart(plan,weapon,ally,trial=false){
+    const v=this.village,chapter=plan?.chapter,story=chapters[chapter];
+    if(this.phase!=="village"||!story||chapter>v.cleared||trial&&!v.ending||plan.role!==v.trade.role)return;
+    const current=expeditionPlan(v,chapter,plan.seed);
+    if(!current.weapon.includes(weapon)||ally&&!current.roster.includes(ally))return;
+    this.startRun(weapon,chapter,story,trial,ally,null,current);
   }
   departTrade(destination){
     const t=this.village.trade,role=tradeRoles[t.role],story=charters[destination];
     if(this.phase!=="village"||!role||!story)return;
     const ally=t.active&&t.troops[t.active]?t.active:"";
-    const trade={destination,from:t.port,role:t.role,forged:Boolean(t.forged[t.role]),ally,rank:ally?t.troops[ally]:0};
-    this.startRun(t.role,t.role,0,story,false,trade);
+    this.startRun(t.role,0,story,false,ally,{destination});
   }
-  startRun(weapon,spell,chapter,story,trial,trade=null){
+  startRun(weapon,chapter,story,trial,ally,trade=null,plan=null){
     const v=this.village;
-    const seed=Date.now()>>>0;
+    const role=v.trade.role;
+    const profile={role,forged:weapon===role&&Boolean(v.trade.forged[role]),ally,rank:ally?(v.trade.troops[ally]||1):0};
+    const seed=plan?.seed??crypto.getRandomValues(new Uint32Array(1))[0];
     this.random=seedRandom(seed);
-    this.run={seed,chapter,story,trial,trade,depth:0,embers:0,food:0,rescued:0,weapon,invocation:spell,power:1+v.forge*.17,spell:1,range:1,dashWait:.78,castWait:trade?.role==="oracle"?3.35:1.65,chosen:[],healOnClear:false};
-    if(trade?.forged)this.run.power*=1.12;
+    this.run={seed,chapter,story,trial,trade,plan,profile,convoy:null,depth:0,rooms:plan?4:3,embers:0,food:0,rescued:0,weapon,
+      power:1+v.forge*.17,spell:1,range:1,dashWait:.78,castWait:role==="oracle"?3.35:1.65,chosen:[],healOnClear:false};
+    if(profile.forged)this.run.power*=1.12;
+    this.run.weaponSkill=weaponSkillOf(this.run);
     this.player.maxHp=4+v.lamp+v.blessing;
     this.player.hp=this.player.maxHp;
     this.player.fervor=3;
@@ -132,26 +148,39 @@ class TideRun{
     this.bolts=[];this.particles=[];this.effects=[];
     this.freeze=0;this.shake=0;this.comboUntil=0;this.roomTime=0;
     this.intro=area.guardian?.76:.23;
-    this.floor=this.run.trade?.36:this.run.chapter?.46:.27;
+    const convoy=this.run.convoy?.area===location?this.run.convoy:null;
+    this.floor=(this.run.trade||convoy) ? .36 : (this.run.chapter ? .46 : .27);
     this.reinforced=false;
     this.bufferDash=this.bufferCast=this.bufferAttack=0;
     const p=this.player;
     p.x=this.width*.5;p.y=this.height*.75;p.angle=-Math.PI/2;
     p.attackCd=0;p.castCd=0;p.dashCd=0;p.attack=null;p.dash=null;p.invulnerable=.28;
     p.walking=false;p.hit=0;p.castPose=0;
-    p.gearCd=0;p.ward=0;p.arrowCd=0;
-    const ally=this.run.trade?.ally;
+    p.gearCd=0;p.ward=0;
+    const ally=this.run.profile.ally;
     this.companion=ally?{key:ally,x:this.width*.5+46,y:p.y+20,angle:p.angle,cd:1.1,castPose:0}:null;
     this.dragon=null;this.lockField=null;
     p.fervor=Math.max(2,p.fervor||0);
-    const lineup=area.guardian?[area.guardian]:area.waves[Math.floor(this.random()*area.waves.length)];
+    const lineup=area.guardian?[area.guardian]:[...area.waves[Math.floor(this.random()*area.waves.length)]];
+    if(convoy?.incident.extra)lineup.push(lineup[Math.floor(this.random()*lineup.length)]);
     this.enemies=[];
     this.spawnLine(lineup);
+    if(convoy?.incident.leader){
+      const leader=this.enemies[0];
+      leader.hp=leader.maxHp=Math.ceil(leader.maxHp*.68);
+    }
     this.callbacks.room(location);
     CatAudio.play("door");
   }
   takePath(id){
     if(this.phase==="route"&&this.run.story.paths.includes(id))this.openRoom(id);
+  }
+  takeConvoy(region){
+    if(this.phase!=="convoy")return;
+    const option=this.run.plan.options.find(item=>item.region===region);
+    if(!option)return;
+    this.run.convoy=option;
+    this.openRoom(option.area);
   }
   spawnLine(lineup){
     lineup.forEach((kind,i)=>{
@@ -180,7 +209,7 @@ class TideRun{
     }
     const p=this.player,r=this.run;
     if(name==="equipment"){
-      if(r.trade?.forged&&!p.dash&&p.gearCd===0)this.tradeSkill(true);
+      if(r.weaponSkill&&!p.dash&&p.gearCd===0)this.useWeaponSkill();
       return;
     }
     if(name==="flask"){
@@ -211,40 +240,15 @@ class TideRun{
       if(p.fervor<1){this.callbacks.toast("潮力不足。用武器命中敵人可以補充。",1.5);return;}
       const e=this.target(420);
       if(e)p.angle=Math.atan2(e.y-p.y,e.x-p.x);
-      const angle=p.angle;
       p.fervor-=1;p.castCd=r.castWait;p.castPose=.29;
       this.effect("spark",p.x,p.y-18,0x86f7df,.26,28);
-      if(r.trade)this.tradeSkill(false);
-      else if(r.invocation==="ward"){
-        p.invulnerable=Math.max(p.invulnerable,.92);
-        this.effect("sigil",p.x,p.y,0xb0edf9,.56,130,angle);
-        let first=true;
-        for(const enemy of this.enemies){
-          if(enemy.hp>0&&dist(enemy,p)<=130){
-            this.damage(enemy,27*r.spell,Math.atan2(enemy.y-p.y,enemy.x-p.x),true,first,true);
-            first=false;
-          }
-        }
-      }else if(r.invocation==="brand"){
-        const x=e?.x??clamp(p.x+Math.cos(angle)*145,30,this.width-30);
-        const y=e?.y??clamp(p.y+Math.sin(angle)*145,this.height*this.floor,this.height*.88);
-        this.effect("sigil",x,y,0xbd99fb,.59,100,angle);
-        let hits=0;
-        for(const enemy of this.enemies){
-          if(enemy.hp>0&&dist(enemy,{x,y})<=100){
-            this.damage(enemy,32*r.spell,Math.atan2(enemy.y-y,enemy.x-x),true,hits===0,true);
-            hits++;
-          }
-        }
-      }else{
-        this.bolts.push({x:p.x+Math.cos(angle)*17,y:p.y+Math.sin(angle)*17,angle,speed:645,time:.69,friendly:true,damage:40*r.spell,seen:new Set(),size:15});
-      }
+      this.tradeSkill();
       CatAudio.play("cast");
       return;
     }
     if(p.attackCd>0){if(p.attackCd<.15)this.bufferAttack=this.clock+.16;return;}
     const weapon=weaponOf(r.weapon);
-    const e=this.target(165*r.range*weapon.range);
+    const e=this.target(r.weapon==="hunter"?390:165*r.range*weapon.range);
     if(e)p.angle=Math.atan2(e.y-p.y,e.x-p.x);
     this.combo=this.clock<this.comboUntil?(this.combo+1)%3:0;
     this.comboUntil=this.clock+.66;
@@ -258,9 +262,17 @@ class TideRun{
     const p=this.player,r=this.run;
     const dx=Math.cos(attack.angle),dy=Math.sin(attack.angle);
     const weapon=weaponOf(r.weapon);
+    const art=weaponArts[r.weapon];
     const range=(attack.heavy?129:103)*r.range*weapon.range;
+    if(r.weapon==="hunter"){
+      const offsets=r.profile.forged?[-.13,0,.13]:[0];
+      for(const offset of offsets)this.tradeBolt(p,attack.angle+offset,(r.profile.forged?12:23)*r.power*(attack.heavy?1.4:1),690,.61,0,art.fx,art.color,true);
+      this.effect("spark",p.x+dx*30,p.y+dy*30-16,art.color,.21,20);
+      return;
+    }
     this.move(p,p.x+dx*(attack.heavy?22:11),p.y+dy*(attack.heavy?22:11));
-    this.effect("slash",p.x,p.y-16,attack.heavy?0xffb88a:weapon.tint,.24,range*.91,attack.angle);
+    this.effect("slash",p.x,p.y-16,art.color,.24,range*.91,attack.angle,art.fx);
+    if(art.fx==="slam"||art.fx==="chime")this.effect("ring",p.x+dx*range*.57,p.y+dy*range*.57,art.color,.31,range*.66);
     let landed=false;
     for(const e of this.enemies){
       const x=e.x-p.x,y=e.y-p.y,d=Math.hypot(x,y);
@@ -269,12 +281,7 @@ class TideRun{
         landed=true;
       }
     }
-    if(r.weapon==="hunter"&&p.arrowCd===0){
-      p.arrowCd=r.trade.forged?.44:.55;
-      for(const offset of r.trade.forged?[-.13,0,.13]:[0])this.tradeBolt(p,attack.angle+offset,r.trade.forged?12:17,565,.57);
-    }else if(r.weapon==="lantern"){
-      this.bolts.push({x:p.x+dx*22,y:p.y+dy*22,angle:attack.angle,speed:515,time:.28,friendly:true,damage:(attack.heavy?18:12)*r.power,seen:new Set(),size:11});
-    }
+    if(r.weapon==="lantern")this.tradeBolt(p,attack.angle,(attack.heavy?18:12)*r.power,515,.28,0,art.fx,art.color);
   }
   tradeBurst(x,y,radius,damage,color,snare=0){
     this.effect("sigil",x,y,color,.53,radius);
@@ -287,28 +294,54 @@ class TideRun{
       first=false;
     }
   }
-  tradeBolt(source,angle,damage,speed=570,time=.70,chill=0){
+  tradeBolt(source,angle,damage,speed=570,time=.70,chill=0,style="sweep",color=0x9ef9dd,weaponHit=false){
     this.bolts.push({x:source.x+Math.cos(angle)*16,y:source.y+Math.sin(angle)*16,angle,speed,time,friendly:true,
-      damage,seen:new Set(),size:13,chill});
+      damage,seen:new Set(),size:style==="arrow"?10:13,chill,style,color,weaponHit});
   }
-  tradeSkill(equipment){
-    const p=this.player,r=this.run,role=r.trade.role,focus=this.target(395);
-    if(equipment){
-      if(tradeRoles[role].passive)return;
-      p.gearCd=role==="oracle"?12:6;p.castPose=.29;
-      if(role==="martial"||role==="maiden"){
+  useWeaponSkill(){
+    const p=this.player,r=this.run,art=r.weaponSkill,focus=this.target(395),id=r.weapon;
+    p.gearCd=art.cd;p.castPose=.29;
+    if(focus)p.angle=Math.atan2(focus.y-p.y,focus.x-p.x);
+    const angle=p.angle,dx=Math.cos(angle),dy=Math.sin(angle),damage=r.spell;
+    switch(id){
+      case "scythe":
+        this.tradeBurst(p.x,p.y,128,53*damage,art.color);
+        this.effect("slash",p.x,p.y-16,art.color,.38,120,angle,"whirl");
+        break;
+      case "fang":
+        this.tradeBolt(p,angle,48*damage,720,.31,0,"thrust",art.color);
+        this.effect("slash",p.x,p.y-16,art.color,.37,133,angle,"thrust");
+        this.move(p,p.x+dx*103,p.y+dy*103);
+        p.invulnerable=Math.max(.28,p.invulnerable);
+        break;
+      case "anchor":
+        this.tradeBurst(p.x+dx*80,p.y+dy*80,118,61*damage,art.color,.48);
+        break;
+      case "spear":
+        this.tradeBolt(p,angle,56*damage,800,.62,0,"thrust",art.color);
+        this.effect("slash",p.x,p.y-16,art.color,.36,151,angle,"thrust");
+        break;
+      case "lantern":
+        for(const offset of [-.24,0,.24])this.tradeBolt(p,angle+offset,30*damage,470,.73,0,"flare",art.color);
+        break;
+      case "martial":
+      case "maiden":
         p.ward=4.5;
-        this.effect("sigil",p.x,p.y,0x98ffe2,.64,93);
-      }else if(role==="oracle"){
+        this.effect("sigil",p.x,p.y,art.color,.64,93);
+        break;
+      case "oracle":
         this.dragon={x:p.x+34,y:p.y-25,angle:p.angle,life:8,cd:0,castPose:0};
-        this.effect("sigil",p.x,p.y,0xae9df2,.64,110);
-      }else if(role==="merchant"){
-        const x=focus?.x??p.x,y=focus?.y??p.y;
-        this.lockField={x,y,left:4,next:0};
-        this.effect("sigil",x,y,0xf8bb76,1.6,120);
-      }
-      CatAudio.play("cast");this.callbacks.hud();return;
+        this.effect("sigil",p.x,p.y,art.color,.64,110);
+        break;
+      case "merchant":
+        this.lockField={x:focus?.x??p.x,y:focus?.y??p.y,left:4,next:0};
+        this.effect("sigil",this.lockField.x,this.lockField.y,art.color,1.6,120);
+        break;
     }
+    CatAudio.play("cast");this.callbacks.hud();
+  }
+  tradeSkill(){
+    const p=this.player,r=this.run,role=r.profile.role,focus=this.target(395);
     const power=r.spell;
     if(role==="martial")this.tradeBurst(p.x,p.y,143,49*power,0xffb27b,.48);
     if(role==="oracle"){
@@ -316,10 +349,10 @@ class TideRun{
       this.effect("sigil",p.x,p.y,0xb6ffbb,.62,98);
     }
     if(role==="samurai"){
-      this.tradeBolt(p,p.angle,(r.trade.forged?78:53)*power,675);
+      this.tradeBolt(p,p.angle,(r.profile.forged?78:53)*power,675,.70,0,"sweep",0xff9c9f);
       this.effect("slash",p.x,p.y-18,0xffca9f,.26,112,p.angle);
     }
-    if(role==="maiden")this.tradeBolt(p,p.angle,44*power,536,.82,1.45);
+    if(role==="maiden")this.tradeBolt(p,p.angle,44*power,536,.82,1.45,"ice",0x96d9ff);
     if(role==="hunter")this.tradeBurst(focus?.x??p.x,focus?.y??p.y,111,43*power,0xb2e8b3,1.9);
     if(role==="merchant"){
       const heading=this.intent.x||this.intent.y?Math.atan2(this.intent.y,this.intent.x):p.angle;
@@ -344,19 +377,36 @@ class TideRun{
     };
     const a=this.companion;
     if(a){
+      const m=tradeMercenaries[a.key],rank=r.profile.rank;
       const offset=p.x<this.width*.60?1:-1;
-      track(a,p.x+offset*54,p.y+24,213);
-      const m=tradeMercenaries[a.key],rank=r.trade.rank;
-      const e=this.enemies.find(e=>e.hp>0&&dist(a,e)<375);
+      const e=this.target(m.mode==="blade"?154:368);
+      const close=m.mode==="blade"&&e;
+      track(a,close?e.x+offset*38:p.x+offset*54,close?e.y+14:p.y+24,213);
       if(a.cd===0){
-        if(m.mode==="mana"&&p.fervor<4){p.fervor=Math.min(5,p.fervor+(rank===2?1.3:.72));a.cd=3.7;}
-        else if(m.mode==="heal"&&p.hp<p.maxHp&&p.hp<=Math.ceil(p.maxHp*.55)){p.hp++;a.cd=7.5;}
-        else if(e&&m.mode==="hex"){for(const foe of this.enemies)if(dist(foe,e)<125)foe.hex=rank===2?4.2:3;a.cd=4.3;}
-        else if(e&&(m.mode==="shot"||m.mode==="blade"||rank===2&&m.mode==="heal")){
+        if(m.mode==="mana"&&p.fervor<4){
+          p.fervor=Math.min(5,p.fervor+(rank===2?1.3:.72));a.cd=3.7;
+          this.effect("ring",p.x,p.y,0x9feede,.42,44);
+        }else if(m.mode==="heal"&&p.hp<p.maxHp&&p.hp<=Math.ceil(p.maxHp*.55)){
+          p.hp++;a.cd=7.5;
+          this.effect("sigil",p.x,p.y,0xbceba3,.47,62);
+        }else if(e&&m.mode==="hex"){
+          for(const foe of this.enemies)if(dist(foe,e)<125)foe.hex=rank===2?4.2:3;
+          this.effect("sigil",e.x,e.y,0xd8b4f4,.46,92);
+          a.cd=4.3;
+        }else if(close&&dist(a,e)<68){
+          a.angle=Math.atan2(e.y-a.y,e.x-a.x);
+          if(rank===2)this.tradeBurst(e.x,e.y,99,24,0xffc477);
+          else{
+            this.damage(e,20,a.angle,false,false,true);
+            this.effect("slash",a.x,a.y-12,0xe8be91,.23,70,a.angle,"sweep");
+          }
+          a.cd=rank===2?1.75:2.2;
+        }else if(e&&(m.mode==="shot"||rank===2&&m.mode==="heal")){
           const angle=Math.atan2(e.y-a.y,e.x-a.x);
           a.angle=angle;
-          if(m.mode==="blade"&&rank===2)this.tradeBurst(e.x,e.y,99,24,0xe8be91);
-          else this.tradeBolt(a,angle,rank===2?24:17,604,.62);
+          if(a.key==="gun"){
+            for(const offset of rank===2?[-.08,.08]:[0])this.tradeBolt(a,angle+offset,rank===2?13:21,740,.59,0,"thrust",0xffc581);
+          }else this.tradeBolt(a,angle,rank===2?24:17,604,.64,0,"arrow",a.key==="arrow"?0xb7f2ae:0xadf2de);
           a.cd=rank===2?1.65:2.4;
         }
         if(a.cd>0){
@@ -431,8 +481,8 @@ class TideRun{
     this.callbacks.hud();
     if(p.hp<=0)this.finish(false);
   }
-  effect(kind,x,y,color,life,size,angle=0){
-    this.effects.push({kind,x,y,color,left:life,life,size,angle});
+  effect(kind,x,y,color,life,size,angle=0,fx=""){
+    this.effects.push({kind,x,y,color,left:life,life,size,angle,fx});
   }
   burst(x,y,color,count,speed,dust=false){
     for(let i=0;i<count;i++){
@@ -539,7 +589,7 @@ class TideRun{
       return;
     }
     this.roomTime+=dt;
-    for(const key of ["attackCd","dashCd","castCd","invulnerable","hit","castPose","gearCd","ward","arrowCd"])p[key]=Math.max(0,p[key]-dt);
+    for(const key of ["attackCd","dashCd","castCd","invulnerable","hit","castPose","gearCd","ward"])p[key]=Math.max(0,p[key]-dt);
     if(this.bufferDash>this.clock&&p.dashCd===0){this.bufferDash=0;this.input("dash");}
     if(this.bufferCast>this.clock&&p.castCd===0){this.bufferCast=0;this.input("cast");}
     if((held||this.bufferAttack>this.clock)&&p.attackCd===0){this.bufferAttack=0;this.input("attack");}
@@ -566,7 +616,7 @@ class TideRun{
       if(!a.fired&&a.left<=a.impact){a.fired=true;this.strike(a);}
       if(a.left<=0)p.attack=null;
     }
-    if(this.run.trade)this.tickTrade(dt);
+    if(this.companion||this.dragon||this.lockField)this.tickTrade(dt);
     for(const e of this.enemies){
       this.tickEnemy(e,dt);
       if(this.phase!=="fight")return;
@@ -577,7 +627,7 @@ class TideRun{
       if(b.friendly){
         for(const e of this.enemies){
           if(e.hp>0&&!b.seen.has(e)&&dist(e,b)<(isBoss(e)?43:27)){
-            this.damage(e,b.damage,b.angle,true,b.seen.size===0,true);
+            this.damage(e,b.damage,b.angle,!b.weaponHit,b.seen.size===0,!b.weaponHit);
             if(b.chill)e.snare=Math.max(e.snare||0,b.chill);
             b.seen.add(e);
           }
@@ -608,7 +658,7 @@ class TideRun{
       return;
     }
     if(this.run.healOnClear)this.player.hp=Math.min(this.player.maxHp,this.player.hp+1);
-    if(area.guardian){
+    if(area.guardian&&this.run.depth===this.run.rooms){
       const e=this.enemies[0];
       this.phase="victory";this.victory=.78;this.shake=12;this.bolts=[];
       this.effect("sigil",e.x,e.y,0xffd5a8,.78,166);
@@ -617,11 +667,13 @@ class TideRun{
       return;
     }
     this.phase="reward";
-    if(this.run.depth===2){
-      this.run.rescued=Number(!this.run.trade&&this.run.chapter===this.village.cleared);
-      this.run.embers+=area.reward.embers||0;
-      this.run.food+=area.reward.food||0;
-      this.player.hp=Math.min(this.player.maxHp,this.player.hp+(area.reward.heal||0));
+    const r=this.run;
+    if(r.depth===2||r.depth===3){
+      if(r.depth===2)r.rescued=Number(!r.trade&&r.chapter===this.village.cleared);
+      r.embers+=area.reward?.embers||0;
+      r.food+=area.reward?.food||0;
+      const heal=(area.reward?.heal||0)+(r.depth===3?(r.convoy?.incident.heal||0):0);
+      this.player.hp=Math.min(this.player.maxHp,this.player.hp+heal);
     }
     const remaining=Object.keys(gifts).filter(id=>!this.run.chosen.includes(id));
     this.offered=[];
@@ -636,6 +688,7 @@ class TideRun{
     gifts[id].apply(this.run,this.player);
     this.callbacks.hud();
     if(this.run.depth===1){this.phase="route";this.callbacks.route();}
+    else if(this.run.depth===2&&this.run.plan){this.phase="convoy";this.callbacks.convoy();}
     else{this.phase="market";this.callbacks.market();}
   }
   leaveMarket(heal){
@@ -647,21 +700,27 @@ class TideRun{
     }
     this.openRoom(this.run.story.boss);
   }
+  settleCaravan(destination,pay){
+    const t=this.village.trade;
+    t.port=destination;
+    t.coins=Math.min(99999,t.coins+pay);
+    t.credit=Math.min(9999,t.credit+1);
+    this.run.tradePay=pay;
+  }
   finish(win){
     if(this.phase==="result")return;
     this.phase="result";
     const earned=win?this.run.embers:Math.floor(this.run.embers*.5);
     this.village.embers=Math.min(99999,this.village.embers+earned);
     if(win&&this.run.trade){
-      const {destination}=this.run.trade,t=this.village.trade,story=this.run.story;
+      const {destination}=this.run.trade,t=this.village.trade;
       this.run.firstClear=t.clears[destination]===0;
-      this.run.tradePay=this.run.weapon==="merchant"?75:60;
-      t.port=destination;t.clears[destination]=Math.min(999,t.clears[destination]+1);
-      t.materials[story.material]=Math.min(99,t.materials[story.material]+2);
-      t.coins=Math.min(99999,t.coins+this.run.tradePay);
-      t.credit=Math.min(9999,t.credit+1);
+      this.settleCaravan(destination,this.run.profile.role==="merchant"?75:60);
+      t.clears[destination]=Math.min(999,t.clears[destination]+1);
       this.village.food=Math.min(99,this.village.food+this.run.food);
     }else if(win){
+      const {convoy,chapter,profile}=this.run;
+      if(convoy)this.settleCaravan(convoy.region,48+chapter*8+convoy.incident.pay+(profile.role==="merchant"?15:0));
       this.village.wins=Math.min(999,this.village.wins+1);
       this.village.rescued=Math.min(99,this.village.rescued+this.run.rescued);
       this.run.firstClear=this.run.chapter===this.village.cleared;

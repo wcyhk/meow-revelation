@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge} from './armory.mjs';
-import {pictures, stages} from './expedition.mjs';
+import {pictures, stages} from './expedition.mjs?v=objectives-1';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -188,6 +188,8 @@ export class Scenery {
     this.ward = this.makeWard();
     this.fixtures = new T.Group();
     this.scene.add(this.fixtures);
+    this.missionObjects=new T.Group();
+    this.scene.add(this.missionObjects);
     this.projectileShape = new T.OctahedronGeometry(.19);
     this.shake = 0;
     this.time = 0;
@@ -490,7 +492,7 @@ export class Scenery {
     this.removeActor(actor);
   }
 
-  makeClue() {
+  makeClue(parent=this.scene) {
     const root = new T.Group();
     const brass = new T.MeshStandardMaterial({color:0xa57345,metalness:.45,roughness:.43});
     const wax = new T.MeshBasicMaterial({color:0xffd188});
@@ -510,13 +512,107 @@ export class Scenery {
     root.add(base,frame,cap,flame,marker,halo);
     root.userData={flame,halo,marker};
     root.visible=false;
-    this.scene.add(root);
+    parent.add(root);
     return root;
   }
 
   placeClue(point) {
     this.clue.visible=!!point;
     if (point) this.clue.position.set(point.x,0,point.z);
+  }
+
+  setMission(mission) {
+    const materials=new Set();
+    this.missionObjects.traverse(piece=>{
+      if (piece.isMesh) piece.geometry.dispose();
+      if (piece.material) materials.add(piece.material);
+    });
+    for (const material of materials) material.dispose();
+    this.missionObjects.clear();
+    this.mission=mission;
+    this.missionLight=null;
+    this.missionGate=null;
+    this.missionStones=[];
+    if (!mission) return;
+    const {plan}=mission;
+    if (plan.altar) {
+      this.missionLight=this.makeClue(this.missionObjects);
+      this.missionLight.scale.setScalar(1.74);
+      this.missionLight.position.set(plan.altar.x,0,plan.altar.z);
+      this.missionLight.visible=true;
+    }
+    if (plan.gate) {
+      const gate=new T.Group();
+      const {x,z,width,depth}=plan.gate;
+      const stone=new T.MeshStandardMaterial({color:0x34333a,roughness:.83,metalness:.25});
+      const bronze=new T.MeshStandardMaterial({color:0x877058,roughness:.52,metalness:.52});
+      const seal=new T.MeshBasicMaterial({color:0xd1ffba,transparent:true,opacity:.86,depthWrite:false,blending:T.AdditiveBlending});
+      const veil=new T.Mesh(new T.PlaneGeometry(width,1.06),new T.MeshBasicMaterial({color:0x80caa9,side:T.DoubleSide,
+        transparent:true,opacity:.22,depthWrite:false,blending:T.AdditiveBlending}));
+      veil.position.y=.73;
+      const wall=new T.Mesh(new T.BoxGeometry(width,.23,depth),stone);
+      wall.position.y=.12;
+      const edge=new T.Mesh(new T.BoxGeometry(width,.033,.04),seal);
+      edge.position.set(0,1.26,.035);
+      gate.add(wall,veil,edge);
+      for (let index=0;index<13;index++) {
+        const post=new T.Mesh(new T.CylinderGeometry(.14,.25,1.09,4),index%2?bronze:stone);
+        post.position.set((index-6)*1.8,.63,0);
+        post.rotation.y=Math.PI/4;
+        const diamond=new T.Mesh(new T.OctahedronGeometry(.11),seal);
+        diamond.position.set(post.position.x,1.21,.08);
+        gate.add(post,diamond);
+      }
+      gate.position.set(x,0,z);
+      this.missionGate=gate;
+      this.missionObjects.add(gate);
+    }
+    for (const point of plan.points??[]) {
+      const root=new T.Group();
+      const circuit=plan.type==='circuit';
+      const stand=new T.Mesh(new T.CylinderGeometry(circuit?.36:.19,circuit?.53:.28,.12,6),
+        new T.MeshStandardMaterial({color:0x624c3e,metalness:.28,roughness:.67}));
+      stand.position.y=.06;
+      const gem=new T.Mesh(circuit?new T.OctahedronGeometry(.23):new T.BoxGeometry(.24,.085,.32),
+        new T.MeshBasicMaterial({color:circuit?0xb1dcc0:0xffd088}));
+      gem.position.y=.32;
+      const halo=new T.Sprite(new T.SpriteMaterial({map:this.halo,color:circuit?0x9af0c0:0xffc682,
+        transparent:true,opacity:.72,depthWrite:false,blending:T.AdditiveBlending}));
+      halo.position.y=.29;
+      halo.scale.set(1.48,1.48,1);
+      root.add(stand,gem,halo);
+      root.position.set(point.x,0,point.z);
+      this.missionObjects.add(root);
+      this.missionStones.push({root,gem,halo,point});
+    }
+  }
+
+  renderMission(hero,dt) {
+    if (!this.mission || !hero) return;
+    const mission=this.mission;
+    if (this.missionLight) {
+      const {flame,halo}=this.missionLight.userData;
+      const fraction=mission.light/mission.plan.maxLight;
+      flame.visible=fraction>0;
+      flame.rotation.y=this.time*1.4;
+      halo.material.opacity=fraction*(.61+.13*Math.sin(this.time*8.2));
+      flame.material.color.setHex(fraction<.38?0xff6e45:0xffd58d);
+    }
+    if (this.missionGate) {
+      const gate=this.missionGate;
+      const target=mission.gateOpen?-1.42:0;
+      gate.position.y+=(target-gate.position.y)*(1-Math.exp(-dt*12));
+      gate.visible=gate.position.y>-1.30;
+    }
+    for (const [index,{root,gem,halo,point}] of this.missionStones.entries()) {
+      const lit=mission.found.has(index);
+      const circuit=mission.plan.type==='circuit';
+      const revealed=Math.hypot(hero.x-point.x,hero.z-point.z)<4.25;
+      root.visible=circuit||(!lit&&revealed);
+      gem.rotation.y=this.time*(circuit?1.1:1.65)+index;
+      gem.position.y=.32+.066*Math.sin(this.time*4+index);
+      halo.material.opacity=(lit?.88:.54)+.12*Math.sin(this.time*5.5+index);
+    }
   }
 
   makeWard() {
@@ -834,6 +930,7 @@ export class Scenery {
     }
     this.renderParticles(paused ? 0 : dt);
     if (this.leaves.mesh.visible) this.renderLeaves(time);
+    this.renderMission(hero,dt);
     this.renderer.render(this.scene,this.camera);
   }
 

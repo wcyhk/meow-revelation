@@ -1,4 +1,5 @@
 import {stages as originalStory} from './campaign.mjs';
+import {planObjective} from './objectives.mjs';
 
 const districts = [
   {
@@ -94,6 +95,7 @@ function rng(seed) {
 function makeRoom(zone, chapter, room, name) {
   const floor = chapter*10+room+1;
   const boss = room===9;
+  const objective = planObjective(chapter,room);
   const draw = rng(floor*204731+7);
   const spawn = {x:room===0||boss?0:(draw()-.5)*4.8,z:7.05+(draw()-.5)*1.2};
   const patternIndex = (chapter*3+room)%zone.pattern.length;
@@ -130,7 +132,7 @@ function makeRoom(zone, chapter, room, name) {
     action:'調查祭燈',...zone.clue,
   } : null;
   return {
-    floor, chapter, room, name, zone, boss, spawn, props, positions, waves, clue,
+    floor, chapter, room, name, zone, boss, spawn, props:objective?.props??props, positions, waves, clue, objective,
     picture:zone.alternate&&room%2 ? zone.alternate : zone.picture,
     hazard:hazard==='summon'?'marked':hazard,
     enemyPattern:zone.pattern[patternIndex],

@@ -1,12 +1,13 @@
-import {Scenery} from './scenery.mjs?v=hundred-1';
+import {Scenery} from './scenery.mjs?v=objectives-1';
 import {Audio} from './audio.mjs?v=armory-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs';
 import {ending} from './campaign.mjs';
-import {enemySpec, patterns, stages} from './expedition.mjs';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=objectives-1';
 import {blessings, buildStats} from './blessings.mjs';
-import {advanceThreats, telegraph} from './threats.mjs';
+import {advanceThreats, telegraph} from './threats.mjs?v=objectives-1';
 import {invokeArm, reflectHit, rushHit, strikeWith} from './combat.mjs';
+import {RoomObjective} from './objectives.mjs';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -71,13 +72,14 @@ export class Game {
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
+      'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
-    this.ui.inspect.addEventListener('click',()=>this.readClue());
+    this.ui.inspect.addEventListener('click',()=>this.interact());
     this.ui.journal.addEventListener('click',()=>this.showJournal());
     addEventListener('resize',()=>this.view.resize());
     document.addEventListener('visibilitychange',() => {if(document.hidden && this.state==='play') this.togglePause();});
@@ -169,16 +171,22 @@ export class Game {
     control.style.setProperty('--action-ink',tone);
   }
 
-  enter(level,retry=false) {
+  clearActors() {
     const actors = new Set([...this.enemies,...this.fallen,...this.pickups]);
     for (const unit of actors) this.view.removeActor(unit.visual);
     this.enemies.length = this.fallen.length = this.pickups.length = 0;
+  }
+
+  enter(level,retry=false) {
+    this.clearActors();
     this.clearThreats();
     this.rituals.length=0;
     this.level = level;
     this.wave = 0;
     this.clearDelay = 0;
     const stage = this.stage = stages[level];
+    this.mission=stage.objective ? new RoomObjective(this,stage.objective) : null;
+    this.ui.hud.dataset.mission=this.mission?.plan.type??'';
     const h = this.hero;
     const oldMax=h.maxHp;
     this.ranks=buildStats(h,this.weapon,stage.floor,this.relics);
@@ -194,6 +202,8 @@ export class Game {
     this.ambientClock=4.1+(stage.room%4)*.47;
     this.view.focus.set(0,0,-.65);
     this.view.setStage(stage);
+    this.view.setMission(this.mission);
+    this.setupMissionPins();
     this.audio.danger = stage.boss;
     this.ui['boss-hud'].hidden = true;
     this.ui['route-name'].textContent = stage.name;
@@ -203,10 +213,10 @@ export class Game {
       gem.className = 'route-gem '+(index===stage.chapter?'current':index<stage.chapter?'done':'');
       return gem;
     }));
-    const clue=this.journal.some(entry=>entry.chapter===stage.zone.name)?null:stage.clue;
+    const clue=this.journal.some(entry=>!entry.hiddenClue&&entry.chapter===stage.zone.name)?null:stage.clue;
     this.placeStory(clue);
-    if (!clue) this.objective(stage.boss?'迎戰 '+stage.zone.boss:patterns[stage.hazard]+' · 留意地面預警');
-    const arrival=clue?'循祭燈調查線索':stage.boss?stage.zone.boss:patterns[stage.hazard];
+    if (!clue) this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.zone.boss:patterns[stage.hazard]+' · 留意地面預警'));
+    const arrival=clue?'循祭燈調查線索':this.mission?.plan.title??(stage.boss?stage.zone.boss:patterns[stage.hazard]);
     this.announce(stage.zone.name+'  /  第 '+stage.floor+' 關',stage.name,arrival,2.15);
     this.startDelay = clue || (stage.boss&&!retry) ? Infinity : 1.05;
     this.renderUI();
@@ -234,6 +244,16 @@ export class Game {
 
   closeToClue() {
     return this.discovery && distance(this.hero,this.discovery)<1.82;
+  }
+
+  interact() {
+    if (this.state!=='play') return;
+    if (this.discovery) {
+      this.readClue();
+      return;
+    }
+    const index=this.mission?.nearby()??-1;
+    if (index>=0) this.mission.interact(index);
   }
 
   readClue() {
@@ -264,6 +284,27 @@ export class Game {
     this.openModal({kind:'story',mark:final?'✶':'✦',kicker:final?'尾聲':stages[this.level].name,title:clue.title,
       copy:'',content:prose,buttons:[proceed]});
     return true;
+  }
+
+  showHiddenClue(point,complete) {
+    const chapter=this.stage.zone.name;
+    if (!this.journal.some(entry=>entry.hiddenClue&&entry.title===point.title)) {
+      this.journal.push({title:point.title,record:point.record,chapter,hiddenClue:true});
+    }
+    this.state='story';
+    this.ui.inspect.hidden=true;
+    this.audio.play('blessing');
+    const prose=document.createElement('div');
+    prose.className='story-prose';
+    const paragraph=document.createElement('p');
+    paragraph.textContent=point.record;
+    prose.append(paragraph);
+    this.openModal({kind:'story',mark:'✧',kicker:'隱藏線索 · '+chapter,title:point.title,copy:'',content:prose,
+      buttons:[makeButton(complete?'收起最後一份線索':'收起線索',()=>{
+        this.state='play';
+        this.closeModal();
+        if (complete) this.completeRoom('已搵齊隱藏線索');
+      },'primary')]});
   }
 
   showJournal() {
@@ -394,11 +435,12 @@ export class Game {
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
       this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
-      if (!this.discovery && this.buffered.spell>0 && h.spellCool<=0) {
+      const canFight=!this.discovery&&!this.mission?.plan.points;
+      if (canFight && this.buffered.spell>0 && h.spellCool<=0) {
         this.buffered.spell=0;
         this.cast(input);
       }
-      if (!this.discovery && h.rolling<=0 && this.buffered.strike>0 && h.atk<=0) {
+      if (canFight && h.rolling<=0 && this.buffered.strike>0 && h.atk<=0) {
         this.buffered.strike=0;
         this.attack(input);
       }
@@ -414,9 +456,16 @@ export class Game {
       this.ui.inspect.hidden=!near;
       if (near) {
         this.ui.inspect.querySelector('span').textContent=this.discovery.action;
-        if (input.interact) this.readClue();
+        if (input.interact) this.interact();
       }
       return;
+    }
+    const point=this.mission?.nearby()??-1;
+    this.ui.inspect.hidden=point<0;
+    if (point>=0) {
+      const plan=this.mission.plan;
+      this.ui.inspect.querySelector('span').textContent=plan.type==='circuit'?'點亮 '+plan.points[point].symbol:'調查發光殘頁';
+      if (input.interact) this.interact();
     }
   }
 
@@ -427,6 +476,9 @@ export class Game {
   }
 
   isBlocked(unit,margin) {
+    const gate=this.mission?.plan.gate;
+    if (gate && !this.mission.gateOpen
+      && Math.abs(unit.x-gate.x)<gate.width/2+margin && Math.abs(unit.z-gate.z)<gate.depth/2+margin) return true;
     return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin);
   }
 
@@ -499,6 +551,7 @@ export class Game {
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     unit.flash = .78;
     unit.stun = unit.kind==='boss' ? .033 : .14;
+    if (unit.raider && distance(this.hero,unit)<4.8) unit.lured=1.45;
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
@@ -549,8 +602,16 @@ export class Game {
     return true;
   }
 
+  lanternTarget() {
+    return this.mission?.started && !this.mission.finished && this.mission.light>0 ? this.mission.plan.altar : null;
+  }
+
+  enemyTarget(unit) {
+    return unit.raider && !(unit.lured>0) ? this.lanternTarget()??this.hero : this.hero;
+  }
+
   beginEnemyAttack(unit) {
-    const h=this.hero, spec=unit.spec;
+    const h=this.enemyTarget(unit), spec=unit.spec;
     const d=Math.max(.05,distance(unit,h));
     const dx=(h.x-unit.x)/d, dz=(h.z-unit.z)/d;
     if (Math.abs(dx)>.1) unit.face=Math.sign(dx);
@@ -592,7 +653,6 @@ export class Game {
   }
 
   updateEnemies(dt) {
-    const h=this.hero;
     for (const unit of this.enemies) {
       if (unit.hp<=0) continue;
       const spec=unit.spec;
@@ -604,6 +664,7 @@ export class Game {
       unit.chill-=dt;
       unit.exposed-=dt;
       unit.phaseGuard-=dt;
+      if (unit.lured>0) unit.lured-=dt;
       this.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
@@ -613,14 +674,16 @@ export class Game {
         continue;
       }
       if (unit.age<.38 || unit.stun>0 || unit.recover>0) continue;
+      const h=this.enemyTarget(unit);
       const dist = Math.max(.045,distance(h,unit));
       const dx=(h.x-unit.x)/dist, dz=(h.z-unit.z)/dist;
       if (Math.abs(dx)>.14) unit.face=Math.sign(dx);
-      if (dist<spec.reach && unit.cool<0) {
+      const attackRange=h===this.hero ? spec.reach : Math.min(spec.reach,spec.ranged??1.85);
+      if (dist<attackRange && unit.cool<0) {
         this.beginEnemyAttack(unit);
         continue;
       }
-      const target = spec.ranged??(unit.kind==='boss'?2.8:spec.reach*.67);
+      const target = h!==this.hero ? attackRange*.64 : spec.ranged??(unit.kind==='boss'?2.8:spec.reach*.67);
       const direction = dist>target ? 1 : spec.ranged&&dist<target*.63 ? -.82 : 0;
       let sx=0,sz=0;
       for (const other of this.enemies) {
@@ -692,7 +755,16 @@ export class Game {
     if (this.discovery) return;
     if (this.startDelay !== Infinity) {
       this.startDelay-=dt;
-      if (this.startDelay<=0) this.startWave();
+      if (this.startDelay<=0) {
+        if (this.mission) {
+          this.startDelay=Infinity;
+          this.mission.start();
+        } else this.startWave();
+      }
+      return;
+    }
+    if (this.mission?.started) {
+      this.mission.tick(dt);
       return;
     }
     if (this.enemies.length) return;
@@ -705,8 +777,47 @@ export class Game {
       this.announce('結界再起','下一波','月蝕正在召喚更多的影子。',1.2);
       this.startDelay=1.18;
     } else {
-      this.ui['boss-hud'].hidden=true;
-      this.blessing();
+      this.completeRoom();
+    }
+  }
+
+  completeRoom(message,retreat=false) {
+    if (this.state!=='play') return;
+    if (this.mission) this.mission.finished=true;
+    this.ui.inspect.hidden=true;
+    this.ui['mission-status'].hidden=true;
+    this.ui['boss-hud'].hidden=true;
+    this.clearThreats();
+    this.rituals.length=0;
+    if (retreat) {
+      for (const enemy of this.enemies) this.view.spark(enemy.x,.55,enemy.z,this.stage.zone.color,10,.48);
+      this.clearActors();
+    }
+    this.blessing(message);
+  }
+
+  setupMissionPins() {
+    this.pins=(this.mission?.plan.points??[]).map(point=>{
+      const element=document.createElement('i');
+      element.textContent=point.symbol??'✧';
+      element.hidden=true;
+      return {point,element};
+    });
+    this.ui['mission-pins'].replaceChildren(...this.pins.map(pin=>pin.element));
+  }
+
+  updateMissionPins() {
+    const mission=this.mission;
+    for (const [index,{point,element}] of this.pins.entries()) {
+      const taken=mission.found.has(index);
+      const revealed=mission.plan.type==='circuit'||distance(point,this.hero)<4.25;
+      const screen=this.view.project(point.x,.86,point.z);
+      element.hidden=!revealed||mission.finished||(mission.plan.type==='search'&&taken)
+        ||screen.x<0||screen.x>this.view.width||screen.y<70||screen.y>this.view.height-95;
+      if (!element.hidden) {
+        element.classList.toggle('lit',taken);
+        element.style.transform='translate('+Math.round(screen.x)+'px,'+Math.round(screen.y)+'px) translate(-50%,-50%)';
+      }
     }
   }
 
@@ -793,6 +904,16 @@ export class Game {
     const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/(h.attackPeriod*1.34)];
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
+    const mission=this.mission;
+    this.ui['mission-status'].hidden=!mission?.started||!!mission.finished;
+    if (mission?.started&&!mission.finished) {
+      const {text,fill}=mission.status();
+      this.ui['mission-status'].dataset.mode=mission.plan.type;
+      if (this.ui['mission-title'].textContent!==mission.plan.title) this.ui['mission-title'].textContent=mission.plan.title;
+      if (this.ui['mission-text'].textContent!==text) this.ui['mission-text'].textContent=text;
+      this.ui['mission-track'].hidden=fill===null;
+      if (fill!==null) this.ui['mission-fill'].style.transform='scaleX('+fill+')';
+    }
   }
 
   loop(now) {
@@ -810,6 +931,7 @@ export class Game {
       this.audio.update();
     }
     this.view.render(dt,this.hero,this.state!=='play',freezeWarnings);
+    this.updateMissionPins();
   }
 
   openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
@@ -836,7 +958,7 @@ export class Game {
     this.input.reset();
   }
 
-  blessing() {
+  blessing(message) {
     this.state='blessing';
     this.audio.play('blessing');
     const h=this.hero;
@@ -855,7 +977,7 @@ export class Game {
       button.append(mark,name,detail);
       grid.append(button);
     }
-    this.openModal({mark:'✧',kicker:'第 '+this.stage.floor+' 關已完成',title:'亡者的祝福',
+    this.openModal({mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),title:'亡者的祝福',
       copy:'回復 '+heal+' 點生命。選擇一個祝福，效果可累積。',content:grid});
   }
 
@@ -911,14 +1033,16 @@ export class Game {
     this.enter(this.level,true);
   }
 
-  finish(won) {
+  finish(won,reason) {
     this.state=won?'won':'lost';
     this.audio.active=false;
     if (won) this.audio.play('blessing');
     const seconds=Math.floor(this.elapsed), time=Math.floor(seconds/60)+'分 '+seconds%60+'秒';
     const results=document.createElement('div');
     results.className='results';
-    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'線索 '+this.journal.length+'/10']) {
+    const storyClues=this.journal.filter(entry=>!entry.hiddenClue).length;
+    const hiddenClues=this.journal.length-storyClues;
+    for (const line of [this.weapon.name,'擊倒 '+this.kills,'用時 '+time,'主線 '+storyClues+'/10','隱藏 '+hiddenClues+'/20']) {
       const item=document.createElement('span');
       item.textContent=line;
       results.append(item);
@@ -929,8 +1053,9 @@ export class Game {
     buttons.push(makeButton('返回主畫面',()=>this.showCover()));
     this.openModal(won ? {mark:'✷',kicker:'緋月之森 · 完成',title:'星火歸家',
       copy:'天亮之前，你和小燈一起回家。',content:results,buttons} :
-      {mark:'☽',kicker:'第 '+this.stage.floor+' 關 · '+this.stage.name,title:'燈火熄滅',
-        copy:'重試此關會保留你的神器與祝福。',content:results,buttons});
+      {mark:'☽',kicker:'第 '+this.stage.floor+' 關 · '+this.stage.name,title:reason==='lantern'?'祭燈被摧毀':'燈火熄滅',
+        copy:reason==='lantern'?'守住祭燈直到倒數完結。重試會保留神器同祝福。':'重試此關會保留你的神器與祝福。',
+        content:results,buttons});
   }
 
   showCover() {

@@ -7,8 +7,8 @@
   <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
   <link rel="preload" href="./cover.jpg" as="image">
-  <link rel="stylesheet" href="./style.css?v=hundred-1">
-  <script type="module" src="./game.mjs?v=hundred-1"></script>
+  <link rel="stylesheet" href="./style.css?v=objectives-1">
+  <script type="module" src="./game.mjs?v=objectives-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -42,6 +42,12 @@
         <div><i aria-hidden="true">◆</i> <span id="boss-name"></span> <i aria-hidden="true">◆</i></div>
         <div class="boss-track"><div id="boss-fill"></div></div>
       </div>
+      <div id="mission-status" hidden>
+        <strong id="mission-title"></strong>
+        <span id="mission-text"></span>
+        <div id="mission-track" hidden><div id="mission-fill"></div></div>
+      </div>
+      <div id="mission-pins" aria-hidden="true"></div>
       <div id="objective"></div>
       <button id="inspect" hidden><i aria-hidden="true">◇</i><span></span><kbd>E</kbd></button>
       <div id="announce" aria-live="polite"><small id="announce-kicker"></small><strong id="announce-title"></strong><p id="announce-line"></p></div>

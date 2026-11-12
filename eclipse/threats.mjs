@@ -105,6 +105,7 @@ export function advanceThreats(game,dt) {
   const queued=game.hazards;
   game.hazards=[];
   const {view,hero}=game;
+  const lantern=game.lanternTarget();
   for (const hazard of queued) {
     hazard.delay-=dt;
     if (hazard.kind==='projectile') {
@@ -112,7 +113,8 @@ export function advanceThreats(game,dt) {
       hazard.z+=hazard.dz*hazard.speed*dt;
       view.moveProjectile(hazard.visual,hazard.x,hazard.z);
       if (hazard.delay<=0 || Math.abs(hazard.x)>12 || hazard.z<-8.5 || hazard.z>12 || game.isBlocked(hazard,.17)
-        || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner))) {
+        || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner))
+        || (lantern && hazard.owner?.raider && distance(lantern,hazard)<.74 && game.mission.hurtLantern(hazard.damage))) {
         view.removeProjectile(hazard.visual);
       } else game.hazards.push(hazard);
       continue;
@@ -142,5 +144,6 @@ export function advanceThreats(game,dt) {
     }
     view.threatImpact(hazard);
     if (withinThreat(hero,hazard)) game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner);
+    if (lantern && hazard.owner?.raider && withinThreat(lantern,hazard)) game.mission.hurtLantern(hazard.damage);
   }
 }

@@ -62,7 +62,17 @@ h1{margin:.19em 0 .28em;font:900 clamp(55px,7.4vw,116px)/1.05 var(--serif);lette
 #boss-hud{width:min(55vw,430px);left:50%;top:89px;transform:translateX(-50%);text-align:center;color:#f3c993;font:900 16px/1 var(--serif);letter-spacing:.17em}
 #boss-hud i{font-size:8px;color:#d58a5e;margin:0 5px;font-style:normal}
 .boss-track{height:8px;margin-top:7px}
-#objective{left:50%;bottom:max(25px,env(safe-area-inset-bottom));transform:translateX(-50%);text-align:center;font-size:12px;letter-spacing:.13em;color:#f4d4a3;padding:6px 15px;background:linear-gradient(90deg,transparent,#14170fbc,transparent);white-space:nowrap}
+#objective{left:50%;bottom:max(25px,env(safe-area-inset-bottom));transform:translateX(-50%);text-align:center;font-size:12px;letter-spacing:.10em;color:#f4d4a3;padding:6px 15px;background:linear-gradient(90deg,transparent,#14170fbc,transparent);width:max-content;max-width:calc(100% - 22px);line-height:1.36}
+#mission-status{--mission-ink:#ffda92;position:absolute;top:88px;left:50%;transform:translateX(-50%);min-width:168px;max-width:calc(100% - 25px);text-align:center;color:var(--mission-ink);background:#171713d9;padding:6px 12px 7px;border:1px solid color-mix(in srgb,var(--mission-ink) 51%,transparent);box-shadow:0 3px 14px #0a090786}
+#mission-status[data-mode=survive],#mission-status[data-mode=circuit]{--mission-ink:#c7f3d8}
+#mission-title,#mission-text{display:block;font-size:11px;white-space:nowrap;letter-spacing:.10em}
+#mission-text{margin-top:3px;font-size:12px;color:#fff0cb}
+#mission-track{margin:5px 0 0;height:4px;background:#fff2ce25}
+#mission-fill{height:100%;background:var(--mission-ink);transform-origin:left;box-shadow:0 0 6px var(--mission-ink)}
+#mission-pins{position:absolute;inset:0;pointer-events:none}
+#mission-pins i{position:absolute;top:0;left:0;display:grid;place-items:center;min-width:27px;min-height:27px;border-radius:50%;border:1px solid #dcdfaf9c;background:#1a1d17ed;color:#faedb8;font-size:17px;font-style:normal;box-shadow:0 0 11px #1817109e}
+#mission-pins .lit{color:#b9ffe4;border-color:#b9ffe4;background:#244a3be6}
+#hud:is([data-mission=circuit],[data-mission=search]) :is(#strike,#spell){display:none}
 #inspect{position:absolute;left:50%;bottom:max(65px,calc(env(safe-area-inset-bottom) + 58px));transform:translateX(-50%);pointer-events:auto;z-index:2;white-space:nowrap;display:flex;align-items:center;gap:10px;background:#372721ec;border:1px solid #d99b65;box-shadow:inset 0 0 0 3px #1b1813a6,0 6px 23px #1b120d96;padding:9px 14px;font-size:13px;letter-spacing:.11em}
 #inspect i{font:600 15px/1 Georgia,serif;color:#ffc990}
 #inspect:hover{background:#643b27}
@@ -138,6 +148,7 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
   #objective{bottom:max(109px,calc(env(safe-area-inset-bottom) + 94px));font-size:11px}
   #inspect{bottom:max(144px,calc(env(safe-area-inset-bottom) + 132px))}
   #boss-hud{top:max(76px,calc(env(safe-area-inset-top) + 56px));width:64vw}
+  #mission-status{top:max(73px,calc(env(safe-area-inset-top) + 57px));min-width:149px;padding:4px 8px 6px}
   .relic-grid{grid-template-columns:1fr;gap:6px}
   .relic{min-height:55px;display:grid;grid-template-columns:29px 78px 1fr;text-align:left;justify-items:start;padding:8px 7px}
   .relic b{font-size:13px}.relic strong{font-size:19px}
@@ -163,6 +174,7 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
   h1{font-size:clamp(38px,7.2vw,68px)}.cover-content p{margin-bottom:12px}
   #objective{bottom:12px}.health-hud,.route-hud,.utility{top:10px}
   #boss-hud{top:65px}.panel{padding:12px 23px}.relic{min-height:88px}
+  #mission-status{top:63px}
   #modal[data-kind=armory] #modal-mark{display:none}
   #modal[data-kind=armory] #modal-copy{margin-bottom:9px}
   .arm-card img{height:61px}.arm-card{padding:4px 7px 8px}

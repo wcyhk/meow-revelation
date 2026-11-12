@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {lanternRadius} from './lantern-route.mjs?v=nightfall-1';
+import {lanternRadius} from './lantern-route.mjs?v=moonless-1';
 
 const stone=new T.MeshStandardMaterial({color:0x51414b,roughness:.88,metalness:.16});
 const bevel=new T.MeshStandardMaterial({color:0xa88269,roughness:.69,metalness:.26});
@@ -14,11 +14,33 @@ const urn=new T.LatheGeometry([[.20,0],[.36,.14],[.37,.40],[.23,.56],[.22,.68],[
 const arch=new T.TorusGeometry(.98,.16,6,16,Math.PI);
 const archInlay=new T.TorusGeometry(.99,.032,5,20,Math.PI);
 const mark=new T.RingGeometry(.62,.71,18).rotateX(-Math.PI/2);
+const lanternPalette={
+  original:{flame:0xffc67b,light:0xffa65f,glow:0xffa253,wash:'#ffb86d14'},
+  crimson:{flame:0xff7976,light:0xff736a,glow:0xff625b,wash:'#ff686319'},
+  moonless:{flame:0xd0f3ff,light:0xa6c9ff,glow:0x9cbbff,wash:'#9bc5ff19'},
+};
 
 function part(parent,geometry,material,x,y,z,sx=1,sy=1,sz=1,turn=0) {
   const mesh=new T.Mesh(geometry,material);
   mesh.position.set(x,y,z);mesh.scale.set(sx,sy,sz);mesh.rotation.z=turn;parent.add(mesh);
   return mesh;
+}
+
+function makeMoonlessLantern(parent) {
+  const lantern=new T.Group();
+  const silver=new T.MeshStandardMaterial({color:0x9fbbdb,roughness:.34,metalness:.55,emissive:0x334864,emissiveIntensity:.48});
+  const crescent=new T.Shape();
+  crescent.moveTo(.025,.113);
+  crescent.bezierCurveTo(-.165,.142,-.171,-.121,.026,-.112);
+  crescent.bezierCurveTo(-.065,-.068,-.069,.062,.025,.113);
+  part(lantern,new T.ExtrudeGeometry(crescent,{depth:.027,bevelEnabled:false,curveSegments:8}),silver,-.01,.123,.084);
+  for (const side of [-1,1]) {
+    part(lantern,box,silver,side*.091,-.023,.02,.027,.207,.072,side*.26);
+  }
+  part(lantern,diamond,silver,0,-.148,.015,.092,.068,.088);
+  const flame=part(lantern,diamond,ember.clone(),0,-.018,.076,.086,.133,.073);
+  parent.add(lantern);
+  return {lantern,flame};
 }
 
 function floorTexture() {
@@ -72,16 +94,19 @@ export class LanternArt {
     this.floor.position.y=-.12;this.floor.renderOrder=-54;
     this.root=new T.Group();
     this.lamp=new T.Group();this.lamp.visible=false;
-    part(this.lamp,box,bark,0,0,0,.19,.25,.20);
-    this.flame=part(this.lamp,diamond,ember.clone(),0,.026,.10,.087,.125,.055);
-    part(this.lamp,box,bevel,0,-.13,0,.25,.044,.23);
-    part(this.lamp,box,bevel,0,.132,0,.23,.047,.22);
+    this.standardLamp=new T.Group();this.lamp.add(this.standardLamp);
+    part(this.standardLamp,box,bark,0,0,0,.19,.25,.20);
+    this.flame=part(this.standardLamp,diamond,ember.clone(),0,.026,.10,.087,.125,.055);
+    part(this.standardLamp,box,bevel,0,-.13,0,.25,.044,.23);
+    part(this.standardLamp,box,bevel,0,.132,0,.23,.047,.22);
+    this.moonless=makeMoonlessLantern(this.lamp);
+    this.moonless.flame.material.color.setHex(lanternPalette.moonless.flame);
+    this.moonless.lantern.visible=false;
     const glow=new T.Sprite(new T.SpriteMaterial({map:view.halo,color:0xffa253,transparent:true,opacity:.72,depthWrite:false,blending:T.AdditiveBlending}));
     glow.scale.set(.95,.95,1);glow.position.y=.01;this.lamp.add(glow);
-    this.light=new T.PointLight(0xffa65f,19,7.2,1.8);
-    this.light.position.set(0,.42,.12);this.lamp.add(this.light);
+    this.light=new T.PointLight(0xffa65f,0,10,1.8);
     this.glow=glow;
-    view.scene.add(this.floor,this.root,this.lamp);
+    view.scene.add(this.floor,this.root,this.lamp,this.light);
   }
 
   set(route) {
@@ -131,26 +156,30 @@ export class LanternArt {
     if(!hero)return;
     if(this.skin!==hero.lanternStyle){
       this.skin=hero.lanternStyle;
-      const crimson=this.skin==='crimson';
-      this.flame.material.color.setHex(crimson?0xff7976:0xffc67b);
-      this.light.color.setHex(crimson?0xff736a:0xffa65f);
-      this.glow.material.color.setHex(crimson?0xff625b:0xffa253);
-      this.mask.style.setProperty('--lamp-wash',crimson?'#ff686319':'#ffb86d10');
+      const palette=lanternPalette[this.skin]??lanternPalette.original;
+      this.standardLamp.visible=this.skin!=='moonless';
+      this.moonless.lantern.visible=this.skin==='moonless';
+      this.flame.material.color.setHex(palette.flame);
+      this.light.color.setHex(palette.light);
+      this.glow.material.color.setHex(palette.glow);
+      this.mask.style.setProperty('--lamp-wash',palette.wash);
     }
     const fall=hero.reaction?.kind==='fall';
     const beam=lanternRadius(stage)*(fall?.83:1);
     const sx=this.view.height/(this.view.camera.top-this.view.camera.bottom);
-    const screen=this.view.project(hero.x,.50,hero.z);
-    const flicker=Math.sin(time*10.7)*.018+Math.sin(time*16.4)*.012;
+    const screen=this.view.project(hero.x,.32,hero.z);
+    const flicker=Math.sin(time*10.7)*.010+Math.sin(time*16.4)*.007;
     this.mask.hidden=false;
     const style=this.mask.style;
     style.setProperty('--light-x',Math.round(screen.x)+'px');style.setProperty('--light-y',Math.round(screen.y)+'px');
     style.setProperty('--light-w',Math.round(beam*sx*(1+flicker))+'px');
-    style.setProperty('--light-h',Math.round(beam*sx*.67*(1+flicker))+'px');
+    style.setProperty('--light-h',Math.round(beam*sx*.72*(1+flicker))+'px');
     this.lamp.visible=true;
     this.lamp.position.set(hero.x-(hero.face??1)*.40,.69+Math.sin(time*7)*.054,hero.z+.22);
     this.lamp.rotation.z=Math.sin(time*7)*.13;
-    this.light.intensity=19+flicker*70;
+    this.light.position.set(hero.x,1.22,hero.z);
+    this.light.distance=beam*1.25;
+    this.light.intensity=24+flicker*70;
     this.glow.material.opacity=.72+flicker*5;
     if(this.route){
       const open=this.route.ready&&this.route.barricades.every(item=>!item.gate||item.hp<=0);

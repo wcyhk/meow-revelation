@@ -1,4 +1,4 @@
-import {formatTime,lanterns,milestones,techniques,training} from './progression.mjs?v=clock-1';
+import {formatTime,lanterns,lanternUnlocked,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=moonless-1';
 
 function element(tag,className,content) {
   const node=document.createElement(tag);
@@ -61,9 +61,8 @@ export function trainingPanel(profile,updateBalance) {
   }
   const skins=section('燈籠外觀');
   for (const item of lanterns) {
-    const detail=item.id==='crimson'?'通過血月第 50 關永久解鎖。':'守燈貓在入口領到的第一盞燈。';
-    row(skins,{...item,detail},()=>profile.equipLantern(item.id),(data,name,button)=>{
-      const locked=item.id==='crimson'&&!data.crimson;
+    row(skins,item,()=>profile.equipLantern(item.id),(data,name,button)=>{
+      const locked=!lanternUnlocked(data,item.id);
       const equipped=data.lantern===item.id;
       name.style.color=item.tint;
       button.textContent=locked?'未解鎖':equipped?'使用中':'換上';
@@ -71,12 +70,26 @@ export function trainingPanel(profile,updateBalance) {
       button.setAttribute('aria-pressed',String(equipped));
     });
   }
+  const titles=section('稱號');
+  row(titles,{...moonlessTitle,id:'moonless-title',detail:moonlessLantern.detail},()=>profile.toggleTitle(),(data,name,button)=>{
+    const locked=data.records.abyss.fastest===null;
+    const equipped=data.title===moonlessTitle.id;
+    name.style.color=moonlessTitle.tint;
+    button.textContent=locked?'未解鎖':equipped?'卸下':'裝備';
+    button.disabled=locked;
+    button.setAttribute('aria-pressed',String(equipped));
+  });
   refresh();
   return root;
 }
 
 export function recordsPanel(profile,modes) {
   const root=element('div','records-ledger');
+  if (profile.data.title===moonlessTitle.id) {
+    const title=element('p','record-title');
+    title.append(element('span',null,'目前稱號'),element('strong',null,moonlessTitle.name));
+    root.append(title);
+  }
   for (const mode of modes) {
     const record=profile.data.records[mode.id];
     const card=element('article','record-card');
@@ -94,7 +107,8 @@ export function recordsPanel(profile,modes) {
     }
     card.append(fields);
     for (const reward of milestones[mode.id]) {
-      card.append(element('p','record-milestone',`第 ${reward.floor} 關 · ${reward.name}${record.cleared>=reward.floor?' ✓':''}`));
+      const earned=reward.id==='moonless'?record.fastest!==null:record.cleared>=reward.floor;
+      card.append(element('p','record-milestone',`第 ${reward.floor} 關 · ${reward.name}${earned?' ✓':''}`));
     }
     root.append(card);
   }

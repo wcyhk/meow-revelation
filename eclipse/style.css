@@ -13,8 +13,8 @@ button:focus-visible{outline:2px solid #ffe0a3;outline-offset:4px}
 #world,#cover,#hud,#modal,#damage-vignette{position:absolute;inset:0}
 #world{display:block;width:100%;height:100%;outline:none}
 #lantern-dark{position:absolute;inset:0;z-index:1;pointer-events:none;background:
-  radial-gradient(ellipse var(--light-w,190px) var(--light-h,120px) at var(--light-x,50%) var(--light-y,61%),var(--lamp-wash,#ffb86d10) 0%,transparent 61%),
-  radial-gradient(ellipse var(--light-w,190px) var(--light-h,120px) at var(--light-x,50%) var(--light-y,61%),transparent 16%,#0e09140e 41%,#0d0a1a4f 64%,#080712c9 90%,#05050df0 117%,#06050dfb 166%)}
+  radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),var(--lamp-wash,#ffb86d14) 0%,var(--lamp-wash,#ffb86d14) 22%,transparent 78%),
+  radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),transparent 42%,#0e091412 63%,#0d0a1a3b 85%,#08071282 106%,#05050dbf 141%,#06050de5 192%)}
 #cover{isolation:isolate;z-index:10;background:#191b13 url("./cover.jpg") 58% 48% / cover no-repeat}
 #cover::before,.cover-grain{content:"";position:absolute;inset:0;pointer-events:none}
 #cover::before{z-index:-1;background:linear-gradient(90deg,#10130fed 0%,#10130fbc 26%,#10130f47 52%,transparent 73%),linear-gradient(0deg,#0d110fba,transparent 27%,transparent 76%,#10130f61)}
@@ -185,6 +185,8 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
 .record-fields div{display:flex;justify-content:space-between;gap:4px}
 .record-fields dd{margin:0;color:#ffe6b9;white-space:nowrap;font-variant-numeric:tabular-nums}
 .record-milestone{font-size:11px;color:#e9aa77;margin:6px 0 0}
+.record-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;margin:0 0 10px;padding:9px 12px;border:1px solid #8197b770;background:linear-gradient(105deg,#25314b99,#18233775);color:#bac9dd;font-size:12px}
+.record-title strong{color:#cce7ff;font:900 16px/1.25 var(--serif);text-shadow:0 0 12px #94bbff63}
 .milestone-notice{padding:7px 8px;margin:0 0 10px;border:1px solid #d7a16375;color:#ffe0a2;background:#a756232b;font-size:12px;line-height:1.4}
 .twin-inventory{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .twin-inventory button{padding:5px 8px;min-height:43px;font-size:12px;letter-spacing:.03em}

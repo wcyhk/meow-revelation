@@ -9,9 +9,13 @@ export const techniques = [
   {id:'ward', name:'藏火護符', mark:'◇', cost:120, detail:'每層第一次受傷減傷 45%。'},
 ];
 
+export const moonlessTitle={id:'moonless',name:'無月歸名者',tint:'#bcdfff'};
+export const moonlessLantern={id:'moonless',name:'無月引魂燈',tint:'#bcdfff',detail:'完成無月第 100 關並敲響歸名鐘。'};
+
 export const lanterns = [
-  {id:'original', name:'守燈籠', tint:'#ffa65f'},
-  {id:'crimson', name:'緋焰燈', tint:'#ff6e65'},
+  {id:'original', name:'守燈籠', tint:'#ffa65f', detail:'守燈貓在入口領到的第一盞燈。'},
+  {id:'crimson', name:'緋焰燈', tint:'#ff6e65', detail:'通過血月第 50 關永久解鎖。'},
+  moonlessLantern,
 ];
 
 export const milestones = {
@@ -20,11 +24,20 @@ export const milestones = {
     {floor:25, id:'redraw', name:'血月重抽', detail:'獲得一次重抽祝福，可留待本次挑戰後面使用。'},
     {floor:50, id:'crimson', name:'緋焰燈', detail:'永久解鎖緋紅燈焰，可喺訓練所換上。'},
   ],
-  abyss:[{floor:75, id:'twins', name:'雙頭目遺贈', detail:'打低雙頭目後，額外揀一份祝福，或者將現有祝福換成另一流派。'}],
+  abyss:[
+    {floor:75, id:'twins', name:'雙頭目遺贈', detail:'打低雙頭目後，額外揀一份祝福，或者將現有祝福換成另一流派。'},
+    {floor:100, id:'moonless', name:moonlessLantern.name+'與'+moonlessTitle.name, detail:moonlessLantern.detail},
+  ],
 };
 
 const storageKey='meow-revelation.eclipse.profile.v1';
 const integer=(value,max=Number.MAX_SAFE_INTEGER)=>Number.isFinite(value)?Math.max(0,Math.min(max,Math.floor(value))):0;
+
+export function lanternUnlocked(data,id) {
+  if (id==='crimson') return data.crimson;
+  if (id===moonlessLantern.id) return data.records.abyss.fastest!==null;
+  return id==='original';
+}
 
 function normalize(raw) {
   const unlocked=Array.isArray(raw?.techniques)?raw.techniques:[];
@@ -34,15 +47,17 @@ function normalize(raw) {
     const old=raw?.records?.[mode];
     return [mode,{cleared:integer(old?.cleared,100),reached:integer(old?.reached,100),fastest:integer(old?.fastest)||null}];
   }));
-  return {
+  const data={
     gold:integer(raw?.gold),
     training:Object.fromEntries(training.map(item=>[item.id,integer(raw?.training?.[item.id],item.costs.length)])),
     techniques:owned,
     technique:owned.includes(raw?.technique)?raw.technique:null,
     crimson,
-    lantern:crimson&&raw?.lantern==='crimson'?'crimson':'original',
     records,
   };
+  data.lantern=lanternUnlocked(data,raw?.lantern)?raw.lantern:'original';
+  data.title=raw?.title===moonlessTitle.id&&records.abyss.fastest!==null?raw.title:null;
+  return data;
 }
 
 export class Progression {
@@ -89,9 +104,11 @@ export class Progression {
   }
 
   win(mode,milliseconds) {
-    this.change(data=>{
+    return this.change(data=>{
       const record=data.records[mode];
+      const firstMoonlessWin=mode==='abyss'&&record.fastest===null;
       if (!record.fastest||milliseconds<record.fastest) record.fastest=Math.max(1,milliseconds);
+      return firstMoonlessWin;
     });
   }
 
@@ -124,8 +141,16 @@ export class Progression {
 
   equipLantern(id) {
     return this.change(data=>{
-      if (id!=='original'&&(id!=='crimson'||!data.crimson)) return false;
+      if (!lanternUnlocked(data,id)) return false;
       data.lantern=id;
+      return true;
+    });
+  }
+
+  toggleTitle() {
+    return this.change(data=>{
+      if (data.records.abyss.fastest===null) return false;
+      data.title=data.title===moonlessTitle.id?null:moonlessTitle.id;
       return true;
     });
   }

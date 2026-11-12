@@ -1,4 +1,4 @@
-import {Scenery} from './scenery.mjs?v=clock-1';
+import {Scenery} from './scenery.mjs?v=moonless-1';
 import {Audio} from './audio.mjs?v=clock-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
@@ -20,9 +20,9 @@ import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
-import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=nightfall-1';
-import {Progression,floorGold,formatTime,milestones} from './progression.mjs?v=clock-1';
-import {recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=clock-1';
+import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=moonless-1';
+import {recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=moonless-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -1246,15 +1246,17 @@ export class Game {
     exit.clock-=dt;
     if(exit.clock>0||this.enemies.length>=4)return;
     const count=this.stage.floor>=35?2:1;
+    const visibility=lanternRadius(this.stage);
+    const prowlRadius=visibility+1.25;
     let spawned=false;
     exit.clock=Math.max(2.0,4.5-this.stage.floor*.019)/this.difficulty.pace;
     for(let i=0;i<count;i++){
       let spot;
       for(let attempt=0;attempt<9;attempt++){
         const a=exit.seed+(exit.prowls+i)*2.399+attempt*.78;
-        const p={x:this.hero.x+Math.cos(a)*7.65,z:this.hero.z+Math.sin(a)*7.65};
+        const p={x:this.hero.x+Math.cos(a)*prowlRadius,z:this.hero.z+Math.sin(a)*prowlRadius};
         this.bound(p);
-        if(distance(this.hero,p)>lanternRadius(this.stage)+.32&&!this.isBlocked(p,.68)){spot=p;break;}
+        if(distance(this.hero,p)>visibility+.32&&!this.isBlocked(p,.68)){spot=p;break;}
       }
       if(!spot)continue;
       const zone=this.stage.zone.foes;
@@ -1853,10 +1855,11 @@ export class Game {
       return;
     }
     this.state='won';
-    this.progress.win(this.difficulty.id,Math.round(this.elapsed*1000));
+    const unlocked=this.progress.win(this.difficulty.id,Math.round(this.elapsed*1000));
     this.audio.play('blessing');
     this.openModal({kind:'win',mark:'✷',kicker:this.difficulty.name+' · 第 100 關',title:'星火歸家',
-      copy:'歸名鐘響起，這一次天亮了。',content:this.runResults(true),
+      copy:unlocked?`歸名鐘響起。已永久解鎖「${moonlessLantern.name}」及稱號「${moonlessTitle.name}」，可到訓練所換上。`
+        :'歸名鐘響起，這一次天亮了。',content:this.runResults(true),
       buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 

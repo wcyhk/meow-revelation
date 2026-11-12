@@ -1,7 +1,7 @@
 export const roomBounds={minX:-14.7,maxX:14.7,minZ:-15.9,maxZ:13.0};
 
 export function lanternRadius(stage) {
-  return 6.55-Math.min(.95,(stage?.dread??0)*.57)-((stage?.difficulty?.id==='abyss')?.38:0);
+  return 8.5-Math.min(.95,(stage?.dread??0)*.57)-(stage?.difficulty?.id==='abyss'?.38:0);
 }
 
 export function routeLayout(stage,seed) {

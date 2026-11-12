@@ -17,6 +17,8 @@ const spells={
   brand:{name:"霧印",icon:"◉",detail:"喺敵人腳下引爆一圈潮火"},
   ward:{name:"護魂潮",icon:"◎",detail:"震退身邊敵人，短暫抵擋傷害",unlock:1},
 };
+const tradeWeapons=Object.fromEntries(Object.entries(tradeRoles).map(([id,r])=>[id,{...r,name:r.weapon,speed:1,arc:.29,tint:0xffd89d}]));
+const weaponOf=id=>weapons[id]||tradeWeapons[id];
 const gifts={
   claw:{name:"赤月爪",icon:"☾",detail:"武器傷害提高 32%",apply:r=>r.power*=1.32},
   mist:{name:"薄霧步",icon:"≋",detail:"翻滾冷卻縮短 35%",apply:r=>r.dashWait*=.65},
@@ -36,6 +38,15 @@ const enemies={
   weigher:{name:"秤契官",hp:760,speed:72,reach:365,charge:.76,rest:.82,frame:0,size:153,color:0xeeb066,sheet:"tide-cast",pattern:["lane","circle"],rage:["fan","circle","lane"],adds:"bailiff",omen:"磅錘裂開。向側面避開散射嘅糧契。"},
   abbess:{name:"拾骨修女",hp:890,speed:68,reach:380,charge:.76,rest:.79,frame:1,size:159,color:0xb4a5f4,sheet:"tide-cast",pattern:["fan","circle"],rage:["ring","lane","fan"],adds:"wisp",omen:"修女放開所有鹽魂。留意由佢腳下向外散開嘅彈。"},
   undertow:{name:"持契者 · 黑月",hp:1260,speed:83,reach:400,charge:.74,rest:.73,frame:2,size:172,color:0xfc8089,sheet:"tide-cast",pattern:["cross","fan","circle"],rage:["ring","cross","lane","fan"],adds:"sentinel",omen:"黑月撕開契紙。先搵到交錯射線之間嘅空位。"},
+  clay:{name:"泥土士兵",hp:59,speed:100,reach:78,charge:.66,rest:.74,frame:3,size:74,color:0xda9263,sheet:"tide-cast",armor:.82},
+  spirit:{name:"怨靈",hp:46,speed:86,reach:260,charge:.71,rest:.94,frame:5,size:72,color:0xcaa4f6,pattern:["shot"]},
+  ghostCat:{name:"鬼貓",hp:49,speed:117,reach:200,charge:.59,rest:.99,frame:7,size:69,color:0x9fe9fb,pattern:["lane","shot"]},
+  snowDemon:{name:"雪怪",hp:66,speed:85,reach:91,charge:.68,rest:.84,frame:4,size:81,color:0xc8efff},
+  turtle:{name:"海龜",hp:87,speed:67,reach:80,charge:.72,rest:.87,frame:6,size:80,color:0x83cf95,armor:.68},
+  seaHorse:{name:"海馬",hp:51,speed:98,reach:253,charge:.77,rest:1.04,frame:5,size:70,color:0x80ecd5,pattern:["shot"]},
+  qinSoul:{name:"秦始皇之魂",hp:490,speed:62,reach:342,charge:.83,rest:.89,frame:0,size:146,color:0xf5b883,sheet:"tide-cast",pattern:["lane","circle"],rage:["cross","circle","fan"],adds:"clay",omen:"秦陵泥軍出陣，留意十字斬線。"},
+  snowElephant:{name:"雪象",hp:485,speed:70,reach:337,charge:.78,rest:.88,frame:1,size:144,color:0xc3e5ff,sheet:"tide-cast",pattern:["circle","lane"],rage:["fan","cross","circle"],adds:"ghostCat",omen:"冰城塌陷，鬼貓同雪浪一齊湧出。"},
+  seaKing:{name:"海底王",hp:540,speed:72,reach:355,charge:.81,rest:.81,frame:8,size:151,color:0x70ded2,pattern:["fan","circle"],rage:["ring","lane","fan"],adds:"seaHorse",omen:"海底王攪起逆潮，準備避開環形彈幕。"},
 };
 const isBoss=enemy=>Boolean(enemies[enemy.kind].rage);
 const gearUnlocked=(item,village)=>(item.unlock||0)<=village.cleared;
@@ -57,7 +68,7 @@ function readVillage(){
     blessing:int("blessing",1),sermonDay:int("sermonDay",9999),
     cleared:int("cleared",chapters.length,int("wins",999)>0?1:0),prologue:Boolean(data?.prologue),
     ending:Object.hasOwn(endings,data?.ending)?data.ending:"",flasks:int("flasks",3,1),trials:int("trials",15),
-    favors:int("favors",7),
+    favors:int("favors",7),trade:readTrade(data?.trade),
   };
 }
 function villageDay(v,win){
@@ -83,7 +94,7 @@ class TideRun{
   }
   resize(width){
     const ratio=width/this.width;
-    for(const item of [this.player,...this.enemies,...this.bolts,...this.particles,...this.effects]){
+    for(const item of [this.player,...this.enemies,...this.bolts,...this.particles,...this.effects,this.companion,this.dragon].filter(Boolean)){
       item.x*=ratio;
       if(item.warning)item.warning.x*=ratio;
     }
@@ -93,9 +104,21 @@ class TideRun{
     const v=this.village,story=chapters[chapter];
     if(this.phase!=="village"||!story||chapter>v.cleared||trial&&!v.ending)return;
     if(!weapons[weapon]||!spells[spell]||!gearUnlocked(weapons[weapon],v)||!gearUnlocked(spells[spell],v))return;
+    this.startRun(weapon,spell,chapter,story,trial);
+  }
+  departTrade(destination){
+    const t=this.village.trade,role=tradeRoles[t.role],story=charters[destination];
+    if(this.phase!=="village"||!role||!story)return;
+    const ally=t.active&&t.troops[t.active]?t.active:"";
+    const trade={destination,from:t.port,role:t.role,forged:Boolean(t.forged[t.role]),ally,rank:ally?t.troops[ally]:0};
+    this.startRun(t.role,t.role,0,story,false,trade);
+  }
+  startRun(weapon,spell,chapter,story,trial,trade=null){
+    const v=this.village;
     const seed=Date.now()>>>0;
     this.random=seedRandom(seed);
-    this.run={seed,chapter,story,trial,depth:0,embers:0,food:0,rescued:0,weapon,invocation:spell,power:1+v.forge*.17,spell:1,range:1,dashWait:.78,castWait:1.65,chosen:[],healOnClear:false};
+    this.run={seed,chapter,story,trial,trade,depth:0,embers:0,food:0,rescued:0,weapon,invocation:spell,power:1+v.forge*.17,spell:1,range:1,dashWait:.78,castWait:trade?.role==="oracle"?3.35:1.65,chosen:[],healOnClear:false};
+    if(trade?.forged)this.run.power*=1.12;
     this.player.maxHp=4+v.lamp+v.blessing;
     this.player.hp=this.player.maxHp;
     this.player.fervor=3;
@@ -109,13 +132,17 @@ class TideRun{
     this.bolts=[];this.particles=[];this.effects=[];
     this.freeze=0;this.shake=0;this.comboUntil=0;this.roomTime=0;
     this.intro=area.guardian?.76:.23;
-    this.floor=this.run.chapter?.46:.27;
+    this.floor=this.run.trade?.36:this.run.chapter?.46:.27;
     this.reinforced=false;
     this.bufferDash=this.bufferCast=this.bufferAttack=0;
     const p=this.player;
     p.x=this.width*.5;p.y=this.height*.75;p.angle=-Math.PI/2;
     p.attackCd=0;p.castCd=0;p.dashCd=0;p.attack=null;p.dash=null;p.invulnerable=.28;
     p.walking=false;p.hit=0;p.castPose=0;
+    p.gearCd=0;p.ward=0;p.arrowCd=0;
+    const ally=this.run.trade?.ally;
+    this.companion=ally?{key:ally,x:this.width*.5+46,y:p.y+20,angle:p.angle,cd:1.1,castPose:0}:null;
+    this.dragon=null;this.lockField=null;
     p.fervor=Math.max(2,p.fervor||0);
     const lineup=area.guardian?[area.guardian]:area.waves[Math.floor(this.random()*area.waves.length)];
     this.enemies=[];
@@ -152,6 +179,10 @@ class TideRun{
       return;
     }
     const p=this.player,r=this.run;
+    if(name==="equipment"){
+      if(r.trade?.forged&&!p.dash&&p.gearCd===0)this.tradeSkill(true);
+      return;
+    }
     if(name==="flask"){
       if(p.hp===p.maxHp){this.callbacks.toast("生命已滿。",1.25);return;}
       if(!this.village.flasks){this.callbacks.toast("冇藥湯喇。返村可以再煮。",1.5);return;}
@@ -183,7 +214,8 @@ class TideRun{
       const angle=p.angle;
       p.fervor-=1;p.castCd=r.castWait;p.castPose=.29;
       this.effect("spark",p.x,p.y-18,0x86f7df,.26,28);
-      if(r.invocation==="ward"){
+      if(r.trade)this.tradeSkill(false);
+      else if(r.invocation==="ward"){
         p.invulnerable=Math.max(p.invulnerable,.92);
         this.effect("sigil",p.x,p.y,0xb0edf9,.56,130,angle);
         let first=true;
@@ -211,7 +243,7 @@ class TideRun{
       return;
     }
     if(p.attackCd>0){if(p.attackCd<.15)this.bufferAttack=this.clock+.16;return;}
-    const weapon=weapons[r.weapon];
+    const weapon=weaponOf(r.weapon);
     const e=this.target(165*r.range*weapon.range);
     if(e)p.angle=Math.atan2(e.y-p.y,e.x-p.x);
     this.combo=this.clock<this.comboUntil?(this.combo+1)%3:0;
@@ -225,7 +257,7 @@ class TideRun{
   strike(attack){
     const p=this.player,r=this.run;
     const dx=Math.cos(attack.angle),dy=Math.sin(attack.angle);
-    const weapon=weapons[r.weapon];
+    const weapon=weaponOf(r.weapon);
     const range=(attack.heavy?129:103)*r.range*weapon.range;
     this.move(p,p.x+dx*(attack.heavy?22:11),p.y+dy*(attack.heavy?22:11));
     this.effect("slash",p.x,p.y-16,attack.heavy?0xffb88a:weapon.tint,.24,range*.91,attack.angle);
@@ -237,13 +269,129 @@ class TideRun{
         landed=true;
       }
     }
-    if(r.weapon==="lantern"){
+    if(r.weapon==="hunter"&&p.arrowCd===0){
+      p.arrowCd=r.trade.forged?.44:.55;
+      for(const offset of r.trade.forged?[-.13,0,.13]:[0])this.tradeBolt(p,attack.angle+offset,r.trade.forged?12:17,565,.57);
+    }else if(r.weapon==="lantern"){
       this.bolts.push({x:p.x+dx*22,y:p.y+dy*22,angle:attack.angle,speed:515,time:.28,friendly:true,damage:(attack.heavy?18:12)*r.power,seen:new Set(),size:11});
+    }
+  }
+  tradeBurst(x,y,radius,damage,color,snare=0){
+    this.effect("sigil",x,y,color,.53,radius);
+    this.burst(x,y-11,color,14,135);
+    let first=true;
+    for(const e of this.enemies){
+      if(e.hp<=0||Math.hypot(e.x-x,e.y-y)>radius)continue;
+      this.damage(e,damage,Math.atan2(e.y-y,e.x-x),true,first,true);
+      if(snare)e.snare=Math.max(e.snare||0,isBoss(e)?snare*.55:snare);
+      first=false;
+    }
+  }
+  tradeBolt(source,angle,damage,speed=570,time=.70,chill=0){
+    this.bolts.push({x:source.x+Math.cos(angle)*16,y:source.y+Math.sin(angle)*16,angle,speed,time,friendly:true,
+      damage,seen:new Set(),size:13,chill});
+  }
+  tradeSkill(equipment){
+    const p=this.player,r=this.run,role=r.trade.role,focus=this.target(395);
+    if(equipment){
+      if(tradeRoles[role].passive)return;
+      p.gearCd=role==="oracle"?12:6;p.castPose=.29;
+      if(role==="martial"||role==="maiden"){
+        p.ward=4.5;
+        this.effect("sigil",p.x,p.y,0x98ffe2,.64,93);
+      }else if(role==="oracle"){
+        this.dragon={x:p.x+34,y:p.y-25,angle:p.angle,life:8,cd:0,castPose:0};
+        this.effect("sigil",p.x,p.y,0xae9df2,.64,110);
+      }else if(role==="merchant"){
+        const x=focus?.x??p.x,y=focus?.y??p.y;
+        this.lockField={x,y,left:4,next:0};
+        this.effect("sigil",x,y,0xf8bb76,1.6,120);
+      }
+      CatAudio.play("cast");this.callbacks.hud();return;
+    }
+    const power=r.spell;
+    if(role==="martial")this.tradeBurst(p.x,p.y,143,49*power,0xffb27b,.48);
+    if(role==="oracle"){
+      p.hp=Math.min(p.maxHp,p.hp+1);p.invulnerable=Math.max(p.invulnerable,.75);
+      this.effect("sigil",p.x,p.y,0xb6ffbb,.62,98);
+    }
+    if(role==="samurai"){
+      this.tradeBolt(p,p.angle,(r.trade.forged?78:53)*power,675);
+      this.effect("slash",p.x,p.y-18,0xffca9f,.26,112,p.angle);
+    }
+    if(role==="maiden")this.tradeBolt(p,p.angle,44*power,536,.82,1.45);
+    if(role==="hunter")this.tradeBurst(focus?.x??p.x,focus?.y??p.y,111,43*power,0xb2e8b3,1.9);
+    if(role==="merchant"){
+      const heading=this.intent.x||this.intent.y?Math.atan2(this.intent.y,this.intent.x):p.angle;
+      this.tradeBurst(p.x,p.y,74,25*power,0xfbd2a1);
+      this.move(p,p.x+Math.cos(heading)*160,p.y+Math.sin(heading)*160);
+      p.invulnerable=Math.max(.37,p.invulnerable);
+      this.tradeBurst(p.x,p.y,95,37*power,0xfbd2a1);
+    }
+    this.callbacks.hud();
+  }
+  tickTrade(dt){
+    const p=this.player,r=this.run;
+    const track=(actor,x,y,speed)=>{
+      const d=Math.hypot(x-actor.x,y-actor.y);
+      actor.walking=d>9;
+      if(actor.walking){
+        const angle=Math.atan2(y-actor.y,x-actor.x),step=Math.min(d,speed*dt);
+        actor.angle=angle;
+        this.move(actor,actor.x+Math.cos(angle)*step,actor.y+Math.sin(angle)*step);
+      }
+      actor.cd=Math.max(0,actor.cd-dt);actor.castPose=Math.max(0,actor.castPose-dt);
+    };
+    const a=this.companion;
+    if(a){
+      const offset=p.x<this.width*.60?1:-1;
+      track(a,p.x+offset*54,p.y+24,213);
+      const m=tradeMercenaries[a.key],rank=r.trade.rank;
+      const e=this.enemies.find(e=>e.hp>0&&dist(a,e)<375);
+      if(a.cd===0){
+        if(m.mode==="mana"&&p.fervor<4){p.fervor=Math.min(5,p.fervor+(rank===2?1.3:.72));a.cd=3.7;}
+        else if(m.mode==="heal"&&p.hp<p.maxHp&&p.hp<=Math.ceil(p.maxHp*.55)){p.hp++;a.cd=7.5;}
+        else if(e&&m.mode==="hex"){for(const foe of this.enemies)if(dist(foe,e)<125)foe.hex=rank===2?4.2:3;a.cd=4.3;}
+        else if(e&&(m.mode==="shot"||m.mode==="blade"||rank===2&&m.mode==="heal")){
+          const angle=Math.atan2(e.y-a.y,e.x-a.x);
+          a.angle=angle;
+          if(m.mode==="blade"&&rank===2)this.tradeBurst(e.x,e.y,99,24,0xe8be91);
+          else this.tradeBolt(a,angle,rank===2?24:17,604,.62);
+          a.cd=rank===2?1.65:2.4;
+        }
+        if(a.cd>0){
+          a.castPose=.29;
+          this.effect("spark",a.x,a.y-17,0xa8ffdc,.31,35);this.callbacks.hud();
+        }
+      }
+    }
+    const dragon=this.dragon;
+    if(dragon){
+      dragon.life-=dt;
+      if(dragon.life<=0)this.dragon=null;
+      else{
+        const e=this.target(460);
+        track(dragon,e?.x??p.x+35,e?.y??p.y,278);
+        if(e&&dragon.cd===0&&dist(dragon,e)<150){
+          dragon.cd=.83;dragon.castPose=.29;
+          this.tradeBurst(e.x,e.y,58,28*r.spell,0xae97f1);
+        }
+      }
+    }
+    const field=this.lockField;
+    if(field){
+      field.left-=dt;field.next-=dt;
+      if(field.left<=0)this.lockField=null;
+      else if(field.next<=0){
+        field.next=.78;
+        this.tradeBurst(field.x,field.y,122,19*r.spell,0xe4ae79,1.13);
+      }
     }
   }
   damage(e,amount,angle,heavy,loud=true,magic=false){
     const boss=isBoss(e),data=enemies[e.kind];
     if(!magic&&!heavy&&data.armor)amount*=data.armor;
+    if(magic&&e.hex>0)amount*=1.25;
     const dealt=Math.min(e.hp,amount);
     e.hp=Math.max(0,e.hp-amount);e.hit=.115;
     if(!magic)this.player.fervor=Math.min(5,this.player.fervor+.30);
@@ -270,6 +418,11 @@ class TideRun{
   hurt(){
     const p=this.player;
     if(p.invulnerable>0)return;
+    if(p.ward>0&&(this.run.weapon!=="maiden"||p.fervor>=1)){
+      if(this.run.weapon==="maiden")p.fervor--;
+      p.ward=0;p.invulnerable=.30;
+      this.effect("sigil",p.x,p.y,0xa6fff3,.46,77);CatAudio.play("door");this.callbacks.hud();return;
+    }
     p.hp--;p.invulnerable=.68;p.attack=null;p.hit=.23;p.castPose=0;this.hurtFlash=.38;
     this.shake=8;this.freeze=.052;
     this.burst(p.x,p.y-18,0xf792a3,16,175);
@@ -320,6 +473,9 @@ class TideRun{
     e.hit=Math.max(0,e.hit-dt);
     e.recoil=Math.max(0,e.recoil-dt);
     e.walking=false;
+    const pace=e.snare>0?(boss?.76:.20):1;
+    e.snare=Math.max(0,(e.snare||0)-dt);
+    e.hex=Math.max(0,(e.hex||0)-dt);
     this.move(e,e.x+e.knockX*dt,e.y+e.knockY*dt);
     e.knockX*=.83;e.knockY*=.83;
     if(boss&&!e.enraged&&e.hp<e.maxHp*.53){
@@ -351,12 +507,12 @@ class TideRun{
       return;
     }
     const d=dist(e,p);
-    e.wait-=dt;
+    e.wait-=dt*pace;
     if(d>Math.min(s.reach,boss?152:s.reach*.92)&&d>1){
       const v=unit(p.x-e.x,p.y-e.y);
       e.angle=Math.atan2(v.y,v.x);
       e.walking=true;
-      this.move(e,e.x+v.x*s.speed*dt,e.y+v.y*s.speed*dt);
+      this.move(e,e.x+v.x*s.speed*dt*pace,e.y+v.y*s.speed*dt*pace);
     }
     if(d<=s.reach&&e.wait<=0){e.strikes++;this.warning(e,p);}
   }
@@ -383,7 +539,7 @@ class TideRun{
       return;
     }
     this.roomTime+=dt;
-    for(const key of ["attackCd","dashCd","castCd","invulnerable","hit","castPose"])p[key]=Math.max(0,p[key]-dt);
+    for(const key of ["attackCd","dashCd","castCd","invulnerable","hit","castPose","gearCd","ward","arrowCd"])p[key]=Math.max(0,p[key]-dt);
     if(this.bufferDash>this.clock&&p.dashCd===0){this.bufferDash=0;this.input("dash");}
     if(this.bufferCast>this.clock&&p.castCd===0){this.bufferCast=0;this.input("cast");}
     if((held||this.bufferAttack>this.clock)&&p.attackCd===0){this.bufferAttack=0;this.input("attack");}
@@ -410,6 +566,7 @@ class TideRun{
       if(!a.fired&&a.left<=a.impact){a.fired=true;this.strike(a);}
       if(a.left<=0)p.attack=null;
     }
+    if(this.run.trade)this.tickTrade(dt);
     for(const e of this.enemies){
       this.tickEnemy(e,dt);
       if(this.phase!=="fight")return;
@@ -421,6 +578,7 @@ class TideRun{
         for(const e of this.enemies){
           if(e.hp>0&&!b.seen.has(e)&&dist(e,b)<(isBoss(e)?43:27)){
             this.damage(e,b.damage,b.angle,true,b.seen.size===0,true);
+            if(b.chill)e.snare=Math.max(e.snare||0,b.chill);
             b.seen.add(e);
           }
         }
@@ -460,7 +618,7 @@ class TideRun{
     }
     this.phase="reward";
     if(this.run.depth===2){
-      this.run.rescued=Number(this.run.chapter===this.village.cleared);
+      this.run.rescued=Number(!this.run.trade&&this.run.chapter===this.village.cleared);
       this.run.embers+=area.reward.embers||0;
       this.run.food+=area.reward.food||0;
       this.player.hp=Math.min(this.player.maxHp,this.player.hp+(area.reward.heal||0));
@@ -494,7 +652,16 @@ class TideRun{
     this.phase="result";
     const earned=win?this.run.embers:Math.floor(this.run.embers*.5);
     this.village.embers=Math.min(99999,this.village.embers+earned);
-    if(win){
+    if(win&&this.run.trade){
+      const {destination}=this.run.trade,t=this.village.trade,story=this.run.story;
+      this.run.firstClear=t.clears[destination]===0;
+      this.run.tradePay=this.run.weapon==="merchant"?75:60;
+      t.port=destination;t.clears[destination]=Math.min(999,t.clears[destination]+1);
+      t.materials[story.material]=Math.min(99,t.materials[story.material]+2);
+      t.coins=Math.min(99999,t.coins+this.run.tradePay);
+      t.credit=Math.min(9999,t.credit+1);
+      this.village.food=Math.min(99,this.village.food+this.run.food);
+    }else if(win){
       this.village.wins=Math.min(999,this.village.wins+1);
       this.village.rescued=Math.min(99,this.village.rescued+this.run.rescued);
       this.run.firstClear=this.run.chapter===this.village.cleared;

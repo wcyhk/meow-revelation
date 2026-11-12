@@ -255,3 +255,43 @@ h1{font:950 clamp(3rem,7.3vw,7.4rem)/1.04 var(--serif);color:#fff0d6;letter-spac
 .surveying #stations,.surveying #village-stats,.surveying #toast{display:none}
 .surveying #stage,.surveying #stage canvas{cursor:grab}
 .surveying #stage:active,.surveying #stage canvas:active{cursor:grabbing}
+
+.station[data-station=guild]{background:#3b2b32;border-color:#e8b887;box-shadow:0 4px #211622,0 0 19px #d5946d4f}
+.station[data-station=guild] i{background:#643d41;color:#ffd2a1}
+#controls button[data-input=equipment]{background:linear-gradient(#5c465d,#3d2b46);border-color:#e5b5dd}
+#controls button[data-input=equipment] span{font-size:.61rem;padding:0 3px}
+#modal[data-kind^=trade-] .panel{width:min(100%,850px)}
+.guild-balance,.guild-tabs{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:12px 0}
+.guild-balance span{background:#1e1b2c;border:1px solid #99746e;border-radius:5px;padding:4px 9px;font-size:.74rem;color:#ffe0ad}
+.guild-tabs button{min-height:39px;padding:5px 14px}
+.guild-tabs button[aria-pressed=true],.guild-table button.chosen,.guild-roles button.chosen{color:#dbfff0;background:#314b50;border-color:#b0dfcb}
+.guild-routes,.guild-roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0;text-align:left}
+.guild-route,.guild-roles section{overflow:hidden;border:1px solid var(--guild-accent);background:#2b2233;border-radius:8px}
+.guild-route header{min-height:98px;display:flex;flex-direction:column;justify-content:end;padding:10px;background:linear-gradient(0deg,#241c2e,transparent 125%),var(--guild-art) center 39%/cover}
+.guild-route h3,.guild-roles h3,.guild-forge h3{margin:3px 0;font-family:var(--serif);color:var(--guild-accent,#ffe0ad)}
+.guild-route header small,.guild-route>div>small{color:#e8c9ae;font-size:.71rem}
+.guild-route>div{padding:0 9px 9px}
+.guild-route p{min-height:4.3em;font-size:.76rem;color:#e1c7bd;line-height:1.48;margin:7px 0}
+.guild-route .actions{margin-top:8px;gap:5px}
+.guild-route button{font-size:.73rem;padding:4px 8px;min-height:38px}
+.guild-done{color:#aee5cb;font-size:.75rem;align-self:center}
+.guild-roles section{padding:9px}
+.guild-roles section button{display:grid;width:100%;text-align:left;gap:5px;min-height:58px;margin-top:5px;padding:7px 9px}
+.guild-roles small,.guild-table small{color:#dbc3ba;font-size:.69rem;font-weight:500}
+.guild-table{display:grid;gap:6px;margin:13px 0;text-align:left}
+.guild-table>div{display:flex;align-items:center;gap:6px;background:#2f2437;padding:7px;border:1px solid #aa7f7759;border-radius:7px}
+.guild-table>div>span{display:grid;gap:4px;flex:1;min-width:0}
+.guild-table button{font-size:.75rem;padding:4px 7px;min-width:49px}
+.guild-forge{padding:15px;background:radial-gradient(ellipse at center top,#62455a,#2c2335 66%);border:1px solid #ab8079;border-radius:8px}
+.guild-weapon{font:700 2.5rem var(--serif);color:#ffc989;filter:drop-shadow(0 0 9px #ecb7857d)}
+@media(max-width:690px){
+  .guild-routes{grid-template-columns:1fr}
+  .guild-route header{min-height:82px}
+  .guild-route p{min-height:auto}
+  .guild-tabs{gap:4px}
+  .guild-tabs button{min-height:42px;padding:4px 8px;font-size:.75rem}
+  .guild-roles{grid-template-columns:1fr}
+  .guild-roles section{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .guild-roles h3{grid-column:1/-1}
+  #controls button[data-input=equipment]{width:49px}
+}

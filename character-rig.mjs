@@ -1,13 +1,13 @@
 import * as T from "./three.min.mjs";
 import { figureMaterial, JOINT_LIMIT } from "./character-mesh.mjs?v=inkbound";
-import { buildFigure } from "./character-design.mjs?v=inkbound";
+import { buildFigure } from "./character-design.mjs?v=guild";
 
 const TAU = Math.PI * 2;
 const clamp = (n,low,high) => Math.max(low,Math.min(high,n));
 const damp = (value,goal,rate,dt) => value+(goal-value)*(1-Math.exp(-rate*dt));
 const mix = (a,b,t) => a+(b-a)*t;
 const ease = t => {t=clamp(t,0,1);return t*t*(3-2*t);};
-const gear = {scythe:1,fang:2,anchor:3,spear:4,lantern:5};
+const gear = {scythe:1,fang:2,anchor:3,spear:4,lantern:5,martial:6,oracle:7,samurai:8,maiden:9,hunter:10,merchant:11};
 const scaleByKind = {rat:.90,crab:.91,witch:.95,sentinel:.91,boss:1.03,weigher:1,abbess:1,undertow:1.04};
 
 function angleToward(from,to,rate,dt) {

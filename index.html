@@ -6,13 +6,15 @@
 <meta name="theme-color" content="#0f1420">
 <meta name="description" content="四章手繪動作 Roguelike。跟住最後一盞潮燈闖入地城、救回村民，揭開以壽命換糧的契約。">
 <title>貓貓啟示錄｜最後一盞潮燈</title>
-<link rel="stylesheet" href="./game.css?v=moonlight">
+<link rel="stylesheet" href="./game.css?v=guild">
 <script src="./phaser.min.js" defer></script>
 <script src="./sound.js?v=black-moon" defer></script>
 <script src="./campaign.js?v=black-moon" defer></script>
-<script src="./rules.js?v=inkbound" defer></script>
-<script src="./cinema.js?v=moonlight" defer></script>
-<script src="./game.js?v=inkbound" defer></script>
+<script src="./merchant.js?v=guild" defer></script>
+<script src="./rules.js?v=guild" defer></script>
+<script src="./cinema.js?v=guild" defer></script>
+<script src="./merchant-ui.js?v=guild" defer></script>
+<script src="./game.js?v=guild" defer></script>
 </head>
 <body>
 <main id="game">
@@ -41,6 +43,7 @@
   <div id="stick" aria-hidden="true" hidden><i></i></div>
   <div id="boss-meter" hidden><span id="boss-name"></span><i><b id="boss-fill"></b></i></div>
   <div id="controls" hidden>
+    <button data-input="equipment" type="button" aria-label="武器技" hidden><i>✦</i><span>武器技</span><kbd>E</kbd></button>
     <button data-input="flask" type="button" aria-label="藥湯"><i>♜</i><span>藥湯 <b id="flask-count"></b></span><kbd>R</kbd></button>
     <button data-input="cast" type="button" aria-label="潮刃"><i>✧</i><span>潮刃</span><kbd>Q</kbd></button>
     <button data-input="dash" type="button" aria-label="翻滾"><i>↗</i><span>翻滾</span><kbd>空白</kbd></button>

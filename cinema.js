@@ -20,6 +20,8 @@ const shoreLights={
   bridge:{warm:0xedac70,cool:0x75ecd7,air:0x77bbb8},
   temple:{warm:0xff806e,cool:0x72ffe0,air:0xc26b92},
 };
+const tradeLighting={qin:{warm:0xf7bb77,cool:0xa6dfbd,air:0xb5a298},snow:{warm:0xf2a8aa,cool:0xb5d5ff,air:0x9baadf},sea:{warm:0xe6bd83,cool:0x64ffe1,air:0x80c7d7}};
+for(const id of Object.keys(newTradeAreas))shoreLights[id]=tradeLighting[id.split("-")[0]];
 
 function paintTexture(scene,key,width,height,paint){
   if(scene.textures.exists(key))return;

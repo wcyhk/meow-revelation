@@ -6,6 +6,7 @@ const stage=$("stage"),modal=$("modal");
 const attackButton=document.querySelector('[data-input="attack"]');
 const dashButton=document.querySelector('[data-input="dash"]');
 const castButton=document.querySelector('[data-input="cast"]');
+const equipmentButton=document.querySelector('[data-input="equipment"]');
 const flaskButton=document.querySelector('[data-input="flask"]');
 const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)");
 const keyboard=new Set();
@@ -16,6 +17,7 @@ const stations={
   gate:{title:"潮汐門",icon:"☾",x:.50,y:.30},
   lamp:{title:"守燈人",icon:"◈",x:.77,y:.49},
   garden:{title:"村落膳堂",icon:"❧",x:.24,y:.73},
+  guild:{title:"潮燈商會",icon:"印",x:.50,y:.87},
   shrine:{title:"集會祭壇",icon:"✧",x:.76,y:.73},
 };
 let currentScene,state,press=null,heldAttack=null,destination=null,toastTimer,dialogKind="",uiTimer=0;
@@ -85,6 +87,7 @@ function hud(){
     dashButton.style.setProperty("--cooldown",(p.dashCd/r.dashWait*100).toFixed(0)+"%");
     castButton.style.setProperty("--cooldown",(p.castCd/r.castWait*100).toFixed(0)+"%");
     castButton.classList.toggle("empty",p.fervor<1);
+    equipmentButton.style.setProperty("--cooldown",String(p.gearCd/(r?.weapon==="oracle"?12:6)*100)+"%");
     if($("flask-count").textContent!==String(village.flasks))$("flask-count").textContent=village.flasks;
     flaskButton.classList.toggle("empty",!village.flasks);
     flaskButton.setAttribute("aria-label","藥湯 "+village.flasks+" 瓶");
@@ -107,7 +110,14 @@ function room(location){
   dismiss();toast("");destination=null;
   $("stations").hidden=true;
   $("controls").hidden=false;
-  const weapon=weapons[state.run.weapon],spell=spells[state.run.invocation];
+  const r=state.run,role=r.trade?tradeRoles[r.trade.role]:null;
+  const weapon=role?{...role,name:r.trade.forged?role.gear:role.weapon}:weapons[r.weapon];
+  const spell=role?{name:role.skill,icon:role.icon}:spells[r.invocation];
+  equipmentButton.hidden=!role||!r.trade.forged||Boolean(role.passive);
+  if(!equipmentButton.hidden){
+    equipmentButton.querySelector("span").textContent=role.gearSkill;
+    equipmentButton.setAttribute("aria-label",role.gearSkill);
+  }
   for(const [button,item] of [[attackButton,weapon],[castButton,spell]]){
     button.querySelector("i").textContent=item.icon;button.querySelector("span").textContent=item.name;
     button.setAttribute("aria-label",item.name);
@@ -116,6 +126,7 @@ function room(location){
   showArrival(areas[location].name);hud();
   CatAudio.scene(location==="entry"?"fight":location);
   if(areas[location].guardian)toast(state.run.story.intro,4.5);
+  else if(r.trade&&r.depth===1)toast(role.person+" · "+role.name+"　"+role.skill+(r.trade.ally?"　傭兵隨行":""),5);
   else if(location==="entry")toast(innerWidth<690?"拖動行走 · 輕點普攻 · 翻滾避開紅圈":"WASD 移動 · 左鍵連擊 · 空白鍵翻滾 · Q 咒術 · R 藥湯",5);
 }
 function showVillage(first=false){
@@ -126,7 +137,7 @@ function showVillage(first=false){
   $("title").hidden=true;$("hud").hidden=false;$("controls").hidden=true;
   $("stations").hidden=false;
   $("stations").innerHTML=Object.entries(stations).map(([id,s])=>{
-    const tip={gate:"準備出征",forge:"武器鍛造",lamp:"修復潮燈",garden:"煮食 · 農圃",shrine:"布道 · 祭儀"}[id];
+    const tip={gate:"準備出征",forge:"武器鍛造",lamp:"修復潮燈",garden:"煮食 · 農圃",shrine:"布道 · 祭儀",guild:"跑商 · 招募 · 委託"}[id];
     return '<button type="button" class="station" data-station="'+id+'" style="--x:'+(s.x*100)+'%;--y:'+(s.y*100)+'%"><i aria-hidden="true">'+s.icon+'</i><span><b>'+s.title+'</b><small>'+tip+'</small></span></button>';
   }).join("");
   currentScene.placeBackdrop("village");
@@ -249,6 +260,7 @@ function careVillage(action){
 function chooseStation(id){
   if(!started||state.phase!=="village"||!modal.hidden)return;
   if(id==="gate"){chapterMap();return;}
+  if(id==="guild"){tradePanel();return;}
   if(id==="garden"||id==="shrine"){villagePanel(id);return;}
   forgeOrLamp(id);
 }
@@ -262,7 +274,7 @@ function upgrade(id){
 }
 function reward(){
   const r=state.run;
-  const line=r.depth===2&&r.rescued?r.story.rescue:"潮水退去，地面留下三枚月印。";
+  const line=r.depth===2&&(r.rescued||r.trade)?r.story.rescue:"潮水退去，地面留下三枚月印。";
   panel("reward","揀一枚月印",'<p>'+line+'</p><div class="choices moon-cards">'+state.offered.map(id=>{
     const g=gifts[id];
     return '<button class="moon-card" data-gift="'+id+'"><img alt="" src="./moon-'+id+'.webp"><span><b>'+g.name+'</b><small>'+g.detail+'</small></span></button>';
@@ -286,6 +298,7 @@ function market(){
 function result(won,earned){
   $("controls").hidden=true;CatAudio.scene("village");toast("");
   const r=state.run,last=r.chapter===chapters.length-1;
+  if(r.trade){tradeResult(won,earned);return;}
   const seal=r.trial?"完成黑潮誓約":r.firstClear?"取得"+r.story.seal:"再次擊退"+enemies[areas[r.story.boss].guardian].name;
   const next=won&&r.firstClear&&!last?'<span>解鎖 <b>'+chapters[r.chapter+1].title+'</b></span>':'';
   panel(won?"victory":"result",won?seal:"被潮水捲走",
@@ -301,7 +314,7 @@ function pause(){
   setSurvey(false);
   const available=currentScene.world3d&&!currentScene.world3d.lost;
   const graphics=available?'<button data-act="graphics" aria-pressed="'+threeEnabled+'">'+(threeEnabled?"切換省電畫面":"開啟立體畫面")+'</button>':'';
-  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 咒術、R 藥湯。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+graphics+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
+  panel("pause","暫停",'<p>電腦用 WASD 或方向鍵移動、左鍵或 F 攻擊、空白鍵翻滾、Q 職業技、E 武器技、R 藥湯。</p><p>手機拖動移動，點戰場或按住武器掣攻擊。</p><div class="actions"><button data-act="close" class="primary">繼續</button><button data-act="audio" aria-pressed="'+!CatAudio.muted+'">'+(CatAudio.muted?"開啟聲音":"關閉聲音")+'</button>'+graphics+(state.phase==="fight"?'<button data-act="retreat">撤回村落</button>':"")+'</div>');
 }
 function setSurvey(on){
   if(on&&(!currentScene?.world3d?.active||state?.phase!=="village"||!modal.hidden))return;
@@ -342,6 +355,18 @@ modal.addEventListener("click",e=>{
   const b=e.target.closest("button");
   if(!b||b.disabled)return;
   const d=b.dataset;
+  if(d.tradePage&&state.phase==="village"&&dialogKind.startsWith("trade-")&&["routes","market","troops","armory","charter"].includes(d.tradePage)){
+    tradePanel(d.tradePage);return;
+  }
+  if(d.tradeAction&&state.phase==="village"&&dialogKind.startsWith("trade-")){
+    const hadRole=Boolean(village.trade.role);
+    if(applyTradeAction(village.trade,d.tradeAction,d.tradeId)){
+      writeVillage(village);CatAudio.play("door");tradePanel(hadRole?dialogKind.slice(6):"routes");
+    }
+    return;
+  }
+  if(d.tradeRoute&&dialogKind==="trade-routes"){state.departTrade(d.tradeRoute);return;}
+  if(d.act==="trade-return"&&state.phase==="result"){showVillage();tradePanel();return;}
   if(d.gift){state.choose(d.gift);return;}
   if(d.route){state.takePath(d.route);return;}
   if(d.upgrade){upgrade(d.upgrade);return;}
@@ -408,7 +433,7 @@ window.addEventListener("keydown",e=>{
     else if(movement[key]){e.preventDefault();keyboard.add(key);}
     return;
   }
-  if(key==="escape"){if(["pause","forge","lamp","garden","shrine","loadout","map","journal","villagers","villager"].includes(dialogKind))dismiss();else pause();return;}
+  if(key==="escape"){if(dialogKind.startsWith("trade-")||["pause","forge","lamp","garden","shrine","loadout","map","journal","villagers","villager"].includes(dialogKind))dismiss();else pause();return;}
   if(!modal.hidden)return;
   if(key==="c"&&!e.repeat&&state.phase==="village"){setSurvey(true);return;}
   if(movement[key]){
@@ -418,7 +443,7 @@ window.addEventListener("keydown",e=>{
     const closest=Object.entries(stations).sort(([,a],[,b])=>dist(state.player,{x:a.x*state.width,y:a.y*worldHeight})-dist(state.player,{x:b.x*state.width,y:b.y*worldHeight}))[0];
     chooseStation(closest[0]);return;
   }
-  const action={f:"attack"," ":"dash",q:"cast",r:"flask"}[key];
+  const action={f:"attack"," ":"dash",q:"cast",r:"flask",e:"equipment"}[key];
   if(action){e.preventDefault();keyboard.add(key);if(!e.repeat)state.input(action);}
 });
 window.addEventListener("keyup",e=>keyboard.delete(e.key.toLowerCase()));
@@ -506,7 +531,7 @@ function intent(){
 class ShoreScene extends Phaser.Scene{
   constructor(){super("shore");}
   preload(){
-    for(const id of Object.keys(areas).map(areaArt))this.load.image(id,"./"+id+".webp");
+    for(const id of new Set(Object.keys(areas).map(areaArt)))this.load.image(id,"./"+id+".webp");
     this.load.spritesheet("cast","./cast.png",{frameWidth:256,frameHeight:256});
     this.load.spritesheet("tide-cast","./tide-cast.png",{frameWidth:256,frameHeight:256});
     this.load.spritesheet("village-props","./village-props.png",{frameWidth:232,frameHeight:232});
@@ -538,7 +563,7 @@ class ShoreScene extends Phaser.Scene{
   }
   async loadWorld(){
     try{
-      const {MoonlightWorld}=await import("./world3d.mjs?v=inkbound");
+      const {MoonlightWorld}=await import("./world3d.mjs?v=guild");
       this.world3d=MoonlightWorld.create(stage,this.game.canvas,
         key=>this.textures.get(key).getSourceImage(),shoreLights,applyGraphics);
       applyGraphics();
@@ -673,6 +698,11 @@ class ShoreScene extends Phaser.Scene{
         draw({x,y,angle:Math.cos(walk)<0?2.2:.91,walking:!reducedMotion.matches},["kit","ink","gray","kit"][i],7,59,"cast","resident-"+i);
       }
     }
+    if(b.companion){
+      const merc=tradeMercenaries[b.companion.key];
+      draw(b.companion,merc.look,7,63,"cast");
+    }
+    if(b.dragon)draw(b.dragon,"blackDragon",5,72,"cast");
     for(let i=count;i<this.actorSprites.length;i++)this.actorSprites[i].setVisible(false);
     const frame=p.dash?11:p.attack?.fired?3:p.walking?1+Math.floor(t*11)%2:0;
     this.playerSprite.setVisible(!world);

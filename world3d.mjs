@@ -1,6 +1,6 @@
 import * as T from "./three.min.mjs";
-import { CharacterStage } from "./character-rig.mjs?v=inkbound";
-import { DEPTH, PITCH, lanternX, profileFor, TideSet } from "./world-set.mjs?v=inkbound";
+import { CharacterStage } from "./character-rig.mjs?v=guild";
+import { DEPTH, PITCH, lanternX, profileFor, TideSet } from "./world-set.mjs?v=guild";
 import {
   propFragment, floorFragment, floorVertex, haloFragment, matteFragment, mistFragment,
   planeVertex, ribbonFragment, shaftFragment, sigilFragment, sparksFragment, sparksVertex,

@@ -25,7 +25,12 @@ const profiles = {
   bridge:{set:"ruin", wet:.68, floor:.42, stone:0x3e4e62, steel:0x78a6a4},
   temple:{set:"sanctum", wet:.91, floor:.43, stone:0x49314a, steel:0xa68186},
 };
-export const profileFor = id => profiles[id] || profiles.village;
+const tradeProfiles={
+  qin:{set:"vault",wet:.38,floor:.41,stone:0x655448,steel:0x9c7651},
+  snow:{set:"crystal",wet:.71,floor:.45,stone:0x65759b,steel:0x8d83a0},
+  sea:{set:"sanctum",wet:.98,floor:.40,stone:0x355b6c,steel:0x7fa6a2},
+};
+export const profileFor = id => profiles[id] || tradeProfiles[id.split("-")[0]] || profiles.village;
 export const lanternX = (location,right) => {
   const x=location==="village"?.182:.085;
   return right?1-x:x;

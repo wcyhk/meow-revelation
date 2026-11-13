@@ -167,12 +167,14 @@ export function weaponPicker(weapons,icons,select){
       item.dataset.search=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name].join(' ');
       item.style.setProperty('--weapon-tone',weapon.ink);
       const icon=el('img');
-      icon.alt='';icon.loading='lazy';
+      icon.alt='';icon.loading='lazy';icon.decoding='async';
       icon.src=icons.get(weapon.id);
+      const portrait=el('div','','heirloom-portrait');
+      portrait.append(icon);
       const text=el('div');
       text.append(el('b',weapon.name),el('span',weapon.skill+' · '+weapon.detail));
       if(weapon.guardian)text.append(el('small','守護頭目 · '+weapon.guardian.name));
-      item.append(icon,text);
+      item.append(portrait,text);
       item.addEventListener('click',()=>select(weapon));
       list.append(item);
     }

@@ -1,9 +1,9 @@
-import {Scenery} from './scenery.mjs?v=weapon-audit-1';
+import {Scenery} from './scenery.mjs?v=armory-art-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=weapon-audit-1';
 import {Input} from './input.mjs?v=weapon-audit-1';
-import {arms} from './armory.mjs?v=weapon-audit-1';
+import {arms} from './armory.mjs?v=armory-art-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
@@ -32,7 +32,7 @@ import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
 import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
 import {relicCounter} from './relic-cast.mjs?v=weapon-audit-1';
-import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=weapon-audit-1';
+import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=armory-art-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 const $ = id => document.getElementById(id);
@@ -165,6 +165,10 @@ export class Game {
       const image=document.createElement('img');
       image.src=this.view.armIcons.get(weapon.id);
       image.alt='';
+      image.decoding='async';
+      const portrait=document.createElement('div');
+      portrait.className='arm-portrait';
+      portrait.append(image);
       const text=document.createElement('div');
       text.className='arm-text';
       const role=document.createElement('small'), name=document.createElement('b');
@@ -200,7 +204,7 @@ export class Game {
         clue.textContent='隱藏合招｜'+this.ultimateClue(secret);
         text.append(clue);
       }
-      choice.append(image,text);
+      choice.append(portrait,text);
       grid.append(choice);
     }
     const content=document.createElement('div');

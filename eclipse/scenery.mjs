@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=weapon-audit-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=armory-art-1';
 import {pictures, stages} from './expedition.mjs?v=clock-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
@@ -11,10 +11,10 @@ import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=patina-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=weapon-audit-1';
-import {relicGrip} from './relic-models.mjs?v=heirlooms-1';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=armory-art-1';
+import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
-import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=patina-2';
+import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
 
 const PI = Math.PI;
@@ -27,12 +27,10 @@ const upright = new T.Vector3(0,1,0);
 const bowForward = new T.Vector3(-1,0,0);
 const muzzlePoint = new T.Vector3();
 
-function launchMount(weapon) {
-  if(weapon.id==='cannon')return {axis:weaponUp,tip:[0,.838,0]};
-  if(weapon.form==='gun')return {axis:weaponUp,tip:[0,.944,0]};
-  if(weapon.form==='crossbow')return {axis:weaponUp,tip:[0,.79,.09],flat:true};
-  if(weapon.id==='stormbow'||weapon.form==='bow')return {axis:bowForward,tip:[-.39,0,.015]};
-  return null;
+function launchMount(model) {
+  const mount=model.userData.launch;
+  if(!mount)return null;
+  return {...mount,axis:mount.bow?bowForward:weaponUp};
 }
 
 function aimMount(model,mount,dx,dz) {
@@ -295,7 +293,7 @@ export class Scenery {
     }
     this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
     for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=armory-art-1',import.meta.url).href]));
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }
@@ -530,10 +528,12 @@ export class Scenery {
   }
 
   previewArms() {
-    const size=224;
+    const size=288;
     const renderer=new T.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});
     renderer.setSize(size,size,false);
     renderer.setClearColor(0,0);
+    renderer.toneMapping=T.ACESFilmicToneMapping;
+    renderer.toneMappingExposure=1.21;
     const scene=new T.Scene();
     armLighting(scene);
     const camera=new T.OrthographicCamera(-1.10,1.10,1.10,-1.10,.1,20);
@@ -542,7 +542,10 @@ export class Scenery {
     const result=new Map();
     for(const arm of arms){
       const item=forge(arm);
-      item.rotation.set(-.13,-.29,arm.form==='gun'||arm.id==='cannon'?-1.04:-.59);
+      const gun=arm.form==='gun'||arm.id==='cannon';
+      const pole=['spear','halberd','trident','staff','cane'].includes(arm.form)||arm.id==='windhalberd'||arm.id==='reaper';
+      const round=['ring','orb','beads','talisman'].includes(arm.form)||['dragon','tiger','chakra','han-spear'].includes(arm.id);
+      item.rotation.set(arm.id==='turtle'?-.80:-.11,gun?-.26:-.32,gun?-.92:pole?-.69:round?-.19:-.57);
       item.updateMatrixWorld(true);
       const bounds=new T.Box3();
       item.traverseVisible(part=>{
@@ -551,12 +554,12 @@ export class Scenery {
         bounds.union(part.geometry.boundingBox.clone().applyMatrix4(part.matrixWorld));
       });
       const extent=bounds.getSize(new T.Vector3());
-      const fit=1.82/Math.max(extent.x,extent.y,extent.z);
+      const fit=1.93/Math.max(extent.x,extent.y,extent.z);
       item.position.copy(bounds.getCenter(new T.Vector3())).multiplyScalar(-fit);
       item.scale.setScalar(fit);
       scene.add(item);
       renderer.render(scene,camera);
-      result.set(arm.id,renderer.domElement.toDataURL('image/webp',.94));
+      result.set(arm.id,renderer.domElement.toDataURL('image/webp',.92));
       scene.remove(item);
       disposeForge(item);
     }
@@ -574,7 +577,7 @@ export class Scenery {
     this.scene.add(model);
     const profile=weapon.spell?relicGrip(weapon):weaponGrips[weapon.id];
     glow.position.y=profile.glow??.48;
-    actor.weapon = {model,glow,id:weapon.id,profile,mount:launchMount(weapon),anchor:new T.Vector3(...profile.anchor),
+    actor.weapon = {model,glow,id:weapon.id,profile,mount:launchMount(model),anchor:new T.Vector3(...profile.anchor),
       blades:weapon.id==='fangs'?model.children.slice(0,2):null};
     this.sigilPreview.material.map=this.relicTexture(weapon.id);
     this.sigilPreview.material.needsUpdate=true;

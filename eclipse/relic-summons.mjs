@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {forge,disposeForge} from './armory.mjs?v=weapon-audit-1';
+import {forge,disposeForge} from './armory.mjs?v=armory-art-1';
 
 const box=new T.BoxGeometry(1,1,1);
 const sphere=new T.SphereGeometry(1,10,8);
@@ -105,7 +105,7 @@ export function summonMuzzle(summon,point,angle,target){
   summon.mesh.rotation.y=-angle;
   summon.rifle.position.x=.16;
   summon.rifle.rotation.z=-Math.PI/2;
-  summon.rifle.localToWorld(muzzle.set(0,.944,0));
+  summon.rifle.localToWorld(muzzle.set(...summon.rifle.userData.launch.tip));
   summon.fired=summon.age;
   return {x:muzzle.x,y:muzzle.y,z:muzzle.z,dx:Math.cos(angle),dz:Math.sin(angle)};
 }

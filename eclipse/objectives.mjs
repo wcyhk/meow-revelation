@@ -1,4 +1,3 @@
-const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const relics=[
   ['一張分糧票','一戶兩人簽收，名冊上只留一個名字。有人把另一個寫喺票背，摺埋收好。','石柱下的畫','小燈畫咗兩個人提燈返屋企。第二個人嘅面俾水化開，手上盞燈仲睇得見。'],
   ['浮標上的刻痕','洗名人用水位做記號。水退到第三格，漂走嘅名字會重新靠岸。','濕透的告示','告示教人向井裏喊名字。有回音嘅，就仲有人喺山下等佢。'],
@@ -16,68 +15,32 @@ function monument(x,z,radius,style,angle=0) {
   return {x,z,radius,style,angle};
 }
 
-export function planObjective(chapter,room) {
-  const timedRoom=chapter%3===1?3:2;
-  const discoveryRoom=chapter%3===2?6:7;
-  if (room!==timedRoom&&room!==discoveryRoom) return null;
-  const type=room===timedRoom
-    ? (chapter%2===0?'defend':'survive')
-    : (chapter%2===0?'circuit':'search');
-  const side=(chapter+room)%2===0?-1:1;
-  const variant=(chapter+room)%3;
-  const xShift=variant===2?side*1.35:0;
-  const zShift=variant===1?.7:0;
-  const props=(points)=>points.map(([x,z,radius,style])=>monument(x*side+xShift,z+zShift,radius,style,side*.21));
+export const fieldNotes=chapter=>relics[chapter];
 
-  if (type==='defend') {
-    const altar={x:xShift,z:1.5+zShift};
-    const entrances=[
-      {x:-7.8*side,z:-5.6},{x:7.8*side,z:-5.0},{x:-9.4*side,z:3.8},{x:9.4*side,z:4.7},
-    ];
-    const walls=variant===1
-      ? [[-4.0,-.4,1.05,2],[4.0,-.4,1.02,1],[-1.4,-3.6,.90,3],[1.4,-3.6,.92,3]]
-      : [[-2.5,-.75,1.16,2],[2.5,-.75,1.16,2],[-4.9,2.05,.87,1],[4.8,2.10,.87,1]];
-    return {
-      type,title:'守護祭燈',hint:variant===1?'堵住兩側通道，截住撲向祭燈嘅敵人。':'利用斷柱擋住飛彈，守住祭燈前嘅缺口。',
-      altar,entrances,props:props(walls),duration:16+chapter*.85+variant*2,
-      maxLight:83+chapter*13,interval:4.75+variant*.42,
-    };
-  }
-  if (type==='survive') {
-    const cover=variant===1
-      ? [[-3,-2,1.13,3],[-2.7,2.0,1.09,3],[4.6,-3,1.2,1],[4.8,2.5,1.13,1]]
-      : [[-4.1,2.7,1.13,2],[4.3,-1.8,1.18,3],[.1,-4.25,1.21,1]];
-    return {
-      type,title:'限時生存',hint:'時間到就會過關。繞柱走位，借石柱擋飛彈。',
-      entrances:[{x:-8.9,z:-5.1},{x:8.9,z:-5.1},{x:9.4,z:3.5},{x:-9.4,z:4.5},{x:0,z:-5.9}],
-      props:props(cover),duration:17+chapter*.9+variant*2,interval:4.9-variant*.28,
-    };
-  }
-  if (type==='circuit') {
-    const symbols=[['☽','◇','✦'],['♧','☉','△'],['✷','◉','♢']][variant];
-    const turn=(chapter+room)%2===0?1:-1;
-    return {
-      type,title:'解開石閘',hint:'依照上方符號點亮符石。前兩枚正確，石閘就會打開。',
-      gate:{x:0,z:-2.4+zShift,width:23.2,depth:.40},
-      points:[
-        {x:-5.7*turn,z:2.65+zShift,symbol:symbols[0]},
-        {x:5.85*turn,z:1.36+zShift,symbol:symbols[1]},
-        {x:1.4*side,z:-5.35+zShift,symbol:symbols[2]},
-      ],
-      props:props([[-2.2,1.2,.81,2],[2.6,3.05,.87,3],[-6.2,-.6,.92,1],[5.7,-4.2,.86,1]]),
-    };
-  }
-  const [title1,record1,title2,record2]=relics[chapter];
-  return {
-    type,title:'尋找隱藏線索',
-    hint:side===1?'先睇左邊斷柱後面，再去右上角。靠近時會見到殘頁發光。'
-      :'先睇右邊斷柱後面，再去左上角。靠近時會見到殘頁發光。',
-    points:[
-      {x:-7.6*side,z:2.45+zShift,title:title1,record:record1},
-      {x:7.1*side,z:-4.9+zShift,title:title2,record:record2},
-    ],
-    props:props([[-5.3,2.2,1.17,2],[4.65,-3.7,1.22,3],[.1,-1.6,.89,1]]),
-  };
+export function planObjective(chapter,room) {
+  const early=chapter%3===1?3:2;
+  const late=chapter%3===2?6:7;
+  if(room!==early&&!(chapter%2===1&&room===late))return null;
+  const variant=(chapter+room+(room===late?1:0))%3;
+  const side=(chapter+room)%2===0?-1:1;
+  const x=variant===2?side*2.4:0;
+  const z=variant===1?3.4:1.5;
+  const layouts=[
+    [[-2.5,-.75,1.12,2],[2.6,-.75,1.12,2],[-5,2,.83,1],[5.2,2,.83,1]],
+    [[-4,-.4,1.05,2],[4,-.4,1.05,1],[-1.5,-3.7,.91,3],[1.5,-3.7,.91,3]],
+    [[-4.4,3.1,.85,3],[4.7,-1.05,.93,1],[-1.3,-3.9,1.14,3],[1.6,4.8,.88,2]],
+  ];
+  const hints=[
+    '守住斷柱中間嘅缺口。打近身嘅敵人可以將佢哋從祭燈引開。',
+    '敵人會由兩翼夾擊。繞柱走位，截斷遠程射線。',
+    '祭燈偏離中央。沿河岸截住兩批敵人，再返去守燈。',
+  ];
+  const entrances=variant===1
+    ?[{x:-9.4,z:4.8},{x:9.4,z:4.8},{x:-7.3,z:-5.3},{x:7.3,z:-5.3}]
+    :[{x:-7.8*side,z:-5.6},{x:7.8*side,z:-5.0},{x:-9.4*side,z:3.8},{x:9.4*side,z:4.7}];
+  return {type:'defend',title:'守護祭燈',hint:hints[variant],variant,altar:{x,z},entrances,
+    props:layouts[variant].map(([px,pz,radius,style])=>monument(px*side+x*.48,pz+z*.29,radius,style,side*.21)),
+    duration:15+chapter*.85+variant*1.7,maxLight:88+chapter*13,interval:4.61+variant*.40};
 }
 
 export class RoomObjective {
@@ -86,28 +49,21 @@ export class RoomObjective {
     this.plan=plan;
     this.remaining=plan.duration??0;
     this.light=plan.maxLight??0;
-    this.progress=0;
-    this.found=new Set();
-    this.gateOpen=false;
     this.started=false;
     this.nextRaid=0;
     this.raid=0;
-    this.notice='';
-    this.noticeTime=0;
   }
 
   start() {
     this.started=true;
     this.game.objective(this.plan.hint);
-    if (this.plan.entrances) this.spawnRaid();
+    this.spawnRaid();
   }
 
   tick(dt) {
-    this.noticeTime=Math.max(0,this.noticeTime-dt);
-    if (!this.plan.entrances) return;
     this.remaining=Math.max(0,this.remaining-dt);
     if (this.remaining<=0) {
-      this.game.completeRoom(this.plan.type==='defend'?'祭燈已守住':'撐過了襲擊',true);
+      this.game.completeRoom('祭燈已守住',true);
       return;
     }
     this.nextRaid-=dt;
@@ -116,49 +72,17 @@ export class RoomObjective {
 
   spawnRaid() {
     const game=this.game;
-    const {entrances,interval,type}=this.plan;
+    const {entrances,interval,variant}=this.plan;
     const {chapter,room,zone}=game.stage;
     const count=Math.max(0,Math.min(7-game.enemies.length,2+Number(this.raid===0||chapter>=5)));
     for (let i=0;i<count;i++) {
-      const point=entrances[(this.raid+i*(type==='defend'?1:2))%entrances.length];
+      const point=entrances[(this.raid+i*(variant===2?3:1))%entrances.length];
       const kind=zone.foes[(room+this.raid+i*2)%zone.foes.length];
       const unit=game.spawn(kind,point.x,point.z);
-      unit.raider=type==='defend' && (i===0||i===2||this.raid%3===1);
+      unit.raider=i===0||i===2||this.raid%3===1;
     }
     this.raid++;
     this.nextRaid=interval;
-  }
-
-  nearby() {
-    if (!this.started||!this.plan.points) return -1;
-    return this.plan.points.findIndex((point,index)=>!this.found.has(index)&&distance(this.game.hero,point)<1.66);
-  }
-
-  interact(index) {
-    const {game,plan}=this;
-    const point=plan.points[index];
-    if (plan.type==='search') {
-      this.found.add(index);
-      this.progress=this.found.size;
-      game.view.shock(point.x,point.z,0xffcc82,1.30,.42);
-      game.showHiddenClue(point,this.progress===plan.points.length);
-      return;
-    }
-    if (index!==this.progress) {
-      this.progress=0;
-      this.found.clear();
-      this.gateOpen=false;
-      this.notice='次序錯咗，符石已重置';
-      this.noticeTime=2;
-      game.audio.play('warning');
-      return;
-    }
-    this.found.add(index);
-    this.progress++;
-    if (this.progress>=2) this.gateOpen=true;
-    game.view.shock(point.x,point.z,0xb5ffdd,1.45,.46);
-    game.audio.play('blessing');
-    if (this.progress===plan.points.length) game.completeRoom('符石已全部點亮');
   }
 
   hurtLantern(amount) {
@@ -172,17 +96,7 @@ export class RoomObjective {
   }
 
   status() {
-    const {plan}=this;
-    if (plan.type==='defend') {
-      return {text:'祭燈 '+Math.ceil(this.light)+' / '+plan.maxLight+' · '+Math.ceil(this.remaining)+' 秒',fill:this.light/plan.maxLight};
-    }
-    if (plan.type==='survive') return {text:'剩餘 '+Math.ceil(this.remaining)+' 秒',fill:this.remaining/plan.duration};
-    if (plan.type==='circuit') {
-      const symbols=plan.points.map((point,index)=>index<this.progress?'✓':point.symbol).join('  →  ');
-      return {text:this.noticeTime>0?this.notice:symbols,fill:null};
-    }
-    const nearest=Math.min(...plan.points.filter((_,index)=>!this.found.has(index)).map(point=>distance(point,this.game.hero)));
-    const hint=nearest<1.66?'可以調查':nearest<4.5?'附近有微光':'沿斷柱搵殘頁';
-    return {text:'線索 '+this.progress+' / '+plan.points.length+' · '+hint,fill:null};
+    const {maxLight}=this.plan;
+    return {text:'祭燈 '+Math.ceil(this.light)+' / '+maxLight+' · '+Math.ceil(this.remaining)+' 秒',fill:this.light/maxLight};
   }
 }

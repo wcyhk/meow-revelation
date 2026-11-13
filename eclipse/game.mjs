@@ -1,18 +1,20 @@
-import {Scenery} from './scenery.mjs?v=armory-art-1';
+import {fightCatalogue,monsterCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=bestiary-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=bestiary-1';
+import {Scenery} from './scenery.mjs?v=bestiary-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=weapon-audit-1';
-import {Input} from './input.mjs?v=weapon-audit-1';
+import {Input} from './input.mjs?v=bestiary-1';
 import {arms} from './armory.mjs?v=armory-art-1';
 import {ending} from './campaign.mjs?v=clock-1';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=bestiary-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=heirlooms-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=weapon-audit-1';
-import {RoomObjective} from './objectives.mjs?v=battle-1';
+import {RoomObjective,fieldNotes} from './objectives.mjs?v=bestiary-1';
 import {invokeSchool} from './schools.mjs?v=nightfall-1';
-import {BossArena} from './boss-arena.mjs?v=impact-1';
-import {bossArenas} from './arena-layouts.mjs?v=arena-1';
+import {BossArena} from './boss-arena.mjs?v=bestiary-1';
+import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
@@ -80,6 +82,7 @@ export class Game {
     this.difficulty=difficulties.vigil;
     this.progress=new Progression();
     this.branchCombat=new BranchCombat(view);
+    this.weaponViewer=new WeaponViewer(view,makeWeaponPractice);
     this.arenaSeed=Math.floor(Math.random()*0x100000000);
     this.level = 0;
     this.wave = 0;
@@ -107,13 +110,14 @@ export class Game {
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
-      'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','time-fracture',
+      'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','bestiary','time-fracture',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','touch-skill-status',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
-    this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
+    this.input = new Input(view.canvas,action=>{if(!this.weaponViewer.open)(action==='journal'?this.showJournal():this.togglePause());},()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
     this.ui.training.addEventListener('click',()=>this.openTraining());
     this.ui.records.addEventListener('click',()=>this.openRecords());
+    this.ui.bestiary.addEventListener('click',()=>this.openBestiary());
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
@@ -149,6 +153,70 @@ export class Game {
       buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 
+  openBestiary() {
+    if(this.state!=='cover')return;
+    this.openModal({kind:'bestiary',mark:'☽',kicker:'巨商妖異',title:'頭目圖鑑',
+      copy:'揀一名頭目，再選神器入場。試戰獨立計時。',
+      content:fightCatalogue(document,monsterCatalogue,monster=>{
+        this.duelMonster=monster;
+        this.prepare();
+      }),buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
+  }
+
+  startMonsterDuel() {
+    const source=stages[10];
+    const stage=modeStage({...source,name:'頭目試戰',boss:true,guardian:null,clue:null,objective:null,hazard:null,
+      props:[],dread:.44,spawn:{x:0,z:5.9}},this.difficulty);
+    this.stage=stage;
+    this.clearActors();
+    this.clearThreats();
+    this.rituals.length=0;
+    this.bossArena=this.mission=this.escape=null;
+    this.floorBossesDefeated=0;
+    this.startDelay=Infinity;
+    this.pins=[];
+    this.ui['mission-pins'].replaceChildren();
+    this.ui.hud.dataset.mission='';
+    this.hero.x=stage.spawn.x;
+    this.hero.z=stage.spawn.z;
+    this.hero.invulnerable=1.15;
+    this.view.focus.set(0,0,-.65);
+    this.view.setStage(stage);
+    this.view.setMission(null);
+    this.view.setBossArena(null);
+    this.view.lanternArt.set(null);
+    this.branchCombat.enter(this);
+    this.placeStory(null);
+    const spec={...monsterBattle(this.duelMonster,12,this.difficulty),secondary:false};
+    const boss=this.spawn('boss',0,-2.0,null,spec);
+    boss.phaseGuard=1.12;
+    boss.recover=1.10;
+    this.ui['route-name'].textContent='頭目試戰';
+    this.ui['route-floor'].textContent=this.difficulty.name;
+    this.ui['route-dots'].replaceChildren();
+    this.ui['boss-name'].textContent=spec.name;
+    this.audio.danger=true;
+    this.audio.dread=stage.dread;
+    this.ambientClock=Infinity;
+    this.audio.boss(spec.effect);
+    this.view.bossCue(boss,'entrance');
+    this.objective('擊敗 '+spec.name);
+    this.announce('頭目試戰',spec.name,spec.signature,1.9);
+    this.renderUI();
+  }
+
+  finishMonsterDuel() {
+    this.state='duel-win';
+    this.audio.active=false;
+    this.clearThreats();
+    this.rituals.length=0;
+    this.ui.announce.classList.remove('visible');
+    this.openModal({kind:'duel-win',mark:'✧',kicker:'頭目試戰',title:'已擊敗 '+this.duelMonster.name,
+      copy:'用時 '+formatTime(this.elapsed),buttons:[makeButton('返回頭目圖鑑',()=>{
+        this.showCover();this.openBestiary();
+      },'primary')]});
+  }
+
   prepare(milestone=false) {
     this.audio.start().catch(() => {});
     this.state='armory';
@@ -157,9 +225,10 @@ export class Game {
     grid.className='armory-grid';
     const pool=shuffle(milestone?arms.filter(arm=>arm.id!==this.weapon.id):arms);
     const choices=pool.slice(0,3);
+    const select=weapon=>this.weaponViewer.show(weapon,milestone?item=>this.swapWeapon(item):item=>this.start(item));
     if(!milestone&&!choices.some(arm=>arm.spell))choices[2]=pool.find(arm=>arm.spell);
     for (const weapon of choices) {
-      const choice=makeButton('',()=>milestone?this.swapWeapon(weapon):this.start(weapon),'arm-card');
+      const choice=makeButton('',()=>select(weapon),'arm-card');
       choice.dataset.arm=weapon.id;
       choice.style.setProperty('--arm-ink',weapon.ink);
       const image=document.createElement('img');
@@ -212,14 +281,16 @@ export class Game {
       this.progress.refresh();
       content.append(this.difficultyPicker(),branchPicker(this.progress));
     }
-    if(!milestone)content.append(weaponPicker(arms,this.view.armIcons,weapon=>this.start(weapon)));
+    if(!milestone)content.append(weaponPicker(arms,this.view.armIcons,select));
     content.append(grid);
     this.openModal({kind:'armory',mark:'◇',
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
-      title:milestone?'領取頭目遺物':'向林火借一件神器',
+      title:milestone?'領取頭目遺物':this.duelMonster?'試戰 · '+this.duelMonster.name:'向林火借一件神器',
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
         :'揀難度、勾選入場技能，再帶一件神器出發。',content,
-      buttons:milestone?[]:[makeButton('返回主畫面',()=>this.showCover())]});
+      buttons:milestone?[]:[makeButton(this.duelMonster?'返回頭目圖鑑':'返回主畫面',()=>{
+        const back=!!this.duelMonster;this.showCover();if(back)this.openBestiary();
+      })]});
   }
 
   difficultyPicker() {
@@ -281,7 +352,8 @@ export class Game {
     this.ui.cover.hidden = true;
     this.ui.hud.hidden = false;
     this.closeModal();
-    this.enter(0);
+    if(this.duelMonster)this.startMonsterDuel();
+    else this.enter(0);
     this.view.canvas.focus();
   }
 
@@ -401,12 +473,15 @@ export class Game {
       gem.className = 'route-gem '+(index===stage.chapter?'current':index<stage.chapter?'done':'');
       return gem;
     }));
-    const clue=this.journal.some(entry=>!entry.hiddenClue&&entry.chapter===stage.zone.name)?null:stage.clue;
-    this.placeStory(clue);
-    if (!clue) this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.guardian.name:patterns[stage.hazard]+' · 留意地面預警'));
-    const arrival=clue?'循祭燈調查線索':this.mission?.plan.title??(stage.boss?stage.guardian.name:patterns[stage.hazard]);
+    const clue=stage.clue;
+    this.placeStory(null);
+    this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.guardian.name:patterns[stage.hazard]+' · 留意地面預警'));
+    const arrival=this.mission?.plan.title??(stage.boss?stage.guardian.name:patterns[stage.hazard]);
     this.announce(stage.zone.name+'  /  第 '+stage.floor+' 關',stage.name,arrival,2.15);
-    this.startDelay = clue ? Infinity : 1.05;
+    this.startDelay=1.05;
+    if(clue&&!this.journal.some(entry=>!entry.hiddenClue&&entry.chapter===stage.zone.name)){
+      this.discover(clue);
+    }
     this.renderUI();
   }
 
@@ -441,17 +516,16 @@ export class Game {
     }
     if(this.escape?.ready){this.useExit();return;}
     const arenaPoint=this.bossArena?.nearby(this.hero);
-    if (arenaPoint) {
-      this.bossArena.interact(arenaPoint);
-      return;
-    }
-    const index=this.mission?.nearby()??-1;
-    if (index>=0) this.mission.interact(index);
+    if(arenaPoint)this.bossArena.interact(arenaPoint);
   }
 
   readClue() {
     if (this.state!=='play' || !this.closeToClue()) return false;
-    const clue=this.discovery;
+    this.discover(this.discovery);
+    return true;
+  }
+
+  discover(clue) {
     this.placeStory(null);
     this.state='story';
     this.audio.play('blessing');
@@ -466,26 +540,19 @@ export class Game {
         return;
       }
       this.state='play';
-      this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':'前方的封印正在鬆動');
+      this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':this.mission?.plan.hint??'前方的封印正在鬆動');
       this.startDelay=1.07;
     });
     return true;
   }
 
-  showHiddenClue(point,complete) {
-    const chapter=this.stage.zone.name;
-    if (!this.journal.some(entry=>entry.hiddenClue&&entry.title===point.title)) {
-      this.journal.push({title:point.title,record:point.record,chapter,hiddenClue:true});
+  recordFieldNotes() {
+    const {chapter,room,zone}=this.stage;
+    if(room!==7)return;
+    const [title,record,secondTitle,secondRecord]=fieldNotes(chapter);
+    if(!this.journal.some(entry=>entry.hiddenClue&&entry.title===title)){
+      this.journal.push({title,record:record+' '+secondTitle+'。'+secondRecord,chapter:zone.name,hiddenClue:true});
     }
-    this.state='story';
-    this.ui.inspect.hidden=true;
-    this.audio.play('blessing');
-    const scene={cast:['hero'],intro:[{speaker:'narrator',text:point.record}]};
-    this.openDialogue(point.title,'隱藏線索 · '+chapter,scene,complete?'收起最後一份線索':'收起線索',()=>{
-      this.state='play';
-      this.closeModal();
-      if (complete) this.completeRoom('已搵齊隱藏線索');
-    });
   }
 
   openDialogue(title,location,scene,finishLabel,onFinish,summary) {
@@ -564,12 +631,23 @@ export class Game {
       if (unit.kind==='boss') head=unit;
       if(unit.omen)elite=unit;
     }
+    const visitor=this.wave===waves.length-1?visitorFor(this.stage,this.routeSeed):null;
+    if(visitor){
+      this.audio.danger=true;
+      const unit=this.spawn('boss',-2.8,-4.0,null,monsterBattle(visitor,this.stage.floor,this.difficulty));
+      unit.phaseGuard=.75;
+      unit.recover=1.16;
+      this.ui['boss-echo-name'].textContent=visitor.name;
+      this.view.bossCue(unit,'entrance');
+      this.announce('巨商妖異',visitor.name,unit.spec.signature,2.1);
+      this.audio.boss(unit.spec.effect);
+    }
     this.startDelay = Infinity;
     this.wave++;
     const boss=!!head;
     this.objective(boss ? '擊敗 '+guardian.name : '清除敵人 · '+this.wave+' / '+waves.length+
-      (guardian?' · 頭目尚未現身':' · '+patterns[this.stage.hazard])+(elite?' · '+elite.omen.name:''));
-    if(elite&&!boss)this.announce('夜祭異變',elite.spec.name,elite.omen.detail,1.75);
+      (guardian?' · 頭目尚未現身':visitor?' · '+visitor.name:' · '+patterns[this.stage.hazard])+(elite?' · '+elite.omen.name:''));
+    if(elite&&!boss&&!visitor)this.announce('夜祭異變',elite.spec.name,elite.omen.detail,1.75);
     if (boss) {
       this.arenaSeed=(this.arenaSeed+0x9e3779b9)>>>0;
       this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head,this.arenaSeed);
@@ -700,7 +778,7 @@ export class Game {
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
       this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
-      const canFight=!this.discovery&&(!this.mission?.plan.points||this.escape?.ready);
+      const canFight=!this.discovery;
       while (h.slash?.timing&&h.attackAge>=h.slash.timing.hits[h.slash.next].at) this.landSlash();
       const ready=this.readyLink();
       const waitForHit=h.link?.pending&&!h.link.contacts.length;
@@ -739,13 +817,7 @@ export class Game {
       if (input.interact) this.interact();
       return;
     }
-    const point=this.mission?.nearby()??-1;
-    this.ui.inspect.hidden=point<0;
-    if (point>=0) {
-      const plan=this.mission.plan;
-      this.ui.inspect.querySelector('span').textContent=plan.type==='circuit'?'點亮 '+plan.points[point].symbol:'調查發光殘頁';
-      if (input.interact) this.interact();
-    }
+    this.ui.inspect.hidden=true;
   }
 
   bound(unit) {
@@ -756,9 +828,6 @@ export class Game {
   breakables() {return this.escape?.barricades.filter(item=>item.hp>0)??[];}
 
   isBlocked(unit,margin,previous) {
-    const gate=this.mission?.plan.gate;
-    if (gate && !this.mission.gateOpen
-      && Math.abs(unit.x-gate.x)<gate.width/2+margin && Math.abs(unit.z-gate.z)<gate.depth/2+margin) return true;
     return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin)
       ||!!this.escape?.barricades.some(item=>item.hp>0&&distance(unit,item)<item.radius+margin)
       || !!this.bossArena?.blocks(unit,margin,previous);
@@ -985,7 +1054,7 @@ export class Game {
       unit.phaseGuard=.91;
       unit.step=Math.max(unit.step,unit.bossPhase);
       if(primary)this.bossArena.transform(unit.bossPhase);
-      this.beginEnemyAttack(unit,unit.spec.attacks[0]);
+      this.beginEnemyAttack(unit,unit.spec.finishing??unit.spec.attacks[0]);
       this.view.bossCue(unit,'phase');
       this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
       const terrain=primary?this.bossArena?.plan:null;
@@ -1092,7 +1161,7 @@ export class Game {
     const phase=unit.bossPhase;
     let index=unit.step++;
     if (!boss) index+=this.stage.room+this.wave;
-    let pattern=forcedPattern??spec.attacks[index%spec.attacks.length];
+    let pattern=forcedPattern??(spec.finishing&&phase&&index%3===2?spec.finishing:spec.attacks[index%spec.attacks.length]);
     if (unit.kind==='oracle'&&this.stage.room>=6&&unit.step%4===0) {
       pattern=this.stage.enemyPattern==='summon'?'marked':this.stage.enemyPattern;
     }
@@ -1133,7 +1202,7 @@ export class Game {
       boss?1.14:.83,Math.atan2(attack.dz,attack.dx));
     this.audio.release(attack.pattern,boss);
     if (boss) {
-      this.bossArena?.counters.resolveAttack(attack);
+      if(this.bossArena?.boss===unit)this.bossArena.counters.resolveAttack(attack);
       this.view.shake=Math.max(this.view.shake,.13);
     }
   }
@@ -1262,6 +1331,10 @@ export class Game {
   }
 
   updateFlow(dt) {
+    if(this.duelMonster){
+      if(!this.enemies.some(unit=>unit.kind==='boss'&&unit.hp>0))this.finishMonsterDuel();
+      return;
+    }
     if (this.discovery) return;
     const exit=this.escape;
     if(exit&&!exit.found&&this.hero.lanternOut<=0&&distance(this.hero,exit)<lanternRadius(this.stage)*.96){
@@ -1300,6 +1373,7 @@ export class Game {
   completeRoom(message,retreat=false) {
     if (this.state!=='play'||this.escape?.ready) return;
     if (this.mission) this.mission.finished=true;
+    this.recordFieldNotes();
     this.ui.inspect.hidden=true;
     this.ui['mission-status'].hidden=true;
     this.ui['boss-hud'].hidden=true;
@@ -1310,6 +1384,7 @@ export class Game {
       this.clearActors();
     }
     this.bossArena=null;
+    this.audio.danger=false;
     this.view.setBossArena(null);
     this.setupMissionPins();
     this.ui.hud.dataset.mission='escape';
@@ -1379,7 +1454,7 @@ export class Game {
 
   setupMissionPins() {
     const arena=this.bossArena?.phase>0;
-    const points=arena ? this.bossArena.points : this.mission?.plan.points??[];
+    const points=arena ? this.bossArena.points : [];
     this.pins=points.map(point=>{
       const element=document.createElement('i');
       element.textContent=point.symbol??'✧';
@@ -1402,20 +1477,6 @@ export class Game {
         const y=clamp(screen.y,Math.min(136,height*.32),Math.max(height-150,height*.72));
         element.classList.toggle('edge',x!==screen.x||y!==screen.y);
         element.style.transform='translate('+Math.round(x)+'px,'+Math.round(y)+'px) translate(-50%,-50%)';
-      }
-      return;
-    }
-    const mission=this.mission;
-    if(!mission)return;
-    for (const [index,{point,element}] of this.pins.entries()) {
-      const taken=mission.found.has(index);
-      const revealed=mission.plan.type==='circuit'||distance(point,this.hero)<4.25;
-      const screen=this.view.project(point.x,.86,point.z);
-      element.hidden=!revealed||mission.finished||(mission.plan.type==='search'&&taken)
-        ||screen.x<0||screen.x>this.view.width||screen.y<70||screen.y>this.view.height-95;
-      if (!element.hidden) {
-        element.classList.toggle('lit',taken);
-        element.style.transform='translate('+Math.round(screen.x)+'px,'+Math.round(screen.y)+'px) translate(-50%,-50%)';
       }
     }
   }
@@ -1473,7 +1534,7 @@ export class Game {
       const gait=actorMotion(unit,dt,t);
       const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
       const fierce=unit.bossPhase>0;
-      const owlDive=unit.spec.frame===6&&(wind>.42||unit.recover>.37);
+      const owlDive=!unit.spec.bestiary&&unit.spec.frame===6&&(wind>.42||unit.recover>.37);
       const frame={
         frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
         poseSize:owlDive?.84:1,
@@ -1657,7 +1718,7 @@ export class Game {
     requestAnimationFrame(this.loop);
     const dt=clamp((now-this.previousTime)/1000,0,.045);
     this.previousTime=now;
-    if (!this.hero||document.hidden||!this.ui.cover.hidden) return;
+    if(!this.hero||document.hidden||!this.ui.cover.hidden||this.weaponViewer.open)return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
     if (this.state==='play'||this.state==='falling') {
@@ -1679,6 +1740,7 @@ export class Game {
   }
 
   openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
+    if(this.weaponViewer.open)this.weaponViewer.dialog.close();
     this.input.reset();
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
     this.ui['modal-mark'].textContent=mark;
@@ -2093,6 +2155,7 @@ export class Game {
 
   showCover() {
     this.state='cover';
+    this.duelMonster=null;
     this.audio.active=false;
     this.failure=null;
     this.branchCombat.end();
@@ -2107,6 +2170,77 @@ export class Game {
   }
 }
 
+function makeWeaponPractice(view,weapon,kind) {
+  const practice=Object.create(Game.prototype);
+  const hero=makeHero();
+  Object.assign(hero,{x:-3.2,z:.5,dx:1,dz:0});
+  Object.assign(practice,{view,weapon,hero,t:0,state:'preview',rituals:[],relicWalls:[],learned:new Set(),autoReady:new Map(),
+    branchCombat:{},audio:{attack(){},arm(){},ghostRifle(){},link(){}},enemies:[],stage:{props:[]}});
+  practice.ranks=buildStats(hero,weapon,1,[]);
+  practice.heroVisual=view.createActor(0,2.68);
+  view.equip(practice.heroVisual,weapon);
+  const wide=hero.spellRadius>5.8;
+  const dummies=(kind==='combo'?[[.1,.5]]:wide?[[1.7,.5],[2.9,-.92],[3.4,1.65]]:[[.15,.5],[1.6,-.73],[1.95,1.49]]);
+  for(const [x,z] of dummies){
+    const spec={frame:3,height:2.0,tint:0xddb79b,effect:'stone',hp:15000};
+    practice.enemies.push({x,z,kind:'imp',face:-1,age:5,hp:spec.hp,stun:0,chill:0,exposed:0,
+      kx:0,kz:0,spec,visual:view.createActor(spec.frame,spec.height)});
+  }
+  practice.aim=()=>[1,0];
+  practice.hit=(target,power,source,force,tint,weight,report)=>{
+    const response=weight==='heavy'?'heavy':'light';
+    recoil(target,source,response);
+    view.impact(target,source,response,tint);
+    report?.(target,response);
+    return true;
+  };
+  let actionAt=.16,combo=0;
+  const duration=kind==='combo'?2.65:Math.max(2.75,(weapon.spell?.hits??1)*(weapon.spell?.interval??0)+1.35);
+  const input={x:0,z:0};
+  practice.poseHero(0);
+  return {
+    step(dt){
+      practice.t+=dt;
+      hero.attackAge+=dt;
+      hero.ward-=dt;
+      hero.comboLeft-=dt;
+      if(practice.t>=actionAt){
+        if(kind==='skill'){
+          practice.cast(input,null);actionAt=Infinity;
+        }else{
+          hero.combo=combo;
+          hero.comboLeft=1;
+          practice.attack(input);
+          combo++;
+          actionAt=combo<3?practice.t+hero.atkTotal+.10:Infinity;
+        }
+      }
+      if(hero.rolling>0){
+        const from={x:hero.x,z:hero.z};
+        practice.moveUnit(hero,hero.rollX*hero.rollSpeed*dt,hero.rollZ*hero.rollSpeed*dt,.38);
+        if(hero.rush)rushHit(practice,from);
+        hero.rolling=Math.max(0,hero.rolling-dt);
+        if(!hero.rolling)hero.rush=null;
+      }
+      while(hero.slash&&hero.attackAge>=hero.slash.timing.hits[hero.slash.next].at)practice.landSlash();
+      practice.updateRituals(dt);
+      practice.poseHero(dt);
+      view.setWard(hero);
+      view.previewSkill(hero,0,dt);
+      for(const unit of practice.enemies){
+        advanceReaction(unit,dt);
+        view.actor(unit.visual,unit,blendPose({frame:unit.spec.frame,face:-1,aura:.3,rim:0xe1c5b3,
+          bob:Math.sin(practice.t*3+unit.x)*.06,squash:1,tilt:0},reactionPose(unit)));
+      }
+      return practice.t<duration;
+    },
+    dispose(){
+      view.removeEquippedActor(practice.heroVisual);
+      for(const unit of practice.enemies)view.removeActor(unit.visual);
+    },
+  };
+}
+
 export let game;
 try {
   const world=new Scenery($('world'));
@@ -2116,6 +2250,7 @@ try {
   $('begin').disabled=false;
   $('training').disabled=false;
   $('records').disabled=false;
+  $('bestiary').disabled=false;
   requestAnimationFrame(game.loop);
 } catch (error) {
   console.error('Could not initialize the Eclipse Grove',error);

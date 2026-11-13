@@ -1,14 +1,10 @@
-import {arenaTerrain} from './arena-layouts.mjs?v=arena-1';
+import {arenaTerrain} from './arena-layouts.mjs?v=bestiary-1';
 import {withinThreat} from './threats.mjs?v=impact-1';
 import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
 import {BossCounters} from './boss-counters.mjs?v=impact-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
-const interaction = {
-  light:'重燃祭燈',
-  order:'啟動石印',
-};
 
 export class BossArena {
   constructor(game,layout,boss,seed) {
@@ -63,21 +59,16 @@ export class BossArena {
   }
 
   nearby(hero) {
-    if (!this.locked||!interaction[this.plan.mode]) return null;
+    if(!this.locked||this.plan.mode!=='light')return null;
     return this.points.find(point=>!point.done&&distance(point,hero)<1.48)??null;
   }
 
-  label(point) {
-    return interaction[this.plan.mode]+(this.plan.mode==='order'?' '+point.symbol:'');
+  label() {
+    return '重燃祭燈';
   }
 
   interact(point) {
     if (point!==this.nearby(this.game.hero)) return;
-    if (this.plan.mode==='order'&&point!==this.points.find(site=>!site.done)) {
-      this.game.announce('封印未解','石印未有回應',this.plan.hint,1.25);
-      this.game.audio.play('warning');
-      return;
-    }
     this.activate(point);
   }
 
@@ -197,7 +188,6 @@ export class BossArena {
     }
     return {
       light:'祭燈已點燃 '+done+'/'+total,
-      order:'下一個石印 '+this.points[done].symbol,
       bait:'引頭目擊碎封印 '+done+'/'+total,
       break:'已摧毀核心 '+done+'/'+total,
     }[mode];

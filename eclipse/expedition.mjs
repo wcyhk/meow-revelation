@@ -1,5 +1,5 @@
 import {stages as originalStory} from './campaign.mjs?v=clock-1';
-import {planObjective} from './objectives.mjs?v=battle-1';
+import {planObjective} from './objectives.mjs?v=bestiary-1';
 import {chapterAttacks, enemies, regionalEnemies, wardens} from './bestiary.mjs?v=nightfall-1';
 
 const districts = [
@@ -125,7 +125,7 @@ function makeRoom(zone, chapter, room, name) {
     if (!chapterBoss&&chapter>=2) waves.push([zone.foes[0],zone.foes[2]]);
     waves.push(chapter<2?['boss']:['boss',zone.foes[room%zone.foes.length],zone.foes[(room+2)%zone.foes.length]]);
   } else if (!objective) {
-    const waveCount = room===5||room===8||(chapter>5&&room===3) ? 2 : 1;
+    const waveCount = room===5||room===7||room===8||(chapter>5&&room===3) ? 2 : 1;
     for (let wave=0;wave<waveCount;wave++) {
       const count=Math.min(6,3+(room+wave+chapter)%3+Number(chapter>=6));
       const foes = Array.from({length:count},(_,index)=>zone.foes[(index*3+room+wave*2+Math.floor(draw()*3))%zone.foes.length]);

@@ -1,6 +1,7 @@
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=bestiary-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=armory-art-1';
-import {pictures, stages} from './expedition.mjs?v=clock-1';
+import {pictures, stages} from './expedition.mjs?v=bestiary-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
@@ -238,16 +239,7 @@ export class Scenery {
     this.nightShade=makeShade(this);
     this.lanternArt=new LanternArt(this);
     this.sigilTextures=new Map();
-    const sigilMaterial=new T.MeshBasicMaterial({opacity:0,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false});
-    this.sigilPreview=new T.Mesh(plane,sigilMaterial);
-    this.sigilBurst=new T.Mesh(plane,sigilMaterial.clone());
-    for(const sigil of [this.sigilPreview,this.sigilBurst]){
-      sigil.rotation.x=-PI/2;
-      sigil.renderOrder=24;
-      sigil.visible=false;
-      this.scene.add(sigil);
-    }
-    this.sigilTime=0;
+    this.makeSkillSeals();
     this.groveLight=new GroveLight(this.scene);
     this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
@@ -274,6 +266,23 @@ export class Scenery {
     this.time = 0;
     this.lastStamp = 0;
     this.resize();
+  }
+
+  makeSkillSeals() {
+    const sigilMaterial=new T.MeshBasicMaterial({opacity:0,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false});
+    this.sigilPreview=new T.Mesh(plane,sigilMaterial);
+    this.sigilBurst=new T.Mesh(plane,sigilMaterial.clone());
+    for(const sigil of [this.sigilPreview,this.sigilBurst]){
+      sigil.rotation.x=-PI/2;
+      sigil.renderOrder=24;
+      sigil.visible=false;
+      this.scene.add(sigil);
+    }
+    this.sigilTime=0;
+  }
+
+  sharedPreviewGeometry(geometry) {
+    return geometry===plane||geometry===actorPlane||geometry===this.ring||geometry===this.disc;
   }
 
   async load() {
@@ -513,6 +522,11 @@ export class Scenery {
   }
 
   prepareBoss(visual,spec) {
+    if(spec.bestiary){
+      visual.bestiary=mountBestiary(this.scene,spec.bestiary,spec.height);
+      visual.art.visible=false;
+      return;
+    }
     visual.form=nightmareForm(spec);
     this.scene.add(visual.form);
     if(spec.relicWeapon){
@@ -833,6 +847,7 @@ export class Scenery {
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
     poseEffigy(visual,spec,this.time,x,z);
+    if(visual.bestiary)poseBestiary(visual.bestiary,unit,spec,this.time,x,z);
     const foot=spec.feet??null;
     if(foot!==null&&visual.footPhase!==null&&foot!==visual.footPhase&&!unit.spec?.float){
       const hue=unit.spec?.tint??0xc6a88f;
@@ -955,13 +970,14 @@ export class Scenery {
     mountEffigy(this.scene,visual,kind);
   }
 
-  removeActor({art, shade, rim, form,effigy,relicCrest,relicCrown}) {
+  removeActor({art, shade, rim, form,effigy,relicCrest,relicCrown,bestiary}) {
     this.scene.remove(art, shade, rim);
     if(relicCrest){
       this.scene.remove(relicCrest,relicCrown);
       relicCrest.material.dispose();
       relicCrown.material.dispose();
     }
+    if(bestiary)removeBestiary(this.scene,bestiary);
     if(effigy){
       this.scene.remove(effigy);
       for(const mesh of effigy.children)mesh.material.dispose();
@@ -1011,86 +1027,19 @@ export class Scenery {
     this.missionObjects.clear();
     this.mission=mission;
     this.missionLight=null;
-    this.missionGate=null;
-    this.missionStones=[];
-    if (!mission) return;
-    const {plan}=mission;
-    if (plan.altar) {
-      this.missionLight=this.makeClue(this.missionObjects);
-      this.missionLight.scale.setScalar(1.74);
-      this.missionLight.position.set(plan.altar.x,0,plan.altar.z);
-      this.missionLight.visible=true;
-    }
-    if (plan.gate) {
-      const gate=new T.Group();
-      const {x,z,width,depth}=plan.gate;
-      const stone=new T.MeshStandardMaterial({color:0x34333a,roughness:.83,metalness:.25});
-      const bronze=new T.MeshStandardMaterial({color:0x877058,roughness:.52,metalness:.52});
-      const seal=new T.MeshBasicMaterial({color:0xd1ffba,transparent:true,opacity:.86,depthWrite:false,blending:T.AdditiveBlending});
-      const veil=new T.Mesh(new T.PlaneGeometry(width,1.06),new T.MeshBasicMaterial({color:0x80caa9,side:T.DoubleSide,
-        transparent:true,opacity:.22,depthWrite:false,blending:T.AdditiveBlending}));
-      veil.position.y=.73;
-      const wall=new T.Mesh(new T.BoxGeometry(width,.23,depth),stone);
-      wall.position.y=.12;
-      const edge=new T.Mesh(new T.BoxGeometry(width,.033,.04),seal);
-      edge.position.set(0,1.26,.035);
-      gate.add(wall,veil,edge);
-      for (let index=0;index<13;index++) {
-        const post=new T.Mesh(new T.CylinderGeometry(.14,.25,1.09,4),index%2?bronze:stone);
-        post.position.set((index-6)*1.8,.63,0);
-        post.rotation.y=Math.PI/4;
-        const diamond=new T.Mesh(new T.OctahedronGeometry(.11),seal);
-        diamond.position.set(post.position.x,1.21,.08);
-        gate.add(post,diamond);
-      }
-      gate.position.set(x,0,z);
-      this.missionGate=gate;
-      this.missionObjects.add(gate);
-    }
-    for (const point of plan.points??[]) {
-      const root=new T.Group();
-      const circuit=plan.type==='circuit';
-      const stand=new T.Mesh(new T.CylinderGeometry(circuit?.36:.19,circuit?.53:.28,.12,6),
-        new T.MeshStandardMaterial({color:0x624c3e,metalness:.28,roughness:.67}));
-      stand.position.y=.06;
-      const gem=new T.Mesh(circuit?new T.OctahedronGeometry(.23):new T.BoxGeometry(.24,.085,.32),
-        new T.MeshBasicMaterial({color:circuit?0xb1dcc0:0xffd088}));
-      gem.position.y=.32;
-      const halo=new T.Sprite(new T.SpriteMaterial({map:this.halo,color:circuit?0x9af0c0:0xffc682,
-        transparent:true,opacity:.72,depthWrite:false,blending:T.AdditiveBlending}));
-      halo.position.y=.29;
-      halo.scale.set(1.48,1.48,1);
-      root.add(stand,gem,halo);
-      root.position.set(point.x,0,point.z);
-      this.missionObjects.add(root);
-      this.missionStones.push({root,gem,halo,point});
-    }
+    if(!mission)return;
+    this.missionLight=this.makeClue(this.missionObjects);
+    this.missionLight.scale.setScalar(1.74);
+    this.missionLight.position.set(mission.plan.altar.x,0,mission.plan.altar.z);
+    this.missionLight.visible=true;
   }
 
-  renderMission(hero,dt) {
-    if (!this.mission || !hero) return;
-    const mission=this.mission;
-    if (this.missionLight) {
-      const {flame}=this.missionLight.userData;
-      const fraction=mission.light/mission.plan.maxLight;
-      lightLantern(this.missionLight,fraction>0,this.time,fraction);
-      flame.material.color.setHex(fraction<.38?0xff6e45:0xffd58d);
-    }
-    if (this.missionGate) {
-      const gate=this.missionGate;
-      const target=mission.gateOpen?-1.42:0;
-      gate.position.y+=(target-gate.position.y)*(1-Math.exp(-dt*12));
-      gate.visible=gate.position.y>-1.30;
-    }
-    for (const [index,{root,gem,halo,point}] of this.missionStones.entries()) {
-      const lit=mission.found.has(index);
-      const circuit=mission.plan.type==='circuit';
-      const revealed=Math.hypot(hero.x-point.x,hero.z-point.z)<4.25;
-      root.visible=circuit||(!lit&&revealed);
-      gem.rotation.y=this.time*(circuit?1.1:1.65)+index;
-      gem.position.y=.32+.066*Math.sin(this.time*4+index);
-      halo.material.opacity=(lit?.88:.54)+.12*Math.sin(this.time*5.5+index);
-    }
+  renderMission() {
+    if(!this.missionLight)return;
+    const {flame}=this.missionLight.userData;
+    const fraction=this.mission.light/this.mission.plan.maxLight;
+    lightLantern(this.missionLight,fraction>0,this.time,fraction);
+    flame.material.color.setHex(fraction<.38?0xff6e45:0xffd58d);
   }
 
   makeWard() {
@@ -1402,6 +1351,21 @@ export class Scenery {
       opacity:.77,order:15});
     this.spark(x,.44,z,spec.tint,phase==='defeat'?38:30,1.43,spec.effect);
     if(spec.relicWeapon)this.relicPulse(spec.relicWeapon,unit,2.7,0);
+    if(spec.bestiary){
+      const color=spec.tint, radius=spec.height*.48;
+      if(spec.effect==='lightning')this.bolt({x,y:spec.height+2,z},{x,y:.2,z},color,2.12);
+      if(spec.effect==='ice'||spec.effect==='stone'){
+        for(let i=0;i<4;i++){
+          const a=i*PI*.5+.37;
+          this.fallingShard(x+Math.cos(a)*radius,z+Math.sin(a)*radius,radius*.60,.35+i*.07,color);
+        }
+      }else if(spec.effect==='fire'||spec.effect==='blood'){
+        this.motion.vortex(x,z,radius*1.18,color,.94);
+      }else if(spec.effect==='water'||spec.effect==='wind'){
+        for(let i=0;i<4;i++)this.wave(x,z,Math.cos(i*PI/2),Math.sin(i*PI/2),radius*1.5,color,true,spec.effect);
+      }
+      this.elementBurst(x,.48,z,color,spec.effect,phase==='phase'?24:15,1.28);
+    }
     if (this.motion.accent()) {
       this.sealFx(x,z,spec.tint,size*.49,.96);
       this.motion.vortex(x,z,phase==='entrance'?2.55:3.15,spec.tint);
@@ -1604,6 +1568,17 @@ export class Scenery {
       marker.material.opacity=.69+.20*Math.sin(time*2.8);
       if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
     }
+    this.updateEffects(dt,paused,freezeWarnings);
+    this.renderParticles(paused ? 0 : dt);
+    if (this.leaves.mesh.visible) this.renderLeaves(time);
+    this.renderMission();
+    this.arenaArt.render(time);
+    this.renderer.render(this.scene,this.camera);
+    this.motion.budget=0;
+    this.elementBudget=0;
+  }
+
+  updateEffects(dt,paused=false,freezeWarnings=false) {
     for (let i=this.effects.length-1;i>=0;i--) {
       const fx = this.effects[i];
       const running=!paused&&!(fx.combatClock&&freezeWarnings);
@@ -1647,18 +1622,11 @@ export class Scenery {
         }
       }
     }
-    this.renderParticles(paused ? 0 : dt);
-    if (this.leaves.mesh.visible) this.renderLeaves(time);
-    this.renderMission(hero,dt);
-    this.arenaArt.render(time);
-    this.renderer.render(this.scene,this.camera);
-    this.motion.budget=0;
-    this.elementBudget=0;
   }
 
-  renderParticles(dt) {
+  renderParticles(dt,ambient=true) {
     const {items,geometry,positions,colors,radius,alpha,shape} = this.motes;
-    if (Math.random() < dt * 15) {
+    if (ambient&&Math.random() < dt * 15) {
       const x = (Math.random() - .5) * 28;
       const z = (Math.random() - .5) * 24;
       const point = items[this.motes.cursor++ % items.length];

@@ -25,7 +25,7 @@ export class Input {
     const bindings = new Map([['KeyJ','strike'],['KeyQ','spell'],['Space','dodge'],['KeyE','interact']]);
     addEventListener('keydown', event => {
       const {code,repeat} = event;
-      if (!gameplay.has(code) || (!running() && code !== 'Escape')) return;
+      if (event.target.closest?.('dialog[open]')||!gameplay.has(code)||(!running()&&code!=='Escape')) return;
       event.preventDefault();
       this.keys.add(code);
       if (!repeat && bindings.has(code)) this.actions.add(bindings.get(code));

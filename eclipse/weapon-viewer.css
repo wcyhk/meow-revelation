@@ -1,0 +1,74 @@
+.weapon-viewer {
+  width:min(850px,calc(100% - 28px));max-width:none;max-height:calc(100dvh - 22px);
+  margin:auto;padding:0;overflow:auto;overscroll-behavior:contain;color:#eedcc8;
+  background:#201b29;border:1px solid #b28d67;border-radius:8px;
+  box-shadow:0 22px 76px #040308c7;
+}
+.weapon-viewer::backdrop {background:#09080ee0;backdrop-filter:blur(6px)}
+.weapon-viewer-head,.weapon-viewer-footer {
+  display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;
+}
+.weapon-viewer-head h2 {margin:0;color:#fbdfb2;font:900 clamp(23px,4.7vw,34px)/1.2 var(--serif)}
+.weapon-viewer-role {margin:0 0 4px;color:var(--preview-ink);font-size:11px;letter-spacing:.15em}
+.weapon-viewer button {min-height:42px;flex:none}
+.weapon-viewer-stage {
+  position:relative;height:clamp(250px,51dvh,460px);overflow:hidden;
+  background:radial-gradient(ellipse at 50% 45%,color-mix(in srgb,var(--preview-ink) 19%,#201c2b),#12111b 76%);
+  border-block:1px solid #a07e624f;
+}
+.weapon-viewer-stage[data-preview=combo],.weapon-viewer-stage[data-preview=skill] {
+  background:radial-gradient(ellipse at 51% 65%,color-mix(in srgb,var(--preview-ink) 12%,#211b2a),#101018 74%);
+}
+.weapon-viewer-stage::before {
+  content:"";position:absolute;inset:15px;border:1px solid color-mix(in srgb,var(--preview-ink) 36%,transparent);
+  mask-image:radial-gradient(ellipse,transparent 59%,#000 99%);pointer-events:none;
+}
+.weapon-viewer-canvas {display:block;width:100%;height:100%;touch-action:none}
+.weapon-viewer-stage[data-preview=model] canvas {cursor:grab}
+.weapon-viewer-stage[data-preview=model] canvas:active {cursor:grabbing}
+.weapon-viewer-fallback {position:absolute;inset:6% 8%;width:84%;height:88%;object-fit:contain}
+.weapon-viewer-hint {position:absolute;bottom:9px;left:0;right:0;margin:0;text-align:center;pointer-events:none;color:#cfbda9;font-size:12px}
+.weapon-viewer-tools {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:12px 20px 0}
+.weapon-viewer-tools button {padding:6px 4px;font-size:12px;min-width:0}
+.weapon-viewer-tools button[aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
+.weapon-viewer-description {margin:0;line-height:1.6;font-size:13px;color:#dbc5af}
+.weapon-viewer-footer .primary {white-space:normal;text-align:center;max-width:46%;justify-content:center}
+.arm-portrait::after,.heirloom-portrait::after {
+  content:"3D";position:absolute;right:5px;bottom:4px;padding:1px 4px;
+  border:1px solid currentColor;border-radius:2px;color:#ffe4bb;background:#211829c9;font:600 10px/1.3 system-ui;
+}
+.arm-card:focus-visible,.heirloom-choice:focus-visible,.weapon-viewer-canvas:focus-visible {outline:2px solid #f5d6ab;outline-offset:-3px}
+@media (max-width:540px){
+  .weapon-viewer {width:calc(100% - 16px)}
+  .weapon-viewer-head,.weapon-viewer-footer {padding:11px 12px}
+  .weapon-viewer-tools {padding:9px 12px 0}
+  .weapon-viewer-footer {align-items:stretch;flex-direction:column}
+  .weapon-viewer-footer .primary {max-width:none}
+}
+@media (max-height:490px) and (orientation:landscape){
+  .weapon-viewer-stage {height:45dvh;min-height:155px}
+  .weapon-viewer-head,.weapon-viewer-footer {padding:6px 12px}
+  .weapon-viewer-tools {padding-top:6px}
+}
+#modal[data-kind=bestiary] {z-index:11}
+#modal[data-kind=bestiary] .panel {width:min(820px,100%)}
+.bestiary-list {margin:auto;text-align:left}
+.bestiary-list input {
+  width:100%;min-height:44px;padding:8px 13px;border:1px solid #937656;border-radius:3px;
+  background:#14121d;color:#fbdebd;font:inherit;
+}
+.bestiary-filters {display:flex;gap:7px;margin-top:8px}
+.bestiary-filters .secondary {min-height:38px;padding:6px 13px}
+.bestiary-filters [aria-pressed=true] {color:#ffde9f;border-color:#dbb275;background:#513044}
+.bestiary-count {margin:9px 0;color:#d3b695;font-size:11px}
+.bestiary-results {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.bestiary-fight {
+  display:grid;gap:4px;min-height:65px;padding:8px 10px;text-align:left;color:var(--bestiary-ink);
+  border:1px solid #926c5c77;border-left:2px solid var(--bestiary-ink);background:#26202c;
+}
+.bestiary-fight:hover,.bestiary-fight:focus-visible {border-color:var(--bestiary-ink);background:#322635}
+.bestiary-fight strong {font-size:13px}
+.bestiary-fight small {color:#d3baaf;font-size:10px;line-height:1.36}
+@media(max-width:540px){
+  .bestiary-results {grid-template-columns:repeat(2,minmax(0,1fr))}
+}

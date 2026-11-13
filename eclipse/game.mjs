@@ -1,4 +1,6 @@
-import {Scenery} from './scenery.mjs?v=squad-1';
+import {Scenery} from './scenery.mjs?v=gilded-1';
+import {heroFrames} from './actor-art.mjs?v=gilded-1';
+import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=maw-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
@@ -464,7 +466,8 @@ export class Game {
 
   openDialogue(title,location,scene,finishLabel,onFinish,summary) {
     const content=dialoguePanel({title,location,scene,finishLabel,onFinish,summary});
-    content.style.setProperty('--vn-room',`url("./${this.stage.picture}")`);
+    const picture=paintedRooms[this.stage.picture]??this.stage.picture;
+    content.style.setProperty('--vn-room',`url("./${picture}")`);
     this.openModal({kind:'dialogue',mark:'',kicker:'',title,copy:'',content});
     content.querySelector('.vn-next:not([hidden]), .vn-options:not([hidden]) .vn-choice')?.focus({preventScroll:true});
   }
@@ -1356,12 +1359,18 @@ export class Game {
     const action=heroPose(h);
     const knockedDown=h.reaction?.kind==='fall';
     if (knockedDown) this.playLanding(h);
-    const pose=knockedDown?0:isRoll?1:action?2:h.move>.34&&Math.sin(t*20)>-.35?1:0;
-    const stride=h.move*Math.sin(t*20);
+    h.gait=(h.gait??0)+dt*(2+h.move*15);
+    const step=Math.sin(h.gait);
+    const running=h.move>.24;
+    const bracing=h.reaction&&h.reaction.age<.16;
+    const striking=action&&(h.attackAge>.055||h.motion?.kind!=='strike');
+    const pose=knockedDown||bracing?heroFrames.recoil:isRoll?heroFrames.run:striking?heroFrames.attack
+      :running&&step>-.44?heroFrames.run:heroFrames.idle;
+    const stride=running?h.move*step:0;
     const heroFrame={
-      frame:pose,poseSize:pose===1?.83:pose===2?1.08:1,face:action?.face??h.face,
-      bob:isRoll? .14 : .055+Math.abs(stride)*.15+Math.sin(t*4.1)*.036,
-      tilt:isRoll?0:stride*.073,
+      frame:pose,poseSize:isRoll?.84:pose===heroFrames.run?.94:1,face:action?.face??h.face,
+      bob:isRoll?.14:.035+Math.abs(stride)*.12+Math.sin(t*4.1)*.032,
+      tilt:isRoll?0:stride*.095,
       squash:isRoll?.74:1+Math.sin(t*(h.move>.25?20:4.2))*(.03+h.move*.027),
       stretch:isRoll?1.08:1,
       roll:isRoll&&!h.rush?-h.face*(1-h.rolling/h.rollDuration)*TAU:0,
@@ -1386,7 +1395,7 @@ export class Game {
         frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
         poseSize:owlDive?.84:1,
         bob:Math.abs(oscillation)*unit.move*.14+(unit.spec.float??0)*(1.7+oscillation)+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
-        squash:1+oscillation*(.028+unit.move*.032),
+        squash:1+oscillation*(.028+unit.move*.058),
         tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move,
         warm:fierce?.42:0,
         aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,

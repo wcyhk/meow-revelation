@@ -1,0 +1,133 @@
+:root {
+  --cream:#f6e5c2;
+  --gold:#d8ac78;
+  --frame:#b68b5a;
+  --surface:#17151c;
+  --shadow:#09090f;
+}
+
+#cover {
+  background:#11131b url('./art/moon-gate.webp') 56% center / cover no-repeat;
+}
+#cover::before {
+  background:linear-gradient(90deg,#101019f2 0%,#101019be 34%,#10101915 68%),
+    linear-gradient(0deg,#101019e3,transparent 26%,transparent 82%,#10101978);
+}
+.cover-frame {
+  border-color:#e5b77a73;
+  box-shadow:inset 0 0 0 5px #d9a76814;
+}
+.cover-content h1 {
+  color:#ffe7b8;
+  text-shadow:0 3px 0 #583731,0 10px 39px #080911,0 0 45px #cb8d4a36;
+  letter-spacing:.035em;
+}
+.cover-content p {color:#f0dfc2;text-shadow:0 2px 7px #0c0a11}
+.cover-content #begin {min-height:54px;min-width:min(240px,100%);gap:24px}
+.cover-brand {color:#f2d7a8}
+.cover-brand .brand-mark {color:#ffd493;text-shadow:0 0 19px #dc9b55}
+
+.primary {
+  color:#ffedcf;
+  border-color:#deb77a;
+  background:linear-gradient(117deg,#75432e 0%,#5c2d34 54%,#40232e 100%);
+  box-shadow:inset 0 0 0 3px #2c1c228c,inset 0 0 0 4px #dea76b3e,0 6px 17px #07070ba6;
+}
+.primary:hover {background:linear-gradient(117deg,#8a5236,#693741 61%,#4e2938)}
+.secondary {background:linear-gradient(150deg,#2a232a,#1b1921);border-color:#c1966674;color:#f2d9b5}
+.secondary:hover:not(:disabled) {border-color:#d3a777;background:linear-gradient(150deg,#4b3236,#29202a)}
+
+#hud {
+  background:linear-gradient(#111017ba,transparent 17%),linear-gradient(0deg,#101016aa,transparent 19%);
+}
+.health-hud,.route-hud {isolation:isolate}
+.health-hud::before,.route-hud::before {
+  content:'';
+  position:absolute;
+  z-index:-1;
+  inset:-6px -10px;
+  pointer-events:none;
+  border:1px solid #d2a46d44;
+  background:linear-gradient(113deg,#13131bdc,#1a1620bb);
+  box-shadow:0 4px 11px #07070b73,inset 0 0 0 2px #d5ab7812;
+}
+.health-hud::before {border-radius:24px 6px 6px 24px}
+.route-hud::before {inset:-5px -12px;border-radius:6px 6px 14px 14px}
+.portrait {
+  flex:none;
+  background:#1e1825 url('./art/keepers.webp') 16% 11% / 240% auto no-repeat;
+  border-color:#e9c088;
+  box-shadow:0 0 0 2px #16131b,0 0 0 3px #aa744969,0 0 13px #f1ad6e3a;
+}
+.health-track,.boss-track {background:#120e16;border-color:#ba8d6894}
+#hp-fill,#boss-fill {background:linear-gradient(#ff9c83,#bd4f58 53%,#7f2338)}
+.utility button {
+  border-radius:6px;
+  border-color:#c59e736d;
+  background:linear-gradient(150deg,#2e2733d9,#15141be8);
+  color:#ffe8ba;
+}
+#objective {
+  background:linear-gradient(90deg,#18151f15,#1d1925de 22% 78%,#18151f15);
+  border-block:1px solid #d7aa7433;
+}
+.action {
+  border-color:#ddb37ab8;
+  background:radial-gradient(circle at 41% 25%,#59434a,#231d2bd9 70%);
+  box-shadow:inset 0 0 0 3px #18131f,inset 0 0 0 4px #daa87842,0 4px 12px #07070bad;
+}
+.action.attack {background:radial-gradient(circle at 41% 24%,#974c50,#421f34 74%);border-color:#ffbf85}
+.action span {text-shadow:0 0 9px currentColor}
+.action.attack span {font-size:28px}
+#stick {border-color:#e6bd868c;background:#1a15227a;box-shadow:inset 0 0 0 3px #d4a66a24}
+#stick i {background:radial-gradient(circle at 36% 24%,#eac3919e,#7e52649c);border-color:#ffcf9aab}
+
+#modal:not([data-kind=dialogue]) {background:#100e19aa}
+#modal:not([data-kind=dialogue]) .panel {
+  border-color:#d1a774;
+  border-radius:10px 3px 10px 3px;
+  background:radial-gradient(ellipse at 50% 0%,#422d3a,#211b27 42%,#171720 82%);
+  box-shadow:inset 0 0 0 4px #14111b,inset 0 0 0 5px #d1a77472,0 20px 85px #07050dc9;
+}
+#modal:not([data-kind=dialogue]) #modal-mark {color:#ffcf95;text-shadow:0 0 18px #e9a27079}
+.arm-card,.relic,.branch-card,.record-card {
+  border-color:#caa17366;
+  border-radius:5px 2px 5px 2px;
+  background:radial-gradient(ellipse at 50% 12%,#382a38,#201c29 76%);
+}
+.arm-card {
+  background:radial-gradient(ellipse at 50% 18%,color-mix(in srgb,var(--arm-ink) 20%,#342738),#201c29 80%);
+}
+.arm-card:hover,.arm-card:focus-visible {border-color:var(--arm-ink);background:radial-gradient(ellipse at top,#4a3543,#211e2b)}
+.relic:hover,.relic:focus-visible {border-color:#e8b27e;background:#493340}
+.difficulty-picker {background:#15141eb5;border-color:#c7a77c4f}
+
+.vn-portrait {background-image:url('./art/keepers.webp')}
+.vn[data-speaker=hero] {--vn-accent:#ffcf9f}
+.vn[data-speaker=little] {--vn-accent:#f4c7dc}
+.vn .vn-box {
+  border-color:#c5946d;
+  border-radius:5px 16px 5px 16px;
+  color:#261b2a;
+  background:linear-gradient(137deg,#fff1d8,#e6cfc9 80%,#d8b8c6);
+  box-shadow:inset 0 0 0 4px #66405b28,inset 0 0 0 5px #74465f4a,0 7px 30px #08060ec4;
+}
+.vn .vn-speaker {background:linear-gradient(110deg,#382434,#211827);border-color:#bd9670}
+.vn .vn-choice {background:linear-gradient(105deg,#614354f5,#302437f4 78%)}
+.vn .vn-choice:hover,.vn .vn-choice:focus-visible {background:linear-gradient(105deg,#785165,#4d3851)}
+.vn .vn-next {background:linear-gradient(110deg,#654052,#4c3145)}
+
+@media (max-width:650px) and (orientation:portrait) {
+  #cover {background-position:100% center}
+  #cover::before {
+    background:linear-gradient(0deg,#100e18 4%,#100e18e3 28%,#100e1859 62%,transparent 81%),
+      linear-gradient(180deg,#100e186c,transparent 28%);
+  }
+  .cover-content {bottom:max(66px,calc(env(safe-area-inset-bottom) + 54px))}
+  .health-hud::before {inset:-4px -6px}
+  .route-hud::before {inset:-4px -6px}
+  .portrait {background-size:240% auto}
+}
+@media(max-height:480px) and (orientation:landscape) {
+  .cover-content #begin {min-height:43px}
+}

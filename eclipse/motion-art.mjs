@@ -184,6 +184,27 @@ function flashGeometry() {
   return new T.ShapeGeometry(shape);
 }
 
+const impactLight=new T.PlaneGeometry(2,2);
+const impactVertex='varying vec2 p;void main(){p=uv*2.-1.;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+const impactFragment=`
+  uniform vec3 ink;
+  uniform float life,opacity;
+  varying vec2 p;
+  void main(){
+    float r=length(p);
+    float a=atan(p.y,p.x);
+    float fan=pow(max(0.,cos(a*9.+r*3.)),9.);
+    float wheel=abs(r-.54+life*.19);
+    float sparks=fan*(1.-smoothstep(.01,.13,wheel))*smoothstep(.13,.35,r);
+    float cross=exp(-abs(p.x)*20.-abs(p.y)*2.4)+exp(-abs(p.y)*28.-abs(p.x)*2.8);
+    float flare=exp(-dot(p,p)*16.)*.76;
+    vec3 color=mix(ink,vec3(1.,.93,.78),clamp(cross*.75+flare,0.,1.));
+    float alpha=(flare+sparks*.47+cross*.53)*(1.-smoothstep(.78,1.,r))*opacity;
+    gl_FragColor=vec4(color,alpha);
+    #include <colorspace_fragment>
+  }
+`;
+
 function flameGeometry() {
   const shape=new T.Shape();
   shape.moveTo(-.29,-.40);
@@ -253,6 +274,7 @@ export class MotionArt {
       const echo=this.ribbon(this.cut,{...p,y:lift+.22},tint,finisher?.31:.21,
         {scale:scale*.92,angle:angle+.46*direction,growth:.14,opacity:.54,order:89});
       echo.spin=(finisher?3.1:1.1)*direction;
+      if(finisher&&this.accent()) this.impactLight({x:x+dx*reach*.68,y:lift,z:z+dz*reach*.68},tint,.73,angle);
     }
   }
 
@@ -323,17 +345,28 @@ export class MotionArt {
     light.mesh.rotateZ(.39);
   }
 
+  impactLight(point,tint,size,angle) {
+    const material=new T.ShaderMaterial({vertexShader:impactVertex,fragmentShader:impactFragment,
+      transparent:true,depthWrite:false,blending:T.AdditiveBlending,
+      uniforms:{ink:{value:new T.Color(tint)},life:{value:0},opacity:{value:.8}}});
+    const effect=this.view.addEffect(impactLight,point,tint,.22,{material,scale:size*.55,growth:size*1.1,opacity:.82,fade:true,order:96});
+    effect.mesh.quaternion.copy(this.view.camera.quaternion);
+    effect.mesh.rotateZ(angle+.46);
+  }
+
   impact(point,angle,tint,kind) {
     if (kind==='break') {
       const burst=this.view.addEffect(this.shards,point,tint,.48,{scale:.46,growth:1.82,opacity:.93,fade:true,order:98});
       burst.mesh.quaternion.copy(this.view.camera.quaternion);
       burst.mesh.rotateZ(angle+.51);
       this.flash(point,0xe4fcff,1.11);
+      this.impactLight(point,0x9ee6ff,1.36,angle);
     } else if (kind==='heavy'||kind==='fall') {
       this.flash(point,tint,kind==='fall'?.86:.76);
       const strike=this.ribbon(this.cut,{...point,y:point.y*.83},tint,.25,
         {kind:2,scale:.42,angle:-angle,growth:.17,opacity:.65,order:93});
       strike.stretchZ=.59;
+      this.impactLight(point,tint,kind==='fall'?1.06:.88,angle);
     } else if (kind==='block') {
       const flash=this.view.addEffect(this.shards,point,tint,.21,{scale:.50,growth:.25,opacity:.57,fade:true,order:97});
       flash.mesh.quaternion.copy(this.view.camera.quaternion);

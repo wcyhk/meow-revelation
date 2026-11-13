@@ -4,9 +4,11 @@ import {pictures, stages} from './expedition.mjs?v=clock-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=nightfall-1';
+import {MotionArt} from './motion-art.mjs?v=gilded-1';
 import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=nightfall-1';
 import {LanternArt} from './lantern-art.mjs?v=squad-1';
+import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
+import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -18,11 +20,6 @@ const actorPlane = new T.PlaneGeometry(1,1,4,6);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
 const sceneAngle = new T.Vector3(0, 16, 19.6).normalize();
 const ART_SIZE = 34;
-const atlasBoxes = [
-  [60, 55, 329, 371], [431, 77, 782, 343], [865, 84, 1210, 383],
-  [37, 451, 387, 767], [456, 426, 770, 770], [855, 408, 1235, 780],
-  [18, 782, 389, 1224], [395, 819, 863, 1206], [865, 810, 1214, 1198],
-];
 
 function texture(canvas) {
   const result = new T.CanvasTexture(canvas);
@@ -81,36 +78,26 @@ function isolateBoss(ctx,width,height) {
 async function loadCast() {
   const image = new Image();
   image.src = './cast.png';
-  const hero = new Image();
-  hero.src = './unarmed.png';
-  const atlases=[['nightmares.webp',3,9],['creatures.webp',4,12],['wardens.webp',5,10]].map(([url,columns,count])=>{
-    const sheet=new Image();
-    sheet.src='./'+url;
-    return {sheet,columns,count};
-  });
-  await Promise.all([image.decode(),hero.decode(),...atlases.map(({sheet})=>sheet.decode())]);
-  const frames=atlasBoxes.map(([left, top, right, bottom],index) => {
-    const source = index<3 ? hero : image;
-    const canvas = document.createElement('canvas');
-    const scale = source.width / 1254;
-    canvas.width = Math.round((right - left) * 0.76);
-    canvas.height = Math.round((bottom - top) * 0.76);
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(source, left * scale, top * scale, (right - left) * scale, (bottom - top) * scale, 0, 0, canvas.width, canvas.height);
-    return texture(canvas);
-  });
-  for (const {sheet,columns,count} of atlases) {
-    const tile=sheet.width/columns;
-    for (let index=0;index<count;index++) {
-      const canvas=document.createElement('canvas');
-      canvas.width=canvas.height=284;
-      const ctx=canvas.getContext('2d',{willReadFrequently:true});
-      ctx.imageSmoothingQuality='high';
-      ctx.drawImage(sheet,index%columns*tile,Math.floor(index/columns)*tile,tile,tile,0,0,284,284);
-      isolateBoss(ctx,284,284);
-      frames.push(texture(canvas));
-    }
+  const artwork=loadPaintedActors();
+  const wardens=new Image();
+  wardens.src='./wardens.webp';
+  const [painted]=await Promise.all([artwork,image.decode(),wardens.decode()]);
+  const frames=Array.from({length:41},(_,index)=>painted.get(index));
+  const pickup=document.createElement('canvas');
+  pickup.width=265;
+  pickup.height=295;
+  const scale=image.width/1254;
+  pickup.getContext('2d').drawImage(image,865*scale,810*scale,349*scale,388*scale,0,0,265,295);
+  frames[8]=texture(pickup);
+  const tile=wardens.width/5;
+  for (let index=0;index<10;index++) {
+    const canvas=document.createElement('canvas');
+    canvas.width=canvas.height=284;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.imageSmoothingQuality='high';
+    ctx.drawImage(wardens,index%5*tile,Math.floor(index/5)*tile,tile,tile,0,0,284,284);
+    isolateBoss(ctx,284,284);
+    frames[30+index]=texture(canvas);
   }
   return frames;
 }
@@ -204,6 +191,7 @@ export class Scenery {
     this.scene.add(this.back);
     this.nightShade=makeShade(this);
     this.lanternArt=new LanternArt(this);
+    this.groveLight=new GroveLight(this.scene);
     this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.ring = circle(1, .038);
@@ -231,15 +219,21 @@ export class Scenery {
 
   async load() {
     const loader = new T.TextureLoader();
-    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictures.map(src => loader.loadAsync(src)))]);
+    const pending=new Map();
+    const loadRoom=picture=>{
+      const src=paintedRooms[picture]??picture;
+      if(!pending.has(src)) pending.set(src,loader.loadAsync(src));
+      return pending.get(src);
+    };
+    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictures.map(loadRoom))]);
     this.atlas = atlas;
-    for (const image of images) {
+    for (const image of new Set(images)) {
       image.colorSpace = T.SRGBColorSpace;
       image.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
       this.renderer.initTexture(image);
     }
     this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
-    for (const image of this.atlas) this.renderer.initTexture(image);
+    for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
     this.armIcons = this.previewArms();
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
@@ -269,7 +263,7 @@ export class Scenery {
     this.stageColor.copy(this.back.material.color);
     this.back.material.needsUpdate = true;
     const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
-    const glows=pictureLights[stage.picture];
+    const glows=roomLights(stage.picture,pictureLights[stage.picture]);
     this.air={...weather[stage.zone.style],mist:weather[stage.zone.style].mist+dread*.027};
     this.accent = hue;
     for (const [i, lamp] of this.candles.entries()) {
@@ -397,7 +391,8 @@ export class Scenery {
   createActor(frame, height) {
     const spriteMaterial = new T.ShaderMaterial({
       uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0},bend:{value:0},
-        guard:{value:0},ink:{value:new T.Color(0xffffff)}},
+        guard:{value:0},ink:{value:new T.Color(0xffffff)},rim:{value:new T.Color()},texel:{value:new T.Vector2()},
+        rimLight:{value:0}},
       vertexShader:`
         varying vec2 artUV;
         uniform float bend;
@@ -416,15 +411,23 @@ export class Scenery {
         uniform float fade;
         uniform float warm;
         uniform float guard;
+        uniform float rimLight;
         uniform vec3 ink;
+        uniform vec3 rim;
+        uniform vec2 texel;
         varying vec2 artUV;
         void main() {
           vec4 art=texture2D(picture,artUV);
-          if(art.a < .09) discard;
+          vec2 stepUV=texel*1.65;
+          float outer=max(max(texture2D(picture,artUV+vec2(stepUV.x,0.)).a,
+            texture2D(picture,artUV-vec2(stepUV.x,0.)).a),texture2D(picture,artUV+vec2(0.,stepUV.y)).a);
+          float outline=max(0.,outer-art.a)*rimLight;
+          if(max(art.a,outline) < .06) discard;
           vec3 paint=(art.rgb*1.22 + vec3(.014,.010,.009))*mix(vec3(1.),ink,.43);
           paint=mix(paint,vec3(1.,.35,.10),warm*.24);
           paint=mix(paint,mix(vec3(1.,.78,.53),vec3(.71,.97,1.),guard),flash);
-          gl_FragColor=vec4(paint,art.a*fade);
+          paint=mix(paint,rim*.75+vec3(.085),outline);
+          gl_FragColor=vec4(paint,max(art.a,outline*.58)*fade);
           #include <colorspace_fragment>
         }
       `,
@@ -501,6 +504,9 @@ export class Scenery {
     art.material.uniforms.warm.value = spec.warm || 0;
     art.material.uniforms.bend.value = (spec.bend??0)*direction;
     art.material.uniforms.guard.value=spec.guardFlash?1:0;
+    art.material.uniforms.rim.value.setHex(spec.rim??0xc78f71);
+    art.material.uniforms.texel.value.set(1/atlas.image.width,1/atlas.image.height);
+    art.material.uniforms.rimLight.value=.41+(spec.aura??.1)*.5;
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
     poseEffigy(visual,spec,this.time,x,z);
@@ -533,7 +539,7 @@ export class Scenery {
     rim.material.opacity = (spec.aura ?? .12) * (spec.fade ?? 1);
     if (visual.weapon) {
       const {model,glow,id} = visual.weapon;
-      const pose = spec.frame;
+      const pose = spec.frame===40?0:spec.frame;
       const reach = pose===2 ? .38 : pose===1 ? .36 : .23;
       const lift = pose===2 ? .29 : pose===1 ? -.15 : -.185;
       const theta=(spec.tilt || 0)+roll;
@@ -1177,6 +1183,7 @@ export class Scenery {
       this.camera.position.y += Math.cos(time * 98) * this.shake * .38;
       this.camera.updateMatrixWorld();
       this.lanternArt.tick(hero,time,this.stage);
+      this.groveLight.update(hero,this.lanternArt,this.accent,time);
     }
     for (const [index, lamp] of this.candles.entries()) {
       lamp.material.opacity = (1-darkness*.94)*(.43 + .13 * Math.sin(time * 7.4 + index * 2.7) + .07 * Math.sin(time * 21.7 + index));

@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=world-3d-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=chiaroscuro-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
 import {stages} from './expedition.mjs?v=world-3d-1';
@@ -7,9 +7,10 @@ import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
-import {LanternArt} from './lantern-art.mjs?v=world-3d-1';
+import {LanternArt} from './lantern-art.mjs?v=chiaroscuro-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=world-3d-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=chiaroscuro-1';
+import {loadRoomSurfaces} from './room-surfaces.mjs?v=chiaroscuro-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
@@ -223,6 +224,8 @@ export class Scenery {
     this.mobile = matchMedia('(pointer:coarse)').matches;
     this.renderer = new T.WebGLRenderer({canvas, antialias:!this.mobile, alpha:false, powerPreference:'high-performance'});
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.mobile ? 1.35 : 1.65));
+    this.renderer.toneMapping=T.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure=1.14;
     this.renderer.setClearColor(0x100f17);
     this.scene = new T.Scene();
     armLighting(this.scene,true);
@@ -287,7 +290,7 @@ export class Scenery {
   }
 
   async load() {
-    const [atlas]=await Promise.all([loadCast(),loadSculptMaterials()]);
+    const [atlas]=await Promise.all([loadCast(),loadSculptMaterials(),loadRoomSurfaces()]);
     this.atlas=atlas;
     for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
     this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=relic-sculpts-1',import.meta.url).href]));

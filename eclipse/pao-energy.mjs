@@ -3,7 +3,7 @@ import * as T from '../three.min.mjs';
 const sourcePoint=new T.Vector3();
 const angleStep=2.39996323;
 
-export function paoEnergy(root,sources,mobile){
+export function paoEnergy(root,sources,mobile,frozen=false){
   const perSource=mobile?8:15;
   const count=sources.length*perSource;
   const position=new Float32Array(count*3),opacity=new Float32Array(count),size=new Float32Array(count);
@@ -12,6 +12,11 @@ export function paoEnergy(root,sources,mobile){
   geometry.setAttribute('opacity',new T.BufferAttribute(opacity,1).setUsage(T.DynamicDrawUsage));
   geometry.setAttribute('size',new T.BufferAttribute(size,1).setUsage(T.DynamicDrawUsage));
   const material=new T.ShaderMaterial({
+    uniforms:{
+      tint:{value:frozen?new T.Color(0x6ac9e9):new T.Color(.028,.62,.46)},
+      tip:{value:frozen?new T.Color(0xf2f9ff):new T.Color(.77,.99,.84)},
+      frost:{value:Number(frozen)},
+    },
     transparent:true,depthWrite:false,blending:T.AdditiveBlending,
     vertexShader:`attribute float opacity,size;
       varying float energy;
@@ -22,13 +27,16 @@ export function paoEnergy(root,sources,mobile){
         gl_Position=projectionMatrix*p;
       }`,
     fragmentShader:`varying float energy;
+      uniform vec3 tint,tip;
+      uniform float frost;
       void main(){
         vec2 p=gl_PointCoord*2.0-1.0;
-        float distanceFromCenter=dot(p,p);
+        float prism=abs(p.x+p.y*.52)+abs(p.y)*.72;
+        float distanceFromCenter=mix(dot(p,p),prism*prism,frost*.88);
         float halo=exp(-distanceFromCenter*4.8)*.43;
         float core=exp(-distanceFromCenter*23.0);
         float edge=1.0-smoothstep(.44,1.0,distanceFromCenter);
-        gl_FragColor=vec4(mix(vec3(.028,.62,.46),vec3(.77,.99,.84),core),
+        gl_FragColor=vec4(mix(tint,tip,core),
           edge*(halo+core*.59)*energy);
         #include <colorspace_fragment>
       }`,

@@ -182,7 +182,7 @@ export function skull(k,sculpt,head){
   return jaw;
 }
 
-export function beardLocks(k,sculpt,head){
+export function beardLocks(k,sculpt,head,count=5){
   const {sweep}=sculpt;
   const beard=k.bone(head,0,-.090,.348);
   const locks=[];
@@ -191,8 +191,8 @@ export function beardLocks(k,sculpt,head){
     for(const side of [-1,1]){
       const lock=k.bone(beard,side*.039,0,0);
       locks.push(lock);
-      for(let strand=0;strand<5;strand++){
-        const spread=strand/4;
+      for(let strand=0;strand<count;strand++){
+        const spread=strand/(count-1);
         const x=side*(.018+spread*width);
         const length=1.03-spread*.38-layer*.082+Math.sin(strand*2.44)*.053;
         const sway=Math.sin(strand*1.23+layer*2.4)*.039;
@@ -289,11 +289,11 @@ export function cuirass(k,sculpt,body,awakened){
   return back;
 }
 
-export function rivenCloth(k,sculpt,skirt){
+export function rivenCloth(k,sculpt,skirt,count=10){
   const pieces=[];
   const {sweep,plate}=sculpt;
-  for(let i=0;i<10;i++){
-    const angle=(i+.55)*TAU/10;
+  for(let i=0;i<count;i++){
+    const angle=(i+.55)*TAU/count;
     const length=.87+Math.cos(i*2.21)*.19+Math.sin(i*.78)*.10;
     const x=Math.sin(angle)*.265,z=Math.cos(angle)*.172;
     const strip=k.bone(skirt,x,.04,z);

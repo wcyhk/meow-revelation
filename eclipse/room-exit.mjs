@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
+import {roomSurface} from './room-surfaces.mjs?v=chiaroscuro-1';
 
 const box=new T.BoxGeometry(1,1,1);
 const pole=new T.CylinderGeometry(.89,1,1,9);
@@ -37,6 +38,32 @@ function mesh(root,shape,material,x,y,z,sx=1,sy=sx,sz=sx){
   return item;
 }
 
+function batchMasonry(root){
+  const batches=new Map();
+  for(const part of root.children){
+    if(!part.isMesh)continue;
+    if(!batches.has(part.geometry))batches.set(part.geometry,new Map());
+    const byFinish=batches.get(part.geometry);
+    if(!byFinish.has(part.material))byFinish.set(part.material,[]);
+    byFinish.get(part.material).push(part);
+  }
+  for(const [geometry,byFinish] of batches)for(const [material,parts] of byFinish){
+    if(parts.length===1){
+      parts[0].receiveShadow=true;
+      parts[0].castShadow=true;
+      continue;
+    }
+    const masonry=new T.InstancedMesh(geometry,material,parts.length);
+    parts.forEach((part,index)=>{
+      part.updateMatrix();
+      masonry.setMatrixAt(index,part.matrix);
+      part.removeFromParent();
+    });
+    masonry.castShadow=masonry.receiveShadow=true;
+    root.add(masonry);
+  }
+}
+
 export class RoomExit{
   constructor(view){
     this.root=new T.Group();
@@ -48,7 +75,10 @@ export class RoomExit{
 
   set(route,picture) {
     const mats=new Set();
-    this.root.traverse(node=>{if(node.material)mats.add(node.material);});
+    this.root.traverse(node=>{
+      if(node.material)mats.add(node.material);
+      if(node.isInstancedMesh)node.dispose();
+    });
     for(const mat of mats)mat.dispose();
     this.root.clear();this.root.visible=!!route;
     if(!route)return;
@@ -57,8 +87,10 @@ export class RoomExit{
     this.root.position.set(route.x,0,route.z);
     this.root.rotation.y=frame.yaw??0;
     const env=forgeEnvironment();
-    const dark=new T.MeshStandardMaterial({color:frame.stone,roughness:.72,metalness:.14,
-      ...scannedSurface('leather',.35)});
+    const wild=['grove.jpg','grave.jpg','dunes.jpg','fungus.jpg'].includes(picture);
+    const crystalline=['lotus.jpg','frost.jpg','fungus.jpg','fen.jpg'].includes(picture);
+    const dark=new T.MeshStandardMaterial({color:new T.Color(frame.stone).multiplyScalar(1.28),roughness:.72,metalness:.14,
+      ...roomSurface(wild?'rock':'limestone',1,.66)});
     const trim=new T.MeshStandardMaterial({color:frame.trim,roughness:.58,metalness:.37,
       envMap:env,envMapIntensity:.68,...scannedSurface('hammered',.36)});
     const iron=new T.MeshStandardMaterial({color:0x28272d,roughness:.67,metalness:.53,
@@ -67,8 +99,6 @@ export class RoomExit{
       envMap:env,envMapIntensity:.72,...scannedSurface('hammered',.30)});
     mesh(this.root,lintel,dark,0,.08,-.28);
     mesh(this.root,border,trim,0,.11,.02);
-    const wild=['grove.jpg','grave.jpg','dunes.jpg','fungus.jpg'].includes(picture);
-    const crystalline=['lotus.jpg','frost.jpg','fungus.jpg','fen.jpg'].includes(picture);
     for(let i=0;i<3;i++){
       mesh(this.root,box,dark,0,.044+i*.038,-.07+i*.22,3.45-i*.22,.086,2.48-i*.37);
       mesh(this.root,box,trim,0,.085+i*.038,1.18+i*.020,3.12-i*.20,.021,.076);
@@ -106,9 +136,12 @@ export class RoomExit{
         mesh(hinge,box,brass,-side*.49,y,.11,1,.062,.048);
         mesh(hinge,wedge,brass,-side*.879,y+.09,.16,.039,.08,.021);
       }
+      batchMasonry(hinge);
+      for(const part of hinge.children)part.castShadow=false;
       this.root.add(hinge);
       this.shutters.push({hinge,side});
     }
+    batchMasonry(this.root);
     const material=new T.ShaderMaterial({
       transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
       uniforms:{time:{value:0},light:{value:new T.Color(frame.light)},open:{value:0}},

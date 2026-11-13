@@ -1,6 +1,8 @@
 import * as T from '../three.min.mjs';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
+import {finishForRoom,roomSurface,weatherFloor} from './room-surfaces.mjs?v=chiaroscuro-1';
+import {RoomLighting} from './room-lighting.mjs?v=chiaroscuro-1';
 
 const PI=Math.PI,TAU=PI*2;
 const groundPlane=new T.PlaneGeometry(64,61).rotateX(-PI/2);
@@ -24,11 +26,15 @@ const post=new T.CylinderGeometry(.71,1,1,8);
 const shard=new T.OctahedronGeometry(1);
 const sheet=new T.PlaneGeometry(1,1).rotateX(-PI/2);
 const vertical=new T.PlaneGeometry(1,1);
+const arcade=new T.TorusGeometry(1,.042,6,34,PI);
+const chiseled=new T.LatheGeometry([[0,-.57],[.55,-.53],[.76,-.31],[.67,.12],[.42,.23],[.53,.47],[.31,.65],[0,.92]]
+  .map(([x,y])=>new T.Vector2(x,y)),8);
+const beveledBase=new T.CylinderGeometry(.82,1,1,8,1,false);
 const torus=new T.TorusGeometry(1,.024,4,50).rotateX(-PI/2);
 const strand=new T.CylinderGeometry(.38,1,1,7);
 const stems=new T.LatheGeometry([[0,-.22],[.43,-.23],[.76,-.11],[1,0],[.91,.20],[.66,.37],[.33,.47],[0,.49]]
   .map(([x,y])=>new T.Vector2(x,y)),18);
-const sharedGeometry=new Set([groundPlane,poolShape,box,rock,stone,bead,canopy,column,cylinder,rib,post,shard,sheet,vertical,torus,strand,stems]);
+const sharedGeometry=new Set([groundPlane,poolShape,box,rock,stone,bead,canopy,column,cylinder,rib,post,shard,sheet,vertical,arcade,chiseled,beveledBase,torus,strand,stems]);
 
 const palettes={
   'grove.jpg':['grove',0x141b24,0x36373b,0x626557,0x98764e,0x3b282b,0x964d47,0x8b75ae,0xec9362],
@@ -190,15 +196,18 @@ function soilType(type){
 
 function setMaterials(view,type,base,edge,trim,body,accent,glimmer,warm,cutaway){
   const env=forgeEnvironment();
+  const finish=finishForRoom(type);
   const standard=(color,metalness,roughness,kind,useEnv)=>new T.MeshStandardMaterial({
-    color,metalness,roughness,...scannedSurface(kind,kind==='hammered'?.34:.31),envMap:useEnv?env:null,
+    color,metalness,roughness,...roomSurface(kind,1,kind==='metal'?.42:.67),envMap:useEnv?env:null,
     envMapIntensity:useEnv?.64:0,
     emissive:color,emissiveIntensity:.025,
   });
   const material={
-    basal:standard(base,.15,.86,'leather',false),ridge:standard(edge,.26,.70,'leather',true),
-    gilt:standard(trim,.59,.57,'hammered',true),bone:standard(body,.14,.85,'leather',false),
-    leaf:standard(accent,.04,.88,'leather',false),crystal:standard(glimmer,.27,.49,'hammered',true),
+    basal:standard(new T.Color(base).multiplyScalar(1.7),.12,.86,finish.masonry,false),
+    ridge:standard(new T.Color(edge).multiplyScalar(1.28),.23,.68,finish.masonry,true),
+    gilt:standard(trim,.64,.55,'metal',true),bone:standard(body,.12,.83,finish.ornament,false),
+    leaf:standard(new T.Color(accent).multiplyScalar(1.45),.04,.90,type==='fungus'?'wood':'rock',false),
+    crystal:standard(glimmer,.31,.39,'ice',true),
     emission:inkMaterial(glimmer,true,.74),lantern:inkMaterial(warm,true,.94),
     glass:new T.MeshBasicMaterial({map:stainedGlass(),transparent:true,alphaTest:.07,side:T.DoubleSide,toneMapped:false}),
     water:waterMaterial(glimmer,type==='forge'||type==='crimson'),
@@ -208,7 +217,8 @@ function setMaterials(view,type,base,edge,trim,body,accent,glimmer,warm,cutaway)
     ember:new T.MeshBasicMaterial({map:view.halo,color:warm,opacity:.49,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}),
   };
   material.crystal.emissive.setHex(glimmer);
-  material.crystal.emissiveIntensity=.14;
+  material.crystal.emissiveIntensity=.32;
+  material.gilt.envMapIntensity=.95;
   // Shared batches all use the same screen-space corridor around the player.
   for(const [name,mat] of Object.entries(material)){
     if(!['water','shadow','goldDust','soft','ember'].includes(name))cutaway.material(mat);
@@ -243,6 +253,10 @@ function batch(root,mobile){
       for(const [i,transform] of transforms.entries())group.setMatrixAt(i,transform);
       group.instanceMatrix.needsUpdate=true;
       if(mat.transparent)group.renderOrder=mat.blending===T.AdditiveBlending?7:3;
+      else{
+        group.receiveShadow=true;
+        group.castShadow=geo!==sheet&&geo!==shard&&geo!==bead;
+      }
       root.add(group);
     }
   }
@@ -252,18 +266,20 @@ function batch(root,mobile){
 function architecture(ctx,x,z,h,type,angle=0){
   const {put,rod,m}=ctx;
   put(sheet,m.shadow,x+.24,.008,z+.32,3.91,1,3.18);
-  put(box,m.basal,x,.14,z,1.88,.28,1.82,angle);
+  put(beveledBase,m.basal,x,.14,z,1.02,.28,1.02,angle);
   put(column,m.ridge,x,.32,z,1.13,.15,1.13,angle);
   put(column,m.gilt,x,.45,z,.92,.08,.92,angle);
   put(column,m.basal,x,.56,z,.84,.20,.84,angle);
-  put(column,m.basal,x,h*.5+.43,z,.70,h,.70,angle);
+  put(column,m.basal,x,h*.5+.43,z,.69,h,.69,angle);
   for(let j=0;j<6;j++){
     const a=j*TAU/6+angle;
-    put(rib,j%2?m.ridge:m.basal,x+Math.cos(a)*.643,h*.50+.37,z+Math.sin(a)*.643,.111,h*.92,.113,a);
+    put(rib,j%2?m.ridge:m.basal,x+Math.cos(a)*.593,h*.50+.37,z+Math.sin(a)*.593,.139,h*.92,.144,a);
+    if(!ctx.mobile)put(rib,m.gilt,x+Math.cos(a)*.681,h*.49+.37,z+Math.sin(a)*.681,.020,h*.64,.024,a);
   }
   put(column,m.ridge,x,h+.43,z,.88,.22,.88,angle);
   put(column,m.gilt,x,h+.57,z,.91,.052,.91,angle);
-  put(box,m.basal,x,h+.72,z,1.37,.29,1.37,angle);
+  put(beveledBase,m.ridge,x,h+.72,z,.91,.27,.91,angle);
+  put(beveledBase,m.basal,x,h+.87,z,1.02,.18,1.02,angle);
   if(['vault','throne','crimson','cathedral','desecrated'].includes(type)){
     const hx=x+Math.sin(angle)*.73,hz=z+Math.cos(angle)*.73;
     rod(rib,m.gilt,.043,[hx,.91,hz],[hx,h*.56,hz]);
@@ -274,30 +290,31 @@ function architecture(ctx,x,z,h,type,angle=0){
   return {x,z,y:h+.56};
 }
 
-function sunlight(root,view,map,x,z,angle,sprawl,type){
+const glassTones={cathedral:0xbccbff,desecrated:0xe28bbc,throne:0x91a3d6,crimson:0xff8a80};
+
+function sunlight(root,map,x,z,angle,sprawl,type){
   const material=new T.ShaderMaterial({transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-    uniforms:{image:{value:map},energy:{value:.77},tint:{value:new T.Color(type==='desecrated'?0xe08ac7:0xc6ceff)}},
+    uniforms:{image:{value:map},energy:{value:.77},tint:{value:new T.Color(glassTones[type])}},
     vertexShader:'varying vec2 phase;void main(){phase=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:`varying vec2 phase;uniform sampler2D image;uniform vec3 tint;uniform float energy;
       void main(){
-        vec2 v=phase;v.x+=(v.y-.5)*.19;
-        vec4 s=texture2D(image,v);
-        float edge=smoothstep(.00,.19,phase.y)*(1.-smoothstep(.73,.99,phase.y))*
-          smoothstep(.04,.22,phase.x)*(1.-smoothstep(.78,.96,phase.x));
-        gl_FragColor=vec4(s.rgb*tint,s.a*edge*energy);
+        vec2 v=phase;
+        v.x=(v.x-.5)*(1.+v.y*.27)+.5+(v.y-.5)*.23;
+        const float stepSize=.013;
+        vec4 center=texture2D(image,v);
+        vec4 surround=(texture2D(image,v+vec2(stepSize,0.))+texture2D(image,v-vec2(stepSize,0.))+
+          texture2D(image,v+vec2(0.,stepSize))+texture2D(image,v-vec2(0.,stepSize)))*.25;
+        vec4 s=mix(center,surround,.53);
+        float edge=smoothstep(.04,.28,phase.y)*(1.-smoothstep(.64,.99,phase.y))*
+          smoothstep(.04,.23,phase.x)*(1.-smoothstep(.70,.96,phase.x));
+        float flare=exp(-dot(v-vec2(.49,.49),v-vec2(.49,.49))*7.);
+        gl_FragColor=vec4(s.rgb*tint,s.a*edge*energy*(.59+flare*.41));
         #include <colorspace_fragment>
       }`,
   });
   const patch=new T.Mesh(sheet,material);
-  patch.position.set(x,.014,z);patch.scale.set(3.7*sprawl,1,8.90*sprawl);
+  patch.position.set(x,.014,z);patch.scale.set(3.76*sprawl,1,8.1*sprawl);
   patch.rotation.y=angle;patch.renderOrder=5;root.add(patch);
-  const shafts=new T.Mesh(vertical,new T.MeshBasicMaterial({
-    map:view.smoke,color:type==='desecrated'?0xca75ec:0x8da3ff,
-    opacity:.117,transparent:true,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending,
-  }));
-  shafts.position.set(x-1.03,3.33,z-4.15);
-  shafts.scale.set(4.2,8.6,1);shafts.rotation.set(-1.06,-.04,-.37);
-  shafts.renderOrder=2;root.add(shafts);
   return material;
 }
 
@@ -341,7 +358,7 @@ function architecturalEdge(ctx,stage,type){
     for(let i=0;i<5;i++){
       const z=-11.90+i*5.73;
       const x=side*(16.16+(i%2)*.65);
-      if(glassy.has(type)||['vault','forge','frost','canal'].includes(type)){
+    if(glassy.has(type)||['vault','forge','frost','canal'].includes(type)){
         architecture(ctx,x,z,rise*(.79+draw()*.15),type,side*.30);
         put(box,m.basal,x,.23,z+2.11,1.37,.46,5.2);
       }else{
@@ -605,9 +622,9 @@ function chambers(ctx,stage,type){
       if(wet.has(type)||terrain==='slag'){
         put(poolShape,m.water,x,.013,z,1.77,1,length,.19*side);
         put(box,m.basal,x+side*1.17,.055,z,.092,.079,length*1.72,.04);
-      }else{
-        put(box,m.basal,x,-.002,z,1.61,.06,length);
-        if(!ancient.has(type))put(box,m.gilt,x-side*.75,.04,z,.033,.026,length);
+      }else if(!ancient.has(type)){
+        for(const border of [-1,1])put(box,m.ridge,x+border*.47,.016,z,.22,.051,length);
+        put(box,m.gilt,x-side*.60,.034,z,.034,.018,length*.96);
       }
       if((room+i)%3===0)put(rock,m.ridge,x+side*.76,.19,z+.49,.51,.30,.47,draw()*TAU,.15);
     }
@@ -618,20 +635,79 @@ function chambers(ctx,stage,type){
   }
 }
 
+function roomCenter(ctx,stage,type){
+  const {put,rod,m,solid}=ctx;
+  const room=stage.room??0;
+  const z=-4.0+(room%3)*.43;
+  if(glassy.has(type)||type==='vault'||type==='forge'){
+    for(const side of [-1,1]){
+      const x=side*5.45;
+      const y=2.88+(room%2)*.34;
+      architecture(ctx,x,z,y,type,side*.28);
+      solid.push({x,z,radius:.80});
+      for(let j=0;j<3;j++){
+        const postZ=z-.82-j*.21;
+        const cap=3.11+y*.42-j*.29;
+        rod(rib,j===1?m.gilt:m.ridge,.049,[x,.63,postZ],[x+side*(.19+j*.23),cap,postZ-.18]);
+      }
+    }
+    const spring=3.28+(room%2)*.34;
+    if(type==='forge'){
+      for(const side of [-1,1]){
+        rod(cylinder,m.bone,.118,[side*5.50,spring,z],[side*2.20,spring,z-1.65]);
+        rod(rib,m.gilt,.086,[side*4.78,spring+.19,z],[side*1.66,spring+.19,z-1.65]);
+      }
+    }else{
+      put(arcade,m.ridge,0,spring,z-.15,5.50,2.18,3.2);
+      put(arcade,m.gilt,0,spring-.12,z+.02,5.48,2.11,1.30);
+      put(arcade,m.basal,0,spring+.11,z-.33,5.56,2.28,3.1);
+    }
+  }
+
+  if(glassy.has(type)||['canal','frost','lotus','fungus'].includes(type)){
+    for(const side of [-1,1]){
+      const x=side*(glassy.has(type)?4.45:4.92),mz=z+side*.66;
+      put(sheet,m.shadow,x,.006,mz,2.6,1,2.58);
+      put(beveledBase,m.basal,x,.115,mz,.73,.22,.73,PI/4);
+      put(beveledBase,m.gilt,x,.235,mz,.68,.037,.68,PI/4);
+      put(beveledBase,m.ridge,x,.338,mz,.48,.18,.48,PI/4);
+      put(chiseled,m.crystal,x,1.14,mz,.42,.70,.42,side*.63,side*.19);
+      put(shard,m.emission,x,1.17,mz,.24,.32,.24);
+      for(let i=0;i<3;i++){
+        const a=i*TAU/3+side*.43;
+        const dx=Math.cos(a),dz=Math.sin(a);
+        rod(rib,m.gilt,.042,[x+dx*.54,.38,mz+dz*.54],[x+dx*.33,1.02,mz+dz*.33]);
+        put(shard,m.gilt,x+dx*.26,1.03,mz+dz*.26,.063,.18,.064,a);
+      }
+      put(sheet,m.soft,x,.023,mz,4.23,1,3.9);
+      solid.push({x,z:mz,radius:.55});
+    }
+  }
+
+  for(const side of [-1,1]){
+    const x=side*(glassy.has(type)?3.2:3.75);
+    for(let i=0;i<6;i++){
+      const q=z+i*2.42;
+      const trim=glassy.has(type)||type==='vault'?m.gilt:m.ridge;
+      put(box,trim,x,.014,q,.033,.028,1.63);
+      put(shard,trim,x,.020,q-.91,.114,.022,.056,PI/3);
+      put(shard,trim,x,.020,q+.91,.095,.021,.046,-PI/3);
+    }
+  }
+}
+
 export class RoomLandscape {
   constructor(view,cutaway){
     this.view=view;
     this.cutaway=cutaway;
     this.root=new T.Group();
     this.heroWarm=new T.PointLight(0xffc079,0,12,2);
-    this.backlight=new T.DirectionalLight(0x9eacff,.89);
-    this.backlight.position.set(-9,12,-15);
-    this.edgeLight=new T.DirectionalLight(0xc195e8,.46);
-    this.edgeLight.position.set(10,5,-7);
-    view.scene.add(this.root,this.heroWarm,this.backlight,this.edgeLight);
+    this.roomLighting=new RoomLighting(view);
+    view.scene.add(this.root,this.heroWarm);
   }
 
   clear(){
+    this.roomLighting.clear();
     const materials=new Set();
     this.root.traverse(node=>{
       if(node.material)materials.add(node.material);
@@ -651,16 +727,19 @@ export class RoomLandscape {
     this.type=type;
     this.root.name='3D: '+type;
     this.view.scene.background=new T.Color(sky);
-    this.view.scene.fog=new T.FogExp2(sky,inlaid.has(type)?.023:.030);
-    this.backlight.color.setHex(glimmer);
-    this.edgeLight.color.setHex(warm);
+    this.view.scene.fog=new T.FogExp2(sky,inlaid.has(type)?.019:.026);
     const draw=rng((stage.floor??1)*48109+type.length*91311);
-    const mesh=new T.Mesh(groundPlane,new T.MeshStandardMaterial({
-      color:0xdde1e6,map:pavement(type,base),envMap:forgeEnvironment(),envMapIntensity:inlaid.has(type)?.87:.41,
-      metalness:inlaid.has(type)?.45:wet.has(type)?.37:.18,roughness:wet.has(type)?.48:inlaid.has(type)?.55:.79,
-      ...scannedSurface(inlaid.has(type)?'hammered':'leather',.25),
-    }));
+    const finish=finishForRoom(type);
+    const scan=roomSurface(finish.floor,finish.repeat,type==='frost'?.61:.83);
+    const floor=weatherFloor(new T.MeshStandardMaterial({
+      color:scan.map?finish.tint:0xdde1e6,
+      ...(scan.map?scan:{map:pavement(type,base),...scannedSurface(inlaid.has(type)?'hammered':'leather',.25)}),
+      envMap:forgeEnvironment(),envMapIntensity:inlaid.has(type)?.98:.46,
+      metalness:finish.metalness,roughness:finish.roughness,
+    }),type);
+    const mesh=new T.Mesh(groundPlane,floor);
     mesh.position.set(0,-.071,-.91);
+    mesh.receiveShadow=true;
     this.root.add(mesh);
     const chunks=batch(this.root,this.view.mobile);
     this.solid=[];
@@ -669,12 +748,14 @@ export class RoomLandscape {
     placeBorder(ctx,stage,type);
     landmarks(ctx,stage,type);
     chambers(ctx,stage,type);
+    roomCenter(ctx,stage,type);
     insignia(this.root,type,stage,m);
     this.lamps=lanterns(ctx,stage);
+    this.roomLighting.set(type,stage,this.lamps);
     this.projections=[];
     if(glassy.has(type))for(let i=0;i<5;i++){
       const x=(i-2)*5.5+(stage.room??0)%3*.82;
-      this.projections.push(sunlight(this.root,this.view,stainedGlass(),x,-5.4+i*.29,-.28,.90+(i%3)*.15,type));
+      this.projections.push(sunlight(this.root,stainedGlass(),x,-5.4+i*.35,-.27+i*.073,.80+(i%3)*.17,type));
     }
     this.flames=new T.InstancedMesh(shard,m.lantern,this.lamps.length);
     this.orbs=new T.InstancedMesh(vertical,m.ember,this.lamps.length);
@@ -693,15 +774,15 @@ export class RoomLandscape {
   }
 
   light(darkness){
-    this.backlight.intensity=1.12*(1-darkness*.76);
-    this.edgeLight.intensity=1.36*(1-darkness*.68);
+    this.roomLighting.light(darkness);
     this.m.ember.opacity=.68*(1-darkness*.87);
     this.m.soft.opacity=.50*(1-darkness*.77);
     this.m.lantern.opacity=.95*(1-darkness*.88);
-    for(const mat of this.projections)mat.uniforms.energy.value=1.09*(1-darkness*.86);
+    for(const mat of this.projections)mat.uniforms.energy.value=.88*(1-darkness*.86);
   }
 
   tick(time,hero,darkness) {
+    this.roomLighting.tick(time);
     this.m.water.uniforms.clock.value=time%3600;
     this.heroWarm.position.set(hero.x,1.55,hero.z);
     this.heroWarm.intensity=hero.lanternOut>0?0:8.3*(1-darkness*.23);

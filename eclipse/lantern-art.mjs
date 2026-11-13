@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {lanternRadius} from './lantern-route.mjs?v=world-3d-1';
-import {RoomExit} from './room-exit.mjs?v=world-3d-1';
+import {RoomExit} from './room-exit.mjs?v=chiaroscuro-1';
 
 const stone=new T.MeshStandardMaterial({color:0x51414b,roughness:.88,metalness:.16});
 const bevel=new T.MeshStandardMaterial({color:0xa88269,roughness:.69,metalness:.26});

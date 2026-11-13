@@ -1,4 +1,6 @@
 const chords = [[45,52,57,60],[43,50,55,62],[41,48,53,57],[40,47,55,59]];
+import {huntById} from './relic-arsenal.mjs?v=heirlooms-1';
+
 const hz = note => 440 * 2 ** ((note - 69) / 12);
 const attackVoices={
   tiger:{noise:2160,pitch:219,shape:'triangle'},
@@ -208,7 +210,7 @@ export class Audio {
 
   attack(weapon,step,phase,pulse=0) {
     if (!this.context||this.muted) return;
-    const {noise,pitch,shape}=attackVoices[weapon];
+    const {noise,pitch,shape}=attackVoices[weapon]??attackVoices[huntById.get(weapon)?.combo]??attackVoices.tiger;
     const now=this.context.currentTime;
     if (phase==='wind') {
       if (weapon==='stormbow') {
@@ -234,7 +236,7 @@ export class Audio {
   link(id,cast) {
     if (!this.context||this.muted) return;
     const now=this.context.currentTime;
-    const {noise,pitch,shape}=attackVoices[id];
+    const {noise,pitch,shape}=attackVoices[id]??attackVoices[huntById.get(id)?.combo]??attackVoices.tiger;
     if (!cast) {
       this.note(pitch*1.8,pitch*2.32,now,.095,.075,'sine',.008);
       return;
@@ -278,6 +280,17 @@ export class Audio {
   arm(id) {
     if (!this.context) return;
     const now=this.context.currentTime;
+    const relic=huntById.get(id);
+    if(relic){
+      const voice=attackVoices[relic.combo];
+      const count=Math.min(4,relic.spell.hits+1);
+      for(let i=0;i<count;i++){
+        const pitch=voice.pitch*(1+(relic.sigil%7)*.033+i*.12);
+        this.note(pitch,pitch*(relic.element==='light'?.95:.42),now+i*.078,.24,.095,voice.shape,.012);
+      }
+      this.rasp(now,.12,.13,voice.noise);
+      return;
+    }
     if (['reaper','bell','fangs','cannon'].includes(id)) {
       const {pitch,noise,shape}=attackVoices[id];
       for(let i=0;i<(id==='bell'?3:2);i++) this.note(pitch*(1+i*.37),pitch*(id==='bell'?.97:.33),now+i*.16,.28,.145,shape,.008);
@@ -311,6 +324,15 @@ export class Audio {
       this.note(92,32,now,1.08,.20,'triangle',.065);
       this.rasp(now,.19,.16,610);
     }
+  }
+
+  relicRoar(weapon){
+    if(!this.context||this.muted)return;
+    const now=this.context.currentTime;
+    const pitch=64+(weapon.sigil%17)*3;
+    this.rasp(now,.54,.31,185+weapon.sigil*8);
+    this.note(pitch*.72,pitch*1.47,now,.43,.21,'sawtooth',.05);
+    this.note(pitch*2.11,pitch*.66,now+.24,.51,.17,'triangle',.06);
   }
 
   boss(effect,phase=false) {

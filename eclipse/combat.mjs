@@ -1,5 +1,6 @@
-import {comboMove} from './weapon-combos.mjs?v=nightfall-1';
+import {comboMove} from './weapon-combos.mjs?v=heirlooms-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
+import {castRelic} from './relic-cast.mjs?v=heirlooms-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
@@ -56,7 +57,7 @@ function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
   const touched=new Set();
   const duration=strikeTravel(move,reach,heavy);
   const rays=(move.angles??[0]).map(angle=>turned(dx,dz,angle));
-  const shell=game.weapon.id==='cannon';
+  const shell=game.weapon.id==='cannon'||game.weapon.form==='gun';
   let blast=false;
   for (const [x,z] of rays) {
     if (shell) game.view.motion.shell(origin,x,z,reach,tint,duration,heavy);
@@ -263,6 +264,12 @@ export function invokeArm(game,input) {
   h.dx=dx; h.dz=dz;
   if (Math.abs(dx)>.12) h.face=Math.sign(dx);
   h.attackAge=0;
+  if(arm.spell){
+    const center=targetCenter(game,dx,dz,range);
+    game.bound(center);
+    castRelic(game,origin,dx,dz,center,power,range);
+    return;
+  }
   switch (arm.id) {
     case 'tiger':
       h.rolling=.35;
@@ -582,6 +589,13 @@ export function invokeLinkedArm(game,link,wind,fusion) {
   const area=(center,radius,callback)=>{
     for (const foe of active(game)) if (distance(foe,center)<=radius+(foe.kind==='boss'?.42:.15)) callback(foe);
   };
+  if(arm.spell){
+    release(()=>{
+      const target=focus();
+      castRelic(game,origin,dx,dz,{x:target.x,z:target.z},power,range,true,connect);
+    });
+    return;
+  }
   switch (arm.id) {
     case 'tiger':
       h.rolling=h.rollDuration=.32;

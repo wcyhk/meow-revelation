@@ -1,20 +1,20 @@
-import {Scenery} from './scenery.mjs?v=patina-2';
+import {Scenery} from './scenery.mjs?v=heirlooms-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
-import {Audio} from './audio.mjs?v=maw-1';
-import {Input} from './input.mjs?v=sigils-1';
-import {arms} from './armory.mjs?v=patina-1';
+import {Audio} from './audio.mjs?v=heirlooms-1';
+import {Input} from './input.mjs?v=heirlooms-1';
+import {arms} from './armory.mjs?v=heirlooms-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
-import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=clock-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=nightfall-1';
-import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=nightfall-1';
+import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=heirlooms-1';
+import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=heirlooms-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs?v=nightfall-1';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=patina-1';
-import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=nightfall-1';
+import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=heirlooms-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
 import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
@@ -30,6 +30,11 @@ import {BranchCombat} from './branch-combat.mjs?v=sigils-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
+import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
+import {relicCounter} from './relic-cast.mjs?v=heirlooms-1';
+import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=heirlooms-1';
+import {skillSigil} from './skill-sigils.mjs?v=heirlooms-1';
+import {relicPower} from './relic-arsenal.mjs?v=heirlooms-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -88,6 +93,7 @@ export class Game {
     this.storyChoices = Object.create(null);
     this.rituals = [];
     this.ultimateFields = [];
+    this.relicWalls=[];
     this.discovery = null;
     this.elapsed = 0;
     this.t = 0;
@@ -114,6 +120,7 @@ export class Game {
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
     this.ui.inspect.addEventListener('click',()=>this.interact());
     this.ui.journal.addEventListener('click',()=>this.showJournal());
+    this.ui['relic-icons'].addEventListener('click',()=>this.showRunBlessings());
     addEventListener('resize',()=>this.view.resize());
     document.addEventListener('visibilitychange',() => {if(document.hidden && this.state==='play') this.togglePause();});
     this.loop = this.loop.bind(this);
@@ -151,13 +158,13 @@ export class Game {
     grid.className='armory-grid';
     const pool=shuffle(milestone?arms.filter(arm=>arm.id!==this.weapon.id):arms);
     const choices=pool.slice(0,3);
-    if(!milestone&&!choices.some(arm=>nightArms.includes(arm)))choices[2]=pool.find(arm=>nightArms.includes(arm));
+    if(!milestone&&!choices.some(arm=>arm.spell))choices[2]=pool.find(arm=>arm.spell);
     for (const weapon of choices) {
       const choice=makeButton('',()=>milestone?this.swapWeapon(weapon):this.start(weapon),'arm-card');
       choice.dataset.arm=weapon.id;
       choice.style.setProperty('--arm-ink',weapon.ink);
       const image=document.createElement('img');
-      image.src=this.view.armIcons.get(weapon.id);
+      image.src=this.view.armIcons.get(weapon.id)??skillSigil(weapon.id).canvas.toDataURL();
       image.alt='';
       const text=document.createElement('div');
       text.className='arm-text';
@@ -172,6 +179,12 @@ export class Game {
       const follow=skillLinks[weapon.id];
       link.textContent='接技 · '+follow.name+'：'+follow.detail;
       text.append(role,name,moves,basic,skill,detail,link);
+      if(weapon.spell){
+        const heirloom=document.createElement('span');
+        heirloom.className='arm-resonance';
+        heirloom.textContent='專屬祝福 · '+weapon.blessing.name+'｜'+weapon.blessing.detail;
+        text.append(heirloom);
+      }
       const signature={qilin:'wind',flameblade:'fire',stormbow:'thunder',turtle:'ward'}[weapon.id];
       const fusion=milestone?pickFusion(fusionChoices(weapon,this.hero.resonance),this.fusionPin):null;
       const secret=milestone?ultimateProgress(weapon,this.hero.resonance):null;
@@ -196,6 +209,7 @@ export class Game {
       this.progress.refresh();
       content.append(this.difficultyPicker(),branchPicker(this.progress));
     }
+    if(!milestone)content.append(weaponPicker(arms,this.view.armIcons,weapon=>this.start(weapon)));
     content.append(grid);
     this.openModal({kind:'armory',mark:'◇',
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
@@ -240,6 +254,7 @@ export class Game {
     this.failure=null;
     this.heroVisual = this.view.createActor(0,2.68);
     this.relics = [];
+    this.huntedWeapons=new Set();
     this.fusionPin=null;
     this.routeSeed=Math.floor(Math.random()*0x100000000);
     this.journal = [];
@@ -248,7 +263,7 @@ export class Game {
     this.autoReady=new Map();
     this.schoolToast=0;
     this.ui['school-toast'].hidden=true;
-    this.ui['relic-icons'].replaceChildren();
+    paintBlessingHud(this.ui['relic-icons'],this.relics);
     this.elapsed = 0;
     this.kills = 0;
     this.hitstop = 0;
@@ -269,6 +284,7 @@ export class Game {
 
   equip(weapon) {
     this.weapon=weapon;
+    this.relicHunt=weapon.spell&&!this.huntedWeapons?.has(weapon.id)?new RelicHunt(this,weapon):null;
     this.view.equip(this.heroVisual,weapon);
     this.input.touch.setWeapon(weapon);
     this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics,this.training);
@@ -344,6 +360,7 @@ export class Game {
     this.ranks=buildStats(h,this.weapon,stage.floor,this.relics,this.training);
     h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
     h.trainingWardSpent=false;
+    h.relicCounter=h.relicHaste=null;
     h.lanternOut=0;
     h.snuffCooldown=0;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
@@ -610,7 +627,7 @@ export class Game {
     if (h.link?.until>0 && h.link.until<=this.t) h.link=null;
     h.invulnerable -= dt;
     h.ward -= dt;
-    if (h.ward<=0) h.linkWard=false;
+    if (h.ward<=0) {h.linkWard=false;h.relicCounter=null;}
     if (h.linkGuard&&(h.linkGuard.left-=dt)<=0) h.linkGuard=null;
     h.surge -= dt;
     h.snared-=dt;
@@ -664,7 +681,8 @@ export class Game {
       }
     } else {
       const charging=h.slash?.move&&h.combo===3&&h.attackAge<h.slash.timing.hits[0].at;
-      const speed = h.moveSpeed*(charging?.55:h.attackAge<.18?.65:1)*(h.snared>0?.57:1);
+      const haste=h.relicHaste?.until>this.t?h.relicHaste.speed:1;
+      const speed = h.moveSpeed*haste*(charging?.55:h.attackAge<.18?.65:1)*(h.snared>0?.57:1);
       const drag = blend(movement>.07?18:22,dt);
       h.vx += (input.x*speed-h.vx)*drag;
       h.vz += (input.z*speed-h.vz)*drag;
@@ -752,7 +770,7 @@ export class Game {
     if (Math.abs(dx)>.12) h.face = Math.sign(dx);
     h.combo = h.comboLeft>0 ? h.combo%3+1 : 1;
     const move=comboMove(this.weapon,h.combo);
-    const speed=this.branchCombat.activeMaw?.speed??1;
+    const speed=(this.branchCombat.activeMaw?.speed??1)*(h.relicHaste?.until>this.t?h.relicHaste.speed:1);
     const timing=comboTiming(this.weapon,move,h.attackPeriod/speed);
     h.comboLeft=timing.cycle+.57;
     h.atk=h.atkTotal=timing.cycle;
@@ -951,6 +969,7 @@ export class Game {
       giftKill(this,unit);
       if(unit.spec.deathOmen||unit.omen?.id==='grudge')this.deathOmen(unit);
       if (boss) this.view.bossCue(unit,'defeat');
+      unit.hunt?.defeat();
       if (unit.kind!=='boss' && (this.kills%4===0 || Math.random()<.10)) this.drop(unit);
     }
     report?.(unit,kind);
@@ -1004,6 +1023,7 @@ export class Game {
     this.damageFlash = blocked?.24:heavy?.70:.42;
     this.hitstop = Math.max(this.hitstop,heavy?.061:.032);
     if (guarded&&this.weapon.id==='turtle') reflectHit(this,attacker);
+    if(guarded&&h.hp>0)relicCounter(this,attacker);
     if (barrier?.fusion&&h.hp>0) dischargeFusion(this,attacker,barrier.fusion);
     giftHurt(this,guarded,barrier);
     if (h.hp>0) invokeSchool(this,'ward',attacker);
@@ -1045,6 +1065,7 @@ export class Game {
     const time=spec.time*(1-phase*.12);
     unit.attack={pattern,time,windup:time,dx,dz};
     unit.attack.landing=telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
+    unit.hunt?.signature(unit.attack,!!forcedPattern);
     if(unit.omen?.id==='echo'&&this.hazards.length<13)telegraph(this,'marked',unit,h,{delay:time+.46,damage:spec.hurt*.58,radius:1.27,owner:unit});
     if (boss && phase>=1 && index%3===2) {
       const echo=spec.attacks[(index+1)%spec.attacks.length];
@@ -1176,6 +1197,7 @@ export class Game {
 
   clearThreats() {
     clearUltimates(this);
+    this.relicWalls.length=0;
     for (const hazard of this.hazards) {
       if (hazard.visual) this.view.removeProjectile(hazard.visual);
     }
@@ -1487,6 +1509,8 @@ export class Game {
     if (this.ultimateFields.length) updateUltimates(this,dt);
     this.branchCombat.update(this,dt);
     this.updateEnemies(dt);
+    this.relicHunt?.tick(dt);
+    if(this.relicWalls.length)this.relicWalls=this.relicWalls.filter(wall=>wall.until>this.t);
     this.bossArena?.tick(dt);
     this.updateHazards(dt);
     if (this.state==='play'&&!this.discovery&&this.enemies.length) invokeSchool(this,'thunder');
@@ -1527,7 +1551,7 @@ export class Game {
     if(this.ui['run-kills'].textContent!==kills)this.ui['run-kills'].textContent=kills;
     if(this.ui['run-time'].textContent!==clock)this.ui['run-time'].textContent=clock;
     if(this.ui['run-gold'].textContent!==gold)this.ui['run-gold'].textContent=gold;
-    if (this.stage.boss) this.ui['boss-fill'].style.transform='scaleX('+(boss?clamp(boss.hp/boss.spec.hp,0,1):0)+')';
+    if (boss) this.ui['boss-fill'].style.transform='scaleX('+clamp(boss.hp/boss.spec.hp,0,1)+')';
     const arena=this.bossArena;
     const arenaHint=this.ui['boss-arena-hint'];
     arenaHint.hidden=!boss||!arena?.phase;
@@ -1639,9 +1663,25 @@ export class Game {
     this.input.reset();
   }
 
-  drawBlessings(pool=blessings) {
+  showRunBlessings() {
+    if(this.state!=='play')return;
+    this.state='run-blessings';
+    this.audio.active=false;
+    this.openModal({kind:'run-blessings',mark:'✧',kicker:'本次旅程',title:'已獲祝福',copy:'',
+      content:blessingLedger(this.relics,this.weapon,this.hero,this.training,this.stage.floor),
+      buttons:[makeButton('返回戰鬥',()=>this.togglePause(),'primary')]});
+  }
+
+  blessingPool() {
+    const special=this.weapon.blessing;
+    const cap=this.relicHunt?.state==='defeated'?3:2;
+    return special&&(this.ranks.get(special.id)??0)<cap?[...blessings,special]:blessings;
+  }
+
+  drawBlessings(pool=this.blessingPool()) {
     const shuffled=shuffle(pool);
-    const suggested=shuffled.find(boon=>!this.ranks.has(boon.id)&&schoolProgress(this.ranks,boon.school).distinct>0);
+    const signature=shuffled.find(boon=>boon.weaponId);
+    const suggested=signature??shuffled.find(boon=>!this.ranks.has(boon.id)&&schoolProgress(this.ranks,boon.school).distinct>0);
     const options=[];
     for (const boon of suggested?[suggested,...shuffled]:shuffled) {
       if (!options.some(other=>other.school===boon.school)) options.push(boon);
@@ -1664,7 +1704,7 @@ export class Game {
 
   redrawBlessings() {
     if (this.state!=='blessing'||!this.altar||this.altar.bonus||this.redraws<=0) return;
-    const pool=blessings.filter(relic=>!this.altar.options.includes(relic));
+    const pool=this.blessingPool().filter(relic=>!this.altar.options.includes(relic));
     this.redraws--;
     this.altar.options=this.drawBlessings(pool);
     this.audio.play('blessing');
@@ -1681,17 +1721,16 @@ export class Game {
     for (const relic of options) {
       const button=makeButton('',()=>this.choose(relic),'relic');
       button.dataset.blessing=relic.id;
-      const mark=document.createElement('strong'), name=document.createElement('b'), detail=document.createElement('span');
+      const mark=blessingIcon(relic), name=document.createElement('b'), detail=document.createElement('span');
       const branch=document.createElement('small'), resonance=document.createElement('small');
       const rank=this.ranks.get(relic.id)||0;
       const school=schools[relic.school];
       const {distinct:count,total}=schoolProgress(this.ranks,relic.school);
       branch.className='relic-school';
       branch.style.color=school.ink;
-      const next=Math.min(3,count+Number(rank===0));
+      const next=Math.min(3,count+Number(rank===0&&!relic.weaponId));
       branch.textContent=school.name+' '+next+'/3'+(next===3?' · '+school.skill:'');
       branch.title=school.detail;
-      mark.textContent=relic.mark;
       name.textContent=relic.name+(rank?' · '+rank+' → '+(rank+1):'');
       detail.textContent=relic.detail;
       const preview=resonancePreview(this.weapon,relic.school,total);
@@ -1699,7 +1738,14 @@ export class Game {
       resonance.style.setProperty('--resonance-ink',school.ink);
       resonance.textContent=preview.text;
       if (next===3&&count<3) branch.textContent+='（解鎖）';
-      button.append(mark,name,detail,resonance,branch);
+      button.append(mark,name,detail);
+      if(relic.weaponId){
+        resonance.textContent='本武器技能傷害 '+bonusPercent(relicPower(rank+1)-1);
+        button.append(resonance);
+        grid.append(button);
+        continue;
+      }
+      button.append(resonance,branch);
       const loadout={...h.resonance,[relic.school]:linkTier(total+1)};
       const future=fusionChoices(this.weapon,loadout);
       const active=pickFusion(future,this.fusionPin);
@@ -1804,9 +1850,7 @@ export class Game {
       note.hidden=false;
       this.schoolToast=3.2;
     }
-    this.ui['relic-icons'].textContent='✦ '+this.relics.length+' '+[...this.learned].map(id=>schools[id].mark).join('')+(h.seals.size?' ◈'+h.seals.size:'');
-    this.ui['relic-icons'].title=blessings.filter(item=>this.ranks.has(item.id))
-      .map(item=>item.name+' ×'+this.ranks.get(item.id)).join('、');
+    paintBlessingHud(this.ui['relic-icons'],this.relics);
     this.audio.play('blessing');
   }
 
@@ -1830,6 +1874,7 @@ export class Game {
     for (const relic of new Set(this.relics)) {
       const button=makeButton(`${relic.name} · ${schools[relic.school].name} ×${this.ranks.get(relic.id)}`,()=>this.showTwinSwap(relic));
       button.dataset.replace=relic.id;
+      button.prepend(blessingIcon(relic));
       list.append(button);
     }
     this.openModal({kind:'twin-reward',mark:'✶',kicker:'雙頭目遺贈',title:'揀要換走嘅祝福',content:list,
@@ -1856,7 +1901,7 @@ export class Game {
       detail.textContent=relic.detail;
       school.textContent=schools[relic.school].name;
       school.style.color=schools[relic.school].ink;
-      card.append(name,detail,school);
+      card.append(blessingIcon(relic),name,detail,school);
       list.append(card);
     }
     this.openModal({kind:'twin-reward',mark:'✶',kicker:'雙頭目遺贈',title:'換入另一流派',copy:'將會換走 '+previous.name+' ×1。',content:list,
@@ -1884,10 +1929,12 @@ export class Game {
   }
 
   togglePause() {
-    if (this.state==='pause'||this.state==='journal') {
+    if (this.state==='pause'||this.state==='journal'||this.state==='run-blessings') {
+      const fromBlessings=this.state==='run-blessings';
       this.state='play';
       this.audio.active=true;
       this.closeModal();
+      if(fromBlessings)this.ui['relic-icons'].focus({preventScroll:true});
       return;
     }
     if (this.state!=='play') return;
@@ -2014,7 +2061,7 @@ export class Game {
     this.closeModal();
     this.ui.hud.hidden=true;
     this.ui.cover.hidden=false;
-    this.ui['relic-icons'].replaceChildren();
+    paintBlessingHud(this.ui['relic-icons'],[]);
     this.progress.refresh();
     this.updateEntryBalance();
     this.ui.begin.focus();

@@ -1,4 +1,4 @@
-import {skillSigil} from './skill-sigils.mjs?v=sigils-1';
+import {skillSigil} from './skill-sigils.mjs?v=heirlooms-1';
 
 const moveThreshold=11;
 const moveRadius=38;

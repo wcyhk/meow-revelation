@@ -53,7 +53,7 @@ export function buildStats(hero,weapon,floor,relics,training={}) {
   hero.moveSpeed=5.7*(1+curve(rank('wind'),.28));
   hero.attackPeriod=weapon.period*(1-curve(rank('wind')+rank('swiftcut')*.82,.27));
   hero.recovery=curve(rank('spring'),.18);
-  hero.resonance=linkLoadout(relics);
+  hero.resonance=linkLoadout(relics.filter(relic=>!relic.weaponId));
   hero.seals=new Set(seals.filter(seal=>seal.needs.every(id=>rank(id))).map(seal=>seal.id));
   return ranks;
 }

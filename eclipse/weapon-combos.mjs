@@ -1,4 +1,5 @@
 import {nightComboData, nightLinks} from './nightfall-arms.mjs?v=nightfall-1';
+import {huntArms} from './relic-arsenal.mjs?v=heirlooms-1';
 
 function strike(name,pose,wind,cycle,shape,options={}) {
   return {name,pose,wind,cycle,shape,reach:1,width:.70,force:.83,step:.12,...options};
@@ -75,6 +76,20 @@ export const skillLinks={
   frostlute:   {name:'碎霜雙響',pose:'chord',wind:.10,detail:'冰浪命中後，兩道回音擊碎寒霜，延長敵人減速。'},
   chakra:      {name:'牽月收輪',pose:'bank',wind:.09,detail:'裂輪命中後召回圓盤，斬過沿途敵人，再收成一圈電環。'},
 };
+
+for(const weapon of huntArms){
+  const base=combos[weapon.combo];
+  combos[weapon.id]=base.map((move,index)=>({
+    ...move,
+    name:[weapon.attack,'回'+weapon.attack,weapon.attack+'・終式'][index],
+    chill:weapon.element==='ice'?(index===2?2.05:1.10):0,
+    ...(weapon.form==='crossbow'&&index===1?{angles:[-.14,0,.14]}:{}),
+  }));
+  skillLinks[weapon.id]={
+    name:weapon.skill+'・連式',pose:base[2].pose,wind:.13,
+    detail:'接招鎖定第三擊命中嘅敵人，技能傷害同範圍增加。',
+  };
+}
 
 export function comboMove(weapon,step) {
   return combos[weapon.id][Math.max(1,step)-1];

@@ -1,0 +1,49 @@
+#relic-icons {
+  display:inline-flex;align-items:center;gap:3px;padding:2px 5px;min-height:25px;
+  border:1px solid #bd96684f;border-radius:4px;background:#211c2ae5;color:#f5d7a1;
+  font-size:10px;line-height:1;white-space:nowrap;pointer-events:auto;
+}
+#relic-icons:hover,#relic-icons:focus-visible {border-color:#f3c584}
+.hero-loadout {flex-wrap:wrap;row-gap:3px}
+.blessing-emblem {width:42px;height:42px;object-fit:contain;flex:none}
+#relic-icons .blessing-emblem {width:18px;height:18px}
+.blessing-mini {position:relative;display:inline-flex}
+.blessing-mini small {
+  position:absolute;right:-2px;bottom:-2px;background:#17131e;border-radius:3px;
+  padding:1px 2px;color:#fff0ce;font-size:8px;line-height:1;
+}
+.heirloom-picker {margin-top:15px;text-align:left}
+.heirloom-picker summary {
+  padding:11px 12px;border:1px solid #b48b6563;border-radius:4px;
+  background:#251e2c;color:#f2d4a8;font:700 13px/1.35 var(--sans);cursor:pointer;
+}
+.heirloom-picker input {
+  display:block;width:100%;margin:8px 0;padding:8px 10px;min-height:42px;
+  border:1px solid #a284666c;background:#15141d;color:#f4dfbf;font:inherit;touch-action:manipulation;
+}
+.heirloom-list {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.heirloom-choice {
+  display:flex;align-items:center;gap:8px;padding:7px;min-height:59px;text-align:left;
+  border:1px solid #b48b654a;border-radius:4px;background:#211c28;
+}
+.heirloom-choice:hover,.heirloom-choice:focus-visible {border-color:var(--weapon-tone)}
+.heirloom-choice img {width:43px;height:43px;object-fit:contain;flex:none}
+.heirloom-choice b,.heirloom-choice span,.heirloom-choice small {display:block}
+.heirloom-choice b {color:var(--weapon-tone);font-size:13px}
+.heirloom-choice span,.heirloom-choice small {color:#dbc4a6;font-size:11px;line-height:1.4}
+.heirloom-choice small {color:#bd9eab}
+.blessing-ledger {max-width:580px;margin:auto;text-align:left}
+.blessing-totals {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:14px}
+.blessing-totals div,.blessing-items article {padding:8px;border:1px solid #b48b654a;border-radius:4px;background:#211c28}
+.blessing-totals span,.blessing-totals strong {display:block}
+.blessing-totals span,.blessing-items p {font-size:11px;color:#cdb8a0}
+.blessing-totals strong,.blessing-items strong {font-size:13px;color:#f7d9a9}
+.blessing-items {display:grid;gap:5px}
+.blessing-items article {display:flex;align-items:center;gap:8px}
+.blessing-items p {margin:3px 0 0;line-height:1.45}
+.twin-inventory button:has(.blessing-emblem) {display:flex;align-items:center;gap:7px;text-align:left}
+.twin-inventory .blessing-emblem {width:27px;height:27px}
+@media (max-width:620px) {
+  .heirloom-list {grid-template-columns:1fr}
+  #relic-icons {min-height:36px}
+}

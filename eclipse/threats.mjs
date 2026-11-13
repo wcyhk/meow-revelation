@@ -220,7 +220,7 @@ export function advanceThreats(game,dt) {
       hazard.x+=hazard.dx*hazard.speed*dt;
       hazard.z+=hazard.dz*hazard.speed*dt;
       view.moveProjectile(hazard.visual,hazard.x,hazard.z,Math.atan2(hazard.dz,hazard.dx));
-      const blocked=game.isBlocked(hazard,.17);
+      const blocked=game.isBlocked(hazard,.17)||game.relicWalls?.some(wall=>wall.until>game.t&&distance(wall,hazard)<wall.radius);
       if (blocked&&hazard.delay>0) counters?.projectileBlocked(hazard);
       if (hazard.delay<=0 || hazard.x<roomBounds.minX-.55 || hazard.x>roomBounds.maxX+.55 || hazard.z<roomBounds.minZ-.55 || hazard.z>roomBounds.maxZ+.55 || blocked
         || (distance(hero,hazard)<.64 && game.hurt(hazard.damage,hazard.x,hazard.z,hazard.owner,hazard.pattern))
@@ -274,6 +274,7 @@ export function advanceThreats(game,dt) {
       continue;
     }
     view.threatImpact(hazard);
+    if(hazard.relicWeapon)view.relicPulse(hazard.relicWeapon,hazard,hazard.radius,hazard.relicPulse);
     if (hazard.arena) hazard.arena.resolve(hazard);
     const caughtByPillar=counters?.impact(hazard);
     if (!caughtByPillar&&withinThreat(hero,hazard)) {

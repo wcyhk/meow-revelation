@@ -49,6 +49,53 @@ function craft(kind) {
   const stone=[],light=[];
   const p=(...args)=>stone.push(args),g=(...args)=>light.push(args);
   switch(kind){
+    case 'fox':
+      p('cone','dusk',0,.73,-.02,.70,1.43,.54,0,0,-.08);
+      p('egg','wax',0,.86,.03,.46,.65,.35);
+      p('egg','porcelain',0,1.45,.28,.39,.34,.31,.20);
+      p('cone','porcelain',0,1.36,.56,.22,.55,.17,1.25);
+      for(const side of [-1,1]){
+        p('cone','bone',side*.26,1.76,.23,.15,.58,.13,.18,0,-side*.22);
+        p('cone','blood',side*.26,1.79,.32,.078,.33,.058,.20,0,-side*.23);
+        p('tube','dusk',side*.45,.87,.07,.18,.78,.16,0,0,side*.22);
+        p('box','blood',side*.15,1.48,.56,.15,.049,.028,0,0,-side*.27);
+        g('box',0x9de5ff,side*.14,1.49,.585,.092,.023,.021,0,0,-side*.25);
+      }
+      for(let tail=-2;tail<=2;tail++){
+        const x=tail*.33,y=.91+(.25-Math.abs(tail)*.07);
+        p('egg','wax',x,y,-.46,.24,.62,.24,-.39,0,-tail*.44);
+        p('cone','porcelain',x*1.49,y+.41,-.62,.15,.40,.15,-.48,0,-tail*.44);
+        g('spike',0x8bd2ff,x*1.52,y+.54,-.66,.052,.12,.041);
+      }
+      break;
+    case 'elephant':
+      p('egg','iron',0,.96,-.25,.77,.67,.85,.12);
+      p('egg','bone',0,1.23,.53,.45,.50,.42,.22);
+      p('tube','bone',0,.91,.86,.17,.58,.18,.32);
+      p('tube','bone',0,.64,1.00,.123,.36,.126,-.51);
+      p('box','brass',0,1.17,-.12,1.44,.31,.67);
+      for(const side of [-1,1]){
+        p('egg','wax',side*.44,1.23,.54,.37,.47,.11,-.12,0,-side*.16);
+        p('cone','porcelain',side*.26,.90,.95,.13,.77,.16,1.26,0,side*.19);
+        p('tube','iron',side*.44,.45,.47,.21,.72,.22,.19);
+        p('tube','iron',side*.46,.47,-.65,.21,.76,.23,-.17);
+        g('box',0xffd99f,side*.19,1.32,.89,.071,.039,.028);
+      }
+      break;
+    case 'maw':
+      p('egg','blood',0,.95,-.25,.72,.67,.81);
+      p('egg','iron',0,1.13,.35,.60,.50,.47);
+      p('box','dusk',0,.87,.75,.87,.40,.22);
+      p('egg','wax',0,.66,.77,.55,.17,.33);
+      for(const side of [-1,1]){
+        p('cone','bone',side*.46,1.50,.23,.15,.70,.17,-.24,0,-side*.52);
+        p('tube','iron',side*.47,.49,.38,.20,.75,.23,.13);
+        g('egg',0xff7952,side*.24,1.24,.74,.095,.060,.034);
+        for(let tooth=0;tooth<3;tooth++){
+          p('cone','porcelain',side*(.13+tooth*.13),.94,.87,.054,.19,.049,Math.PI);
+        }
+      }
+      break;
     case 'veil':
       p('cone','dusk',0,.79,0,.71,1.48,.50,0,0,.04);
       p('egg','blood',0,1.25,-.11,.60,.70,.37);

@@ -1,6 +1,8 @@
 import * as T from '../three.min.mjs';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {forgedMaterials} from './forge-materials.mjs?v=patina-1';
+import {huntArms} from './relic-arsenal.mjs?v=heirlooms-1';
+import {makeRelic} from './relic-models.mjs?v=heirlooms-1';
 
 export const arms = [
   {id:'tiger', name:'白虎之聖輪', mark:'✧', tone:0xece7c5, ink:'#f1ddb2', role:'近身 · 高機動',
@@ -44,6 +46,7 @@ export const arms = [
     detail:'三層電環由外向內收縮，近遠敵人會喺不同時間中招。',
     damage:19,reach:5.9,period:.36,delay:.077,cooldown:6.5,range:5.1,power:42},
   ...nightArms,
+  ...huntArms,
 ];
 
 function piece(parent, geometry, material, x=0, y=0, z=0) {
@@ -92,7 +95,9 @@ export function armLighting(scene,field=false) {
 
 export function forge(weapon) {
   const root = new T.Group();
-  const {brass,dark,stone,ivory} = forgedMaterials(weapon);
+  const materials=forgedMaterials(weapon);
+  if(weapon.spell)return makeRelic(root,weapon,materials,{piece,blade,ring,wrap,etching});
+  const {brass,dark,stone,ivory} = materials;
   switch (weapon.id) {
     case 'tiger':
       ring(root,.42,.066,dark,0,14);

@@ -1,3 +1,6 @@
+import {huntById} from './relic-arsenal.mjs?v=heirlooms-1';
+import {drawRelicEmblem} from './relic-emblems.mjs?v=heirlooms-1';
+
 const glyphs={
   tiger:'M12 47 Q30 13 66 15 Q50 20 40 34 Q65 15 84 25 Q61 30 49 47 Q69 34 88 39 Q68 49 57 65 Q45 84 24 84 M18 67 Q36 62 41 51',
   dragon:'M21 64 C21 86 64 89 70 62 C75 41 35 51 37 30 Q39 18 57 17 L67 9 L65 21 L81 27 L66 33 L55 28 M37 67 Q53 62 56 73 M75 43 L88 40 L82 50',
@@ -50,7 +53,9 @@ export function skillSigil(id) {
   ctx.translate(-50,-50);
   ctx.lineWidth=3.6;
   ctx.strokeStyle='#fff8e4';
-  ctx.stroke(new Path2D(glyphs[id]??glyphs.tiger));
+  const relic=huntById.get(id);
+  if(relic)drawRelicEmblem(ctx,relic);
+  else ctx.stroke(new Path2D(glyphs[id]??glyphs.tiger));
   const result={canvas,url:'url("'+canvas.toDataURL('image/png')+'")'};
   cache.set(id,result);
   return result;

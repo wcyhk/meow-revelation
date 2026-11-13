@@ -6,12 +6,12 @@ const masks=new Set(['ogre','duelist','captain','priest','shade','emperor','stra
 const mirror=(side,points)=>points.map(([x,y,z,...rest])=>[side*x,y,z,...rest]);
 const profile={sides:6,steps:8,ridge:.19};
 
-export function creatureFace(k,joint,{snout,broad,reptile,horns,bear}) {
-  const {sweep,plate}=k.sculpt;
+export function creatureFace(k,joint,{snout,broad,reptile,horns}) {
+  const {sweep}=k.sculpt;
   const eye=reptile?.50:.41;
-  const cheek=broad*(bear?1.49:1.30);
+  const cheek=broad*1.30;
   for(const side of [-1,1]){
-    sweep(joint,bear?'body':'edge',mirror(side,[
+    sweep(joint,'edge',mirror(side,[
       [broad*.10,.205,eye+.020,.030],[broad*.52,.229,eye+.032,.055],
       [broad*.88,.176,eye-.015,.058],[cheek,.107,.242,.046],[cheek*.88,-.014,.185,.008],
     ]),{...profile,steps:12});
@@ -19,14 +19,14 @@ export function creatureFace(k,joint,{snout,broad,reptile,horns,bear}) {
       [broad*.11,.076,eye+.013,.018],[broad*.55,.048,eye+.029,.025],
       [broad*.93,.081,eye-.008,.027],[cheek*.92,.103,.222,.010],
     ]),profile);
-    sweep(joint,bear?'edge':'body',mirror(side,[
+    sweep(joint,'body',mirror(side,[
       [broad*.70,.41,-.166,.042],[cheek*.94,.32,-.061,.078],[cheek,.13,.209,.069],
       [broad*.97,-.06,eye-.024,.057],[broad*.53,-.17,eye+snout*.18,.025],
     ]),{...profile,steps:14,sides:8});
     const jaw=broad*(reptile?.82:.77);
     sweep(joint,'deep',mirror(side,[[0,-.225,.39+snout*.69,.033],[jaw*.59,-.224,.39+snout*.62,.041],
       [jaw,-.158,.38+snout*.23,.041],[cheek*.84,-.06,.33,.014]]),profile);
-    for(let i=0;i<(bear?3:2);i++){
+    for(let i=0;i<2;i++){
       const x=jaw*(.33+i*.18),z=.397+snout*(.66-i*.123);
       sweep(joint,'edge',mirror(side,[[x,-.197,z,.028],[x*1.03,-.23-i*.012,z+.025,.024],
         [x*.96,-.275-i*.018,z+.04,.004]]),profile);
@@ -37,16 +37,6 @@ export function creatureFace(k,joint,{snout,broad,reptile,horns,bear}) {
       {...profile,steps:15,sides:9});
       sweep(joint,'trim',mirror(side,[[broad*.86,.41,-.024,.028],[broad*1.22,.55,-.081,.023],
         [broad*1.35,.70,-.170,.008]]),profile);
-    }
-    if(bear){
-      const earX=broad*.95;
-      sweep(joint,'edge',mirror(side,[[earX,.285,-.107,.099],[earX+.094,.425,-.102,.111],
-        [earX+.15,.488,-.102,.084],[earX+.17,.45,-.105,.012]]),profile);
-      for(let i=0;i<5;i++){
-        const y=.234-i*.08,x=broad*(.79+Math.sin(i*.71)*.18);
-        plate(joint,i%3===0?'body':'edge',mirror(side,[[x,y+.07,.15],[x+.10,y+.028,.083],
-          [x+.186,y-.133,-.028],[x+.082,y-.087,.018],[x-.042,y-.041,.166]]),.047,.019);
-      }
     }
   }
 }
@@ -106,7 +96,6 @@ function mantleDetail(k,sculpt,entry,parts,seed) {
   const width=['ogre','straw'].includes(entry.family)?.59:entry.family==='emperor'?.49:.40;
   const armour=['iron','bronze'].includes(entry.finish)||['duelist','captain','emperor'].includes(entry.family);
   const wraps=['priest','shade','straw'].includes(entry.family);
-  const bear=entry.id==='m005';
   const dangling=[];
   for(const side of [-1,1]){
     const edge=side*width;
@@ -127,14 +116,14 @@ function mantleDetail(k,sculpt,entry,parts,seed) {
       sweep(body,'trim',mirror(side,[[.055,row-.085,-.402,.018],[width*.52,row-.079,-.387,.020],
         [width*.80,row-.055,-.321,.009]]),profile);
     }
-    for(let i=0;i<(bear?5:3);i++){
-      const row=.72-i*(bear?.141:.162),spread=width*(.79+(i===0?.14:0));
-      const nose=bear?.53:.40;
-      plate(body,bear?(i%3===2?'body':'edge'):armour?'body':wraps?'deep':'trim',mirror(side,[
+    for(let i=0;i<3;i++){
+      const row=.72-i*.162,spread=width*(.79+(i===0?.14:0));
+      const nose=.40;
+      plate(body,armour?'body':wraps?'deep':'trim',mirror(side,[
         [spread*.12,row+.09,nose],[spread*.54,row+.147,nose-.030],[spread*.94,row+.093,nose-.111],
         [spread*1.12,row-.07,nose-.16],[spread*.69,row-.047,nose-.041],[spread*.25,row-.17,nose+.020],
-      ]),bear?.044:.068,.016);
-      sweep(body,bear?'edge':'trim',mirror(side,[[spread*.13,row-.12,nose+.045,.012],[spread*.57,row-.050,nose-.015,.023],
+      ]),.068,.016);
+      sweep(body,'trim',mirror(side,[[spread*.13,row-.12,nose+.045,.012],[spread*.57,row-.050,nose-.015,.023],
         [spread*.99,row+.017,nose-.133,.012]]),profile);
     }
     const shoulder=arms[side<0?0:1];
@@ -150,17 +139,10 @@ function mantleDetail(k,sculpt,entry,parts,seed) {
         [.095,-.42,direction*.181,.031],[.245,-.49,direction*.187,.025],
         [.18,-.61,direction*.159,.010],
       ]),profile);
-      if(bear){
-        for(let i=0;i<4;i++){
-          const y=.03-i*.18,x=.09+Math.sin(i)*.05;
-          plate(shoulder,i%3===1?'body':'edge',mirror(side,[[x-.11,y+.095,.21],[x+.09,y+.10,.185],
-            [x+.23,y-.08,.14],[x+.095,y-.18,.13],[x-.067,y-.07,.24]]),.071,.021);
-        }
-      }
     }
     const leg=legs[side<0?0:1];
     if(leg?.position.y>1&&leg.parent===k.root){
-      const width=bear?.22:.17;
+      const width=.17;
       for(let toe=0;toe<3;toe++){
         const x=(toe-1)*width*.73;
         sweep(leg,'edge',[[x,-.94,.27,.071],[x*1.11,-.955,.39,.067],
@@ -179,7 +161,7 @@ function mantleDetail(k,sculpt,entry,parts,seed) {
       sweep(rag,'trim',mirror(side,[[.08,-.02,-.042,.016],[.13,-length*.43,-.067,.015],[.17,-length*.88,-.087,.004]]),profile);
       dangling.push(rag);
     }else{
-      sweep(body,bear?'edge':'deep',mirror(side,[[width*.64,.77,-.194,.040],[width,.59,-.240,.035],
+      sweep(body,'deep',mirror(side,[[width*.64,.77,-.194,.040],[width,.59,-.240,.035],
         [width*.91,.36,-.254,.027],[width*.67,.23,-.302,.015]]),profile);
     }
   }
@@ -246,12 +228,15 @@ function radialDetail(sculpt,parts,seed) {
 export function detailCreature(k,entry,parts,mobile) {
   const seed=signature(entry.id),sculpt=k.sculpt;
   let cloth=[];
-  if(wings.has(entry.family))wingDetail(sculpt,entry,parts,seed);
+  const showpiece=parts.signature||parts.flight;
+  const count=entry.field?0:showpiece?(mobile?12:25):(mobile?7:14);
+  if(parts.signature)return {cloth,seed,count};
+  if(wings.has(entry.family)&&!parts.flight)wingDetail(sculpt,entry,parts,seed);
   else if(walkers.has(entry.family))carapaceDetail(k,sculpt,entry,parts,seed);
   else if(['serpent','hydra'].includes(entry.family))segmentedDetail(sculpt,entry,parts);
   else if(masks.has(entry.family))cloth=mantleDetail(k,sculpt,entry,parts,seed);
   else radialDetail(sculpt,parts,seed);
-  return {cloth,seed,count:mobile?3:6};
+  return {cloth,seed,count};
 }
 
 export function poseCreatureDetail(detail,model,time,beat,wind,strike,travel) {
@@ -269,18 +254,23 @@ export function poseCreatureDetail(detail,model,time,beat,wind,strike,travel) {
 export function creatureAura(root,box,tint,detail) {
   const data=new Float32Array(detail.count*3);
   const positions=new T.BufferAttribute(data,3).setUsage(T.DynamicDrawUsage);
-  const geometry=new T.BufferGeometry().setAttribute('position',positions);
+  const rhythms=new T.Float32BufferAttribute(Array.from({length:detail.count},(_,i)=>((i*113+detail.seed)%97)/97),1);
+  const geometry=new T.BufferGeometry().setAttribute('position',positions).setAttribute('rhythm',rhythms);
   const material=new T.ShaderMaterial({
     transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-    uniforms:{tint:{value:new T.Color(tint)},energy:{value:.68}},
-    vertexShader:`uniform float energy;
+    uniforms:{tint:{value:new T.Color(tint)},energy:{value:.68},clock:{value:0}},
+    vertexShader:`uniform float energy,clock; attribute float rhythm; varying float beat,tilt;
       void main(){vec4 eye=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*eye;
-        gl_PointSize=clamp(70.*(.65+energy)/max(1.,-eye.z),2.,13.);}`,
-    fragmentShader:`uniform vec3 tint;uniform float energy;
-      void main(){vec2 p=gl_PointCoord*2.-1.;float d=length(p*vec2(1.16,.85));
-        float glow=(1.-smoothstep(.19,1.,d))*.56;
-        float core=1.-smoothstep(.05,.33,d);
-        gl_FragColor=vec4(tint+core*.50,(glow+core*.57)*energy);
+        beat=.36+.64*pow(.5+.5*sin(clock*(1.7+rhythm)+rhythm*31.),3.);
+        tilt=rhythm*8.+sin(clock*.57+rhythm*18.);
+        gl_PointSize=clamp(78.*(.51+energy+rhythm*.32)*beat/max(1.,-eye.z),1.7,15.);}`,
+    fragmentShader:`uniform vec3 tint;uniform float energy;varying float beat,tilt;
+      void main(){vec2 p=gl_PointCoord*2.-1.;
+        p=mat2(cos(tilt),-sin(tilt),sin(tilt),cos(tilt))*p;
+        float d=length(p*vec2(1.49,.85));
+        float glow=(1.-smoothstep(.10,.98,d))*.52;
+        float core=1.-smoothstep(.03,.25,abs(p.x+p.y*.17)*1.74+abs(p.y)*.39);
+        gl_FragColor=vec4(tint+core*.52,(glow+core*.59)*energy*beat);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
@@ -291,12 +281,14 @@ export function creatureAura(root,box,tint,detail) {
   const center=box.getCenter(new T.Vector3()),size=box.getSize(new T.Vector3());
   return {
     pose(time,stage,wind,fall){
-      material.uniforms.energy.value=(.36+wind*.33+stage*.19)*(1-fall);
+      material.uniforms.energy.value=(.46+wind*.42+stage*.27)*(1-fall);
+      material.uniforms.clock.value=time%65536;
       for(let i=0;i<positions.count;i++){
         const angle=i*2.399+time*(.61+stage*.29)+detail.seed%29;
         const height=(i*.24+time*(.25+stage*.07))%1;
-        positions.setXYZ(i,center.x+Math.cos(angle)*size.x*(.25+height*.23),
-          box.min.y+size.y*(.12+height*.82),center.z+Math.sin(angle)*size.z*(.27+height*.17));
+        const wake=.29+height*.22+wind*.09+stage*.033;
+        positions.setXYZ(i,center.x+Math.cos(angle)*size.x*wake,
+          box.min.y+size.y*(.10+height*.85),center.z+Math.sin(angle)*size.z*(wake*.93));
       }
       positions.needsUpdate=true;
     },

@@ -1,8 +1,8 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=nightforge-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=sculpted-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=nightforge-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=sculpted-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
@@ -238,8 +238,10 @@ export class WeaponViewer {
     this.boss=spec;
     this.weapon=null;
     this.moveNames={...names,...spec.moveLabels};
-    this.motionNames=paoForms.has(spec.bestiary?.id)?{
-      entrance:'出場',travel:spec.bestiary.id==='m026'?'落地步行':'低空飛行',hit:'受擊',defeat:'倒地',
+    const model=spec.bestiary??spec.model;
+    this.motionNames=model?{
+      entrance:'出場',travel:model.id==='m026'?'落地步行':paoForms.has(model.id)?'低空飛行':
+        ['dragon','bird','wasp'].includes(model.family)?'飛行':'移動',hit:'受擊',defeat:'倒地',
     }:null;
     this.motions.replaceChildren(...Object.entries(this.motionNames??{}).map(([motion,label])=>{
       const control=button(label,()=>this.playBoss({motion},control));
@@ -343,7 +345,7 @@ export class WeaponViewer {
     this.renderer.setSize(width,height,false);
     const pao=paoForms.has(this.boss?.bestiary?.id);
     this.viewAngles.hidden=this.mode!=='model';
-    fit(inspectCamera,width,height,pao?2.03:2.30,pao?1.98:2.24);
+    fit(inspectCamera,width,height,pao?2.03:this.wideModel?2.82:2.30,pao?1.98:2.24);
     const arena=['phase','drill'].includes(this.mode);
     const battleWidth=arena?23:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
     fit(battleCamera,width,height,battleWidth,arena?13:pao?10.3:this.boss?8.4:7.6);
@@ -418,7 +420,11 @@ export class WeaponViewer {
       item.position.sub(bounds.getCenter(new T.Vector3()));
       pivot.add(item);
     }
-    pivot.scale.setScalar(this.boss?(pao?2.13:1.95)/Math.max(size.x,size.y,size.z):1.68/size.length());
+    const wings=this.bossRig?.flight||this.bossRig?.signature?.type==='phoenix';
+    this.wideModel=Boolean(wings);
+    const displaySize=this.boss?(pao?2.13:wings?2.63:1.99):1.87;
+    const diameter=this.boss?Math.max(size.x,size.y,size.z):size.length();
+    pivot.scale.setScalar(displaySize/diameter);
     this.scene.add(pivot);
     this.item=item;
     this.resetRotation();

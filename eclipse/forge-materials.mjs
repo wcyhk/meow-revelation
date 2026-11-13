@@ -2,6 +2,7 @@ import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=nightforge-1';
 import {KoreanWeaponColors} from './korean-art.mjs?v=pao-1';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
+import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 
 const surfaces={};
 const palettes={
@@ -91,9 +92,12 @@ export function forgedMaterials(weapon) {
     const map=surfaces[kind]??=surface(kind);
     const paint={wood:'hide',cloth:'cloth',metal:'iron',bone:'bone',stone:'stone',crystal:'gem'};
     const finish=bronze?'bronze':paint[kind];
-    const shaded=paintedFinish(new T.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==='wood'?.037:.024,metalness,roughness,
+    const scan=kind==='metal'?scannedSurface('hammered',.49):
+      ['cloth','wood','bone'].includes(kind)?scannedSurface('leather',kind==='wood'?.25:.36):{};
+    const bump=scan.normalMap?{}:{bumpMap:map,bumpScale:kind==='wood'?.037:.024};
+    const shaded=paintedFinish(new T.MeshStandardMaterial({color,map,...bump,...scan,metalness,roughness,
       envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?.95:.62,
-      emissive:color,emissiveIntensity}),finish);
+      vertexColors:true,emissive:color,emissiveIntensity}),finish);
     shaded.userData.restGlow=emissiveIntensity;
     return shaded;
   }

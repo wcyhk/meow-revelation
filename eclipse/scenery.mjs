@@ -1,6 +1,6 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=nightforge-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=sculpted-1';
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=nightforge-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=sculpted-1';
 import {pictures, stages} from './expedition.mjs?v=forgelight-4';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
@@ -12,13 +12,14 @@ import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=forgelight-4';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=forgelight-4';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=sculpted-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=nightforge-1';
 import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=pao-detail-1';
 import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=nightforge-1';
+import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 
 const PI = Math.PI;
 const baseCastLooks={
@@ -315,7 +316,7 @@ export class Scenery {
       if(!pending.has(src)) pending.set(src,loader.loadAsync(src));
       return pending.get(src);
     };
-    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictures.map(loadRoom))]);
+    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictures.map(loadRoom)),loadSculptMaterials()]);
     this.atlas = atlas;
     for (const image of new Set(images)) {
       image.colorSpace = T.SRGBColorSpace;
@@ -324,7 +325,7 @@ export class Scenery {
     }
     this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
     for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=ledger-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=sculpted-1',import.meta.url).href]));
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }

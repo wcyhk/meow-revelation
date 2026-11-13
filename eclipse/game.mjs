@@ -1,14 +1,14 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=pao-geometry-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=pao-geometry-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=sculpted-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=sculpted-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=nightforge-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=sculpted-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=nightforge-1';
+import {Scenery} from './scenery.mjs?v=sculpted-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=pao-polish-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=nightforge-1';
+import {arms} from './armory.mjs?v=sculpted-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=forgelight-4';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ledger-1';
@@ -2468,7 +2468,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
         }
       }
       if(demonstration==='travel'&&fired&&practice.t<2.38){
-        const speed=spec.bestiary.id==='m026'?2.15:2.55;
+        const speed=spec.bestiary?.id==='m026'?2.15:2.55;
         const t=practice.t-hold;
         practice.moveUnit(unit,dt*speed,Math.sin(t*2.8)*dt*.60,.35);
         unit.move=1;

@@ -1,6 +1,8 @@
 import * as T from '../three.min.mjs';
 import {designs} from './weapon-designs.mjs?v=forgelight-4';
 import {detailWeapon,detailForgedBlade} from './forge-detail.mjs?v=nightforge-1';
+import {forgedSurface} from './forged-surface.mjs?v=sculpted-1';
+import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -20,6 +22,12 @@ function workshop(root,materials) {
     return mesh;
   }
   function plate(outline,finish='edge',depth=.65,point=[0,0,0],bevel=.14) {
+    const xs=outline.filter((_,i)=>i%2===0),ys=outline.filter((_,i)=>i%2===1);
+    const height=Math.max(...ys)-Math.min(...ys),width=Math.max(...xs)-Math.min(...xs);
+    if(outline.length>=16&&Math.max(width,height)>3.6&&Math.min(width,height)>.79){
+      const camber=Math.min(depth*.56,Math.max(.086,Math.min(width,height)*.147));
+      return add(forgedSurface(outline,depth,bevel,camber,finish),finish,point);
+    }
     const shape=new T.Shape();
     for(let i=0;i<outline.length;i+=2){
       const x=outline[i]*s,y=outline[i+1]*s;
@@ -77,7 +85,11 @@ function workshop(root,materials) {
   function box(point,size,finish='trim') {
     return add(new T.BoxGeometry(...size.map(x=>x*s)),finish,point);
   }
-  return {root,add,gem,plate,line,segment,loop,lathe,handle,grip,inlay,studs,box};
+  function solid(profile,finish='body',options) {
+    const geometry=sculptVolume(profile.map(row=>row.map(value=>value*s)),options);
+    return add(geometry,finish);
+  }
+  return {root,add,gem,plate,line,segment,loop,lathe,handle,grip,inlay,studs,box,solid};
 }
 
 function blade(h,guard,edge,fuller) {
@@ -121,13 +133,19 @@ function blade(h,guard,edge,fuller) {
     line([[.1,-7.6,-.18],[-1.1,-8.82,-.37],[-3.13,-9.65,-.21]],.12,'body');
   }
   if(guard==='fire-guard'){
-    for(let tooth=0;tooth<7;tooth++){
-      const angle=(tooth-3)*.60;
-      const thorn=plate([0,0,-.42,1.26,.07,2.17,.54,1.19,.38,.28],
-        'edge',.48,[Math.sin(angle)*2.42,-2.42+Math.cos(angle)*2.38,0],.075);
-      thorn.rotation.z=-angle;
-    }
     for(const side of [-1,1]){
+      for(let i=0;i<5;i++){
+        const dx=1.22+i*.46, y=-1.03-i*.45;
+        const z=.31+(i%2)*.27;
+        const points=[[side*dx*.42,-2.52,z,.19,.16],[side*dx*.72,y-.53,z+.18,.29,.28],
+          [side*dx,y-.17,z+.27,.27,.22],[side*(dx+.21),y+.78,z+.33,.145,.144],
+          [side*(dx+.12),y+1.31+(i%2)*.61,z+.23,.019,.022]];
+        for(const face of [-1,1]){
+          const chisel=points.map(([x,y,z,w,h])=>[x,y,z*face,w,h]);
+          h.solid(chisel,i%3===0?'edge':i%2?'trim':'body',{sides:9,rings:14,section:1.65,ridge:.23,seed:i});
+          line(chisel.slice(1,-1).map(([x,y,z])=>[x,y,z+face*.22]),.07,'core');
+        }
+      }
       for(const [x,direction] of [[-2.32,-1],[-.61,-1],[1.05,1],[2.47,1]]){
         line([[x*.61,-3.5,.76*side],[x,-1.93,1.0*side],[x+direction*.76,-.85,.91*side],
           [x+direction*.45,.42,.71*side]],.15,'core');
@@ -699,8 +717,11 @@ function gun(h,cannon){
       }
     }
   }else{
-    plate([.55,6.55,1.06,5.03,1.05,1.38,1.42,-.68,1.59,-2.19,1.38,-3.65,
-      2.46,-6.86,1.83,-8.04,.32,-7.93,.64,-5.04,.21,-3.65,-.79,-3.15,-1.02,-2.08,-.76,.45,-.72,5.28,-.39,6.63],'dark',1.21);
+    h.solid([[1.13,-8.05,.0,.78,.485],[1.45,-7.61,.0,.843,.609],[1.59,-6.34,.0,.719,.677],
+      [1.28,-4.99,.0,.603,.568],[.91,-3.41,.0,.539,.534],[.42,-2.58,.0,1.0,.597],
+      [.31,-1.72,0,1.18,.639],[.18,-.78,.0,.96,.612],[.13,1.13,.0,.87,.525],
+      [.105,4.39,.0,.777,.46],[.097,6.12,.0,.63,.42],[.0,6.59,.0,.48,.363]],
+    'dark',{sides:22,rings:34,section:3.33,ridge:.093});
     segment([0,-.41],[0,9.42],.53,'body',.40);
     for(const y of [1.02,4.78,6.38,9.14])loop([0,y],y>8?.43:.55,.12,y>8?'edge':'trim','xz',12);
     box([0,9.10,.47],[.17,.43,.31],'trim');
@@ -715,6 +736,8 @@ function gun(h,cannon){
         const y=-7.14+seam*.62;
         line([[1.21,y-.13,side*.66],[1.62,y+.14,side*.68],[1.82,y+.54,side*.48]],.061,'edge');
       }
+      line([[1.36,-7.50,side*.56],[1.29,-6.54,side*.68],[1.019,-5.19,side*.57],[.81,-4.14,side*.48]],.055,'trim');
+      for(const y of [.4,1.1,1.8,2.5])gem([.67,y,side*.53],.089,'trim',[.72,1.08,.51]);
     }
   }
 }
@@ -972,13 +995,15 @@ function combineParts(group,animated){
       return geometry;
     });
     const geometry=new T.BufferGeometry();
-    for(const [name,size] of [['position',3],['normal',3],['uv',2]]){
-      const values=new Float32Array(sources.reduce((sum,source)=>sum+source.getAttribute(name).array.length,0));
+    for(const [name,size] of [['position',3],['normal',3],['uv',2],['color',3]]){
+      const values=new Float32Array(sources.reduce((sum,source)=>sum+source.attributes.position.count*size,0));
       let offset=0;
       for(const source of sources){
-        const array=source.getAttribute(name).array;
-        values.set(array,offset);
-        offset+=array.length;
+        const data=source.getAttribute(name);
+        const length=source.attributes.position.count*size;
+        if(data)values.set(data.array,offset);
+        else values.fill(1,offset,offset+length);
+        offset+=length;
       }
       geometry.setAttribute(name,new T.BufferAttribute(values,size));
     }

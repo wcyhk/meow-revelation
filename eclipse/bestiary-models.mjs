@@ -3,8 +3,12 @@ import {paintedFinish} from './painted-finish.mjs?v=nightforge-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-geometry-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
-import {creatureFace,detailCreature,poseCreatureDetail,creatureAura} from './creature-detail.mjs?v=nightforge-1';
+import {creatureFace,detailCreature,poseCreatureDetail,creatureAura} from './creature-detail.mjs?v=sculpted-1';
 import {sculptPao} from './pao-sculpt.mjs?v=nightforge-1';
+import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=sculpted-1';
+import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
+import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -116,10 +120,15 @@ function buildMaterials(entry){
   const chitin=['turtle','wasp','spider','dragon','beast'].includes(entry.family);
   const metal=['iron','bronze'].includes(entry.finish)||['duelist','emperor','captain','rider'].includes(entry.family);
   const finish=entry.finish==='wood'?'hide':entry.finish;
-  const surface=(color,metalness,roughness,finish)=>paintedFinish(new T.MeshStandardMaterial({
-    color,metalness,roughness,bumpMap:relief(),bumpScale:chitin?.062:.043,emissive:color,emissiveIntensity:.07,
-    envMap:metalness>.24?forgeEnvironment():null,envMapIntensity:metal?.74:.38,
-  }),finish);
+  function surface(color,metalness,roughness,finish){
+    const conduct=metalness>.23;
+    const scan=scannedSurface(conduct?'hammered':'leather',conduct?.49:.38);
+    const bump=scan.normalMap?{}:{bumpMap:relief(),bumpScale:chitin?.062:.043};
+    return paintedFinish(new T.MeshStandardMaterial({
+      color,metalness,roughness,...bump,...scan,vertexColors:true,emissive:color,emissiveIntensity:.03,
+      envMap:conduct?forgeEnvironment():null,envMapIntensity:metal?.81:.48,
+    }),finish);
+  }
   const pigment=color=>new T.Color(color).lerp(new T.Color(0x5d5049),.20);
   const trim=new T.Color(edge).lerp(new T.Color(0xb48556),.52);
   const finishes={
@@ -129,9 +138,49 @@ function buildMaterials(entry){
     trim:surface(trim,.45,.43,'bronze'),
     glow:new T.MeshBasicMaterial({color:glow}),
   };
-  if(entry.id==='m151')finishes.membrane=new T.MeshStandardMaterial({
-    color:0xaaa764,roughness:.72,transparent:true,opacity:.68,depthWrite:false,side:T.DoubleSide,
-  });
+  if(['dragon','bird','wasp'].includes(entry.family)||entry.id==='m024'){
+    const skin=new T.Color(body).lerp(new T.Color(entry.id==='m024'?0x7c8390:dark),.47);
+    finishes.wingSkin=surface(skin,.065,.90,'hide');
+    finishes.wingSkin.side=T.DoubleSide;
+  }
+  if(['m005','m015','m027'].includes(entry.id)){
+    const bear=entry.id==='m005';
+    finishes.deep.color.setHex(bear?0x2b2a29:0x2c1b20);
+    finishes.body.color.setHex(bear?0x625b51:0x773021);
+    finishes.edge.color.setHex(bear?0x999b98:0xd39e60);
+    if(bear)finishes.edge.roughness=.87;
+    finishes.glow.color.setHex(bear?0xbbf7f1:0xffc455);
+    Object.assign(finishes,{
+      rust:surface(bear?0xab2b15:0xa93417,bear?.34:.08,.68,bear?'iron':'hide'),
+      ember:surface(bear?0xcc4a22:0xec881e,bear?.29:.12,.52,bear?'iron':'hide'),
+      coal:surface(bear?0x381b17:0x4a211e,.25,.72,'stone'),
+      ivory:surface(bear?0xd0b587:0xf2d190,.10,.65,'bone'),
+      ash:surface(0x6e6860,.06,.83,'cloth'),
+    });
+    if(entry.id==='m027'){
+      finishes.rust.color.setHex(0x7f291c);
+      finishes.coal.color.setHex(0x242026);
+      finishes.coal.metalness=.54;
+      finishes.trim.color.setHex(0x9c7957);
+      finishes.ember.color.setHex(0xb04725);
+      finishes.ivory.color.setHex(0xa99171);
+    }
+  }
+  if(entry.family==='turtle'){
+    finishes.shell=surface(new T.Color(body).lerp(new T.Color(0x23334d),.61),.54,.62,'iron');
+    finishes.rim=surface(new T.Color(edge).lerp(new T.Color(0x414c66),.71),.67,.51,'bronze');
+    if(entry.id==='m022'){
+      finishes.body.color.setHex(0x314258);
+      finishes.edge.color.setHex(0xa3acb4);
+      finishes.trim.color.setHex(0x826b43);
+    }
+  }
+  if(entry.id==='m024'){
+    finishes.wingSkin.color.setHex(0x626978);
+    finishes.trim.color.setHex(0x9d844c);
+    finishes.edge.color.setHex(0xa5a77a);
+    finishes.body.color.setHex(0x465137);
+  }
   if(entry.id==='m150')finishes.copper=surface(0xb7693d,.52,.39,'bronze');
   if(entry.id==='m154')finishes.iron=surface(0x4c4745,.66,.41,'iron');
   if(entry.id==='m133')finishes.mist=new T.MeshStandardMaterial({
@@ -192,10 +241,11 @@ function kit(root,materials){
           return total+(geo.index?.count??geo.attributes.position.count)*batch.parts.length;
         },0);
         const positions=new Float32Array(count*3), normals=new Float32Array(count*3), uv=new Float32Array(count*2);
+        const pigment=materials[finish].vertexColors?new Float32Array(count*3):null;
         let cursor=0;
         for(const batch of batches){
           const geo=batch.geo??shapes[batch.shape];
-          const {position,normal:direction,uv:tex}=geo.attributes;
+          const {position,normal:direction,uv:tex,color}=geo.attributes;
           for(const transform of batch.parts){
             normalMatrix.getNormalMatrix(transform);
             const flipped=transform.determinant()<0;
@@ -206,6 +256,12 @@ function kit(root,materials){
               vertex.fromBufferAttribute(position,source).applyMatrix4(transform).toArray(positions,cursor*3);
               normal.fromBufferAttribute(direction,source).applyNormalMatrix(normalMatrix).toArray(normals,cursor*3);
               uv[cursor*2]=tex.getX(source);uv[cursor*2+1]=tex.getY(source);
+              if(pigment){
+                const shade=color?1:.96+.04*Math.sin(position.getX(source)*3.3+position.getY(source)*1.78);
+                pigment[cursor*3]=color?color.getX(source):shade;
+                pigment[cursor*3+1]=color?color.getY(source):shade;
+                pigment[cursor*3+2]=color?color.getZ(source):shade;
+              }
               cursor++;
             }
           }
@@ -215,6 +271,7 @@ function kit(root,materials){
         geo.setAttribute('position',new T.BufferAttribute(positions,3));
         geo.setAttribute('normal',new T.BufferAttribute(normals,3));
         geo.setAttribute('uv',new T.BufferAttribute(uv,2));
+        if(pigment)geo.setAttribute('color',new T.BufferAttribute(pigment,3));
         part.add(new T.Mesh(geo,materials[finish]));
       }
     }
@@ -224,16 +281,21 @@ function kit(root,materials){
 
 function face(k,joint,options={}){
   const {mesh,rod}=k;
-  const {snout=.36,broad=.39,horns=2,shell=false,reptile=false,bear=false}=options;
-  mesh(joint,'pearl','body',0,.052,0,broad,reptile?.33:.47,.43);
+  const {snout=.36,broad=.39,horns=2,shell=false,reptile=false}=options;
+  k.geometry(joint,'body',sculptVolume([[0,-.257,.04,broad*.59,.215],[0,-.06,.01,broad*.98,.402],
+    [0,.145,-.012,broad,.402],[0,reptile?.29:.377,-.083,broad*.81,.340],
+    [0,reptile?.35:.468,-.122,broad*.38,.194],[0,reptile?.37:.492,-.124,.017,.022]],
+  {sides:15,rings:15,section:2.60,ridge:.105}));
   if(reptile){
     mesh(joint,'scale','body',0,-.101,.35,broad*1.56,.285,snout*3.0,-.40);
     mesh(joint,'pearl','deep',0,-.143,.41,broad*.71,.043,snout*.87);
     mesh(joint,'pearl','edge',0,-.199,.38,broad*.60,.095,snout*.75);
     mesh(joint,'scale','trim',0,.227,.393,broad*.58,.15,.46,-.38);
   }else{
-    mesh(joint,'pearl','edge',0,-.16,.25,broad*.75,.30,snout);
-    mesh(joint,'pearl','deep',0,-.2,.37,broad*.63,.13,snout*.75);
+    k.geometry(joint,'edge',sculptVolume([[0,-.340,.22,broad*.35,snout*.54],[0,-.252,.315,broad*.69,snout*.80],
+      [0,-.115,.324,broad*.74,snout*.68],[0,.034,.262,broad*.55,snout*.47],[0,.142,.235,broad*.30,snout*.30]],
+    {sides:12,rings:13,section:2.61,ridge:.12}));
+    mesh(joint,'scale','deep',0,-.211,.37,broad*.71,.094,snout*.75,.24);
   }
   for(const side of [-1,1]){
     const eye=reptile?.505:.399;
@@ -241,11 +303,11 @@ function face(k,joint,options={}){
     mesh(joint,'gem','glow',side*broad*.61,.10,eye,.067,.043,.027,0,0,side*.19);
     rod(joint,'trim',[side*broad*.38,.148,eye+.008],[side*broad*.88,.159,eye-.02],.023);
     mesh(joint,reptile?'scale':'pearl',shell?'edge':'body',side*broad*.79,.025,.218,.17,.25,.45,0,side*.54,side*.34);
-    if(!bear)rod(joint,'edge',[side*broad*.48,-.21,.37],[side*broad*.43,-.41,.43],.068,'horn');
+    rod(joint,'edge',[side*broad*.48,-.21,.37],[side*broad*.43,-.41,.43],.068,'horn');
   }
   if(horns===1)k.sculpt.sweep(joint,'edge',[[.04,.31,.075,.153],[.008,.46,.09,.125],[-.002,.62,.047,.084],
     [.043,.81,-.095,.039],[.105,.85,-.194,.004]],{sides:9,steps:14,ridge:.21});
-  creatureFace(k,joint,{snout,broad,reptile,horns,bear});
+  creatureFace(k,joint,{snout,broad,reptile,horns});
 }
 
 function blade(k,hand,crest,huge=false){
@@ -312,8 +374,13 @@ function humanoid(k,entry){
   const mage=entry.family==='priest'||entry.family==='shade';
   const width=huge?.63:royal?.53:.44;
   const body=bone(root,0,1.05,0);
-  mesh(body,'pearl','deep',0,.04,0,width*.84,.54,.35);
-  mesh(body,'pearl','body',0,.48,0,width,.66,.38);
+  k.geometry(body,'deep',sculptVolume([[0,-.48,-.047,width*.52,.20],[0,-.26,-.023,width*.82,.33],
+    [0,.028,.013,width*.86,.348],[0,.27,.005,width*.83,.335],[0,.45,-.014,width*.61,.26]],
+  {sides:13,rings:13,section:2.37,ridge:.11}));
+  k.geometry(body,'body',sculptVolume([[0,-.12,.025,width*.65,.257],[0,.17,.014,width*.76,.321],
+    [0,.41,.018,width*.99,.353],[0,.641,-.008,width*1.14,.399],
+    [0,.80,-.026,width*.98,.309],[0,.97,-.003,width*.44,.203]],
+  {sides:16,rings:18,section:huge?2.25:2.64,ridge:.12}));
   mesh(body,'gem','trim',0,.57,.41,width*.57,.38,.114);
   mesh(body,'gem','deep',0,.57,.47,width*.49,.31,.079);
   mesh(body,'gem','glow',0,.59,.54,.084,.135,.035);
@@ -326,7 +393,7 @@ function humanoid(k,entry){
     mesh(head,'mantle','body',-.14,.54,.20,.66,.82,.58,.39,0,-.24);
     mesh(head,'scale','deep',0,-.02,.41,.53,.41,.76);
     for(const side of [-1,1])mesh(head,'gem','glow',side*.16,.04,.49,.035,.023,.028);
-  }else face(k,head,{broad:court?.28:width*.62,snout:court?.11:.22,horns:entry.crest==='oni'?1:huge&&entry.id!=='m005'?2:0,bear:entry.id==='m005'});
+  }else face(k,head,{broad:court?.28:width*.62,snout:court?.11:.22,horns:entry.crest==='oni'?1:huge?2:0});
   if(court){
     const train=bone(body,0,.28,-.14);
     mesh(head,'scale','trim',0,.45,.06,.50,.45,1.08,0,0,.06);
@@ -369,7 +436,7 @@ function humanoid(k,entry){
       rod(head,'edge',[a*.35,.34,.1],[a*.55,.73+Math.cos(a)*.14,.12],.106,'horn');
     }
   }
-  const legs=[],arms=[];
+  const legs=[],arms=[],limbs=[];
   for(const side of [-1,1]){
     const leg=bone(root,side*width*.56,1.12,.04);
     mesh(leg,'pearl','deep',0,-.25,0,.20,.40,.23);
@@ -377,12 +444,25 @@ function humanoid(k,entry){
     mesh(leg,'pearl','edge',0,-.94,.13,.25,.15,.33);
     legs.push(leg);
     const arm=bone(body,side*width*.97,.62,.03);
-    mesh(arm,'pearl','edge',0,0,0,.30,.25,.33,0,0,side*.23);
-    mesh(arm,'pearl','body',side*.045,.042,.03,.249,.199,.285,0,0,side*.28);
+    k.geometry(arm,'edge',sculptVolume([[side*.15,-.195,.008,.117,.143],[side*.071,-.050,.03,.267,.282],
+      [side*.045,.119,.017,.24,.263],[side*.017,.231,-.018,.153,.184],[0,.286,-.055,.045,.066]],
+    {sides:13,rings:13,section:2.6,ridge:.10}));
     for(let pin=0;pin<3;pin++)mesh(arm,'gem','trim',side*(.08+pin*.06),.029+pin*.034,.273,.044,.045,.034);
-    mesh(arm,'pearl','body',side*.07,-.32,.03,.23,.40,.23);
-    mesh(arm,'gem','edge',side*.08,-.51,.13,.26,.22,.17);
-    mesh(arm,'pearl','deep',side*.09,-.77,.04,.18,.22,.20);
+    const elaborate=['m016','m017','m081','m101','m107','m109','m119','m117'].includes(entry.id)||
+      (entry.palette&&['lantern','drum','bell','coffin','coin','orb','wax','eyes','greatblade','bloodblade'].includes(entry.crest));
+    const forearm=elaborate?arm:bone(arm,side*.062,-.425,.029);
+    const offset=elaborate?0:.425;
+    const lateral=elaborate?side*.07:side*.008;
+    k.geometry(arm,'body',sculptVolume([[side*.054,-.464,.025,.173,.174],[side*.071,-.31,.015,.21,.204],
+      [side*.072,-.163,-.007,.231,.210],[side*.043,.026,.019,.186,.18]],
+    {sides:13,rings:13,section:2.26,ridge:.12}));
+    k.geometry(forearm,'deep',sculptVolume([[lateral,-.844+offset,.11,.104,.129],
+      [lateral*1.13,-.738+offset,.06,.164,.189],[lateral,-.528+offset,.070,.206,.167],
+      [lateral*.87,-.409+offset,.037,.141,.140]],{sides:12,rings:12,section:2.48,ridge:.13}));
+    k.geometry(forearm,'edge',sculptVolume([[lateral,-.729+offset,.016,.13,.114],
+      [lateral*1.12,-.634+offset,.045,.166,.189],[lateral*1.25,-.535+offset,.042,.221,.201],
+      [lateral,-.440+offset,.014,.167,.157]],{sides:12,rings:12,section:2.85,ridge:.115}));
+    if(!elaborate)limbs.push({forearm,side});
     if(side===1&&entry.id==='m101'){
       for(let bead=0;bead<10;bead++){
         const a=bead*TAU/10;
@@ -390,7 +470,7 @@ function humanoid(k,entry){
       }
     }else if(!['m005','m016','m017','m081','m107','m109','m119'].includes(entry.id)&&(side===1||['twins','pair','twin'].includes(entry.crest))&&
       !(entry.palette&&['lantern','drum','bell','coffin','coin','orb','wax','eyes','greatblade','bloodblade'].includes(entry.crest))){
-      const hand=bone(arm,side*.08,-.73,.16);
+      const hand=bone(forearm,elaborate?side*.08:side*.018,-.73+offset,elaborate?.16:.131);
       blade(k,hand,entry.crest,huge||royal);
     }
     arms.push(arm);
@@ -453,19 +533,7 @@ function humanoid(k,entry){
     mesh(head,'chain','trim',0,.41,.11,.27,.11,.22,.61);
     mesh(head,'mantle','deep',-.15,.22,-.27,.85,.96,.87,.39,.27,0);
   }
-  if(entry.id==='m005'){
-    mesh(body,'pearl','edge',0,.41,.29,.55,.64,.28);
-    mesh(head,'pearl','edge',0,-.13,.32,.29,.21,.25);
-    for(const side of [-1,1]){
-      const arm=arms[side===1?1:0];
-      mesh(arm,'pearl','edge',0,-.55,.085,.26,.30,.22);
-      for(let claw=0;claw<3;claw++)rod(arm,'edge',[side*(.078+claw*.073),-.74,.17],
-        [side*(.081+claw*.091),-.92,.32],.041,'horn');
-      for(let tuft=0;tuft<5;tuft++){
-        rod(body,tuft%3?'trim':'glow',[side*.34,.75-tuft*.11,-.08],[side*(.66-tuft*.052),.96-tuft*.13,-.34],.075,'horn');
-      }
-    }
-  }else if(entry.id==='m016'){
+  if(entry.id==='m016'){
     mesh(head,'bar','edge',0,.40,.01,.26,.48,.24);
     const sun=bone(arms[1],.12,-.73,.21);
     mesh(sun,'ring','glow',0,0,0,.28,.29,.45);
@@ -494,20 +562,6 @@ function humanoid(k,entry){
       rod(head,'edge',[plume*.081,.26,0],[plume*.21,.72,plume*.035-.24],.057,'horn');
     }
   }
-  if(entry.id==='m027'){
-    const tail=bone(body,0,-.42,-.28);
-    mesh(body,'scale','trim',0,.10,.48,.75,1.01,.69,0,0,PI);
-    for(const side of [-1,1]){
-      rod(head,'trim',[side*.20,.17,.07],[side*.51,.53,-.13],.12,'horn');
-      rod(head,'deep',[side*.48,.48,-.10],[side*.50,.77,-.31],.085,'horn');
-      for(let spike=0;spike<3;spike++)rod(body,'trim',[side*.37,.59-spike*.10,-.08],[side*(.80-spike*.03),.94-spike*.18,-.13],.077,'horn');
-    }
-    for(let segment=0;segment<6;segment++){
-      const point=i=>[i*.13,Math.sin(i*.49)*.35,-i*.19];
-      rod(tail,segment%2?'body':'deep',point(segment),point(segment+1),.13-segment*.014);
-    }
-    return {body,arms,legs,head,tail};
-  }
   if(entry.family==='straw'){
     mesh(head,'bar','edge',0,.49,0,.65,.13,.65);
     mesh(head,'horn','body',0,.68,0,.52,.63,.52);
@@ -529,7 +583,7 @@ function humanoid(k,entry){
     const x=Math.cos(a)*width,z=Math.sin(a)*width*.82;
     rod(body,strip%3?'trim':'edge',[x,y,z],[x*1.23,y-.41,z*1.29],.084,'horn');
   }
-  return {body,arms,legs,head};
+  return {body,arms,legs,head,limbs};
 }
 
 function quadruped(k,entry){
@@ -537,8 +591,13 @@ function quadruped(k,entry){
   const turtle=entry.family==='turtle',rider=entry.family==='rider',fireKirin=entry.id==='m014';
   const trial=trialType(entry.id),windBeast=entry.id==='m149';
   const body=bone(root,0,turtle?.85:1.11,0);
-  mesh(body,'pearl','body',0,.14,-.21,turtle?.84:.50,.54,1.05);
-  mesh(body,'pearl','deep',0,-.16,-.2,turtle?.71:.44,.36,.85);
+  const corpus=turtle?.81:.51;
+  k.geometry(body,turtle?'shell':'body',sculptVolume([[0,.018,-1.20,corpus*.34,.13],[0,.12,-.97,corpus*.70,.36],
+    [0,.15,-.49,corpus,.47],[0,.15,.08,corpus*.94,.42],[0,.20,.58,corpus*.69,.35],
+    [0,.29,.74,corpus*.53,.25]],{sides:18,rings:20,section:turtle?2.90:2.37,ridge:.15}));
+  k.geometry(body,'deep',sculptVolume([[0,-.23,-1.13,corpus*.34,.16],[0,-.21,-.64,corpus*.70,.329],
+    [0,-.18,-.18,corpus*.78,.36],[0,-.12,.34,corpus*.70,.31],[0,-.061,.52,corpus*.42,.18]],
+  {sides:14,rings:15,section:2.6,ridge:.11}));
   const head=bone(body,0,.23,turtle?.94:1.0);
   if(trial){
     mesh(body,'round','body',0,.33,.61,.37,.61,.44,-.57);
@@ -554,17 +613,29 @@ function quadruped(k,entry){
   }else face(k,head,{broad:windBeast?.50:turtle?.35:.46,snout:turtle?.39:.47,
     horns:turtle||windBeast||entry.crest==='tiger'||entry.crest==='bear'?0:2,shell:turtle});
   if(turtle){
-    mesh(body,'pearl','edge',0,.32,-.29,1.01,.61,1.23);
-    for(let i=0;i<11;i++){
-      const a=i*2.399;
-      const r=i<3?.38:.77;
-      const x=Math.sin(a)*r,z=Math.cos(a)*r-.23,y=.32+Math.sqrt(1-r*r)*.55;
-      mesh(body,'pearl','body',x,y,z,.23,.17,.26);
-      rod(body,'edge',[x,y,z],[x*1.06,y+.31+(i%3)*.15,z],entry.id==='m022'?.16:.133,'horn');
-      if(entry.id==='m022'){
-        mesh(body,'ring','deep',x,y+.045,z,.25,.25,.54,PI*.47,0,a);
-        mesh(body,'scale','trim',x,y+.12,z,.25,.20,.64,-.7,0,a);
-      }
+    k.geometry(body,'shell',sculptVolume([[0,.037,-.31,.66,.825],[0,.18,-.31,1.01,1.14],
+      [0,.35,-.32,1.08,1.21],[0,.56,-.35,.96,1.15],[0,.73,-.36,.70,.91],
+      [0,.80,-.35,.40,.61],[0,.828,-.35,.12,.27]],{sides:28,rings:24,section:2.67,ridge:.12}));
+    const spines=[];
+    for(let i=0;i<10;i++){
+      const a=i*TAU/10,r=i%2?.60:.81;
+      spines.push([Math.sin(a)*r,.39+Math.sqrt(1-r*r)*.43,Math.cos(a)*r*1.18-.31,a]);
+    }
+    spines.push([0,.83,-.30,.23],[.26,.79,-.68,.77],[-.24,.78,.077,2.9]);
+    for(const [i,[x,y,z,a]] of spines.entries()){
+      const lean=Math.min(.77,.29+Math.hypot(x,z+.31)*.39);
+      mesh(body,'ring','rim',x,y+.08,z,.224,.202,.83,PI*.5-lean*Math.cos(a),0,a*.54);
+      mesh(body,'pearl','deep',x,y+.026,z,.180,.11,.175,0,a);
+      const height=.28+(i%3)*.107;
+      k.geometry(body,i%3===0?'trim':'edge',sculptVolume([
+        [x,y-.025,z,.146,.144],[x*1.035,y+.116,z-.016,.148,.105],
+        [x*1.12,y+height*.72,z-.08,.080,.062],[x*1.16,y+height,z-.136,.008,.005],
+      ],{sides:10,rings:13,section:1.66,ridge:.18,seed:i}));
+    }
+    for(const side of [-1,1])for(let i=0;i<8;i++){
+      const a=(i+.5)*PI/8,x=side*Math.sin(a)*1.045,z=Math.cos(a)*1.22-.31;
+      k.sculpt.sweep(body,'rim',[[x*.84,.47,z*.90,.089],[x,.33,z,.109],
+        [x*.96,.21,z+.031,.079],[x*.86,.118,z+.082,.009]],{sides:8,steps:10,ridge:.18});
     }
   }else if(windBeast){
     for(const side of [-1,1]){
@@ -700,53 +771,23 @@ function quadruped(k,entry){
 function flyer(k,entry){
   const {root,bone,mesh,rod}=k;
   const dragon=entry.family==='dragon', insect=entry.family==='wasp';
-  const redPhoenix=entry.id==='m015',poison=entry.id==='m024',darkFeathers=entry.id==='m148';
+  const poison=entry.id==='m024',darkFeathers=entry.id==='m148';
   const body=bone(root,0,1.12,0);
-  mesh(body,'pearl','body',0,.21,0,dragon?.53:.37,dragon?.56:.42,dragon?.83:.59);
+  k.geometry(body,'body',sculptVolume([[0,-.19,-.03,.13,.25],[0,-.115,-.083,dragon?.38:.27,.42],
+    [0,.089,-.014,dragon?.48:.34,dragon?.64:.49],[0,.31,.055,dragon?.445:.30,dragon?.71:.53],
+    [0,.475,.12,.24,.49],[0,.548,.14,.102,.228]],{sides:16,rings:19,section:2.20,ridge:.11}));
   mesh(body,'pearl','edge',0,.18,.32,insect?.24:.38,.27,.40);
   const head=bone(body,0,.42,.84);
   if(entry.id==='m151'){
     mesh(head,'gem','trim',0,.01,0,.37,.36,.37,0,PI*.25);
     for(const side of [-1,1])mesh(head,'pearl','edge',side*.23,.05,.162,.185,.16,.19);
-  }else if(redPhoenix){
-    mesh(head,'pearl','body',0,.08,.08,.24,.40,.25,-.52);
-    rod(head,'trim',[0,-.03,.11],[0,-.22,.64],.114,'horn');
-    for(let feather=0;feather<6;feather++){
-      rod(head,feather%2?'glow':'edge',[0,.19,.12],[(feather-2.5)*.10,.61+feather*.037,-.27-feather*.055],.066,'horn');
-    }
-    for(const side of [-1,1])mesh(head,'gem','glow',side*.13,.09,.29,.042,.038,.043);
-  }else face(k,head,{broad:poison?.30:dragon?.41:.28,horns:dragon?2:0,snout:poison?.59:dragon?.50:.28,reptile:poison});
-  const arms=[];
+  }else face(k,head,{broad:poison?.30:dragon?.41:.28,horns:dragon?2:0,snout:poison?.52:dragon?.46:.28,reptile:dragon});
+  const arms=[],flight=[];
+  const seed=Array.from(entry.id).reduce((sum,char)=>sum*19+char.charCodeAt(0),0)%107;
   for(const side of [-1,1]){
-    const limb=bone(body,side*.31,.40,0);
-    const stretch=poison?1.31:dragon?1.05:insect?.79:.93;
-    if(entry.id==='m151'){
-      mesh(limb,'wing','membrane',0,0,-.11,side*1.14,.30,.58,-.35,0,side*.19);
-      rod(limb,'trim',[0,0,0],[side*1.77,.24,-.15],.034);
-      for(let vein=0;vein<3;vein++)rod(limb,'edge',[side*(.48+vein*.29),.16,-.12],
-        [side*(.67+vein*.38),-.11,-.21],.020);
-    }else if(redPhoenix||darkFeathers){
-      for(let feather=0;feather<9;feather++){
-        const x=.30+feather*.192;
-        const y=.18+Math.sin(feather*.20)*.77;
-        const base=[side*x*.66,y*.50,-.09];
-        const middle=[side*(x+.32),y,-.14-feather*.036];
-        rod(limb,darkFeathers?'deep':feather%3===0?'body':'trim',base,middle,.142,'horn');
-        rod(limb,darkFeathers?'body':'edge',middle,[side*(x+.65),y+.39,-.30-feather*.080],.10,'horn');
-        rod(limb,'glow',[side*(x+.53),y+.22,-.28-feather*.065],[side*(x+.77),y+.57,-.37-feather*.090],.073,'horn');
-      }
-    }else{
-      mesh(limb,'wing',insect?'edge':'body',0,0,0,side*stretch,insect?.43:.82,insect?.43:.8,0,0,side*.08);
-      rod(limb,'edge',[0,0,0],[2.05*side*stretch,.69,0],insect?.055:.092);
-    }
-    for(let i=0;i<5;i++){
-      const x=side*(.45+i*.27)*stretch;
-      if(dragon){
-        rod(limb,'deep',[x,.43,0],[x*1.17,-.13+i*.07,.07],.057);
-        rod(limb,'trim',[x,.43,.052],[x*1.17,-.13+i*.07,.11],.020);
-      }
-      else if(entry.id!=='m151')mesh(limb,'gem',i%2?'edge':'glow',x,.02+i*.08,.075,insect?.07:.13,insect?.10:.24,.048,0,0,side*.29);
-    }
+    const wing=articulatedWing(k,body,side,{winged:!dragon,membranous:dragon||insect||entry.crest==='bat',
+      insect,poison,dark:darkFeathers,seed});
+    flight.push(wing);
     if(poison){
       for(let spine=0;spine<6;spine++){
         rod(head,'trim',[side*.15,.14+spine*.054,-spine*.154],
@@ -756,26 +797,16 @@ function flyer(k,entry){
       rod(body,'edge',[side*.42,-.41,.58],[side*.36,-.61,.80],.054,'horn');
     }
     if(insect){
-      if(entry.id!=='m151')mesh(limb,'wing','glow',side*.18,-.19,-.34,side*.56,.32,.42,0,-side*.30,side*.18);
       for(let leg=0;leg<3;leg++)rod(body,'edge',[side*.21,-.01,.34-leg*.30],
         [side*(.66-leg*.065),-.46,.58-leg*.45],.053,'horn');
       rod(head,'glow',[side*.14,.33,.18],[side*.35,.75,.37],.055,'horn');
     }
-    arms.push(limb);
+    arms.push(wing.root);
   }
   const tail=bone(body,0,0,-.65);
-  if(redPhoenix){
-    for(let plume=-4;plume<=4;plume++){
-      const tip=[plume*.19,.19+Math.abs(plume)*.06,-1.93+Math.abs(plume)*.18];
-      rod(tail,plume%2?'edge':'body',[plume*.046,0,0],tip,.115,'horn');
-      rod(tail,'glow',[tip[0]*.76,tip[1]*.8,tip[2]+.40],[tip[0]*1.12,tip[1]+.11,tip[2]-.21],.062,'horn');
-    }
-    return {body,head,arms,tail};
-  }
-  for(let i=0;i<5;i++){
-    const width=(insect?.31:.38)*(1-i*.15);
-    mesh(tail,'pearl',i%2?'deep':'body',0,-i*.081,-i*.25,width,width*.81,.25);
-  }
+  k.geometry(tail,'deep',sculptVolume([[0,.038,.11,.33,.24],[0,-.012,-.011,.34,.31],
+    [0,-.092,-.32,.274,.234],[poison?.11:.045,-.241,-.672,.179,.17],
+    [poison?.19:.066,-.321,-.96,.101,.083],[poison?.26:.046,-.23,-1.27,.012,.012]],{sides:12,rings:17,section:2.1}));
   if(poison){
     rod(tail,'body',[0,-.31,-.87],[.19,-.19,-1.45],.106);
     rod(tail,'trim',[.19,-.19,-1.43],[.34,.07,-1.93],.073,'horn');
@@ -784,13 +815,12 @@ function flyer(k,entry){
   if(insect)rod(tail,'edge',[0,-.35,-1.02],[0,-.61,-1.47],.13,'horn');
   if(entry.id==='m151')for(let band=0;band<4;band++)mesh(tail,'ring','trim',0,-band*.078,-band*.25-.08,
     .31-band*.034,.24-band*.022,.74);
-  return {body,head,arms,tail};
+  return {body,head,arms,tail,flight};
 }
 
 function coil(k,entry){
   const {root,bone,mesh}=k;
   const body=bone(root,0,.14,0);
-  const legs=[];
   const cloudDragon=entry.id==='m106'||entry.id==='m019';
   if(cloudDragon){
     body.position.y=.48;
@@ -801,31 +831,16 @@ function coil(k,entry){
       mesh(bank,'pearl',i%3===0?'body':'edge',Math.sin(a)*r,-.02+(i%3)*.12,Math.cos(a)*r,.55,.21,.49);
     }
   }
-  const rebuilt=['m001','m002','m152'].includes(entry.id);
-  const count=entry.family==='hydra'?15:12;
-  if(rebuilt)serpentTail(body,k,entry);
-  for(let first=0;!rebuilt&&first<count;first+=3){
-    const a=first*.49,radius=1.19-first*.047,x=Math.sin(a)*radius,z=Math.cos(a)*radius;
-    const joint=bone(body,x,.26+first*.032,z);
-    joint.restHeight=joint.position.y;
-    for(let i=first;i<Math.min(first+3,count);i++){
-      const az=i*.49,r=1.19-i*.047;
-      const px=Math.sin(az)*r-x,pz=Math.cos(az)*r-z,py=(i-first)*.032;
-      mesh(joint,'pearl',i%2?'body':'deep',px,py,pz,.33-i*.009,.25,.44,0,-az);
-      mesh(joint,'gem','edge',px,py+.165,pz,.17,.12,.28,0,-az);
-      if(cloudDragon)mesh(joint,'horn','edge',px,py+.22,pz-.04,.14,.31,.17,.26,-az);
-      for(const side of [-1,1])mesh(joint,'gem','trim',px+side*.21,py+.11,pz,.068,.055,.20,0,-az,side*.39);
-      if(i%2===0)mesh(joint,'gem','glow',px,py+.26,pz,.076,.063,.14,0,-az);
-    }
-    legs.push(joint);
-  }
+  serpentTail(body,k,entry);
   const arms=[];
   const necks=entry.family==='hydra'?5:1;
   for(let index=0;index<necks;index++){
     const offset=index-(necks-1)/2;
     const neck=bone(body,offset*.45,.50,.33+Math.abs(offset)*.03);
     if(entry.id==='m001')neck.scale.set(.94,.64,1.05);
-    mesh(neck,'pearl','body',0,.60,0,.32,1.03,.35,-.16,0,offset*-.12);
+    k.geometry(neck,'body',sculptVolume([[0,-.06,-.16,.333,.31],[offset*.043,.22,-.079,.31,.35],
+      [offset*.093,.59,-.073,.28,.304],[offset*.091,.92,-.065,.25,.29],[offset*.027,1.19,.041,.196,.225],
+      [0,1.43,.14,.163,.20]],{sides:13,rings:16,section:2.38,ridge:.16,seed:index}));
     for(let i=0;i<6;i++){
       const y=.22+i*.176;
       mesh(neck,'scale',i%3===0?'trim':'edge',0,y,.323-i*.024,.31-i*.013,.17,.73,-.076,0,.03);
@@ -844,33 +859,23 @@ function coil(k,entry){
     if(entry.id==='m002')for(let spike=0;spike<5;spike++)mesh(head,'horn','glow',-.30+.15*spike,.35+.038*spike,-.18,.095,.36,.081,-.26,0,.22);
     arms.push(neck);
   }
-  return {body,arms,legs};
+  return {body,arms};
 }
 
 function serpentTail(body,k,entry){
-  const {materials,mesh,rod}=k;
+  const {mesh,rod}=k;
   const turns=entry.id==='m001'?1.35:1.05;
   const path=new T.CatmullRomCurve3(Array.from({length:20},(_,i)=>{
     const t=i/19,angle=t*TAU*turns;
-    if(entry.id==='m001'||entry.id==='m002')return new T.Vector3(Math.sin(t*11)*.46,.31-t*.18,-3.28*t+.28);
+    if(['m001','m002','m106','m019'].includes(entry.id))return new T.Vector3(Math.sin(t*11)*.46,.31-t*.18,-3.28*t+.28);
     const radius=.35+Math.sin(t*2.45)*1.39;
-    return new T.Vector3(Math.sin(angle)*radius,.36-.216*t+.085*Math.sin(t*18),Math.cos(angle)*radius);
+    return new T.Vector3(Math.sin(angle)*radius,.36-.216*t+.085*Math.sin(t*18),Math.cos(angle)*radius-.098);
   }));
-  const segments=60,sides=10;
-  const tube=new T.TubeGeometry(path,segments,.26,sides,false);
-  const vertices=tube.attributes.position;
-  const point=new T.Vector3();
-  for(let ring=0;ring<=segments;ring++){
-    const t=ring/segments,center=path.getPointAt(t);
-    const width=.039+(1-t**1.67)*.96;
-    for(let side=0;side<=sides;side++){
-      const index=ring*(sides+1)+side;
-      point.fromBufferAttribute(vertices,index).lerp(center,1-width);
-      vertices.setXYZ(index,point.x,point.y,point.z);
-    }
-  }
-  tube.computeVertexNormals();
-  body.add(new T.Mesh(tube,materials.body));
+  const sections=path.getSpacedPoints(26).map((point,i)=>{
+    const width=.039+(1-(i/26)**1.67)*.96;
+    return [...point.toArray(),.266*width,.235*width];
+  });
+  k.geometry(body,'body',sculptVolume(sections,{sides:14,rings:64,section:2.36,ridge:.12}));
   for(const side of [-1,1]){
     const ridge=new T.CatmullRomCurve3(Array.from({length:34},(_,i)=>{
       const t=i/33,point=path.getPointAt(t),forward=path.getTangentAt(t);
@@ -880,7 +885,7 @@ function serpentTail(body,k,entry){
       point.y+=.198*width;
       return point;
     }));
-    body.add(new T.Mesh(new T.TubeGeometry(ridge,57,.033,5,false),materials.edge));
+    k.geometry(body,'edge',new T.TubeGeometry(ridge,57,.033,5,false));
   }
   if(entry.id==='m001'||entry.id==='m002'){
     for(let spine=0;spine<4;spine++){
@@ -970,14 +975,19 @@ function star(k,entry) {
   const {root,bone,mesh,rod}=k;
   const clutch=entry.family==='eggs';
   const body=bone(root,0,.86,0),arms=[];
-  mesh(body,'pearl','body',0,.18,0,.64,.74,.55);
+  k.geometry(body,'body',sculptVolume([[0,-.48,-.05,.21,.26],[0,-.29,-.03,.49,.41],
+    [0,.04,.005,.64,.51],[0,.29,.027,.63,.53],[0,.59,-.029,.58,.42],[0,.85,-.11,.37,.34]],
+  {sides:18,rings:23,section:2.20,ridge:.18}));
   mesh(body,'gem','glow',0,.34,.49,.22,.24,.099);
   if(clutch){
     for(let i=0;i<4;i++){
       const a=i*TAU/4+.30;
       const egg=bone(body,Math.sin(a)*.90,.04,Math.cos(a)*.48);
-      mesh(egg,'round','edge',0,0,0,.38,.58,.37);
-      mesh(egg,'pearl','body',0,-.39,0,.39,.21,.37);
+      k.geometry(egg,'edge',sculptVolume([[0,-.505,0,.19,.172],[0,-.351,-.017,.35,.333],[0,-.03,-.009,.38,.37],
+        [0,.21,-.012,.324,.32],[0,.41,-.037,.212,.216],[0,.55,-.076,.043,.052]],
+      {sides:15,rings:16,section:2.15,ridge:.12,seed:i}));
+      k.sculpt.sweep(egg,'trim',[[0,-.32,.31,.035],[.19,-.29,.27,.030],
+        [.276,-.148,.26,.027],[.23,.091,.27,.018],[.28,.248,.199,.006]],{sides:6,steps:13});
       mesh(egg,'gem','glow',0,.08,.36,.12,.14,.079);
       arms.push(egg);
     }
@@ -985,8 +995,9 @@ function star(k,entry) {
     const a=i*TAU/5;
     const fin=bone(body,Math.sin(a)*.37,Math.cos(a)*.39,0);
     fin.rotation.z=-a;
-    rod(fin,'edge',[0,0,0],[.22,1.26,.06],.26,'horn');
-    mesh(fin,'pearl','body',.10,.46,0,.24,.51,.25,0,0,-.14);
+    k.geometry(fin,'edge',sculptVolume([[0,-.03,-.05,.22,.20],[.05,.26,-.026,.26,.22],[.13,.53,.041,.221,.21],
+      [.21,.84,.083,.15,.14],[.25,1.09,.14,.079,.069],[.18,1.32,.26,.008,.008]],
+    {sides:12,rings:16,section:1.66,ridge:.21,seed:i}));
     mesh(fin,'gem','glow',.13,.70,.17,.09,.14,.095);
     arms.push(fin);
   }
@@ -1032,7 +1043,10 @@ function eggGhost(k){
 function spider(k,queen=false){
   const {root,bone,mesh,rod}=k;
   const body=bone(root,0,.90,0);
-  mesh(body,'pearl',queen?'body':'deep',0,.28,-.55,queen?.75:.58,queen?.72:.65,queen?.92:.77);
+  const breadth=queen?.74:.57;
+  k.geometry(body,queen?'body':'deep',sculptVolume([[0,.04,-1.36,breadth*.28,.16],[0,.17,-1.06,breadth*.80,.47],
+    [0,.295,-.72,breadth,.62],[0,.301,-.37,breadth*.94,.61],[0,.21,-.119,breadth*.67,.43],
+    [0,.111,.089,breadth*.47,.24]],{sides:19,rings:24,section:2.40,ridge:.13}));
   const head=bone(body,0,.02,.43);
   face(k,head,{broad:.34,snout:.28,horns:0});
   if(queen){
@@ -1046,21 +1060,28 @@ function spider(k,queen=false){
     }
     rod(body,'trim',[0,.04,-1.31],[0,-.04,-1.59],.10,'horn');
   }
-  const legs=[];
+  const legs=[],joints=[];
   for(const side of [-1,1])for(let i=0;i<4;i++){
     const z=.58-i*.34;
     const limb=bone(root,side*.29,.86,z);
     const foot=[side*(1.39-i*.025),-.80,.20-z*.46];
     const knee=[side*1.14,queen?.57:.43,z*.5];
-    rod(limb,'body',[0,0,0],knee,queen?.15:.083);
-    rod(limb,'edge',knee,foot,queen?.145:.09,'horn');
+    const t=queen?.126:.079;
+    const shin=bone(limb,...knee);
+    const [fx,fy,fz]=foot.map((value,index)=>value-knee[index]);
+    k.geometry(limb,'body',sculptVolume([[0,0,0,t*.79,t*.80],[side*.24,.15,z*.10,t*1.19,t*.94],
+      [side*.76,.46,z*.33,t*.94,t*.91],[...knee,t*.69,t*.75]],{axis:'x',sides:8,rings:11,section:2.6,ridge:.12}));
+    k.geometry(shin,'edge',sculptVolume([[0,.016,0,t,t],[fx*.49,fy*.24,fz*.23,t*.89,t*.98],
+      [fx*.84,fy*.69,fz*.71,t*.51,t*.66],[fx,fy,fz,.006,.007]],
+    {sides:8,rings:13,section:1.78,ridge:.15}));
     if(queen){
       mesh(limb,'gem','trim',knee[0],knee[1],knee[2],.17,.15,.17);
-      rod(limb,'deep',[side*1.20,.29,z*.39],foot,.082,'horn');
+      rod(shin,'deep',[side*.052,-.15,-z*.11],[fx,fy,fz],.065,'horn');
     }
     legs.push(limb);
+    joints.push({shin,side,index:i});
   }
-  return {body,head,legs};
+  return {body,head,legs,joints};
 }
 
 function imperialTurtle(k){
@@ -1535,7 +1556,9 @@ export function mountBestiary(scene,entry,height,mobile=false){
   else if(entry.crest==='scarab')parts=scarab(k);
   else if(entry.id==='m124'||entry.id==='m125')parts=serpentGuardian(k,entry.id==='m124');
   else if(entry.id==='m106')parts=coil(k,entry);
-  else if(entry.id==='m005')parts=humanoid(k,{...entry,family:'ogre',crest:'bear'});
+  else if(entry.id==='m005')parts=sculptWhiteBear(k);
+  else if(entry.id==='m015')parts=sculptPhoenix(k);
+  else if(entry.id==='m027')parts=sculptDestroyer(k);
   else if(['m090','m091','m092'].includes(entry.id))parts=quadruped(k,{...entry,family:'rider'});
   else switch(entry.family){
     case 'turtle':case 'beast':case 'rider':parts=quadruped(k,entry);break;
@@ -1545,11 +1568,10 @@ export function mountBestiary(scene,entry,height,mobile=false){
     case 'spider':parts=spider(k,entry.id==='m121');break;
     default:parts=humanoid(k,entry);break;
   }
-  const sculptEntry=entry.id==='m005'?{...entry,family:'ogre'}:entry;
   const dedicatedSilhouette=['m114','m115','m122','m133','m150','m154'].includes(entry.id);
   const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));
-  const detail=parts.pao?null:detailCreature(k,sculptEntry,parts,mobile);
+  const detail=parts.pao?null:detailCreature(k,entry,parts,mobile);
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
@@ -1608,6 +1630,11 @@ export function poseBestiary(model,unit,spec,time,x,z){
     leg.rotation.x=Math.sin(step+index*PI*.81)*travel*(pattern==='crawl'?.24:.49);
     if(pattern==='coil')leg.position.y=leg.restHeight+Math.sin(beat+index*.83)*(.09+stage*.03);
   }
+  for(const {shin,side,index} of model.joints??[]){
+    const pace=Math.sin(step+index*PI+side*PI*.48);
+    shin.rotation.z=side*(travel*.35*Math.max(0,pace)-wind*.23+strike*.22);
+    shin.rotation.x=travel*.18*pace+fall*.14;
+  }
   if(tail)tail.rotation.y=Math.sin(beat*.55)*.25+strike*.25;
   if(model.neck){
     model.neck.position.z=.77-wind*.43+strike*.65;
@@ -1634,6 +1661,20 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.spellHood.rotation.x=wind*.23-strike*.29;
   }
   if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
+  if(model.signature)poseSignatureBeast(model,time,beat,{wind,strike,travel,fall});
+  for(const {root:wing,elbow,hand,side,membranous} of model.flight??[]){
+    const pulse=Math.sin(beat-.59);
+    wing.rotation.y=side*(.035+wind*.22-strike*.34);
+    elbow.rotation.z=side*(.07+pulse*(membranous?.29:.44)+wind*.17-strike*.22);
+    elbow.rotation.y=side*(.09+wind*.35-strike*.24);
+    hand.rotation.z=side*(-.10+Math.sin(beat-1.16)*.30-wind*.31+strike*.44);
+    hand.rotation.y=side*(.08+pulse*.13+wind*.11+fall*.31);
+  }
+  for(const {forearm,side} of model.limbs??[]){
+    forearm.rotation.x=-.13+wind*(side===1?.58:.33)-strike*(pattern==='aim'?.24:.66)-
+      travel*.20*Math.cos(step+side*.9)+fall*.48;
+    forearm.rotation.y=side*(wind*.18-strike*.17);
+  }
   if(model.detail)poseCreatureDetail(model.detail,model,time,beat,wind,strike,travel);
   model.aura?.pose(time,stage,wind,fall);
   if(model.entry.id==='m154'){
@@ -1666,7 +1707,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);
   const glow=model.palette[3];
-  materials.glow.color.setHex(glow).lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18));
+  materials.glow.color.setHex(model.signature?.type==='bear'?0xbbf7f1:glow)
+    .lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18));
   materials.body.emissiveIntensity=.14+(spec.flash??0)*.19+stage*.08;
   materials.edge.emissiveIntensity=.14+stage*.087+wind*.07;
 }

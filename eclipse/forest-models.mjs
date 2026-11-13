@@ -47,7 +47,7 @@ const guardians=[
   ['duelist','iron','bloodblade',[1.07,1.12,1.04],[0x42272b,0x7a3d41,0xcb8f75,0xff6252]],
 ];
 
-const entry=(id,[family,finish,crest,proportions,palette],field)=>({id,family,finish,crest,proportions,palette,field});
+const entry=(id,[family,finish,crest,proportions,palette],field)=>({id,artId:id,family,finish,crest,proportions,palette,field});
 const models=new Map([
   ...Object.entries(creatures).map(([id,profile])=>[id,entry(id,profile,true)]),
   ...guardians.map((profile,index)=>{

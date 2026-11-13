@@ -14,7 +14,7 @@ button:focus-visible{outline:2px solid #ffe0a3;outline-offset:4px}
 #world{display:block;width:100%;height:100%;outline:none}
 #lantern-dark{position:absolute;inset:0;z-index:1;pointer-events:none;background:
   radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),var(--lamp-wash,#ffb86d14) 0%,var(--lamp-wash,#ffb86d14) 22%,transparent 78%),
-  radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),transparent 42%,#0e091412 63%,#0d0a1a3b 85%,#08071282 106%,#05050dbf 141%,#06050de5 192%)}
+  radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),transparent 48%,#0e09140e 70%,#0d0a1a29 95%,#08071261 122%,#05050d9b 159%,#06050dce 210%)}
 #lantern-dark.extinguished{background:#05040cf6}
 #enemy-radar,#eye-marks{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
 #enemy-radar i{display:block;position:absolute;left:0;top:0;width:32px;height:12px;border:1.5px solid #ff6d79;

@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 
@@ -279,11 +280,12 @@ function lanternCat(scene,view){
   const footlight=halo(scene,3.3,.055,2.29,.83,0xffa86b,.33,.79);
   const height=1.86;
   const sprite=new T.Sprite(new T.SpriteMaterial({
-    map:view.atlas[0],transparent:true,depthWrite:false,color:0xf5e7fc,
+    map:view.atlas[0],transparent:true,depthWrite:false,depthTest:false,color:0xf5e7fc,
   }));
   const ratio=view.atlas[0].image.width/view.atlas[0].image.height;
   sprite.position.set(3.3,height*.51,2.29);sprite.scale.set(height*ratio,height,1);
   shadow.renderOrder=1;
+  sprite.renderOrder=12;
   scene.add(sprite);
   return {sprite,shadow,footlight,height,target:new T.Vector2(3.3,2.29),frames:view.atlas};
 }
@@ -438,9 +440,8 @@ function buildHall(view){
 }
 
 export class LanternNave {
-  constructor(view,canvas,controls){
+  constructor(view,canvas){
     this.canvas=canvas;
-    this.controls=controls;
     this.mobile=view.mobile;
     this.ambience=matchMedia('(prefers-reduced-motion: reduce)');
     this.renderer=new T.WebGLRenderer({canvas,antialias:!view.mobile,powerPreference:'high-performance'});
@@ -449,22 +450,16 @@ export class LanternNave {
     this.renderer.toneMappingExposure=1.10;
     this.camera=new T.PerspectiveCamera(43,1,.12,70);
     Object.assign(this,buildHall(view));
-    this.yaw=.96;this.goalYaw=this.yaw;this.pitch=.62;this.goalPitch=this.pitch;
-    this.t=0;this.nextFrame=0;this.interacted=false;
+    this.cutaway=new RoomCutaway();
+    this.cutaway.cover(this.scene);
+    const yaw=.96,pitch=.62;
+    this.sight=new T.Vector3(Math.cos(yaw)*Math.cos(pitch),Math.sin(pitch),Math.sin(yaw)*Math.cos(pitch));
+    this.t=0;this.nextFrame=0;
     this.ray=new T.Raycaster();this.pointer=new T.Vector2();this.ground=new T.Vector3();
-    this.focus=new T.Vector2(1.10,.24);this.resize();
+    this.focus=new T.Vector3();this.resize();
     new ResizeObserver(()=>this.resize()).observe(canvas);
-    for(const button of controls.querySelectorAll('[data-view]')){
-      button.addEventListener('click',()=>{
-        const direction=Number(button.dataset.view);
-        this.interacted=true;
-        if(direction===0){this.goalYaw=.96;this.goalPitch=.62;}
-        else this.goalYaw+=direction*.42;
-      });
-    }
     canvas.addEventListener('pointerdown',event=>{
       if(event.button!==0)return;
-      this.interacted=true;
       this.drag={id:event.pointerId,x:event.clientX,y:event.clientY,distance:0};
       canvas.setPointerCapture(event.pointerId);
     });
@@ -472,8 +467,6 @@ export class LanternNave {
       if(this.drag?.id!==event.pointerId)return;
       const dx=event.clientX-this.drag.x,dy=event.clientY-this.drag.y;
       this.drag.distance+=Math.hypot(dx,dy);
-      this.goalYaw-=dx*.009;
-      this.goalPitch=T.MathUtils.clamp(this.goalPitch+dy*.005,.43,1.06);
       this.drag.x=event.clientX;this.drag.y=event.clientY;
     });
     canvas.addEventListener('pointerup',event=>{
@@ -537,31 +530,24 @@ export class LanternNave {
     this.lastFrame=now;
     this.nextFrame=now+(this.mobile?29:19);
     const still=this.ambience.matches;
-    const moving=Math.abs(this.yaw-this.goalYaw)>.003||Math.abs(this.pitch-this.goalPitch)>.003;
     const pos=this.cat.sprite.position;
-    if(still&&!moving&&!this.dirty&&Math.hypot(this.cat.target.x-pos.x,this.cat.target.y-pos.z)<.06)return;
+    if(still&&!this.dirty&&Math.hypot(this.cat.target.x-pos.x,this.cat.target.y-pos.z)<.06)return;
     this.dirty=false;
     this.t+=still?0:elapsed;
     const t=this.t;
-    const drift=this.interacted||still?0:Math.sin(t*.102)*.20;
-    this.yaw=T.MathUtils.lerp(this.yaw,this.goalYaw,1-Math.exp(-8*elapsed));
-    this.pitch=T.MathUtils.lerp(this.pitch,this.goalPitch,1-Math.exp(-8*elapsed));
     this.stepCat(elapsed,t);
-    const follow=this.interacted ? .19 : 0;
-    this.focus.x=T.MathUtils.lerp(this.focus.x,1.10+(pos.x-3.30)*follow,.075);
-    this.focus.y=T.MathUtils.lerp(this.focus.y,.24+(pos.z-2.29)*follow,.075);
-    const a=this.yaw+drift,wide=this.camera.aspect>1.03;
-    const distance=wide?17.4:18.5;
-    const [x,z]=polar(distance*Math.cos(this.pitch),a);
-    this.camera.position.set(this.focus.x+x,1.06+distance*Math.sin(this.pitch),this.focus.y+z);
-    this.camera.lookAt(this.focus.x,1.05,this.focus.y);
+    const wide=this.camera.aspect>1.03;
+    this.focus.set(pos.x,1.04,pos.z);
+    this.camera.position.copy(this.sight).multiplyScalar(wide?18.5:16.3).add(this.focus);
+    this.camera.lookAt(this.focus);
+    this.cutaway.place(pos.x,pos.z,this.sight);
     this.camera.clearViewOffset();
     if(wide){
       const size=this.canvas;
-      this.camera.setViewOffset(size.clientWidth,size.clientHeight,-size.clientWidth*.17,0,size.clientWidth,size.clientHeight);
+      this.camera.setViewOffset(size.clientWidth,size.clientHeight,-size.clientWidth*.13,0,size.clientWidth,size.clientHeight);
     }else{
       const size=this.canvas;
-      this.camera.setViewOffset(size.clientWidth,size.clientHeight,0,size.clientHeight*.15,size.clientWidth,size.clientHeight);
+      this.camera.setViewOffset(size.clientWidth,size.clientHeight,0,size.clientHeight*.105,size.clientWidth,size.clientHeight);
     }
     this.spark.rotation.y=t*.56;
     this.spark.position.y=2.14+Math.sin(t*1.69)*.19;

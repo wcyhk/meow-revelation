@@ -1,19 +1,18 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=lantern-nave-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=lantern-nave-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=world-3d-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=world-3d-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=lantern-nave-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=world-3d-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=lantern-nave-1';
-import {LanternNave} from './lantern-nave.mjs?v=lantern-nave-1';
+import {Scenery} from './scenery.mjs?v=world-3d-1';
+import {LanternNave} from './lantern-nave.mjs?v=world-3d-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
-import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=pao-polish-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=sculpted-1';
+import {arms} from './armory.mjs?v=relic-sculpts-1';
 import {ending} from './campaign.mjs?v=clock-1';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=forgelight-4';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ledger-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=codex-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=world-3d-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=ledger-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=bestiary-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
@@ -28,7 +27,7 @@ import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
-import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=forgelight-4';
+import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=world-3d-1';
 import {actorMotion} from './actor-kinetics.mjs?v=forgelight-4';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
@@ -36,7 +35,7 @@ import {BranchCombat} from './branch-combat.mjs?v=nightforge-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
-import {RelicHunt} from './relic-hunt.mjs?v=forgelight-4';
+import {RelicHunt} from './relic-hunt.mjs?v=world-3d-1';
 import {relicCounter} from './relic-cast.mjs?v=ledger-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
@@ -222,7 +221,6 @@ export class Game {
     this.hero.x=stage.spawn.x;
     this.hero.z=stage.spawn.z;
     this.hero.invulnerable=1.15;
-    this.view.focus.set(0,0,-.65);
     this.view.setStage(stage);
     this.view.setMission(null);
     this.view.setBossArena(null);
@@ -524,7 +522,6 @@ export class Game {
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
     this.ambientClock=(4.1+(stage.room%4)*.47)/this.difficulty.pace;
-    this.view.focus.set(0,0,-.65);
     this.view.setStage(stage);
     this.branchCombat.enter(this);
     this.view.lanternArt.set(this.escape);
@@ -626,8 +623,6 @@ export class Game {
 
   openDialogue(title,location,scene,finishLabel,onFinish,summary) {
     const content=dialoguePanel({title,location,scene,finishLabel,onFinish,summary});
-    const picture=paintedRooms[this.stage.picture]??this.stage.picture;
-    content.style.setProperty('--vn-room',`url("./${picture}")`);
     this.openModal({kind:'dialogue',mark:'',kicker:'',title,copy:'',content});
     content.querySelector('.vn-next:not([hidden]), .vn-options:not([hidden]) .vn-choice')?.focus({preventScroll:true});
   }
@@ -898,6 +893,7 @@ export class Game {
 
   isBlocked(unit,margin,previous) {
     return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin)
+      ||!!this.view.landscape?.solid.some(prop=>distance(unit,prop)<prop.radius+margin)
       ||!!this.escape?.barricades.some(item=>item.hp>0&&distance(unit,item)<item.radius+margin)
       || !!this.bossArena?.blocks(unit,margin,previous);
   }
@@ -2446,6 +2442,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const duration=demonstration?3.05:hold+spec.time+2.75;
   return {
     controls,
+    hero,
     step(dt) {
       practice.t+=dt;
       hero.invulnerable-=dt;
@@ -2543,9 +2540,9 @@ try {
   $('bestiary').disabled=false;
   requestAnimationFrame(game.loop);
   try {
-    const canvas=$('nave-scene'),controls=$('nave-controls');
-    game.nave=new LanternNave(world,canvas,controls);
-    canvas.hidden=controls.hidden=$('nave-guide').hidden=false;
+    const canvas=$('nave-scene');
+    game.nave=new LanternNave(world,canvas);
+    canvas.hidden=$('nave-guide').hidden=false;
     $('cover').classList.add('has-nave');
     game.nave.resize();
   } catch (error) {

@@ -4,10 +4,9 @@
   z-index:-2;
   width:100%;
   height:100%;
-  cursor:grab;
+  cursor:pointer;
   touch-action:none;
 }
-#nave-scene:active {cursor:grabbing}
 #cover.has-nave {background:#0b101c}
 #cover.has-nave::before {
   background:linear-gradient(90deg,#0a111ee9 0%,#0a111eb3 26%,#0a111e25 52%,transparent 71%),
@@ -19,31 +18,10 @@
 #cover.has-nave .cover-content h1 {
   text-shadow:0 2px 0 #634431,0 7px 25px #080d19,0 0 45px #ba9d844a;
 }
-#nave-controls:not([hidden]) {
-  position:absolute;
-  z-index:1;
-  right:clamp(38px,8vw,140px);
-  bottom:clamp(52px,10vh,110px);
-  display:flex;
-  gap:6px;
-}
-#nave-controls button {
-  color:#ecd9aa;
-  background:#101826d9;
-  border:1px solid #a482526f;
-  border-radius:3px;
-  width:44px;
-  height:44px;
-  padding:0;
-  font-size:23px;
-  cursor:pointer;
-}
-#nave-controls button:hover,
-#nave-controls button:focus-visible {background:#26304a;color:#fff1ce;border-color:#e1c185}
 #nave-guide {
   position:absolute;
   right:clamp(39px,8vw,140px);
-  bottom:calc(clamp(52px,10vh,110px) + 50px);
+  bottom:clamp(52px,10vh,110px);
   margin:0;
   color:#decab2;
   font-size:11px;
@@ -55,10 +33,5 @@
     background:linear-gradient(0deg,#0a101de9 5%,#0a101de6 25%,#0a101d74 44%,transparent 72%),
       linear-gradient(180deg,#0a101d88,transparent 22%);
   }
-  #nave-controls:not([hidden]) {
-    right:21px;
-    top:max(50px,calc(env(safe-area-inset-top) + 38px));
-    bottom:auto;
-  }
-  #nave-guide {right:22px;top:max(100px,calc(env(safe-area-inset-top) + 88px));bottom:auto}
+  #nave-guide {right:22px;top:max(52px,calc(env(safe-area-inset-top) + 38px));bottom:auto}
 }

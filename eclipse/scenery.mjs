@@ -1,18 +1,19 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=lantern-nave-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=world-3d-1';
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=sculpted-1';
-import {pictures, stages} from './expedition.mjs?v=forgelight-4';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
+import {stages} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
-import {LanternArt} from './lantern-art.mjs?v=patina-1';
-import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=forgelight-4';
+import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
+import {LanternArt} from './lantern-art.mjs?v=world-3d-1';
+import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=world-3d-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
-import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
+import {GroveLight} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=sculpted-1';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=relic-sculpts-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
@@ -84,7 +85,7 @@ const beamColumn=new T.CylinderGeometry(.08,.24,1,8);
 const handPalm=new T.SphereGeometry(.58,8,6);
 const handFinger=new T.CapsuleGeometry(.13,.39,3,5);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
-const sceneAngle = new T.Vector3(0, 16, 19.6).normalize();
+const sceneAngle = new T.Vector3(0, 15.8, 22.4).normalize();
 const wristMask=(value)=>1-T.MathUtils.smoothstep(value,.07,.25);
 
 function texture(canvas) {
@@ -202,22 +203,6 @@ function warningMaterial() {
     `});
 }
 
-const pictureLights = {
-  'grove.jpg':[[.278,.283],[.397,.267],[.659,.267],[.849,.323],[.113,.399]],
-  'fen.jpg':[[.21,.315],[.36,.333],[.64,.333],[.80,.315]],
-  'lotus.jpg':[[.35,.24],[.68,.24],[.08,.39],[.92,.39]],
-  'frost.jpg':[[.32,.25],[.69,.25],[.49,.16]],
-  'forge.jpg':[[.5,.22],[.11,.13],[.89,.13],[.06,.39],[.94,.39]],
-  'grave.jpg':[[.21,.26],[.81,.25],[.49,.18]],
-  'vault-gold.jpg':[[.12,.26],[.27,.25],[.72,.25],[.86,.26]],
-  'dunes.jpg':[[.5,.15],[.81,.24],[.19,.24]],
-  'fungus.jpg':[[.12,.24],[.77,.25],[.92,.25],[.49,.21]],
-  'cathedral.jpg':[[.12,.22],[.36,.22],[.64,.22],[.88,.22],[.49,.14]],
-  'desecrated-cathedral.jpg':[[.14,.261],[.37,.236],[.63,.236],[.86,.261],[.51,.16]],
-  'throne.jpg':[[.273,.305],[.386,.305],[.620,.305],[.724,.305]],
-  'crimson-throne.jpg':[[.16,.28],[.33,.267],[.67,.267],[.84,.28],[.50,.205]],
-};
-
 const weather = {
   leaves:{dx:-.54,dy:.42,mist:.055,scale:1},
   mist:{dx:.42,dy:.22,mist:.12,scale:1.08},
@@ -238,7 +223,7 @@ export class Scenery {
     this.mobile = matchMedia('(pointer:coarse)').matches;
     this.renderer = new T.WebGLRenderer({canvas, antialias:!this.mobile, alpha:false, powerPreference:'high-performance'});
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.mobile ? 1.35 : 1.65));
-    this.renderer.setClearColor(0x151912);
+    this.renderer.setClearColor(0x100f17);
     this.scene = new T.Scene();
     armLighting(this.scene,true);
     this.camera = new T.OrthographicCamera(-10, 10, 8, -8, .1, 100);
@@ -251,18 +236,12 @@ export class Scenery {
     this.shadow = radialTexture([[0,'#12120ce8'],[.47,'#12110ca2'],[.72,'#15120b4b'],[1,'#00000000']]);
     this.battleTextures=battleTextures();
     for (const map of Object.values(this.battleTextures)) map.colorSpace=T.SRGBColorSpace;
-    this.back = new T.Mesh(plane, new T.MeshBasicMaterial({color:0xffffff,depthWrite:false}));
-    this.back.quaternion.copy(this.camera.quaternion);
-    this.back.position.copy(sceneAngle).multiplyScalar(-16);
-    this.back.scale.set(ART_SIZE, ART_SIZE, 1);
-    this.back.renderOrder = -50;
-    this.scene.add(this.back);
-    this.nightShade=makeShade(this);
+    this.cutaway=new RoomCutaway();
     this.lanternArt=new LanternArt(this);
+    this.landscape=new RoomLandscape(this,this.cutaway);
     this.sigilTextures=new Map();
     this.makeSkillSeals();
     this.groveLight=new GroveLight(this.scene);
-    this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
@@ -279,7 +258,6 @@ export class Scenery {
     this.missionObjects=new T.Group();
     this.scene.add(this.missionObjects);
     this.arenaArt=new ArenaArt(this);
-    this.stageColor=new T.Color();
     this.projectileShape = new T.OctahedronGeometry(.19);
     this.coinShape=new T.TorusGeometry(.21,.038,5,12);
     this.shardShape=new T.ConeGeometry(.24,1.38,5);
@@ -309,23 +287,10 @@ export class Scenery {
   }
 
   async load() {
-    const loader = new T.TextureLoader();
-    const pending=new Map();
-    const loadRoom=picture=>{
-      const src=paintedRooms[picture]??picture;
-      if(!pending.has(src)) pending.set(src,loader.loadAsync(src));
-      return pending.get(src);
-    };
-    const [atlas, images] = await Promise.all([loadCast(), Promise.all(pictures.map(loadRoom)),loadSculptMaterials()]);
-    this.atlas = atlas;
-    for (const image of new Set(images)) {
-      image.colorSpace = T.SRGBColorSpace;
-      image.anisotropy = Math.min(4, this.renderer.capabilities.getMaxAnisotropy());
-      this.renderer.initTexture(image);
-    }
-    this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
+    const [atlas]=await Promise.all([loadCast(),loadSculptMaterials()]);
+    this.atlas=atlas;
     for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=sculpted-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=relic-sculpts-1',import.meta.url).href]));
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }
@@ -335,7 +300,7 @@ export class Scenery {
     this.height = this.canvas.clientHeight;
     if (!this.width || !this.height) return;
     const aspect = this.width / this.height;
-    const view = aspect < .8 ? Math.min(25, 12.5 / aspect) : Math.min(17.7, 28.9 / aspect);
+    const view = aspect < .8 ? Math.min(25, 12.5 / aspect) : Math.min(20.4, 33 / aspect);
     this.camera.top = view / 2;
     this.camera.bottom = -view / 2;
     this.camera.left = -view * aspect / 2;
@@ -349,26 +314,11 @@ export class Scenery {
     this.sigilPreview.visible=this.sigilBurst.visible=false;
     this.sigilPreview.material.opacity=0;
     this.sigilTime=0;
-    this.back.material.map = this.pictures.get(stage.picture);
-    const warmth=(stage.room%4)*.014;
+    this.landscape.set(stage);
     const dread=stage.dread;
-    this.back.material.color.setRGB(1-warmth*.26-dread*.075,1-warmth-dread*.22,1-warmth*.6-dread*.15);
-    this.nightShade.material.uniforms.dread.value=dread;
-    this.stageColor.copy(this.back.material.color);
-    this.back.material.needsUpdate = true;
     const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
-    const glows=roomLights(stage.picture,pictureLights[stage.picture]);
     this.air={...weather[stage.zone.style],mist:weather[stage.zone.style].mist+dread*.027};
     this.accent = hue;
-    for (const [i, lamp] of this.candles.entries()) {
-      lamp.visible = i < glows.length;
-      if (!lamp.visible) continue;
-      const [x, y] = glows[i];
-      lamp.position.copy(sceneAngle).multiplyScalar(-15.6)
-        .addScaledVector(this.cameraUp, (.5 - y) * ART_SIZE);
-      lamp.position.x = (x - .5) * ART_SIZE;
-      lamp.material.color.setHex(hue);
-    }
     for (const cloud of this.mist) cloud.material.color.setHex(hue);
     this.leaves.mesh.material.color.setHex(hue);
     this.leaves.mesh.visible=stage.zone.style==='leaves'||stage.zone.style==='cinders';
@@ -387,10 +337,12 @@ export class Scenery {
 
   setBossArena(arena) {
     this.arenaArt.set(arena);
+    this.cutaway.cover(this.arenaArt.root);
   }
 
   transformBossArena(arena) {
     this.arenaArt.transform(arena);
+    this.cutaway.cover(this.arenaArt.phaseRoot);
   }
 
   openBossFissure(hazard) {
@@ -430,6 +382,7 @@ export class Scenery {
       rune.rotation.y=angle;
     }
     this.fixtures.add(glyph);
+    this.cutaway.cover(this.fixtures);
     if (stage.dread>.055) {
       const count=Math.floor(1+stage.dread*8);
       for (let index=0;index<count;index++) {
@@ -451,15 +404,6 @@ export class Scenery {
         this.fixtures.add(seal);
       }
     }
-  }
-
-  makeAirGlow(index) {
-    const material = new T.SpriteMaterial({map:this.halo,color:0xffc999,transparent:true,opacity:.38,depthWrite:false,blending:T.AdditiveBlending});
-    const glow = new T.Sprite(material);
-    glow.scale.set(1.8, 1.8, 1);
-    glow.renderOrder = -38 + index;
-    this.scene.add(glow);
-    return glow;
   }
 
   makeMist(index) {
@@ -1599,11 +1543,10 @@ export class Scenery {
   render(dt, hero, paused=false, freezeWarnings=false) {
     if (!paused) this.time += dt;
     const time = this.time;
-    this.nightShade.material.uniforms.time.value=time;
     const darkness=this.arenaArt.arena?.darkness??0;
     if (Math.abs(darkness-this.arenaDarkness)>.006) {
       this.arenaDarkness=darkness;
-      this.back.material.color.copy(this.stageColor).multiplyScalar(1-darkness*.54);
+      this.landscape.light(darkness);
       this.shroudElement.style.setProperty('--arena-shadow',String(darkness*.46));
     }
     if (this.shroud>0) {
@@ -1611,22 +1554,19 @@ export class Scenery {
       this.shroudElement.style.setProperty('--omen',String(this.shroud));
     }
     if (hero) {
-      const aspect = this.width / this.height;
-      const follow = 1 - Math.exp(-dt * 5);
-      const targetX=hero.x*(aspect<.9?.94:.78);
-      const targetZ=aspect<.85?.25+(hero.z-1)*.80:-1.1+(hero.z-1)*.78;
-      this.focus.x += (targetX - this.focus.x) * follow;
-      this.focus.z += (targetZ - this.focus.z) * follow;
+      this.focus.set(hero.x,1.04,hero.z);
       this.shake *= Math.exp(-dt * 12);
+      const zoom=1+this.shake*.076;
+      if(Math.abs(zoom-this.camera.zoom)>.0004){
+        this.camera.zoom=zoom;
+        this.camera.updateProjectionMatrix();
+      }
       this.camera.position.copy(sceneAngle).multiplyScalar(28).add(this.focus);
-      this.camera.position.x += Math.sin(time * 116) * this.shake;
-      this.camera.position.y += Math.cos(time * 98) * this.shake * .38;
       this.camera.updateMatrixWorld();
+      this.cutaway.place(hero.x,hero.z,sceneAngle);
+      this.landscape.tick(time,hero,darkness);
       this.lanternArt.tick(hero,time,this.stage,dt);
       this.groveLight.update(hero,this.lanternArt,this.accent,time);
-    }
-    for (const [index, lamp] of this.candles.entries()) {
-      lamp.material.opacity = (1-darkness*.94)*(.43 + .13 * Math.sin(time * 7.4 + index * 2.7) + .07 * Math.sin(time * 21.7 + index));
     }
     for (const [index, cloud] of this.mist.entries()) {
       cloud.position.x = (index-2)*5.4 + Math.sin(time*.27+index*2.4)*2.3;

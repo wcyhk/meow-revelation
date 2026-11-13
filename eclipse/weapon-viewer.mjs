@@ -1,9 +1,11 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=sculpted-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=lantern-nave-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=world-3d-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
+import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=world-3d-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
@@ -446,6 +448,7 @@ export class WeaponViewer {
     const view=Object.create(Object.getPrototypeOf(source));
     const scene=new T.Scene();
     const arena=['phase','drill'].includes(this.mode);
+    const room=arena?this.dossier.stage:null;
     if(paoForms.has(this.boss?.bestiary?.id))lightPaoDisplay(scene);
     else armLighting(scene,arena);
     battleCamera.position.set(.8,arena?16:9.2,arena?21:15);
@@ -457,40 +460,32 @@ export class WeaponViewer {
       atlas:source.atlas,halo:source.halo,shadow:source.shadow,battleTextures:source.battleTextures,
       sigilTextures:source.sigilTextures,ring:source.ring,disc:source.disc,effects:[],time:0,shake:0,
       projectileShape:source.projectileShape,coinShape:source.coinShape,shardShape:source.shardShape,
-      elementBudget:0,elementSeed:857302,stage:{dread:this.boss ? .45 : 0}});
+      elementBudget:0,elementSeed:857302,stage:room??{dread:this.boss ? .45 : 0}});
     view.motes=view.createParticleSystem(view.mobile?125:220);
     view.motion=new MotionArt(view);
     view.makeSkillSeals();
     view.ward=view.makeWard();
     const stage=new T.Group();
-    const ground=new T.Mesh((arena?new T.PlaneGeometry(23,19):new T.CircleGeometry(7,52)).rotateX(-Math.PI/2),
-      new T.MeshStandardMaterial({color:arena?0x2a2229:0x272533,roughness:.89,metalness:.19}));
-    ground.position.y=-.031;
-    if(arena)ground.position.z=1.25;
-    stage.add(ground);
-    for(const radius of arena?[5.2,7.2]:[3.12,4.86,6.48]){
-      const ring=new T.Mesh(new T.RingGeometry(radius-.018,radius,60).rotateX(-Math.PI/2),
-        new T.MeshBasicMaterial({color:this.weapon?.tone??this.boss.tint,transparent:true,opacity:.20}));
-      ring.position.y=-.016;
-      stage.add(ring);
-    }
     if(arena){
-      const tile=new T.BoxGeometry(2.22,.04,1.83);
-      const stone=source.battleTextures.stone;
-      const paving=new T.InstancedMesh(tile,new T.MeshStandardMaterial({color:0xa39891,map:stone,bumpMap:stone,
-        bumpScale:.045,roughness:.92,emissive:0x4a3a48,emissiveIntensity:.28}),95);
-      const transform=new T.Matrix4(),shade=new T.Color();
-      for(let i=0;i<paving.count;i++){
-        const row=Math.floor(i/10),column=i%10;
-        transform.makeTranslation((column-4.5)*2.29,-.019,(row-3.5)*1.9);
-        paving.setMatrixAt(i,transform);
-        shade.setHSL(.72,.08,.61+.14*Math.sin(i*5.19));
-        paving.setColorAt(i,shade);
-      }
-      stage.add(paving);
-      view.arenaArt=new ArenaArt(view);
-      for(const prop of this.dossier.stage.props)stage.add(monument(view,prop,this.boss.tint));
+      view.cutaway=new RoomCutaway();
+      view.sight=new T.Vector3();
       view.darkLights=scene.children.filter(node=>node.isLight).map(light=>[light,light.intensity]);
+      view.landscape=new RoomLandscape(view,view.cutaway);
+      view.landscape.set(room);
+      view.arenaArt=new ArenaArt(view);
+      for(const prop of room.props)stage.add(monument(view,prop,this.boss.tint));
+      view.cutaway.cover(stage);
+    }else{
+      const ground=new T.Mesh(new T.CircleGeometry(7,52).rotateX(-Math.PI/2),
+        new T.MeshStandardMaterial({color:0x272533,roughness:.89,metalness:.19}));
+      ground.position.y=-.031;
+      stage.add(ground);
+      for(const radius of [3.12,4.86,6.48]){
+        const ring=new T.Mesh(new T.RingGeometry(radius-.018,radius,60).rotateX(-Math.PI/2),
+          new T.MeshBasicMaterial({color:this.weapon?.tone??this.boss.tint,transparent:true,opacity:.20}));
+        ring.position.y=-.016;
+        stage.add(ring);
+      }
     }
     scene.add(stage);
     this.view=view;
@@ -559,8 +554,14 @@ export class WeaponViewer {
     view.updateEffects(dt);
     view.renderParticles(dt,false);
     if(view.arenaArt){
+      const {hero}=this.practice;
+      const darkness=view.arenaArt.arena?.darkness??0;
       view.arenaArt.render(view.time);
-      for(const [light,intensity] of view.darkLights)light.intensity=intensity*(1-(view.arenaArt.arena?.darkness??0)*.52);
+      for(const [light,intensity] of view.darkLights)light.intensity=intensity*(1-darkness*.52);
+      view.sight.set(0,0,1).applyQuaternion(battleCamera.quaternion);
+      view.cutaway.place(hero.x,hero.z,view.sight);
+      view.landscape.light(darkness);
+      view.landscape.tick(view.time,hero,darkness);
     }
     this.renderer.render(this.scene,battleCamera);
     view.motion.budget=0;
@@ -584,6 +585,7 @@ export class WeaponViewer {
       const {view}=this;
       this.practice?.dispose();
       for(const fx of view.effects)view.release(fx);
+      view.landscape?.clear();
       const geometries=new Set(),materials=new Set();
       view.scene.traverse(part=>{
         if(part.isInstancedMesh)part.dispose();

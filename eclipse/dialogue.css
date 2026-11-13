@@ -1,6 +1,6 @@
 #modal[data-kind=dialogue] {
   padding:0;
-  background:#121116;
+  background:#100d1670;
   backdrop-filter:none;
 }
 
@@ -42,7 +42,7 @@
   overscroll-behavior:contain;
   color:#f5e5cf;
   text-align:left;
-  background:radial-gradient(ellipse at 50% 24%,#18141a38,#121116e8 88%),var(--vn-room) center 31% / cover no-repeat,#14141b;
+  background:radial-gradient(ellipse at 50% 24%,#18141a0d,#121116d9 88%);
 }
 
 .vn::after {

@@ -3,6 +3,8 @@ import {designs} from './weapon-designs.mjs?v=forgelight-4';
 import {detailWeapon,detailForgedBlade} from './forge-detail.mjs?v=nightforge-1';
 import {forgedSurface} from './forged-surface.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {sculptOffhand} from './weapon-sculpts.mjs?v=relic-sculpts-1';
+import {signWeapon} from './weapon-signatures.mjs?v=relic-sculpts-1';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -981,8 +983,8 @@ const makers={blade,branch,pole,axe,wheel,staff,orb,beads,doll:animalDoll,fish,b
 function combineParts(group,animated){
   const byMaterial=new Map();
   for(const mesh of group.children){
-    if(animated.has(mesh))continue;
     if(mesh.isGroup){combineParts(mesh,animated);continue;}
+    if(animated.has(mesh))continue;
     if(!byMaterial.has(mesh.material))byMaterial.set(mesh.material,[]);
     byMaterial.get(mesh.material).push(mesh);
   }
@@ -1022,8 +1024,11 @@ export function buildWeapon(weapon,finishes){
   const [kind,...recipe]=designs[weapon.id];
   root.userData.finishes=finishes;
   const kit=workshop(root,finishes);
-  makers[kind](kit,...recipe);
-  detailWeapon(kit,weapon,kind,recipe);
+  if(!sculptOffhand(kit,weapon.id)){
+    makers[kind](kit,...recipe);
+    if(kind==='lute'||kind==='beads')detailWeapon(kit,weapon,kind,recipe);
+  }
+  signWeapon(kit,weapon.id);
   const animated=new Set();
   const bow=root.userData.bow;
   if(bow){

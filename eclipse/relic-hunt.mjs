@@ -1,4 +1,4 @@
-import {forestVariant} from './forest-models.mjs?v=cast-1';
+import {forestVariant} from './forest-models.mjs?v=world-3d-1';
 
 const frames={light:38,lightning:31,earth:30,ice:32,void:34,fire:33,blood:39,poison:37,wind:36};
 const effigies={'fox-doll':'fox','snow-doll':'wax','oni-bow':'hound','turtle-bow':'coffin',

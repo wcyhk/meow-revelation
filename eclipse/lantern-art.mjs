@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
-import {lanternRadius} from './lantern-route.mjs?v=forgelight-4';
-import {PaintedExit} from './painted-exit.mjs?v=patina-1';
+import {lanternRadius} from './lantern-route.mjs?v=world-3d-1';
+import {RoomExit} from './room-exit.mjs?v=world-3d-1';
 
 const stone=new T.MeshStandardMaterial({color:0x51414b,roughness:.88,metalness:.16});
 const bevel=new T.MeshStandardMaterial({color:0xa88269,roughness:.69,metalness:.26});
@@ -52,25 +52,6 @@ function makeMoonlessLantern(parent) {
   return {lantern,flame};
 }
 
-function floorTexture() {
-  const paper=document.createElement('canvas');paper.width=paper.height=256;
-  const ctx=paper.getContext('2d');
-  ctx.fillStyle='#251c20';ctx.fillRect(0,0,256,256);
-  for(let row=0;row<4;row++)for(let col=-1;col<5;col++){
-    const x=col*64+(row%2)*32,y=row*64;
-    const r=((row*53+col*17)%26+26)%26;
-    const shade=ctx.createLinearGradient(x,y,x+64,y+64);
-    shade.addColorStop(0,'rgb('+(67+r)+','+(56+r)+','+(59+r)+')');
-    shade.addColorStop(1,'rgb('+(37+r)+','+(32+r)+','+(36+r)+')');
-    ctx.fillStyle=shade;ctx.fillRect(x+2,y+2,60,60);
-    ctx.strokeStyle='#2e2428';ctx.beginPath();ctx.moveTo(x+11,y+4);ctx.lineTo(x+16,y+25);ctx.lineTo(x+32,y+36);ctx.lineTo(x+55,y+40);ctx.stroke();
-  }
-  const data=ctx.getImageData(0,0,256,256);let seed=37483;
-  for(let i=0;i<data.data.length;i+=4){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const n=(seed>>>28)-7;for(let c=0;c<3;c++)data.data[i+c]+=n;}
-  ctx.putImageData(data,0,0);
-  const tex=new T.CanvasTexture(paper);tex.colorSpace=T.SRGBColorSpace;tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(12,12);return tex;
-}
-
 let finished=false;
 function carveMaterials() {
   if(finished)return;
@@ -99,10 +80,8 @@ export class LanternArt {
     this.view=view;
     carveMaterials();
     this.mask=document.getElementById('lantern-dark');
-    this.floor=new T.Mesh(new T.PlaneGeometry(59,59).rotateX(-Math.PI/2),new T.MeshBasicMaterial({map:floorTexture(),depthTest:false,depthWrite:false}));
-    this.floor.position.y=-.12;this.floor.renderOrder=-54;
     this.root=new T.Group();
-    this.paintedExit=new PaintedExit(view);
+    this.exit=new RoomExit(view);
     this.threshold=new T.Mesh(washPlane,new T.MeshBasicMaterial({map:view.halo,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending}));
     this.threshold.renderOrder=-5;
     this.threshold.visible=false;
@@ -119,16 +98,16 @@ export class LanternArt {
     glow.scale.set(.95,.95,1);glow.position.y=.01;this.lamp.add(glow);
     this.light=new T.PointLight(0xffa65f,0,10,1.8);
     this.glow=glow;
-    view.scene.add(this.floor,this.root,this.lamp,this.light,this.threshold);
+    view.scene.add(this.root,this.lamp,this.light,this.threshold);
   }
 
   set(route) {
     this.root.clear();
     this.route=route;
     this.broken=new Map();
-    this.threshold.visible=this.paintedExit.mesh.visible=false;
+    this.threshold.visible=false;
+    this.exit.set(route,this.view.stage?.picture);
     if(!route)return;
-    this.paintedExit.set(route.frame);
     this.threshold.position.set(route.x,.035,route.z-.22);
     this.threshold.scale.set(4.7,1,3.1);
     this.threshold.material.color.setHex(route.frame.light);
@@ -153,6 +132,7 @@ export class LanternArt {
       }
       this.root.add(model);this.broken.set(object,model);
     }
+    this.view.cutaway.cover(this.root);
   }
 
   smash(object) {
@@ -195,7 +175,7 @@ export class LanternArt {
     if(this.route){
       const open=this.route.ready&&this.route.barricades.every(item=>!item.gate||item.hp<=0);
       this.threshold.visible=open&&this.route.found;
-      this.paintedExit.update(open,time,dt);
+      this.exit.tick(open,time,dt);
       if(this.threshold.visible)this.threshold.material.opacity=.29+Math.sin(time*2.3)*.045;
       for(const [object,model] of this.broken){
         model.rotation.z=(1-object.hp/object.maxHp)*.16*Math.sin(time*15+object.x);

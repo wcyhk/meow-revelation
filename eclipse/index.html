@@ -7,14 +7,14 @@
   <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
   <link rel="preload" href="./art/moon-gate.webp" as="image">
-  <link rel="stylesheet" href="./style.css?v=thumb-1">
-  <link rel="stylesheet" href="./dialogue.css?v=last-bell-1">
+  <link rel="stylesheet" href="./style.css?v=world-3d-1">
+  <link rel="stylesheet" href="./dialogue.css?v=world-3d-1">
   <link rel="stylesheet" href="./gilded.css?v=gilded-1">
   <link rel="stylesheet" href="./touch.css?v=sigils-1">
   <link rel="stylesheet" href="./relic-interface.css?v=armory-art-1">
   <link rel="stylesheet" href="./weapon-viewer.css?v=nightforge-1">
-  <link rel="stylesheet" href="./lantern-nave.css?v=lantern-nave-1">
-  <script type="module" src="./game.mjs?v=lantern-nave-1"></script>
+  <link rel="stylesheet" href="./lantern-nave.css?v=world-3d-1">
+  <script type="module" src="./game.mjs?v=world-3d-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -25,7 +25,7 @@
     <div id="eye-marks" aria-hidden="true" hidden></div>
     <div id="damage-vignette" aria-hidden="true"></div>
     <section id="cover" aria-label="遊戲主畫面">
-      <canvas id="nave-scene" aria-label="守燈祭殿，點按地面移動，拖動轉鏡" hidden></canvas>
+      <canvas id="nave-scene" aria-label="守燈祭殿，點按地面移動" hidden></canvas>
       <div class="cover-grain"></div>
       <div class="cover-frame"></div>
       <div class="cover-brand"><span class="brand-mark">☽</span> MEOW REVELATION</div>
@@ -41,12 +41,7 @@
         <span>百關動作冒險<span class="dot"> · </span>鍵盤／手機觸控</span>
         <span class="cover-latin">THE ECLIPSE GROVE</span>
       </div>
-      <div id="nave-controls" role="group" aria-label="祭殿鏡頭" hidden>
-        <button type="button" data-view="-1" aria-label="向左轉鏡">‹</button>
-        <button type="button" data-view="0" aria-label="重設鏡頭">◇</button>
-        <button type="button" data-view="1" aria-label="向右轉鏡">›</button>
-      </div>
-      <p id="nave-guide" hidden>點按地面移動 · 拖動轉鏡</p>
+      <p id="nave-guide" hidden>點按地面移動</p>
     </section>
     <section id="hud" hidden aria-label="戰鬥資訊">
       <div class="health-hud"><div class="portrait"></div><div class="health-info">

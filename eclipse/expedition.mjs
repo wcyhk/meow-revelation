@@ -1,6 +1,6 @@
 import {stages as originalStory} from './campaign.mjs?v=clock-1';
 import {planObjective} from './objectives.mjs?v=bestiary-1';
-import {forestModel} from './forest-models.mjs?v=cast-1';
+import {forestModel} from './forest-models.mjs?v=world-3d-1';
 import {chapterAttacks, enemies, regionalEnemies, wardens} from './bestiary.mjs?v=nightfall-1';
 
 const districts = [

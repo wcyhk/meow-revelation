@@ -1,4 +1,4 @@
-import {roomBounds} from './lantern-route.mjs?v=forgelight-4';
+import {roomBounds} from './lantern-route.mjs?v=world-3d-1';
 
 const TAU = Math.PI*2;
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);

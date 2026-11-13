@@ -10,6 +10,8 @@ import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
+import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=carved-1';
+import {buildCampaignSculpt,disposeCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=world-3d-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -197,6 +199,12 @@ function buildMaterials(entry){
   if(entry.id==='m154')finishes.iron=surface(0x4c4745,.66,.41,'iron');
   if(entry.id==='m133')finishes.mist=new T.MeshStandardMaterial({
     color:0xc5bdbc,emissive:0x726d6a,emissiveIntensity:.36,roughness:1,transparent:true,opacity:.54,depthWrite:false,
+  });
+  for(const [name,parameters] of Object.entries(catalogueFinishes[entry.id]??{})){
+    finishes[name]=surface(...parameters);
+  }
+  if(finishes.silk)Object.assign(finishes.silk,{
+    side:T.DoubleSide,transparent:true,opacity:.72,depthWrite:false,forceSinglePass:true,
   });
   return finishes;
 }
@@ -1528,8 +1536,10 @@ export function mountBestiary(scene,entry,height,mobile=false){
   const root=new T.Group(),materials=buildMaterials(entry);
   const k=kit(root,materials);
   if(!paoForms.has(entry.id))k.sculpt=sculptPao(k);
+  const authored=buildCampaignSculpt(k,entry,mobile)??catalogueSculpt(k,entry,mobile);
   let parts;
-  if(paoForms.has(entry.id))parts=buildPao(k,entry,mobile);
+  if(authored)parts=authored;
+  else if(paoForms.has(entry.id))parts=buildPao(k,entry,mobile);
   else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
   else if(entry.id==='m114')parts=shahRoyalPair(k);
   else if(entry.id==='m115')parts=yamaTwins(k);
@@ -1558,7 +1568,8 @@ export function mountBestiary(scene,entry,height,mobile=false){
   const dedicatedSilhouette=['m114','m115','m122','m133','m150','m154'].includes(entry.id);
   const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));
-  const detail=parts.pao?null:detailCreature(k,entry,parts,mobile);
+  const detail=parts.pao?null:parts.catalogueSculpt||parts.campaign?
+    {seed:Array.from(entry.id).reduce((sum,char)=>(sum*19+char.charCodeAt(0))%107,0),count:mobile?13:28}:detailCreature(k,entry,parts,mobile);
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
@@ -1650,6 +1661,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
   if(model.signature?.type==='kirin')poseKirin(model,time,step,{wind,strike,travel,fall,stage});
   else if(model.signature)poseSignatureBeast(model,time,beat,{wind,strike,travel,fall});
+  model.cataloguePose?.({beat,headtime:time,wind,strike,travel,fall,step,stage});
   for(const {root:wing,elbow,hand,side,membranous} of model.flight??[]){
     const pulse=Math.sin(beat-.59);
     wing.rotation.y=side*(.035+wind*.22-strike*.34);
@@ -1663,7 +1675,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
       travel*.20*Math.cos(step+side*.9)+fall*.48;
     forearm.rotation.y=side*(wind*.18-strike*.17);
   }
-  if(model.detail)poseCreatureDetail(model.detail,model,time,beat,wind,strike,travel);
+  if(model.campaign)poseCampaignSculpt(model,time,{stage,wind,strike,travel,fall,step,beat});
+  else if(model.detail&&!model.catalogueSculpt)poseCreatureDetail(model.detail,model,time,beat,wind,strike,travel);
   model.aura?.pose(time,stage,wind,fall);
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
@@ -1704,6 +1717,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
 const white=new T.Color(0xfff4e0);
 export function removeBestiary(scene,model){
   scene.remove(model.root);
+  disposeCampaignSculpt(model);
   model.pao?.energy.dispose();
   model.aura?.dispose();
   model.signature?.lume?.dispose();

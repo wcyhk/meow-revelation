@@ -1,4 +1,4 @@
-import {forestVariant} from './forest-models.mjs?v=cast-1';
+import {forestVariant} from './forest-models.mjs?v=world-3d-1';
 
 export const roomBounds={minX:-14.7,maxX:14.7,minZ:-15.9,maxZ:13.0};
 

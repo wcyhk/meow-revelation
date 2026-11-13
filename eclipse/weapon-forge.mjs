@@ -58,8 +58,13 @@ function workshop(root,materials) {
   }
   function grip(y,radius=.68,count=7,spacing=.28) {
     for(let i=0;i<count;i++){
-      const strip=loop([0,y+(i-(count-1)*.5)*spacing],radius,.055,i%3===0?'trim':'body','xz',12);
+      const at=y+(i-(count-1)*.5)*spacing;
+      const strip=loop([0,at],radius,.11,i===0||i===count-1?'trim':'dark','xz',12);
       strip.rotation.z=i%2?.15:-.13;
+      if(i%2===0){
+        gem([radius*.72,at,radius*.71],.092,'trim',[.72,1.30,.67]);
+        gem([-radius*.72,at,-radius*.71],.092,'trim',[.72,1.30,.67]);
+      }
     }
   }
   function inlay(points,z=.58,width=.08,finish='core',smooth=true) {
@@ -100,7 +105,11 @@ function blade(h,guard,edge,fuller) {
     nether:[-3.33,-2.47,-2.54,-1.36,-1.63,-1.53,-.89,-.64,1.04,-1.69,1.86,-.51,3.28,-1.64,2.81,-2.94,1.31,-3.47,-1.71,-3.29],
   };
   plate(guards[guard],'trim',1.0,[0,0,0],.19);
+  for(const side of [-1,1]){
+    plate(guards[guard].map((value,index)=>index%2?(value+2.5)*.62-2.5:value*.76),'dark',.28,[0,0,side*.60],.08);
+  }
   gem([0,-2.65,0],.75,'core',[1,1.05,1.2],1);
+  studs([[-1.63,-2.38],[1.63,-2.38],[-.98,-2.85],[.98,-2.85]],.14,.75,'edge');
   gem([0,-8.12,0],guard==='nether'?1.04:.68,'trim',[1,.77,.83]);
   if(guard==='ribbon'){
     line([[-.2,-7.55,.18],[-1.8,-8.7,.25],[-4.1,-8.48,.44],[-5.04,-9.5,.57]],.19,'core');

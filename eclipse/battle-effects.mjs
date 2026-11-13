@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {paintedFinish} from './painted-finish.mjs?v=practice-1';
 
 const PI=Math.PI;
 
@@ -104,7 +105,11 @@ function plate(points,depth=.05) {
 
 export function nightmareForm(spec) {
   const group=new T.Group();
-  const dark=new T.MeshBasicMaterial({color:0x190d17,side:T.DoubleSide,transparent:true,opacity:.90,depthWrite:false});
+  const body=new T.Color(spec.tint).lerp(new T.Color(0x241926),.84);
+  const dark=paintedFinish(new T.MeshStandardMaterial({color:body,roughness:.86,side:T.DoubleSide,
+    transparent:true,opacity:.91,depthWrite:false,emissive:body,emissiveIntensity:.14}),'hide');
+  const trim=paintedFinish(new T.MeshStandardMaterial({color:0xa17a57,roughness:.47,metalness:.33,
+    transparent:true,opacity:.92,depthWrite:false}),'bronze');
   const glow=new T.MeshBasicMaterial({color:spec.tint,transparent:true,opacity:.71,blending:T.AdditiveBlending,depthWrite:false});
   const wing=spec.effect==='feather'||spec.effect==='void';
   const spikes=spec.effect==='ice'||spec.effect==='root'||spec.effect==='web';
@@ -117,6 +122,12 @@ export function nightmareForm(spec) {
     const shadow=new T.Mesh(plate(silhouette),dark);
     shadow.scale.x=side;
     group.add(shadow);
+    for(let rivet=0;rivet<3;rivet++){
+      const fastening=new T.Mesh(new T.OctahedronGeometry(.047,0),trim);
+      fastening.position.set(side*(.37+rivet*.105),.13+rivet*.15,.078);
+      fastening.scale.set(.60,1.26,.38);
+      group.add(fastening);
+    }
     for (let index=0;index<3;index++) {
       const flare=new T.Mesh(plate([[.39+index*.14,-.24+index*.13],[.97+index*.13,.24+index*.18],
         [.79+index*.13,.04+index*.16],[.45+index*.13,-.30+index*.13]]),glow);
@@ -129,6 +140,10 @@ export function nightmareForm(spec) {
   crown.position.y=.75;
   crown.rotation.z=-PI*.31;
   group.add(crown);
+  const backing=new T.Mesh(new T.TorusGeometry(.614,.028,5,30,PI*1.59),trim);
+  backing.position.copy(crown.position);
+  backing.rotation.copy(crown.rotation);
+  group.add(backing);
   group.visible=false;
   return group;
 }

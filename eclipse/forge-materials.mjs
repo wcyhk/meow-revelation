@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {paintedFinish} from './painted-finish.mjs?v=practice-1';
 
 const surfaces={};
 const palettes={
@@ -82,15 +83,17 @@ export function forgedMaterials(weapon) {
   const [dark,trim,edge,body,core]=palettes[id].split(' ').map(hex=>Number.parseInt(hex,16));
   function material(color,kind,metalness,roughness,emissiveIntensity=0){
     const map=surfaces[kind]??=surface(kind);
-    return new T.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==='wood'?.031:.017,metalness,roughness,
-      emissive:color,emissiveIntensity});
+    const paint={wood:'hide',cloth:'cloth',metal:'iron',bone:'bone',stone:'stone',crystal:'gem'};
+    const finish=kind==='metal'&&color===trim?'bronze':paint[kind];
+    return paintedFinish(new T.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==='wood'?.037:.024,metalness,roughness,
+      emissive:color,emissiveIntensity}),finish);
   }
   return {
     dark:material(dark,cloth.has(id)?'cloth':'wood',.12,.79),
-    trim:material(trim,'metal',.53,.36,.04),
-    edge:material(edge,bone.has(id)?'bone':'metal',bone.has(id)?.14:.49,bone.has(id)?.57:.28,.075),
+    trim:material(trim,'metal',.48,.43,.035),
+    edge:material(edge,bone.has(id)?'bone':'metal',bone.has(id)?.16:.50,bone.has(id)?.60:.36,.035),
     body:material(body,crystal.has(id)?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
-      crystal.has(id)?.21:.37,lacquer.has(id)?.29:.46,.11),
-    core:material(core,crystal.has(id)?'crystal':'stone',.15,.33,crystal.has(id)?.61:.29),
+      crystal.has(id)?.25:.34,lacquer.has(id)?.38:.59,.075),
+    core:material(core,crystal.has(id)?'crystal':'stone',.15,.38,crystal.has(id)?.48:.25),
   };
 }

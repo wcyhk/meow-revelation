@@ -1,8 +1,8 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=armory-art-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=practice-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=bestiary-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
 
@@ -91,7 +91,14 @@ export class WeaponViewer {
       commit?.();
     },'primary');
     const footer=node('footer','weapon-viewer-footer');
-    footer.append(this.detail,this.choose);
+    this.practiceChoice=button('配搭及練習',()=>{
+      const action=this.practiceAction;
+      this.dialog.close();
+      action?.();
+    });
+    const actions=node('div','weapon-viewer-actions');
+    actions.append(this.practiceChoice,this.choose);
+    footer.append(this.detail,actions);
     this.dialog.append(header,this.stage,this.tools,this.weakness,this.attacks,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
@@ -174,7 +181,7 @@ export class WeaponViewer {
     if(ray.ray.intersectPlane(floor,groundPoint))this.practice.controls.point={x:groundPoint.x,z:groundPoint.z};
   }
 
-  show(weapon,commit){
+  show(weapon,commit,choice='選擇'+weapon.name){
     this.boss=null;
     this.weapon=weapon;
     this.phaseControls?.forEach(control=>control.remove());
@@ -182,11 +189,11 @@ export class WeaponViewer {
     this.attackControls=[];
     this.attacks.replaceChildren();
     this.inspect.textContent='旋轉睇模型';
-    this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice:'選擇'+weapon.name,
+    this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice,
       image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon))});
   }
 
-  showBoss(dossier,names,makePractice,commit){
+  showBoss(dossier,names,makePractice,commit,practice){
     const {spec,entry,weakness}=dossier;
     this.dossier=dossier;
     this.boss=spec;
@@ -219,15 +226,17 @@ export class WeaponViewer {
     });
     this.attacks.replaceChildren(...this.attackControls);
     this.openViewer({title:entry.name,role:entry.floor?'主線頭目 · 第 '+entry.floor+' 關':'頭目圖鑑',ink:new T.Color(spec.tint).getStyle(),
-      choice:'挑戰此頭目',description:spec.signature,commit});
+      choice:'挑戰此頭目',description:spec.signature,commit,practice});
   }
 
   get controls(){return [this.inspect,this.combo,this.skill,...this.phaseControls,...this.attackControls,
     ...(this.boss?this.weakness.querySelectorAll('button'):[])];}
 
-  openViewer({title,role,choice,ink,image,description,commit}){
+  openViewer({title,role,choice,ink,image,description,commit,practice}){
     this.clear();
     this.commit=commit;
+    this.practiceAction=practice;
+    this.practiceChoice.hidden=!practice;
     this.description=description;
     this.focusReturn=document.activeElement;
     this.title.textContent=title;
@@ -246,7 +255,7 @@ export class WeaponViewer {
     this.zoomTools.hidden=true;
     this.dialog.showModal();
     try{
-      this.renderer??=new T.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:!this.main.mobile,powerPreference:'low-power'});
+      this.renderer??=new T.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:true,powerPreference:'low-power'});
     }catch{
       this.canvas.hidden=true;
       this.image.hidden=!image;
@@ -255,7 +264,6 @@ export class WeaponViewer {
       this.detail.textContent=description;
       return;
     }
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
     this.renderer.setClearColor(0,0);
     this.renderer.toneMapping=T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure=1.18;
@@ -268,6 +276,9 @@ export class WeaponViewer {
   resize(){
     const width=this.stage.clientWidth,height=this.stage.clientHeight;
     if(!width||!height||!this.renderer)return;
+    const limit=this.main.mobile?(this.mode==='model'?1.6:1.25):1.7;
+    const pixelRatio=Math.min(devicePixelRatio,limit);
+    if(this.renderer.getPixelRatio()!==pixelRatio)this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width,height,false);
     fit(inspectCamera,width,height,2.30,2.24);
     const arena=['phase','drill'].includes(this.mode);
@@ -328,7 +339,7 @@ export class WeaponViewer {
     const bounds=new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
     item.position.sub(bounds.getCenter(new T.Vector3()));
-    pivot.scale.setScalar((this.boss?2:1.68)/size.length());
+    pivot.scale.setScalar(this.boss?1.95/Math.max(size.x,size.y,size.z):1.68/size.length());
     pivot.add(item);
     this.scene.add(pivot);
     this.item=item;

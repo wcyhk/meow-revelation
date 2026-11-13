@@ -1,13 +1,13 @@
-import {bossMoveNames,fightCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=codex-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=codex-1';
-import {blessingCatalogue,catalogue,techniqueCatalogue} from './catalogue.mjs?v=codex-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=codex-1';
-import {Scenery} from './scenery.mjs?v=bestiary-1';
+import {bossMoveNames,fightCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=practice-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=practice-1';
+import {blessingCatalogue,catalogue,practiceLoadout,techniqueCatalogue} from './catalogue.mjs?v=practice-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=practice-1';
+import {Scenery} from './scenery.mjs?v=practice-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=weapon-audit-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=armory-art-1';
+import {arms} from './armory.mjs?v=practice-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=bestiary-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
@@ -85,6 +85,8 @@ export class Game {
     this.progress=new Progression();
     this.branchCombat=new BranchCombat(view);
     this.weaponViewer=new WeaponViewer(view,makeWeaponPractice);
+    this.practiceDraft={boss:bossDossiers[0],weapon:arms[0],ranks:new Map(),phase:0,seed:null};
+    this.practiceRun=null;
     this.arenaSeed=Math.floor(Math.random()*0x100000000);
     this.level = 0;
     this.wave = 0;
@@ -113,13 +115,14 @@ export class Game {
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
       'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','bestiary','time-fracture',
-      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','touch-skill-status',...actionIds].map(id=>[id,$(id)]));
+      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','touch-skill-status','practice-edit',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>{if(!this.weaponViewer.open)(action==='journal'?this.showJournal():this.togglePause());},()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
     this.ui.training.addEventListener('click',()=>this.openTraining());
     this.ui.records.addEventListener('click',()=>this.openRecords());
     this.ui.bestiary.addEventListener('click',()=>this.openCatalogue());
+    this.ui['practice-edit'].addEventListener('click',()=>this.openPracticeLoadout());
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
@@ -161,23 +164,74 @@ export class Game {
     const openBoss=entry=>this.weaponViewer.showBoss(dossiers.get(entry),{...patterns,...bossMoveNames},makeBossPractice,()=>{
       this.duelMonster=entry;
       this.prepare();
+    },()=>{
+      this.setPracticeBoss(entry);
+      this.openPracticeLoadout();
     });
     const tabs=[
       ['頭目',()=>fightCatalogue(document,bossDossiers,openBoss,entry=>dossiers.get(entry))],
       ['神器＋技能',()=>{
         const page=document.createElement('div');
-        page.append(techniqueCatalogue(),weaponCatalogue(arms,this.view.armIcons,weapon=>this.weaponViewer.show(weapon)));
+        page.append(techniqueCatalogue(),weaponCatalogue(arms,this.view.armIcons,weapon=>this.weaponViewer.show(weapon,chosen=>{
+          this.setPracticeWeapon(chosen);
+          this.openPracticeLoadout();
+        },'加入練習配搭')));
         return page;
       }],
-      ['祝福',()=>blessingCatalogue(arms)],
+      ['祝福',()=>blessingCatalogue(arms,item=>{
+        if(item.weaponId)this.setPracticeWeapon(arms.find(arm=>arm.id===item.weaponId));
+        this.practiceDraft.ranks.set(item.id,Math.max(1,this.practiceDraft.ranks.get(item.id)??0));
+        this.openPracticeLoadout();
+      })],
     ];
     this.openModal({kind:'bestiary',mark:'☽',kicker:'守燈手記',title:'圖鑑',copy:'',
-      content:catalogue(tabs,()=>this.showCover())});
+      content:catalogue(tabs,()=>this.showCover(),()=>this.openPracticeLoadout())});
+  }
+
+  setPracticeBoss(entry) {
+    const draft=this.practiceDraft;
+    if(draft.boss===entry)return;
+    draft.boss=entry;
+    draft.seed=null;
+    draft.phase=Math.min(draft.phase,bossDossier(entry,this.difficulty).spec.phases.length);
+  }
+
+  setPracticeWeapon(weapon) {
+    const draft=this.practiceDraft;
+    draft.weapon=weapon;
+  }
+
+  openPracticeLoadout() {
+    if(this.state!=='cover'&&!this.practiceRun)return;
+    this.state='practice-loadout';
+    this.audio.active=false;
+    const content=practiceLoadout(this.practiceDraft,{weapons:arms,heads:bossDossiers,icons:this.view.armIcons,
+      preview:weapon=>this.weaponViewer.show(weapon),describe:entry=>bossDossier(entry,this.difficulty),
+      chooseWeapon:weapon=>this.setPracticeWeapon(weapon),chooseBoss:entry=>this.setPracticeBoss(entry)});
+    this.openModal({kind:'practice-loadout',mark:'◇',kicker:'圖鑑',title:'配搭及練習',
+      copy:'用自選祝福試招，可以由變身後開始。練習獨立計時。',content,
+      buttons:[makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();}),
+        makeButton('開始練習',()=>this.startPractice(),'primary')]});
+    this.ui.modal.querySelector('.panel').scrollTop=0;
+  }
+
+  startPractice() {
+    if(!['practice-loadout','practice-result','pause'].includes(this.state))return;
+    const draft=this.practiceDraft;
+    const {weapon,boss,phase,ranks}=draft;
+    draft.seed??=Math.floor(Math.random()*0x100000000);
+    const pool=weapon.blessing?[...blessings,weapon.blessing]:blessings;
+    const relics=pool.flatMap(item=>Array.from({length:ranks.get(item.id)??0},()=>item));
+    this.duelMonster=boss;
+    this.practiceRun={phase,seed:draft.seed,relics};
+    this.audio.start().catch(()=>{});
+    this.start(weapon);
   }
 
   startMonsterDuel() {
     const {stage:source,layout,spec}=bossDossier(this.duelMonster,this.difficulty);
-    const stage={...source,name:'頭目試戰',clue:null,objective:null,hazard:null};
+    const title=this.practiceRun?'頭目練習場':'頭目試戰';
+    const stage={...source,name:title,clue:null,objective:null,hazard:null};
     this.stage=stage;
     this.clearActors();
     this.clearThreats();
@@ -200,11 +254,11 @@ export class Game {
     this.placeStory(null);
     const boss=this.spawn('boss',0,-3.2,null,spec);
     this.arenaSeed=(this.arenaSeed+0x9e3779b9)>>>0;
-    this.bossArena=new BossArena(this,layout,boss,this.arenaSeed);
+    this.bossArena=new BossArena(this,layout,boss,this.practiceRun?.seed??this.arenaSeed);
     this.view.setBossArena(this.bossArena);
     boss.phaseGuard=1.12;
     boss.recover=1.10;
-    this.ui['route-name'].textContent='頭目試戰';
+    this.ui['route-name'].textContent=title;
     this.ui['route-floor'].textContent=this.difficulty.name;
     this.ui['route-dots'].replaceChildren();
     this.ui['boss-name'].textContent=spec.name;
@@ -212,13 +266,21 @@ export class Game {
     this.audio.dread=stage.dread;
     this.ambientClock=Infinity;
     this.audio.boss(spec.effect);
-    this.view.bossCue(boss,'entrance');
-    this.objective('擊敗 '+spec.name);
-    this.announce('頭目試戰',spec.name,spec.signature,1.9);
+    const phase=this.practiceRun?.phase??0;
+    if(phase){
+      if(phase===2){boss.bossPhase=1;this.bossArena.transform(1);}
+      boss.hp=spec.hp*spec.phases[phase-1];
+      this.advanceBossPhase(boss);
+    }else{
+      this.view.bossCue(boss,'entrance');
+      this.objective('擊敗 '+spec.name);
+      this.announce(title,spec.name,spec.signature,1.9);
+    }
     this.renderUI();
   }
 
   finishMonsterDuel() {
+    if(this.practiceRun){this.finishPractice(true);return;}
     this.state='duel-win';
     this.audio.active=false;
     this.clearThreats();
@@ -228,6 +290,18 @@ export class Game {
       copy:'用時 '+formatTime(this.elapsed),buttons:[makeButton('返回頭目圖鑑',()=>{
         this.showCover();this.openCatalogue();
       },'primary')]});
+  }
+
+  finishPractice(won) {
+    this.state='practice-result';
+    this.audio.active=false;
+    this.clearThreats();
+    this.rituals.length=0;
+    this.ui.announce.classList.remove('visible');
+    this.openModal({kind:'practice-result',mark:'✧',kicker:'頭目練習場',
+      title:won?'已擊敗 '+this.duelMonster.name:'練習結束',copy:'用時 '+formatTime(this.elapsed),
+      buttons:[makeButton('換配搭',()=>this.openPracticeLoadout(),'primary'),makeButton('原配搭再試',()=>this.startPractice()),
+        makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();})]});
   }
 
   prepare(milestone=false) {
@@ -330,9 +404,9 @@ export class Game {
     if (this.heroVisual) this.view.removeEquippedActor(this.heroVisual);
     this.hero = makeHero();
     this.progress.refresh();
-    this.branchCombat.start(this.progress.data);
-    this.training={...this.progress.data.training};
-    this.hero.technique=this.progress.data.technique;
+    this.branchCombat.start(this.practiceRun?{...this.progress.data,branch:null}:this.progress.data);
+    this.training=this.practiceRun?{}:{...this.progress.data.training};
+    this.hero.technique=this.practiceRun?null:this.progress.data.technique;
     this.hero.lanternStyle=this.progress.data.lantern;
     this.runGold=0;
     this.redraws=0;
@@ -340,7 +414,7 @@ export class Game {
     this.twinReward=null;
     this.failure=null;
     this.heroVisual = this.view.createActor(0,2.68);
-    this.relics = [];
+    this.relics = this.practiceRun?[...this.practiceRun.relics]:[];
     this.huntedWeapons=new Set();
     this.fusionPin=null;
     this.routeSeed=Math.floor(Math.random()*0x100000000);
@@ -359,11 +433,13 @@ export class Game {
     this.level = 0;
     this.wave = 0;
     this.equip(weapon);
+    this.learned=new Set(Object.keys(schools).filter(school=>schoolProgress(this.ranks,school).distinct>=3));
     this.hero.hp=this.hero.maxHp;
     this.state = 'play';
     this.audio.active = true;
     this.ui.cover.hidden = true;
     this.ui.hud.hidden = false;
+    this.ui['practice-edit'].hidden=!this.practiceRun;
     this.closeModal();
     if(this.duelMonster)this.startMonsterDuel();
     else this.enter(0);
@@ -372,11 +448,12 @@ export class Game {
 
   equip(weapon) {
     this.weapon=weapon;
-    this.relicHunt=weapon.spell&&!this.huntedWeapons?.has(weapon.id)?new RelicHunt(this,weapon):null;
+    this.relicHunt=!this.practiceRun&&weapon.spell&&!this.huntedWeapons?.has(weapon.id)?new RelicHunt(this,weapon):null;
     this.hero.projectileAim=null;
     this.view.equip(this.heroVisual,weapon);
     this.input.touch.setWeapon(weapon);
-    this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics,this.training);
+    const floor=this.practiceRun?(this.duelMonster.floor??12):this.level+1;
+    this.ranks=buildStats(this.hero,weapon,floor,this.relics,this.training);
     this.ui.equipped.textContent=weapon.name;
     this.ui.equipped.style.color=weapon.ink;
     this.action('strike',weapon.attack,'✦',weapon.ink);
@@ -2065,11 +2142,15 @@ export class Game {
     if (this.state!=='play') return;
     this.state='pause';
     this.audio.active=false;
+    const buttons=this.practiceRun?[makeButton('繼續練習',()=>this.togglePause(),'primary'),
+      makeButton('換配搭',()=>this.openPracticeLoadout()),makeButton('原配搭再試',()=>this.startPractice()),
+      makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();})]
+      :[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))];
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按後向上滑到神器紋章，放手施法。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',
       content:this.fusionMenu(),
-      buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))]});
+      buttons});
   }
 
   fusionMenu() {
@@ -2117,6 +2198,7 @@ export class Game {
 
   finish(won,reason) {
     if (['cover','fracture','gm','won'].includes(this.state)) return;
+    if(this.practiceRun){this.finishPractice(won);return;}
     this.audio.active=false;
     if (!won) {
       this.state='fracture';
@@ -2179,6 +2261,9 @@ export class Game {
 
   showCover() {
     this.state='cover';
+    if(this.practiceRun){this.clearThreats();this.clearActors();this.view.setBossArena(null);this.bossArena=null;}
+    this.practiceRun=null;
+    this.ui['practice-edit'].hidden=true;
     this.duelMonster=null;
     this.audio.active=false;
     this.failure=null;

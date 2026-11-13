@@ -33,6 +33,9 @@
 .weapon-viewer-tools button[aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
 .weapon-viewer-description {margin:0;line-height:1.6;font-size:13px;color:#dbc5af}
 .weapon-viewer-footer .primary {white-space:normal;text-align:center;max-width:46%;justify-content:center}
+.weapon-viewer-actions {display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.weapon-viewer-actions button {padding-inline:14px}
+.weapon-viewer-actions .primary {max-width:none}
 .arm-portrait::after,.heirloom-portrait::after {
   content:"3D";position:absolute;right:5px;bottom:4px;padding:1px 4px;
   border:1px solid currentColor;border-radius:2px;color:#ffe4bb;background:#211829c9;font:600 10px/1.3 system-ui;
@@ -50,7 +53,7 @@
   .weapon-viewer-head,.weapon-viewer-footer {padding:6px 12px}
   .weapon-viewer-tools {padding-top:6px}
 }
-#modal[data-kind=bestiary] {z-index:11}
+#modal:is([data-kind=bestiary],[data-kind=practice-loadout]) {z-index:11}
 #modal[data-kind=bestiary] .panel {width:min(820px,100%)}
 .bestiary-list {margin:auto;text-align:left}
 .bestiary-list input {
@@ -113,6 +116,9 @@
 }
 .catalogue-nav .secondary {min-width:0;min-height:44px;padding:4px 3px;letter-spacing:.06em;font-size:13px}
 .catalogue-nav .catalogue-back {background:#272429;color:#e8c6a8;font-size:11px}
+.catalogue-actions {display:flex;justify-content:flex-end;margin-top:8px}
+.catalogue-practice {min-height:44px;padding:6px 13px;font-size:13px}
+.catalogue-add {min-height:40px;padding:4px 7px;margin-top:7px;font-size:11px;letter-spacing:.035em}
 .catalogue-nav [aria-pressed=true] {color:#ffdeac;border-color:#e7b27b;background:#55313e}
 .catalogue-page {padding-top:10px}
 .catalogue-boons input,.catalogue .weapon-catalogue input {
@@ -133,12 +139,44 @@
 .catalogue-boon:has(.blessing-emblem) {display:grid;grid-template-columns:33px minmax(0,1fr);gap:7px;align-items:start}
 .catalogue-boon .blessing-emblem {width:32px;height:32px}
 .catalogue-school-note {grid-column:1/-1;margin:0;padding:6px 8px;border-left:2px solid #af835b;background:#211e27}
+#modal[data-kind=practice-loadout] .panel {width:min(760px,100%);background:radial-gradient(ellipse at 50% 0,#412e39,#1b1923 74%)}
+#modal[data-kind=practice-loadout] #modal-actions {position:sticky;bottom:-2px;padding:8px 0 0;background:#1b1923;z-index:1}
+.practice-loadout {text-align:left}
+.practice-options {display:grid;grid-template-columns:1fr 1fr .72fr;gap:8px}
+.practice-options label {display:grid;gap:4px;color:#edc995;font-size:12px}
+.practice-options select,.practice-filter input {
+  display:block;width:100%;min-width:0;min-height:44px;padding:6px 9px;border:1px solid #937656;border-radius:3px;
+  background:#181622;color:#fbdebd;font:inherit;color-scheme:dark;
+}
+.practice-arm {display:flex;gap:9px;align-items:center;margin:8px 0;padding:5px 9px;border:1px solid #8a6d564f;background:#241e2b}
+.practice-arm img {width:58px;height:50px;object-fit:contain}
+.practice-arm p {flex:1;font-size:14px;color:#f3d5ad}
+.practice-arm button,.practice-filter button {min-height:44px;padding:5px 9px;font-size:12px;letter-spacing:0}
+.practice-summary,.practice-build,.practice-fusion {margin:8px 0 3px;color:#ecd4b9;font-size:13px}
+.practice-build,.practice-fusion {color:#b8e1d3;font-size:12px;margin-bottom:9px}
+.practice-filter {display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;margin-bottom:7px}
+.practice-filter [aria-pressed=true] {border-color:#bbdcd1;background:#303c40}
+.practice-boons {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:36dvh;overflow:auto;overscroll-behavior:contain}
+.practice-boon {display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:6px;padding:6px;border:1px solid #715b55;background:#27212d}
+.practice-boon.selected {border-color:#90b8a8;background:#2c3739}
+.practice-boon img {width:30px;height:30px}
+.practice-boon strong,.practice-boon small {display:block;font-size:12px;color:#f0d8ba}
+.practice-boon small {font-size:10px;line-height:1.45;color:#dccebf}
+.practice-stepper {display:flex;align-items:center;gap:3px;font-variant-numeric:tabular-nums}
+.practice-stepper button {min-height:44px;min-width:40px;padding:0;font-size:17px;letter-spacing:0}
+.practice-empty {margin:8px;color:#e0cec1;font-size:13px}
+.utility #practice-edit {width:auto;min-height:38px;padding-inline:9px;font-size:12px;color:#d6f1e5;border-color:#81b3a8;background:#152c30e8;touch-action:manipulation}
 @media(max-width:540px){
   .bestiary-results {grid-template-columns:repeat(2,minmax(0,1fr))}
   .boss-preview-attacks,.boss-preview-weakness {margin-inline:12px}
   .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:36dvh}
   .catalogue-skills {grid-template-columns:1fr}
   .catalogue-boon-list {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .weapon-viewer-actions {justify-content:flex-end}
+  .practice-boons {grid-template-columns:1fr;max-height:34dvh}
+  #modal[data-kind=practice-loadout] .panel {padding:12px}
+  #modal[data-kind=practice-loadout] #modal-mark {display:none}
+  .practice-stepper button {min-width:44px}
 }
 @media(max-height:490px) and (orientation:landscape){
   .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:44dvh;min-height:145px}

@@ -1,18 +1,18 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=bestiary-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=practice-1';
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=armory-art-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=practice-1';
 import {pictures, stages} from './expedition.mjs?v=bestiary-1';
-import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
+import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=heirlooms-1';
+import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=patina-1';
 import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=patina-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=armory-art-1';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=practice-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
@@ -302,7 +302,7 @@ export class Scenery {
     }
     this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
     for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=armory-art-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=practice-1',import.meta.url).href]));
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }

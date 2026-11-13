@@ -19,7 +19,7 @@ export class BossCounters {
     this.arena=arena;
     this.game=arena.game;
     this.boss=arena.boss;
-    this.profile=bossWeaknesses[this.game.stage.floor];
+    this.profile=arena.layout.weakness??bossWeaknesses[this.game.stage.floor];
     this.active=false;
   }
 
@@ -230,6 +230,7 @@ export class BossCounters {
     if (!this.owns(hazard)||this.weakness.type!=='rift'||hazard.shape!=='line'||hazard.residue!=='embers'
       || (this.weakness.sealOnly&&hazard.tactic!=='seal')) return;
     this.rifts.set(hazard,withinThreat(this.boss,{...hazard,kind:'line'}));
+    return true;
   }
 
   riftStep(hazard) {

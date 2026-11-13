@@ -286,8 +286,8 @@ export function advanceThreats(game,dt) {
       const duration=hazard.residue==='embers'?2.1:2.7;
       const residue={...hazard,shape:hazard.kind,kind:'residue',delay:hazard.tactic==='seal'?2.75:duration};
       game.hazards.push(residue);
-      counters?.watchRift(residue);
-      if (hazard.tactic==='seal') view.openBossFissure(residue);
+      const counterable=counters?.watchRift(residue);
+      if (hazard.tactic==='seal'||counterable) view.openBossFissure(residue);
       else view.lingeringThreat(hazard,duration);
     }
   }

@@ -86,10 +86,59 @@
 .boss-preview-attacks [aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
 .weapon-viewer[data-subject=boss] .weapon-viewer-tools {display:flex}
 .weapon-viewer[data-subject=boss] .weapon-viewer-tools button:not([hidden]) {flex:1;min-height:44px}
+.boss-preview-weakness {display:grid;gap:6px;margin:8px 20px 0}
+.boss-weakness-row {
+  display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;
+  background:#252b30;border-left:2px solid #8ac7b7;border-radius:3px;
+}
+.boss-weakness-row strong {font-size:13px;color:#b9ebd9}
+.boss-weakness-row p {font-size:12px;margin:2px 0 0;line-height:1.5}
+.boss-weakness-row .secondary {min-height:44px;padding:6px 12px;color:#ccf0e4;background:#253837;font-size:12px}
+.boss-weakness-row [aria-pressed=true] {border-color:#b9ebd9}
+.weapon-viewer-stage:is([data-preview=drill],[data-preview=portrait]) {
+  background:radial-gradient(ellipse at 50% 57%,#382d3c,#100e17 78%);
+}
+.weapon-viewer-stage[data-preview=drill] canvas {cursor:crosshair}
+.weapon-viewer-stage[data-preview=drill] .weapon-viewer-hint {
+  top:9px;bottom:auto;left:50%;right:auto;width:max-content;max-width:calc(100% - 24px);transform:translateX(-50%);
+  padding:5px 10px;border:1px solid #705c54;border-radius:3px;background:#15121ae8;color:#f3dfc4;
+}
+.weapon-viewer-stage.counter-success .weapon-viewer-hint {color:#c1f6e0;border-color:#84cabb;background:#16362fe8}
+.counter-drill-tools {position:absolute;display:flex;gap:6px;right:10px;bottom:10px}
+.counter-drill-tools .secondary {min-height:44px;padding:7px 10px;background:#271f2cee;font-size:12px}
+.catalogue {text-align:left}
+.catalogue-nav {
+  display:grid;grid-template-columns:1fr 1.35fr 1fr 1.04fr;gap:6px;
+  position:sticky;top:0;z-index:1;background:#241f23;padding:6px;border:1px solid #af835b70;
+}
+.catalogue-nav .secondary {min-width:0;min-height:44px;padding:4px 3px;letter-spacing:.06em;font-size:13px}
+.catalogue-nav .catalogue-back {background:#272429;color:#e8c6a8;font-size:11px}
+.catalogue-nav [aria-pressed=true] {color:#ffdeac;border-color:#e7b27b;background:#55313e}
+.catalogue-page {padding-top:10px}
+.catalogue-boons input,.catalogue .weapon-catalogue input {
+  width:100%;min-height:44px;padding:8px 13px;border:1px solid #937656;border-radius:3px;
+  background:#14121d;color:#fbdebd;font:inherit;
+}
+.catalogue .bestiary-filters {flex-wrap:wrap}
+.catalogue .heirloom-list {max-height:none;overflow:visible}
+.heirloom-choice[hidden] {display:none}
+.catalogue-skills,.catalogue-boon-list {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.catalogue-skills {margin-bottom:13px}
+.catalogue-skill-group h3 {font-size:14px;color:#f6d4ab;margin:0 0 5px}
+.catalogue-entry {padding:8px 10px;border:1px solid #af835b63;background:#29232b;border-radius:3px}
+.catalogue-skill-group .catalogue-entry+.catalogue-entry {margin-top:5px}
+.catalogue-entry strong,.catalogue-entry small {display:block;color:#f6dbb4}
+.catalogue-entry small {font-size:10px;color:#d3b695}
+.catalogue-entry p,.catalogue-school-note {font-size:12px;line-height:1.5;margin:4px 0 0;color:#e0cec1}
+.catalogue-boon:has(.blessing-emblem) {display:grid;grid-template-columns:33px minmax(0,1fr);gap:7px;align-items:start}
+.catalogue-boon .blessing-emblem {width:32px;height:32px}
+.catalogue-school-note {grid-column:1/-1;margin:0;padding:6px 8px;border-left:2px solid #af835b;background:#211e27}
 @media(max-width:540px){
   .bestiary-results {grid-template-columns:repeat(2,minmax(0,1fr))}
-  .boss-preview-attacks {margin-inline:12px}
-  .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:42dvh}
+  .boss-preview-attacks,.boss-preview-weakness {margin-inline:12px}
+  .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:36dvh}
+  .catalogue-skills {grid-template-columns:1fr}
+  .catalogue-boon-list {grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-height:490px) and (orientation:landscape){
   .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:44dvh;min-height:145px}

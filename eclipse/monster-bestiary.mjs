@@ -78,7 +78,7 @@ export function monsterBattle(entry,floor,mode={}){
     mass:brute?5.3:3.7,phases:entry.name==='黑影'?[.66,.30]:[.5]};
 }
 
-export function fightCatalogue(document,entries,select){
+export function fightCatalogue(document,entries,select,describe){
   const root=document.createElement('div');
   root.className='bestiary-list';
   const query=document.createElement('input');
@@ -90,7 +90,7 @@ export function fightCatalogue(document,entries,select){
   const status=document.createElement('p');
   status.className='bestiary-count';
   status.setAttribute('aria-live','polite');
-  const modes=[['全部',null],['巨型',new Set(['big'])],['討伐',new Set(['tobel'])]];
+  const modes=[['全部',null],['主線',new Set(['story'])],['巨型',new Set(['big'])],['討伐',new Set(['tobel'])]];
   let selected=modes[0];
   const filters=document.createElement('div');filters.className='bestiary-filters';
   const paint=()=>{
@@ -104,13 +104,13 @@ export function fightCatalogue(document,entries,select){
       const heading=document.createElement('strong');
       heading.textContent=monster.name;
       const label=document.createElement('small');
-      const spec=monsterBattle(monster,12);
-      label.textContent=spec.signature;
+      const {spec,weakness}=describe(monster);
+      label.textContent=(monster.floor?'第 '+monster.floor+' 關 · ':'')+weakness.name;
       card.style.setProperty('--bestiary-ink','#'+spec.tint.toString(16).padStart(6,'0'));
       const action=document.createElement('span');
       action.className='bestiary-preview-label';
-      action.textContent='3D 預覽';
-      card.setAttribute('aria-label',monster.name+'，3D 預覽');
+      action.textContent='招式及反制';
+      card.setAttribute('aria-label',monster.name+'，招式及反制');
       card.append(heading,label,action);
       card.addEventListener('click',()=>select(monster));
       return card;

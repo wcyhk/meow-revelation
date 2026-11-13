@@ -156,32 +156,38 @@ export function weaponPicker(weapons,icons,select){
   root.addEventListener('toggle',()=>{
     if(!root.open||root.dataset.ready)return;
     root.dataset.ready='true';
-    const input=el('input');
-    input.type='search';input.placeholder='搜尋武器、技能或頭目';
-    input.setAttribute('aria-label',input.placeholder);
-    const list=el('div','','heirloom-list');
-    for(const weapon of weapons){
-      const item=el('button','','heirloom-choice');
-      item.type='button';
-      item.dataset.armChoice=weapon.id;
-      item.dataset.search=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name].join(' ');
-      item.style.setProperty('--weapon-tone',weapon.ink);
-      const icon=el('img');
-      icon.alt='';icon.loading='lazy';icon.decoding='async';
-      icon.src=icons.get(weapon.id);
-      const portrait=el('div','','heirloom-portrait');
-      portrait.append(icon);
-      const text=el('div');
-      text.append(el('b',weapon.name),el('span',weapon.skill+' · '+weapon.detail));
-      if(weapon.guardian)text.append(el('small','守護頭目 · '+weapon.guardian.name));
-      item.append(portrait,text);
-      item.addEventListener('click',()=>select(weapon));
-      list.append(item);
-    }
-    input.addEventListener('input',()=>{
-      for(const item of list.children)item.hidden=!item.dataset.search.includes(input.value.trim());
-    });
-    root.append(input,list);
+    root.append(weaponCatalogue(weapons,icons,select));
   });
+  return root;
+}
+
+export function weaponCatalogue(weapons,icons,select){
+  const root=el('div','','weapon-catalogue');
+  const input=el('input');
+  input.type='search';input.placeholder='搜尋武器、技能或頭目';
+  input.setAttribute('aria-label',input.placeholder);
+  const list=el('div','','heirloom-list');
+  for(const weapon of weapons){
+    const item=el('button','','heirloom-choice');
+    item.type='button';
+    item.dataset.armChoice=weapon.id;
+    item.dataset.search=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name].join(' ');
+    item.style.setProperty('--weapon-tone',weapon.ink);
+    const icon=el('img');
+    icon.alt='';icon.loading='lazy';icon.decoding='async';
+    icon.src=icons.get(weapon.id);
+    const portrait=el('div','','heirloom-portrait');
+    portrait.append(icon);
+    const text=el('div');
+    text.append(el('b',weapon.name),el('span',weapon.skill+' · '+weapon.detail));
+    if(weapon.guardian)text.append(el('small','守護頭目 · '+weapon.guardian.name));
+    item.append(portrait,text);
+    item.addEventListener('click',()=>select(weapon));
+    list.append(item);
+  }
+  input.addEventListener('input',()=>{
+    for(const item of list.children)item.hidden=!item.dataset.search.includes(input.value.trim());
+  });
+  root.append(input,list);
   return root;
 }

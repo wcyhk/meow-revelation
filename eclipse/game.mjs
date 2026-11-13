@@ -1,5 +1,7 @@
-import {bossMoveNames,fightCatalogue,monsterCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=boss-preview-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=boss-preview-1';
+import {bossMoveNames,fightCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=codex-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=codex-1';
+import {blessingCatalogue,catalogue,techniqueCatalogue} from './catalogue.mjs?v=codex-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=codex-1';
 import {Scenery} from './scenery.mjs?v=bestiary-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
@@ -9,11 +11,11 @@ import {arms} from './armory.mjs?v=armory-art-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=bestiary-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=heirlooms-1';
+import {advanceThreats, telegraph} from './threats.mjs?v=codex-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=weapon-audit-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=bestiary-1';
 import {invokeSchool} from './schools.mjs?v=nightfall-1';
-import {BossArena} from './boss-arena.mjs?v=bestiary-1';
+import {BossArena} from './boss-arena.mjs?v=codex-1';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
@@ -34,7 +36,7 @@ import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
 import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
 import {relicCounter} from './relic-cast.mjs?v=weapon-audit-1';
-import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=armory-art-1';
+import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 const $ = id => document.getElementById(id);
@@ -117,7 +119,7 @@ export class Game {
     this.ui.begin.addEventListener('click',()=>this.prepare());
     this.ui.training.addEventListener('click',()=>this.openTraining());
     this.ui.records.addEventListener('click',()=>this.openRecords());
-    this.ui.bestiary.addEventListener('click',()=>this.openBestiary());
+    this.ui.bestiary.addEventListener('click',()=>this.openCatalogue());
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
@@ -153,23 +155,29 @@ export class Game {
       buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 
-  openBestiary() {
+  openCatalogue() {
     if(this.state!=='cover')return;
-    this.openModal({kind:'bestiary',mark:'☽',kicker:'巨商妖異',title:'頭目圖鑑',
-      copy:'撳頭目卡睇模型同招式，準備好就選神器試戰。',
-      content:fightCatalogue(document,monsterCatalogue,monster=>{
-        const spec=monsterBattle(monster,12,this.difficulty);
-        this.weaponViewer.showBoss(spec,bossMoveNames,makeBossPractice,()=>{
-          this.duelMonster=monster;
-          this.prepare();
-        });
-      }),buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
+    const dossiers=new Map(bossDossiers.map(entry=>[entry,bossDossier(entry,this.difficulty)]));
+    const openBoss=entry=>this.weaponViewer.showBoss(dossiers.get(entry),{...patterns,...bossMoveNames},makeBossPractice,()=>{
+      this.duelMonster=entry;
+      this.prepare();
+    });
+    const tabs=[
+      ['頭目',()=>fightCatalogue(document,bossDossiers,openBoss,entry=>dossiers.get(entry))],
+      ['神器＋技能',()=>{
+        const page=document.createElement('div');
+        page.append(techniqueCatalogue(),weaponCatalogue(arms,this.view.armIcons,weapon=>this.weaponViewer.show(weapon)));
+        return page;
+      }],
+      ['祝福',()=>blessingCatalogue(arms)],
+    ];
+    this.openModal({kind:'bestiary',mark:'☽',kicker:'守燈手記',title:'圖鑑',copy:'',
+      content:catalogue(tabs,()=>this.showCover())});
   }
 
   startMonsterDuel() {
-    const source=stages[10];
-    const stage=modeStage({...source,name:'頭目試戰',boss:true,guardian:null,clue:null,objective:null,hazard:null,
-      props:[],dread:.44,spawn:{x:0,z:5.9}},this.difficulty);
+    const {stage:source,layout,spec}=bossDossier(this.duelMonster,this.difficulty);
+    const stage={...source,name:'頭目試戰',clue:null,objective:null,hazard:null};
     this.stage=stage;
     this.clearActors();
     this.clearThreats();
@@ -190,8 +198,10 @@ export class Game {
     this.view.lanternArt.set(null);
     this.branchCombat.enter(this);
     this.placeStory(null);
-    const spec={...monsterBattle(this.duelMonster,12,this.difficulty),secondary:false};
-    const boss=this.spawn('boss',0,-2.0,null,spec);
+    const boss=this.spawn('boss',0,-3.2,null,spec);
+    this.arenaSeed=(this.arenaSeed+0x9e3779b9)>>>0;
+    this.bossArena=new BossArena(this,layout,boss,this.arenaSeed);
+    this.view.setBossArena(this.bossArena);
     boss.phaseGuard=1.12;
     boss.recover=1.10;
     this.ui['route-name'].textContent='頭目試戰';
@@ -216,7 +226,7 @@ export class Game {
     this.ui.announce.classList.remove('visible');
     this.openModal({kind:'duel-win',mark:'✧',kicker:'頭目試戰',title:'已擊敗 '+this.duelMonster.name,
       copy:'用時 '+formatTime(this.elapsed),buttons:[makeButton('返回頭目圖鑑',()=>{
-        this.showCover();this.openBestiary();
+        this.showCover();this.openCatalogue();
       },'primary')]});
   }
 
@@ -292,7 +302,7 @@ export class Game {
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
         :'揀難度、勾選入場技能，再帶一件神器出發。',content,
       buttons:milestone?[]:[makeButton(this.duelMonster?'返回頭目圖鑑':'返回主畫面',()=>{
-        const back=!!this.duelMonster;this.showCover();if(back)this.openBestiary();
+        const back=!!this.duelMonster;this.showCover();if(back)this.openCatalogue();
       })]});
   }
 
@@ -1215,7 +1225,7 @@ export class Game {
     }
   }
 
-  updateEnemies(dt) {
+  updateEnemies(dt,drill) {
     const eye=this.branchCombat.skills.has('black-goat-eye')?this.branchCombat.eye:null;
     for (const unit of this.enemies) {
       if (unit.hp<=0) continue;
@@ -1256,15 +1266,16 @@ export class Game {
       const dx=(h.x-unit.x)/dist, dz=(h.z-unit.z)/dist;
       if (Math.abs(dx)>.14) unit.face=Math.sign(dx);
       const attackRange=h===this.hero ? spec.reach : Math.min(spec.reach,spec.ranged??1.85);
+      const exercise=arena?drill:null;
       if (unit.cool<=0&&arena) {
         if (arena.counters.tryCharge(dist)) continue;
-        if (dist<attackRange+3.2&&arena.tactics.tryAttack()) continue;
+        if (!exercise?.focused&&dist<attackRange+3.2&&arena.tactics.tryAttack()) continue;
       }
-      if (dist<attackRange && unit.cool<0) {
-        this.beginEnemyAttack(unit);
+      if (dist<attackRange&&unit.cool<0&&(!exercise?.focused||exercise.attack)) {
+        this.beginEnemyAttack(unit,exercise?.attack);
         continue;
       }
-      const target = h!==this.hero ? attackRange*.64 : spec.ranged??(unit.kind==='boss'?2.8:spec.reach*.67);
+      const target = h!==this.hero ? attackRange*.64 : exercise?.followRange??spec.ranged??(unit.kind==='boss'?2.8:spec.reach*.67);
       const direction = dist>target ? 1 : spec.ranged&&dist<target*.63 ? -.82 : 0;
       let sx=0,sz=0;
       for (const other of this.enemies) {
@@ -2254,77 +2265,167 @@ function makeWeaponPractice(view,weapon,kind) {
   };
 }
 
-function makeBossPractice(view,spec,action,showPhase) {
+function makeBossPractice(view,dossier,action,signal) {
+  const {spec,stage:source,layout,weakness}=dossier;
   const practice=Object.create(Game.prototype);
-  const stage={...stages[10],props:[],bearing:.23,positions:[
-    {x:-5,z:-3},{x:4.5,z:-3.5},{x:0,z:-2.8},{x:-.6,z:2.6},{x:3,z:1.4},
-  ]};
-  const hero=Object.assign(makeHero(),{x:2.95,z:.82,face:-1,invulnerable:0});
-  Object.assign(practice,{view,stage,hero,t:0,hazards:[],enemies:[],relicWalls:[],wave:0,
-    audio:{play(){},release(){},boss(){}},announce(){}});
-  const unit=practice.spawn('boss',-2.4,-.46,null,spec);
+  const drill=action.drill;
+  const stage=action.phase?source:{...source,props:[]};
+  const position=action.phase?source.spawn:{x:2.95,z:.82};
+  const hero=Object.assign(makeHero(),position,{moveSpeed:6.9,damage:25,face:-1});
+  const controls={keys:new Set(),point:null,roll:false,interact:false};
+  const weapon=arms.find(arm=>arm.id==='tiger');
+  Object.assign(practice,{view,stage,hero,weapon,t:0,state:'play',hazards:[],enemies:[],relicWalls:[],wave:0,
+    hitstop:0,branchCombat:{skills:new Set()},audio:{play(){},release(){},boss(){},impact(){}},
+    announce(){},setupMissionPins(){},objective(){}});
+  const unit=practice.spawn('boss',action.phase?0:-2.4,action.phase?-3.2:-.46,null,spec);
   unit.age=3;
   unit.face=1;
-  if(action.phase>1){
-    unit.bossPhase=action.phase-1;
-    unit.hp=spec.hp*spec.phases[action.phase-2];
+  if(action.phase){
+    practice.bossArena=new BossArena(practice,layout,unit,action.seed,drill?drillEncounter(dossier):null);
+    view.setBossArena(practice.bossArena);
+    if(action.phase>1){
+      unit.bossPhase=action.phase-1;
+      unit.hp=spec.hp*spec.phases[action.phase-2];
+      practice.bossArena.transform(unit.bossPhase);
+      practice.bossArena.shift=2;
+    }
+    const cover=[...practice.bossArena.encounter.first.pillars,...stage.props];
+    if(drill&&cover.length&&(weakness.type==='charge'||weakness.type==='projectile')){
+      const column=cover[0];
+      const gap=distance(column,unit);
+      const aim={x:column.x+(column.x-unit.x)/gap*1.6,z:column.z+(column.z-unit.z)/gap*1.6};
+      if(gap>1.2&&Math.abs(aim.x)<9&&aim.z<8)Object.assign(hero,aim);
+    }
   }
-  const target=view.createActor(0,2.36);
+  practice.heroVisual=view.createActor(0,2.36);
+  const arena=practice.bossArena;
+  const rehearsal=drill?arena.layout.weakness:null;
+  const riftDrill=rehearsal?.type==='rift';
+  const exercise={followRange:.7,focused:!!rehearsal,attack:null};
+  let readyRift=false, trackedRift=null;
+  let done=false, status='';
   practice.hurt=(amount,x,z)=>{
     if(hero.invulnerable>0)return false;
-    recoil(hero,{x,z},amount>19?'heavy':'light');
+    const weight=amount>19?'heavy':'light';
+    recoil(hero,{x,z},weight);
     hero.invulnerable=.28;
-    view.impact({...hero,spec:{height:2.36}},{x,z},'light',spec.tint);
+    view.impact({...hero,spec:{height:2.36}},{x,z},weight,spec.tint);
     return true;
+  };
+  practice.hit=(boss,amount,origin,knock,tint)=>{
+    if(arena.locked)return false;
+    boss.hp=Math.max(1,boss.hp-amount);
+    practice.impact(boss,origin,'heavy',tint);
+    return true;
+  };
+  const steer=dt=>{
+    const h=hero;
+    const {keys,point}=controls;
+    let x=Number(keys.has('right'))-Number(keys.has('left'));
+    let z=Number(keys.has('down'))-Number(keys.has('up'));
+    if(!x&&!z&&point&&distance(point,h)>.16){x=point.x-h.x;z=point.z-h.z;}
+    const length=Math.max(1,Math.hypot(x,z));
+    if(Math.hypot(x,z)>.06&&h.rolling<=0){
+      h.dx=x/length;h.dz=z/length;
+      if(Math.abs(h.dx)>.14)h.face=Math.sign(h.dx);
+    }
+    h.rollCool-=dt;
+    h.snared-=dt;
+    if(controls.roll&&h.rollCool<=0&&h.rolling<=0){
+      h.rolling=h.rollDuration;
+      h.rollCool=.67;
+      h.invulnerable=.34;
+      view.spark(h.x,.20,h.z,0xe5b17b,11,.64);
+    }
+    controls.roll=false;
+    const speed=h.moveSpeed*(h.snared>0?.57:1);
+    h.vx=h.rolling>0?h.dx*h.rollSpeed:x/length*speed;
+    h.vz=h.rolling>0?h.dz*h.rollSpeed:z/length*speed;
+    practice.moveUnit(h,h.vx*dt,h.vz*dt,.38);
+    h.x=clamp(h.x,-10.5,10.5);
+    h.z=clamp(h.z,-6.8,9.7);
+    h.rolling-=dt;
+    h.move+=(Math.min(1,Math.hypot(h.vx,h.vz)/5)-h.move)*blend(14,dt);
+    if(!controls.interact)return;
+    controls.interact=false;
+    const lamp=arena.nearby(h);
+    if(lamp)arena.interact(lamp);
+    const core=arena.targets.find(point=>distance(point,h)<1.65);
+    if(core)arena.hit(core,h.damage*1.12);
   };
   const paint=dt=>{
     advanceReaction(hero,dt);
-    view.actor(target,hero,blendPose({frame:hero.reaction?heroFrames.recoil:heroFrames.idle,face:-1,
-      fade:1,rim:0xdbb195,bob:.035,squash:1,tilt:0},reactionPose(hero)));
+    practice.poseHero(dt);
     for(const actor of practice.enemies)practice.poseEnemy(actor,dt);
   };
   paint(0);
-  let fired=false;
-  const hold=action.phase ? .42 : .20;
+  let fired=!!action.portrait;
+  const hold=action.phase ? .85 : .20;
   const duration=hold+spec.time+2.75;
   return {
+    controls,
     step(dt) {
       practice.t+=dt;
       hero.invulnerable-=dt;
-      for(const actor of practice.enemies){
-        actor.age+=dt;
-        actor.phaseGuard-=dt;
-      }
+      if(drill&&fired&&!done)steer(dt);
       if(!fired&&practice.t>=hold){
         fired=true;
         if(action.phase){
           unit.hp=spec.hp*spec.phases[unit.bossPhase];
           practice.advanceBossPhase(unit);
-          showPhase(unit.bossPhase);
+          signal.phase(unit.bossPhase,arena.plan.title);
         }else{
           practice.beginEnemyAttack(unit,action.pattern);
         }
       }
-      if(unit.attack){
-        unit.attack.time-=dt;
-        if(unit.attack.time<=0)practice.resolveEnemyAttack(unit);
+      if(drill&&fired&&!done){
+        const hasRift=riftDrill&&practice.hazards.some(hazard=>hazard.residue==='embers');
+        exercise.attack=riftDrill&&!hasRift?'cinders':null;
+        practice.updateEnemies(dt,exercise);
+      }else{
+        unit.age+=dt;
+        unit.phaseGuard-=dt;
+        if(unit.attack&&(unit.attack.time-=dt)<=0)practice.resolveEnemyAttack(unit);
+        if(unit.motion)unit.motion.age+=dt;
+        if(unit.kx||unit.kz){
+          const before={x:unit.x,z:unit.z};
+          practice.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
+          if(unit.motion?.pattern==='pounce')view.motion.enemyTrail(before,unit);
+          const friction=Math.exp(-dt*10);
+          unit.kx*=friction;unit.kz*=friction;
+        }
       }
-      if(unit.motion)unit.motion.age+=dt;
-      if(unit.kx||unit.kz){
-        const before={x:unit.x,z:unit.z};
-        practice.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
-        if(unit.motion?.pattern==='pounce')view.motion.enemyTrail(before,unit);
-        const friction=Math.exp(-dt*10);
-        unit.kx*=friction;unit.kz*=friction;
+      if(arena?.phase){
+        if(drill&&!done)arena.tick(dt);
+        else arena.shift+=dt;
       }
       advanceThreats(practice,dt);
+      if(drill&&fired&&!done){
+        if(riftDrill)for(const hazard of practice.hazards){
+          if(hazard.kind==='residue'&&hazard.residue==='embers'&&!hazard.rehearsal){
+            hazard.rehearsal=true;
+            hazard.delay+=6;
+          }
+        }
+        const trace=riftDrill?practice.hazards.find(hazard=>hazard.kind==='residue'&&hazard.rehearsal):null;
+        if(trace!==trackedRift){trackedRift=trace;readyRift=false;}
+        if(trace&&arena.counters.rifts.get(trace)===false)readyRift=true;
+        done=arena.counters.stagger>0&&!arena.locked;
+        const next=done?'反制成功 · '+arena.counters.weakness.name:arena.counters.chargeHint>0
+          ?'直衝鎖定 · 離開紅線':arena.locked?arena.status():readyRift?'頭目離開咗裂縫 · 引佢行返入去'
+            :trace?'裂縫已打開 · 向側邊走，引頭目離開裂縫':arena.counters.weakness.hint;
+        if(next!==status){status=next;signal.status(status,done);}
+      }
       paint(dt);
-      return practice.t<duration;
+      if(!drill)return practice.t<(action.portrait?1:duration);
+      if(done)this.finishAt??=practice.t+1.15;
+      return !done||practice.t<this.finishAt;
     },
     dispose() {
+      if(arena)view.setBossArena(null);
       for(const hazard of practice.hazards)if(hazard.visual)view.removeProjectile(hazard.visual);
       for(const actor of practice.enemies)view.removeActor(actor.visual);
-      view.removeActor(target);
+      view.removeActor(practice.heroVisual);
     },
   };
 }

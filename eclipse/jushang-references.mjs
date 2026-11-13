@@ -176,24 +176,32 @@ const clientRelics={
   'red-corporal':64,'blue-corporal':65,'wave-wheel':66,'blood-axe':67,'thunder-sword':68,
   'red-bow':69,'zhurong-axe':82,'ice-talisman':89,snake:92,'emperor-rod':95,'western-rifle':98,
 };
+const clientUnique={'snow-doll':8};
 const clientBosses={
   'trial-jing-light':'gyeongmun_f_l','trial-jing-dark':'gyeongmun_f_d',
   'trial-shang-light':'sangmun_w_l','trial-shang-dark':'sangmun_w_d',
   'trial-kai-light':'gaemun_a_l','trial-kai-dark':'gaemun_a_d',
-  m093:'samun_t_l',m094:'samun_t_d',
-  m001:'mon_snake',m002:'bsnake',m004:'horsespear',m008:'misil_g',m014:'honma',m015:'redjujak',m022:'whitehyunmu',
-  m101:'honganji_g',m106:'madragon',m124:'tiamat',m125:'britra',m150:'emperorturtle',m151:'kinghornet',m154:'bullmonster',m155:'eggghost',
+  m085:'nabata_f',m086:'nabata_w',m087:'nabata_t',m088:'nabata_a',
+  m090:'sangmun_w',m091:'gaemun_a',m092:'samun_t',m093:'samun_t_l',m094:'samun_t_d',
+  m001:'mon_snake',m002:'bsnake',m004:'horsespear',m008:'misil_g',m014:'honma',m015:'redjujak',m022:'whitehyunmu',m024:'poisondragon',
+  m101:'honganji_g',m106:'madragon',m115:'yamayami',m117:'asura_pawn',m124:'tiamat',m125:'britra',m133:'gajin',
+  m150:'emperorturtle',m151:'kinghornet',m154:'bullmonster',m155:'eggghost',
 };
 
 export function clientSpriteGuide(weapon,entry){
   if(weapon?.id==='vritra-spear')return {filename:'britra.AGF',note:'弗栗多手持三叉槍'};
+  const unique=clientUnique[weapon?.id];
+  if(unique)return {filename:'lunique01.AGF',frame:unique};
   const relic=clientRelics[weapon?.id];
   if(relic)return {filename:'rweapon01_i.AGF',frame:relic};
   const frame=clientWeapons[weapon?.id];
   if(frame)return {filename:'weapon01_i.AGF',frame};
   const prefix=clientBosses[entry?.id];
   if(!prefix)return null;
-  if(['m150','m151','m154'].includes(entry.id))return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _r 移動 · _a1 攻擊 · _d 倒地'};
+  if(prefix.startsWith('nabata_')||entry.id==='m090')return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _a／_a2 攻擊 · _d 倒地'};
+  if(['m091','m092','m133','m150','m151','m154'].includes(entry.id))return {
+    filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _a1 攻擊 · _d 倒地',
+  };
   if(entry.source==='kuanglu15'||entry.id==='m155')return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _m 移動 · _a／_a2 攻擊 · _d 倒地'};
   return {filename:prefix+'.AGF',note:'檔案含多個動作與方向'};
 }

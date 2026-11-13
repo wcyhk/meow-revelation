@@ -1,12 +1,12 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=forgelight-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=forgelight-2';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgelight-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgelight-2';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
-import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=forgelight-1';
-import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-1';
+import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=forgelight-2';
+import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-2';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -326,9 +326,10 @@ export class WeaponViewer {
   }
 
   resetRotation(){
-    const mounted=this.bossRig?.entry.family==='rider';
-    this.yaw=mounted?-1.18:this.boss?-.53:-.37;
-    this.pitch=mounted?.10:-.13;
+    const mounted=Boolean(this.bossRig?.mount)||this.bossRig?.entry.family==='rider';
+    const low=this.bossRig&&['bulwark','crawl'].includes(this.bossRig.pattern);
+    this.yaw=mounted?-1.18:low?-.71:this.boss?-.53:-.37;
+    this.pitch=mounted?.10:low?.35:this.boss?.16:-.09;
     this.setZoom(1);
     this.turn(0,0);
   }
@@ -359,7 +360,7 @@ export class WeaponViewer {
     this.drillTools.hidden=true;
     this.detail.textContent=this.description;
     this.scene=new T.Scene();
-    armLighting(this.scene);
+    armLighting(this.scene,Boolean(this.boss));
     const pivot=new T.Group();
     this.model=pivot;
     let item;

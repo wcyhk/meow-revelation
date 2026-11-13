@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {lanternRadius} from './lantern-route.mjs?v=forgelight-1';
+import {lanternRadius} from './lantern-route.mjs?v=forgelight-2';
 import {PaintedExit} from './painted-exit.mjs?v=patina-1';
 
 const stone=new T.MeshStandardMaterial({color:0x51414b,roughness:.88,metalness:.16});

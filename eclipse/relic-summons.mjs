@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {forge,disposeForge} from './armory.mjs?v=forgelight-1';
+import {forge,disposeForge} from './armory.mjs?v=forgelight-2';
 
 const box=new T.BoxGeometry(1,1,1);
 const sphere=new T.SphereGeometry(1,10,8);

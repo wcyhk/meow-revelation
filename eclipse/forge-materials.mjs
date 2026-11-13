@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
-import {KoreanWeaponColors} from './korean-art.mjs?v=forgelight-1';
+import {KoreanWeaponColors} from './korean-art.mjs?v=forgelight-2';
 
 const surfaces={};
 const palettes={

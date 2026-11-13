@@ -309,13 +309,13 @@ export class MotionArt {
 
   arrow(origin,dx,dz,range,tint,duration,heavy) {
     const angle=-Math.atan2(dz,dx);
-    const point={x:origin.x+dx*.19,y:.92,z:origin.z+dz*.19};
+    const point={x:origin.x,y:origin.y??.92,z:origin.z};
     const travel={x:dx*range/duration,z:dz*range/duration};
     const head=this.view.addEffect(this.arrowhead,point,tint,duration+.02,
       {scale:heavy?1.95:1.18,angle,opacity:1.04,order:94});
     head.travel=travel;
     head.combatClock=true;
-    const trail=this.ribbon(this.jet,{x:point.x-dx*.84,y:.91,z:point.z-dz*.84},tint,duration+.02,
+    const trail=this.ribbon(this.jet,{x:point.x-dx*.84,y:point.y,z:point.z-dz*.84},tint,duration+.02,
       {kind:1,scale:heavy?1.65:1.07,angle,opacity:.98,order:93});
     trail.travel=travel;
     trail.combatClock=true;
@@ -329,14 +329,26 @@ export class MotionArt {
     if (intensity>1.65&&this.accent()) this.flash(to,tint,.50+intensity*.08);
   }
 
+  rifle(origin,dx,dz,range,tint,duration,heavy) {
+    const angle=-Math.atan2(dz,dx);
+    const travel={x:dx*range/duration,z:dz*range/duration};
+    const bullet=this.view.addEffect(this.ironshot,origin,0xf3eaff,duration,
+      {scale:heavy?.64:.41,opacity:1,order:95});
+    const trail=this.ribbon(this.jet,{x:origin.x-dx*.48,y:origin.y,z:origin.z-dz*.48},tint,duration,
+      {kind:1,scale:heavy?1.02:.70,angle,opacity:.84,order:94});
+    for(const fx of [bullet,trail]){fx.travel=travel;fx.combatClock=true;}
+    this.flash(origin,tint,heavy?.88:.62);
+    this.view.spark(origin.x,origin.y,origin.z,tint,heavy?6:3,.66,'flare',-angle);
+  }
+
   shell(origin,dx,dz,range,tint,duration,heavy) {
-    const muzzle={x:origin.x+dx*.24,y:.88,z:origin.z+dz*.24};
+    const muzzle={x:origin.x,y:origin.y??.88,z:origin.z};
     const travel={x:dx*range/duration,z:dz*range/duration};
     const core=this.view.addEffect(this.ironshot,muzzle,0xffebad,duration+.025,{scale:heavy?1.63:1,opacity:1,order:95});
-    const plume=this.ribbon(this.jet,{x:muzzle.x-dx*.83,y:.87,z:muzzle.z-dz*.83},tint,duration+.025,
+    const plume=this.ribbon(this.jet,{x:muzzle.x-dx*.83,y:muzzle.y,z:muzzle.z-dz*.83},tint,duration+.025,
       {kind:1,scale:heavy?1.88:1.2,angle:-Math.atan2(dz,dx),opacity:.96,order:93});
     for(const fx of [core,plume]) {fx.travel=travel;fx.combatClock=true;}
-    this.view.spark(muzzle.x,.84,muzzle.z,tint,this.view.mobile?6:11,.92,'fire',Math.atan2(dz,dx));
+    this.view.spark(muzzle.x,muzzle.y,muzzle.z,tint,this.view.mobile?6:11,.92,'fire',Math.atan2(dz,dx));
   }
 
   flash(point,tint,scale) {
@@ -396,22 +408,22 @@ export class MotionArt {
     this.view.spark(from.x,.14,from.z,0xbaa086,this.view.mobile?3:5,.45,'stone',angle+PI);
   }
 
-  vortex(x,z,radius,tint) {
+  vortex(x,z,radius,tint,duration=.64) {
     for (const [index,angle] of [0,2.35].entries()) {
-      const fx=this.ribbon(this.spiral,{x,y:.09+index*.19,z},tint,.64-index*.08,
+      const fx=this.ribbon(this.spiral,{x,y:.09+index*.19,z},tint,duration*(1-index*.125),
         {kind:2,scale:radius*(.96-index*.13),angle,opacity:.89-index*.16,growth:.22,order:71+index});
       fx.spin=index===0?6.1:-4.8;
     }
   }
 
-  spinningDisk(x,z,dx,dz,range,tint,curve=0,heavy=false) {
+  spinningDisk(x,z,dx,dz,range,tint,curve=0,heavy=false,duration=.38,size=1) {
     const point={x,y:.68,z};
-    const travel={x:dx*range/.38,z:dz*range/.38};
-    const rim=this.view.addEffect(this.disk,point,tint,.38,{scale:heavy?1.72:1.32,growth:.14,opacity:.94,order:85});
+    const travel={x:dx*range/duration,z:dz*range/duration};
+    const rim=this.view.addEffect(this.disk,point,tint,duration,{scale:size*(heavy?1.72:1.32),growth:.14,opacity:.94,order:85});
     rim.spin=29;
     rim.travel=travel;
-    const filigree=this.view.addEffect(this.view.ring,{...point,y:.75},0xffe2a1,.37,
-      {scale:heavy?.72:.52,growth:.10,opacity:.87,order:86});
+    const filigree=this.view.addEffect(this.view.ring,{...point,y:.75},0xffe2a1,duration*.97,
+      {scale:size*(heavy?.72:.52),growth:.10,opacity:.87,order:86});
     filigree.travel=travel;
     if (curve) for (const fx of [rim,filigree]) fx.drift={x:-dz*curve,z:dx*curve,last:0};
   }

@@ -268,15 +268,15 @@ export function launchUltimate(game,link,wind,rite) {
         const nx=Math.cos(angle+spread),nz=Math.sin(angle+spread);
         const end=along(here,nx,nz,reach);
         game.bound(end);
-        const [fx,fz]=bearing(here,end,[nx,nz]);
-        const length=distance(here,end), travel=length/49;
         release(()=>{
-          view.comboArrow(here,fx,fz,length,index===1?accent:tint,travel,true);
+          const {origin,dx:fx,dz:fz,reach:length}=game.aimedWeaponShot(end);
+          const travel=Math.max(.04,length/49);
+          view.comboArrow(origin,fx,fz,length,index===1?accent:tint,travel,true);
           sound(index);
           const pierced=new Set();
           for (let segment=1;segment<=3;segment++) game.schedule(travel*segment/3,()=>{
-            beam(here,along(here,fx,fz,length*segment/3),.62,unit=>{
-              if (!pierced.has(unit)&&hit(unit,.93,here,.44)) pierced.add(unit);
+            beam(origin,along(origin,fx,fz,length*segment/3),.62,unit=>{
+              if (!pierced.has(unit)&&hit(unit,.93,origin,.44)) pierced.add(unit);
             },(segment-1)*length/3);
           });
           game.schedule(travel+.14,()=>{
@@ -419,9 +419,11 @@ export function launchUltimate(game,link,wind,rite) {
     }
 
     case 'cannon': {
-      const center=focus(), length=Math.max(.16,distance(here,center)),flight=Math.max(.08,length/28);
+      const center=focus();
       release(()=>{
-        view.motion.shell(here,dx,dz,length,tint,flight,true);
+        const {origin,dx,dz,reach}=game.aimedWeaponShot(center);
+        const flight=Math.max(.08,reach/28);
+        view.motion.shell(origin,dx,dz,reach,tint,flight,true);
         sound();
         game.schedule(flight,()=>{
           ultimateBody(view,rite,center,1.96,.61);

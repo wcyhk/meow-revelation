@@ -1,6 +1,6 @@
-import {comboMove} from './weapon-combos.mjs?v=heirlooms-1';
+import {comboMove} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
-import {castRelic} from './relic-cast.mjs?v=heirlooms-1';
+import {castRelic} from './relic-cast.mjs?v=weapon-audit-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
@@ -55,23 +55,39 @@ export function strikeTravel(move,reach,heavy) {
 
 function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
   const touched=new Set();
-  const duration=strikeTravel(move,reach,heavy);
-  const rays=(move.angles??[0]).map(angle=>turned(dx,dz,angle));
-  const shell=game.weapon.id==='cannon'||game.weapon.form==='gun';
+  const targets=active(game);
+  const linedUp=lineTargets(targets,origin,dx,dz,reach,move.width);
+  const aim=closest(linedUp,origin,reach)??{x:origin.x+dx*reach,z:origin.z+dz*reach};
+  const launch=game.weaponShot(dx,dz,aim);
+  const lead=Math.max(0,(launch.x-origin.x)*dx+(launch.z-origin.z)*dz);
+  const length=Math.max(.3,reach-lead);
+  const duration=strikeTravel(move,length,heavy);
+  const angles=move.angles??[0];
+  const rays=angles.map(angle=>turned(launch.dx,launch.dz,angle));
+  const shell=game.weapon.id==='cannon';
+  const rifle=game.weapon.form==='gun';
   let blast=false;
   for (const [x,z] of rays) {
-    if (shell) game.view.motion.shell(origin,x,z,reach,tint,duration,heavy);
-    else game.view.comboArrow(origin,x,z,reach,tint,duration,heavy);
+    if (shell) game.view.motion.shell(launch,x,z,length,tint,duration,heavy);
+    else if(rifle)game.view.motion.rifle(launch,x,z,length,tint,duration,heavy);
+    else game.view.comboArrow(launch,x,z,length,tint,duration,heavy);
   }
   const sections=4;
   for (let index=1;index<=sections;index++) {
     game.schedule(duration*index/sections,()=>{
       let hits=0;
-      for (const [x,z] of rays) {
-        for (const foe of lineTargets(active(game),origin,x,z,reach*index/sections,move.width,reach*(index-1)/sections)) {
+      const units=active(game);
+      for (const [ray,[x,z]] of rays.entries()) {
+        const candidates=lineTargets(units,launch,x,z,length*index/sections,move.width,length*(index-1)/sections);
+        if(index===1){
+          const [nearX,nearZ]=turned(dx,dz,angles[ray]);
+          const closeReach=Math.max(lead,Math.min(2.35,Math.hypot(launch.x-origin.x,launch.z-origin.z)));
+          candidates.push(...lineTargets(units,origin,nearX,nearZ,closeReach,move.width));
+        }
+        for (const foe of candidates) {
           if (touched.has(foe)) continue;
           touched.add(foe);
-          if (!land(foe,1,origin)) continue;
+          if (!land(foe,1,launch)) continue;
           hits++;
           if (shell&&heavy&&!blast) {
             blast=true;
@@ -239,11 +255,10 @@ function nightSkill(game,source,dx,dz,center,hit,release,linked) {
       for(let i=0;i<bursts;i++) {
         const offset=linked?0:(i-1)*1.24;
         const p={x:center.x-dz*offset,z:center.z+dx*offset};
-        const launch={x:source.x,y:.96,z:source.z};
-        const travel=Math.max(.05,distance(source,p)/31);
         release(()=>{
-          const gap=Math.max(.05,distance(source,p));
-          view.motion.shell(launch,(p.x-source.x)/gap,(p.z-source.z)/gap,gap,tint,travel,true);
+          const {origin,dx,dz,reach}=game.aimedWeaponShot(p);
+          const travel=Math.max(.05,reach/31);
+          view.motion.shell(origin,dx,dz,reach,tint,travel,true);
           game.schedule(travel,()=>{
             const radius=linked?2.49+i*.49:2.13;
             shock(p,radius,'fire');

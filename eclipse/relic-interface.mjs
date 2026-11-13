@@ -1,6 +1,6 @@
-import {skillSigil} from './skill-sigils.mjs?v=heirlooms-1';
+import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
 import {schools,buildStats} from './blessings.mjs?v=heirlooms-1';
-import {relicPower} from './relic-arsenal.mjs?v=heirlooms-1';
+import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 const motifs={
   thorn:'M20 75 L72 22 M32 61 L18 49 L28 42 L45 48 M52 46 L44 27 L54 22 L62 33 M42 54 L56 69 L66 61 L56 49',
@@ -168,7 +168,7 @@ export function weaponPicker(weapons,icons,select){
       item.style.setProperty('--weapon-tone',weapon.ink);
       const icon=el('img');
       icon.alt='';icon.loading='lazy';
-      icon.src=icons.get(weapon.id)??skillSigil(weapon.id).canvas.toDataURL();
+      icon.src=icons.get(weapon.id);
       const text=el('div');
       text.append(el('b',weapon.name),el('span',weapon.skill+' · '+weapon.detail));
       if(weapon.guardian)text.append(el('small','守護頭目 · '+weapon.guardian.name));

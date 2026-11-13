@@ -1,24 +1,24 @@
-import {Scenery} from './scenery.mjs?v=heirlooms-1';
+import {Scenery} from './scenery.mjs?v=weapon-audit-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
-import {Audio} from './audio.mjs?v=heirlooms-1';
-import {Input} from './input.mjs?v=heirlooms-1';
-import {arms} from './armory.mjs?v=heirlooms-1';
+import {Audio} from './audio.mjs?v=weapon-audit-1';
+import {Input} from './input.mjs?v=weapon-audit-1';
+import {arms} from './armory.mjs?v=weapon-audit-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=heirlooms-1';
-import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=heirlooms-1';
+import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=weapon-audit-1';
 import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs?v=nightfall-1';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
-import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=patina-1';
-import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=heirlooms-1';
+import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
+import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
 import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
-import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=nightfall-1';
+import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=weapon-audit-1';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
@@ -31,10 +31,9 @@ import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
 import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
-import {relicCounter} from './relic-cast.mjs?v=heirlooms-1';
-import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=heirlooms-1';
-import {skillSigil} from './skill-sigils.mjs?v=heirlooms-1';
-import {relicPower} from './relic-arsenal.mjs?v=heirlooms-1';
+import {relicCounter} from './relic-cast.mjs?v=weapon-audit-1';
+import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=weapon-audit-1';
+import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -164,7 +163,7 @@ export class Game {
       choice.dataset.arm=weapon.id;
       choice.style.setProperty('--arm-ink',weapon.ink);
       const image=document.createElement('img');
-      image.src=this.view.armIcons.get(weapon.id)??skillSigil(weapon.id).canvas.toDataURL();
+      image.src=this.view.armIcons.get(weapon.id);
       image.alt='';
       const text=document.createElement('div');
       text.className='arm-text';
@@ -285,6 +284,7 @@ export class Game {
   equip(weapon) {
     this.weapon=weapon;
     this.relicHunt=weapon.spell&&!this.huntedWeapons?.has(weapon.id)?new RelicHunt(this,weapon):null;
+    this.hero.projectileAim=null;
     this.view.equip(this.heroVisual,weapon);
     this.input.touch.setWeapon(weapon);
     this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics,this.training);
@@ -360,7 +360,7 @@ export class Game {
     this.ranks=buildStats(h,this.weapon,stage.floor,this.relics,this.training);
     h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
     h.trainingWardSpent=false;
-    h.relicCounter=h.relicHaste=null;
+    h.relicCounter=h.relicHaste=h.projectileAim=h.poseGait=null;
     h.lanternOut=0;
     h.snuffCooldown=0;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
@@ -594,9 +594,18 @@ export class Game {
     const h = this.hero;
     if (input.aim) {
       const center = this.view.project(h.x,.8,h.z);
-      const x = input.aim.x-center.x, z = (input.aim.y-center.y)*1.55;
-      const length = Math.hypot(x,z);
-      if (length>7) return [x/length,z/length];
+      const x=input.aim.x-center.x, y=input.aim.y-center.y;
+      if(Math.hypot(x,y)>7){
+        const right=this.view.project(h.x+1,.8,h.z);
+        const down=this.view.project(h.x,.8,h.z+1);
+        const rx=right.x-center.x, ry=right.y-center.y, zx=down.x-center.x, zy=down.y-center.y;
+        const det=rx*zy-ry*zx;
+        if(Math.abs(det)>.01){
+          const dx=(x*zy-y*zx)/det, dz=(rx*y-ry*x)/det;
+          const length=Math.hypot(dx,dz);
+          if(length>0)return [dx/length,dz/length];
+        }
+      }
     }
     let nearest = null;
     let shortest = Infinity;
@@ -763,8 +772,30 @@ export class Game {
     return Math.hypot(unit.x-oldX,unit.z-oldZ);
   }
 
+  weaponShot(dx,dz,target) {
+    const hero=this.hero;
+    const fallback={x:hero.x,y:.92,z:hero.z,dx,dz};
+    if(!this.heroVisual?.weapon?.mount)return fallback;
+    hero.projectileAim={dx,dz,until:this.t+.14};
+    this.poseHero(0);
+    const shot=this.view.weaponOrigin(this.heroVisual,dx,dz,target)??fallback;
+    hero.projectileAim={dx:shot.dx,dz:shot.dz,until:this.t+.14};
+    return shot;
+  }
+
+  aimedWeaponShot(target) {
+    const hero=this.hero;
+    const distance=Math.hypot(target.x-hero.x,target.z-hero.z);
+    const origin=distance>.08?this.weaponShot((target.x-hero.x)/distance,(target.z-hero.z)/distance,target)
+      :this.weaponShot(hero.dx,hero.dz,target);
+    const {dx,dz}=origin;
+    const reach=Math.max(.08,(target.x-origin.x)*dx+(target.z-origin.z)*dz);
+    return {origin,dx,dz,reach};
+  }
+
   attack(input) {
     const h = this.hero;
+    h.projectileAim=null;
     const [dx,dz] = this.aim(input);
     h.dx = dx; h.dz = dz;
     if (Math.abs(dx)>.12) h.face = Math.sign(dx);
@@ -1385,16 +1416,12 @@ export class Game {
     }
   }
 
-  animateActors(dt) {
+  poseHero(dt) {
     const h=this.hero, t=this.t;
-    const maw=this.branchCombat.activeMaw;
-    maw?.update(t);
-    advanceReaction(h,dt);
     const isRoll=h.rolling>0;
     const action=heroPose(h);
     const knockedDown=h.reaction?.kind==='fall';
-    if (knockedDown) this.playLanding(h);
-    const gait=actorMotion(h,dt,t,true);
+    const gait=dt?(h.poseGait=actorMotion(h,dt,t,true)):(h.poseGait??{weight:0,width:1,sway:0,bob:0,tilt:0,compression:0,lag:0});
     const running=gait.weight>.26;
     const bracing=h.reaction&&h.reaction.age<.16;
     const striking=action&&(h.attackAge>.055||h.motion?.kind!=='strike');
@@ -1404,7 +1431,7 @@ export class Game {
     const tuck=Math.sin(rollPhase*Math.PI);
     const movingLimbs=!action&&!bracing&&!isRoll;
     const heroFrame={
-      dt,
+      dt,shot:!isRoll&&h.projectileAim?.until>t?h.projectileAim:null,
       frame:pose,poseSize:isRoll?.92:pose===heroFrames.run?.93:1,face:action?.face??h.face,
       bob:isRoll?.024+tuck*.26:.037+gait.bob+Math.sin(t*4.1)*.018,
       tilt:isRoll?0:-gait.tilt,
@@ -1421,6 +1448,14 @@ export class Game {
       aura:h.ward>0||h.surge>0?.55:.24,rim:this.weapon.tone,
     };
     this.view.actor(this.heroVisual,h,blendPose(blendPose(heroFrame,action),reactionPose(h)));
+  }
+
+  animateActors(dt) {
+    const h=this.hero, t=this.t;
+    this.branchCombat.activeMaw?.update(t);
+    advanceReaction(h,dt);
+    if(h.reaction?.kind==='fall')this.playLanding(h);
+    this.poseHero(dt);
     this.view.setWard(h);
     for (const unit of this.enemies) {
       if (unit.hp<=0) continue;

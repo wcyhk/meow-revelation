@@ -1,5 +1,5 @@
 import {nightComboData, nightLinks} from './nightfall-arms.mjs?v=nightfall-1';
-import {huntArms} from './relic-arsenal.mjs?v=heirlooms-1';
+import {huntArms} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 function strike(name,pose,wind,cycle,shape,options={}) {
   return {name,pose,wind,cycle,shape,reach:1,width:.70,force:.83,step:.12,...options};

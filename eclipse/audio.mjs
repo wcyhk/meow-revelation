@@ -1,5 +1,5 @@
 const chords = [[45,52,57,60],[43,50,55,62],[41,48,53,57],[40,47,55,59]];
-import {huntById} from './relic-arsenal.mjs?v=heirlooms-1';
+import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 const hz = note => 440 * 2 ** ((note - 69) / 12);
 const attackVoices={
@@ -275,6 +275,14 @@ export class Audio {
     this.note(root*(1+pulse*.27),root*(ice?.98:.36),now,ice?.38:.26,.155,ice?'sine':'triangle',.007);
     this.note(root*(ice?2.39:1.51),root*(ice?1.96:.87),now+.047,.24,.09,'triangle',.012);
     if (pulse===0) this.note(88,34,now+.027,.33,.136,'sine',.015);
+  }
+
+  ghostRifle() {
+    if(!this.context||this.muted)return;
+    const now=this.context.currentTime;
+    this.rasp(now,.069,.21,2360);
+    this.note(154,59,now,.14,.075,'triangle',.003);
+    this.note(541,277,now+.023,.16,.046,'sine',.005);
   }
 
   arm(id) {

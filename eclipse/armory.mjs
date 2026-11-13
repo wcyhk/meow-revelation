@@ -1,7 +1,7 @@
 import * as T from '../three.min.mjs';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {forgedMaterials} from './forge-materials.mjs?v=patina-1';
-import {huntArms} from './relic-arsenal.mjs?v=heirlooms-1';
+import {huntArms} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {makeRelic} from './relic-models.mjs?v=heirlooms-1';
 
 export const arms = [

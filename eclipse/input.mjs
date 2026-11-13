@@ -1,4 +1,4 @@
-import {TouchCombat} from './touch-combat.mjs?v=heirlooms-1';
+import {TouchCombat} from './touch-combat.mjs?v=weapon-audit-1';
 
 const $ = id => document.getElementById(id);
 const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','KeyL','Escape']);

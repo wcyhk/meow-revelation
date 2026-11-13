@@ -1,18 +1,19 @@
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=heirlooms-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=weapon-audit-1';
 import {pictures, stages} from './expedition.mjs?v=clock-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=gilded-1';
+import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
 import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=heirlooms-1';
 import {LanternArt} from './lantern-art.mjs?v=patina-1';
 import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=patina-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
-import {skillSigil} from './skill-sigils.mjs?v=heirlooms-1';
+import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=weapon-audit-1';
 import {relicGrip} from './relic-models.mjs?v=heirlooms-1';
-import {huntById} from './relic-arsenal.mjs?v=heirlooms-1';
+import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=patina-2';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
 
@@ -21,6 +22,29 @@ const color = new T.Color();
 const unit = new T.Vector3(0, 0, 0);
 const weaponUp = new T.Vector3(0,1,0);
 const weaponPoint = new T.Vector3();
+const shotRotation = new T.Quaternion();
+const upright = new T.Vector3(0,1,0);
+const bowForward = new T.Vector3(-1,0,0);
+const muzzlePoint = new T.Vector3();
+
+function launchMount(weapon) {
+  if(weapon.id==='cannon')return {axis:weaponUp,tip:[0,.838,0]};
+  if(weapon.form==='gun')return {axis:weaponUp,tip:[0,.944,0]};
+  if(weapon.form==='crossbow')return {axis:weaponUp,tip:[0,.79,.09],flat:true};
+  if(weapon.id==='stormbow'||weapon.form==='bow')return {axis:bowForward,tip:[-.39,0,.015]};
+  return null;
+}
+
+function aimMount(model,mount,dx,dz) {
+  if(mount.axis===bowForward){
+    model.rotation.set(0,Math.atan2(dz,-dx),0);
+  }else{
+    shotRotation.setFromAxisAngle(upright,-Math.atan2(dz,dx));
+    model.rotation.set(0,0,-PI/2);
+    model.quaternion.premultiply(shotRotation);
+    model.rotateY(mount.flat?-PI/2:PI);
+  }
+}
 const weaponOffset = new T.Vector3();
 const handPoint = new T.Vector3();
 const previousGrip = new T.Quaternion();
@@ -33,13 +57,14 @@ const morphMasks={
   'fox-doll':new T.ConeGeometry(.29,.75,4),
   hundun:new T.IcosahedronGeometry(.65,0),
 };
-const familiarShapes={
-  'oni-bow':new T.ConeGeometry(.54,1.46,5),
-  'turtle-bow':new T.BoxGeometry(1.14,.62,.84),
-  'zhurong-axe':new T.TorusKnotGeometry(.38,.13,28,5),
-  snake:new T.TorusGeometry(.42,.13,5,16,Math.PI*1.65),
-  'western-rifle':new T.CapsuleGeometry(.30,.75,4,6),
-};
+const fallingRock=new T.DodecahedronGeometry(1,0);
+const fallingTower=[.73,.53,.32].map((width,index)=>new T.CylinderGeometry(width*.66,width,.43-index*.045,4));
+const featherBlade=new T.OctahedronGeometry(1).scale(.24,.10,.08);
+const batWing=new T.ConeGeometry(.31,.62,3).rotateZ(Math.PI/2);
+const fallingStar=new T.TorusKnotGeometry(.34,.087,28,5,2,3);
+const beamColumn=new T.CylinderGeometry(.08,.24,1,8);
+const handPalm=new T.SphereGeometry(.58,8,6);
+const handFinger=new T.CapsuleGeometry(.13,.39,3,5);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
 const sceneAngle = new T.Vector3(0, 16, 19.6).normalize();
 const wristMask=(value)=>1-T.MathUtils.smoothstep(value,.07,.25);
@@ -270,7 +295,7 @@ export class Scenery {
     }
     this.pictures = new Map(pictures.map((name,index)=>[name,images[index]]));
     for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
-    this.armIcons = this.previewArms();
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp',import.meta.url).href]));
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }
@@ -505,37 +530,38 @@ export class Scenery {
   }
 
   previewArms() {
-    const size = 152;
-    const scene = new T.Scene();
+    const size=224;
+    const renderer=new T.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});
+    renderer.setSize(size,size,false);
+    renderer.setClearColor(0,0);
+    const scene=new T.Scene();
     armLighting(scene);
-    const target = new T.WebGLRenderTarget(size,size,{colorSpace:T.SRGBColorSpace});
-    const camera = new T.OrthographicCamera(-1.10,1.10,1.10,-1.10,.1,20);
-    camera.position.set(.54,.31,5.2);
+    const camera=new T.OrthographicCamera(-1.10,1.10,1.10,-1.10,.1,20);
+    camera.position.set(.27,.25,5.2);
     camera.lookAt(0,0,0);
-    const pixels = new Uint8Array(size*size*4);
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const frame = ctx.createImageData(size,size);
-    const result = new Map();
-    this.renderer.setClearColor(0x151912,0);
-    this.renderer.setRenderTarget(target);
-    for (const arm of arms.filter(item=>!item.spell)) {
-      const item = forge(arm);
-      item.rotation.set(-.12,.32,-.38);
-      item.scale.setScalar(arm.id==='tiger'||arm.id==='dragon'?1.42:1);
+    const result=new Map();
+    for(const arm of arms){
+      const item=forge(arm);
+      item.rotation.set(-.13,-.29,arm.form==='gun'||arm.id==='cannon'?-1.04:-.59);
+      item.updateMatrixWorld(true);
+      const bounds=new T.Box3();
+      item.traverseVisible(part=>{
+        if(!part.isMesh)return;
+        part.geometry.computeBoundingBox();
+        bounds.union(part.geometry.boundingBox.clone().applyMatrix4(part.matrixWorld));
+      });
+      const extent=bounds.getSize(new T.Vector3());
+      const fit=1.82/Math.max(extent.x,extent.y,extent.z);
+      item.position.copy(bounds.getCenter(new T.Vector3())).multiplyScalar(-fit);
+      item.scale.setScalar(fit);
       scene.add(item);
-      this.renderer.render(scene,camera);
-      this.renderer.readRenderTargetPixels(target,0,0,size,size,pixels);
-      for (let y=0;y<size;y++) frame.data.set(pixels.subarray(y*size*4,(y+1)*size*4),(size-y-1)*size*4);
-      ctx.putImageData(frame,0,0);
-      result.set(arm.id,canvas.toDataURL());
+      renderer.render(scene,camera);
+      result.set(arm.id,renderer.domElement.toDataURL('image/webp',.94));
       scene.remove(item);
       disposeForge(item);
     }
-    this.renderer.setRenderTarget(null);
-    this.renderer.setClearColor(0x151912,1);
-    target.dispose();
+    renderer.dispose();
+    renderer.forceContextLoss();
     return result;
   }
 
@@ -548,11 +574,33 @@ export class Scenery {
     this.scene.add(model);
     const profile=weapon.spell?relicGrip(weapon):weaponGrips[weapon.id];
     glow.position.y=profile.glow??.48;
-    actor.weapon = {model,glow,id:weapon.id,profile,anchor:new T.Vector3(...profile.anchor),
+    actor.weapon = {model,glow,id:weapon.id,profile,mount:launchMount(weapon),anchor:new T.Vector3(...profile.anchor),
       blades:weapon.id==='fangs'?model.children.slice(0,2):null};
     this.sigilPreview.material.map=this.relicTexture(weapon.id);
     this.sigilPreview.material.needsUpdate=true;
     this.sigilPreview.material.color.setHex(weapon.tone);
+  }
+
+  weaponOrigin(actor,dx,dz,target) {
+    const {model,mount,anchor}=actor.weapon;
+    if(!mount||!actor.weapon.posed)return null;
+    handPoint.copy(anchor).multiply(model.scale).applyQuaternion(model.quaternion).add(model.position);
+    aimMount(model,mount,dx,dz);
+    if(target){
+      const x=target.x-handPoint.x, z=target.z-handPoint.z;
+      const distance=Math.hypot(x,z);
+      const ahead=x*dx+z*dz;
+      muzzlePoint.set(...mount.tip).sub(anchor).multiply(model.scale).applyQuaternion(model.quaternion);
+      const side=-muzzlePoint.x*dz+muzzlePoint.z*dx;
+      if(ahead>.13&&distance>Math.abs(side)+.03){
+        const angle=Math.atan2(z,x)-Math.asin(side/distance);
+        dx=Math.cos(angle);dz=Math.sin(angle);
+        aimMount(model,mount,dx,dz);
+      }
+    }
+    model.position.copy(handPoint).sub(weaponOffset.copy(anchor).multiply(model.scale).applyQuaternion(model.quaternion));
+    model.localToWorld(muzzlePoint.set(...mount.tip));
+    return {x:muzzlePoint.x,y:muzzlePoint.y,z:muzzlePoint.z,dx,dz};
   }
 
   relicTexture(id) {
@@ -576,14 +624,112 @@ export class Scenery {
   }
 
   relicFall(weapon,point,radius,index) {
-    if(weapon.element==='lightning'){
-      this.bolt({...point,y:3.6+index*.17},{...point,y:.45},weapon.tone,1.36);
-      return;
+    const {look}=weapon.spell;
+    const landing={...point,y:.11};
+    const fall=(shape,x,z,scale,y=0,tint=weapon.tone)=>{
+      const fx=this.addEffect(shape,{x,y:4+y,z},tint,.25,
+        {scale,opacity:.96,angle:Math.PI/4+index*.7,blend:false,order:65});
+      fx.vertical={from:4+y,to:.28+y,duration:.18};
+      fx.combatClock=true;
+      return fx;
+    };
+    if(look==='thunderfall'){
+      this.bolt({...point,y:5.4},landing,weapon.tone,2.0);
+    }else if(look==='pagoda'){
+      fallingTower.forEach((tier,i)=>fall(tier,point.x,point.z,.86+radius*.18,.34+i*.30,
+        i%2?0xffedc3:weapon.tone));
+    }else if(look==='fallen-arm'){
+      const blade=forge(weapon);
+      const fx=this.addEffect(relicShard,{...point,y:4},weapon.tone,.27,{opacity:0,order:69});
+      blade.rotation.z=Math.PI;
+      blade.scale.setScalar(.82);
+      fx.mesh.add(blade);
+      fx.vertical={from:4,to:.72,duration:.18};
+      fx.cleanup=()=>disposeForge(blade);
+      fx.combatClock=true;
+      if(weapon.element==='lightning')this.bolt({...point,y:4.7},landing,weapon.tone,1.22);
+    }else if(look==='boulder'){
+      for(let i=0;i<3;i++){
+        const angle=i*2.399+index*.9;
+        const rock=fall(fallingRock,point.x+Math.cos(angle)*.67,point.z+Math.sin(angle)*.67,.28+(i===0?.31:.07),i*.39);
+        rock.spin=5+i;
+      }
+    }else{
+      const shape=look==='stars'?fallingStar:look==='thunder-orbs'?handPalm:relicShard;
+      const fx=fall(shape,point.x,point.z,.32+radius*.21);
+      fx.spin=7.4;
+      if(look==='thunder-orbs')this.sealFx(point.x,point.z,weapon.tone,radius,.82);
     }
-    const trail=this.addEffect(relicShard,{...point,y:3.5},weapon.tone,.33,
-      {scale:.26+radius*.15,growth:.19,opacity:.82,angle:index*1.6,fade:true,order:65});
-    trail.drop=3.3;
-    trail.spin=3.0+weapon.sigil%8*.31;
+  }
+
+  relicOrbShot(shot,duration,tint) {
+    const {origin,dx,dz,reach}=shot;
+    const orb=this.addEffect(handPalm,origin,tint,duration,{scale:.26,opacity:.94,order:94});
+    orb.travel={x:dx*reach/duration,z:dz*reach/duration};
+    orb.spin=12;
+    orb.combatClock=true;
+    this.motion.flash(origin,tint,.82);
+  }
+
+  relicFeatherShot(shot,duration,tint) {
+    const {origin,dx,dz,reach}=shot;
+    const feather=this.addEffect(featherBlade,origin,tint,duration,
+      {scale:2.0,opacity:.94,angle:-Math.atan2(dz,dx),order:94});
+    feather.travel={x:dx*reach/duration,z:dz*reach/duration};
+    feather.combatClock=true;
+    this.spark(origin.x,origin.y,origin.z,tint,4,.54,'gold',Math.atan2(dz,dx));
+  }
+
+  relicBats(point,tint,radius,index) {
+    const angle=index*2.399;
+    for(let i=0;i<(this.mobile?2:3);i++){
+      const a=angle+i*2.09;
+      for(const side of [-1,1]){
+        const wing=this.addEffect(batWing,{x:point.x+Math.cos(a)*radius*.42,
+          y:.64+i*.16,z:point.z+Math.sin(a)*radius*.42+side*.22},tint,.36,
+          {scale:.65,opacity:.86,angle:-a+side*.62,order:81,fade:true});
+        wing.travel={x:Math.cos(a+1.9)*2.9,z:Math.sin(a+1.9)*2.9};
+        wing.animate=()=>wing.mesh.rotation.x=Math.sin(wing.age*32)*side*.62;
+      }
+    }
+  }
+
+  relicColumn(weapon,point,radius) {
+    const top={...point,y:3.2};
+    const jewel=this.addEffect(handPalm,top,weapon.tone,.37,{scale:.37,growth:.25,opacity:.98,order:75,fade:true});
+    jewel.spin=6.2;
+    const beam=this.addEffect(beamColumn,{...point,y:1.65},weapon.tone,.28,
+      {scale:radius*.70,opacity:.65,order:73,fade:true});
+    beam.stretchY=3.25/(radius*.70);
+    const core=this.addEffect(beamColumn,{...point,y:1.63},0xfff6e2,.23,
+      {scale:.31,opacity:.88,order:74,fade:true});
+    core.stretchY=10.15;
+    this.motion.flash(top,weapon.tone,1.24);
+  }
+
+  relicRise(weapon,point,bearing,radius) {
+    const hand=weapon.spell.look==='hand';
+    const reach=(hand?.78:1.0)+radius*.16;
+    for(let i=0;i<(hand?6:4);i++){
+      const angle=bearing+i*2.399;
+      const gap=(i?(.25+.11*(i%3))*radius:0);
+      const fx=this.addEffect(hand?(i?handFinger:handPalm):weapon.element==='ice'?relicShard:fallingRock,
+        {x:point.x+Math.cos(angle)*gap,y:.08,z:point.z+Math.sin(angle)*gap},i%2?weapon.tone:0xe4d4bc,.43,
+        {scale:i===0?.74:.43,opacity:.9,blend:false,angle,order:69,fade:true});
+      fx.vertical={from:-.23,to:(i?reach*.62:reach)*(.72+(i%3)*.19),duration:.13};
+      fx.mesh.rotation.z=i===0?-.16:Math.sin(angle)*.45;
+      fx.stretchY=weapon.element==='ice'?2.5:hand?1.8:1.57;
+    }
+  }
+
+  relicStorm(weapon,point,radius,duration) {
+    const {look}=weapon.spell;
+    if(look==='blade-wheel'){
+      this.motion.spinningDisk(point.x,point.z,1,0,0,weapon.tone,0,true,duration,radius*.82);
+    }else{
+      this.motion.vortex(point.x,point.z,radius,weapon.tone,duration);
+    }
+    this.elementBurst(point.x,.34,point.z,weapon.tone,weapon.effect,this.mobile?6:11,1.11);
   }
 
   relicAura(weapon,unit,duration,morph=false) {
@@ -609,15 +755,21 @@ export class Scenery {
   }
 
   relicCompanion(weapon,point,duration) {
-    const body=this.addEffect(familiarShapes[weapon.id]??relicShard,{...point,y:.69},weapon.tone,duration,
-      {scale:.71,growth:.20,opacity:.82,fade:true,order:72});
-    body.mesh.add(new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.58,
-      transparent:true,depthWrite:false,blending:T.AdditiveBlending})));
-    return body;
+    this.elementBurst(point.x,.14,point.z,weapon.tone,weapon.effect,this.mobile?7:12,1.14);
+    return summonModel(this,weapon,point,duration);
+  }
+
+  relicShot(summon,point,angle,target,tint) {
+    const origin=summonMuzzle(summon,point,angle,target);
+    const {dx,dz}=origin;
+    const reach=Math.max(.04,(target.x-origin.x)*dx+(target.z-origin.z)*dz);
+    const duration=Math.max(.065,reach/27);
+    this.motion.rifle(origin,dx,dz,reach,tint,duration,true);
+    return {origin,dx,dz,reach,duration};
   }
 
   relicLunge(familiar,from,target,angle) {
-    familiar.mesh.position.set(from.x,.73,from.z);
+    familiar.mesh.position.set(from.x,.03,from.z);
     familiar.mesh.rotation.y=-angle;
     familiar.drift={x:target.x-from.x,z:target.z-from.z,last:0};
     familiar.lungeAge=familiar.age;
@@ -725,15 +877,18 @@ export class Scenery {
     rim.material.color.setHex(spec.rim || 0xc48747);
     rim.material.opacity = (spec.aura ?? .12) * (spec.fade ?? 1);
     if (visual.weapon) {
-      const {model,glow,id,profile,anchor,blades} = visual.weapon;
+      const {model,glow,id,profile,anchor,blades,mount} = visual.weapon;
       const paws=pawPositions[spec.frame]??pawPositions[0];
       this.pawPosition(art,paws[profile.hand??0],handPoint);
       previousGrip.copy(model.quaternion);
       model.rotation.set(profile.pitch, direction*(.32+Math.sin(this.time*3.2)*.08),
         direction*(profile.turn+(spec.frame===1?-.32:0)+(spec.sway??0)*1.3-(spec.lag??0)*2.2)+roll*.75);
       const grip=spec.grip;
-      if (grip) {
-        const sweep=grip.sweep;
+      const shot=spec.shot??(grip?.projectile?grip:null);
+      if(mount&&shot&&!fall){
+        aimMount(model,mount,shot.dx,shot.dz);
+      }else if (grip) {
+        const sweep=grip.contact&&grip.pointed?0:grip.sweep;
         const dx=grip.dx*Math.cos(sweep)-grip.dz*Math.sin(sweep);
         const dz=grip.dx*Math.sin(sweep)+grip.dz*Math.cos(sweep);
         if (grip.pointed) {
@@ -752,11 +907,11 @@ export class Scenery {
         model.rotation.x-=fall*.93;
       }
       if (id==='dragon') model.rotation.y+=this.time*(grip?4.2:2.1);
-      if(!grip&&!roll&&spec.dt&&visual.weapon.posed&&id!=='dragon'){
+      if(!grip&&!shot&&!roll&&spec.dt&&visual.weapon.posed&&id!=='dragon'){
         model.quaternion.slerp(previousGrip,Math.exp(-spec.dt*22));
       }
       visual.weapon.posed=true;
-      if (id==='stormbow') shapeBow(model,grip?.draw??0,grip?.nocked??false);
+      if (mount?.axis===bowForward) shapeBow(model,grip?.draw??0,grip?.nocked??false);
       const charge=grip?.charge??0;
       glow.material.opacity=.072+charge*.30;
       glow.scale.set(.88+charge*.53,.88+charge*.53,1);
@@ -1155,7 +1310,7 @@ export class Scenery {
 
   comboArrow(origin,dx,dz,range,tint,duration,heavy) {
     this.motion.arrow(origin,dx,dz,range,tint,duration,heavy);
-    this.spark(origin.x,.95,origin.z,tint,heavy?11:4,heavy?1.17:.67,'flare',Math.atan2(dz,dx));
+    this.spark(origin.x,origin.y??.95,origin.z,tint,heavy?11:4,heavy?1.17:.67,'flare',Math.atan2(dz,dx));
   }
 
   comboTrail(origin,dx,dz,reach,tint,move,heavy,weapon) {
@@ -1394,7 +1549,8 @@ export class Scenery {
   release(fx) {
     this.scene.remove(fx.mesh);
     fx.mesh.material.dispose();
-    for(const child of fx.mesh.children)child.material.dispose();
+    if(fx.cleanup)fx.cleanup();
+    else for(const child of fx.mesh.children)child.material.dispose();
     if (fx.owned) fx.mesh.geometry.dispose();
   }
 
@@ -1456,6 +1612,12 @@ export class Scenery {
       } else {
         fx.mesh.scale.setScalar(fx.scale + fx.growth * (1 - (1 - age) ** 2));
         if (fx.stretchZ) fx.mesh.scale.z *= fx.stretchZ;
+        if (fx.stretchY) fx.mesh.scale.y *= fx.stretchY;
+        if (fx.vertical){
+          const {from,to,duration}=fx.vertical;
+          fx.mesh.position.y=T.MathUtils.lerp(from,to,Math.min(1,fx.age/duration));
+        }
+        if(running)fx.animate?.(age);
         const opacity=fx.opacity*(fx.fade?(1-age)**.83:fx.growth>0?(1-age)**1.2:.7+.3*Math.sin(age*PI*5));
         const {material}=fx.mesh;
         if (material.uniforms?.life) {

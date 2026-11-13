@@ -1,4 +1,4 @@
-import {huntById} from './relic-arsenal.mjs?v=heirlooms-1';
+import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {drawRelicEmblem} from './relic-emblems.mjs?v=heirlooms-1';
 
 const glyphs={

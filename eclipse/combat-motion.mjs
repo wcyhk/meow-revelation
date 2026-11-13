@@ -85,7 +85,7 @@ const chargedMoves=new Set(['spin','thunder','phoenix','shell','lunge','overhead
 export function heroAction(hero,kind,move,timing) {
   const casting=kind==='cast';
   hero.motion={
-    name:casting?'cast':move.pose,dx:hero.dx,dz:hero.dz,face:hero.face,
+    kind,projectile:move?.shape==='arrow',name:casting?'cast':move.pose,dx:hero.dx,dz:hero.dz,face:hero.face,
     timing:casting?{cycle:.32,hits:[{at:.105}]}:timing,
   };
 }
@@ -132,7 +132,8 @@ export function heroPose(hero) {
     squash:1+Math.min(0,weight)*.13+Math.max(0,raise)*.09,
     stretch:1+Math.max(0,weight)*.13,
     bob:Math.max(0,raise)*.21+Math.max(0,weight)*.054,
-    grip:{dx,dz,reach,raise,sweep,pitch,roll,pointed:pointed.has(name),
+    grip:{dx,dz,reach,raise,sweep,pitch,roll,pointed:pointed.has(name),projectile:action.projectile,
+      contact:timing.hits.some(hit=>Math.abs(age-hit.at)<.042),
       draw:age<first?draw*ease(age/Math.max(.001,backswing)):0,
       charge:age<first&&chargedMoves.has(name)?ease(age/first):0,
       nocked:draw>0&&age<first},

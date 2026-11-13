@@ -2,10 +2,10 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=ledger-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=ledger-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=korean-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
-import {jushangReference} from './jushang-references.mjs?v=ledger-1';
+import {jushangReference,koreanTrialReference} from './jushang-references.mjs?v=korean-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -90,7 +90,10 @@ export class WeaponViewer {
     this.reference=node('a','weapon-viewer-reference','52 巨商原圖資料 ↗');
     this.reference.target='_blank';
     this.reference.rel='noopener noreferrer';
-    copy.append(this.detail,this.reference);
+    this.koreanReference=node('a','weapon-viewer-reference','韓文原圖 ↗');
+    this.koreanReference.target='_blank';
+    this.koreanReference.rel='noopener noreferrer';
+    copy.append(this.detail,this.reference,this.koreanReference);
     this.choose=button('',()=>{
       const {commit}=this;
       this.dialog.close();
@@ -248,6 +251,10 @@ export class WeaponViewer {
     this.reference.hidden=!reference;
     if(reference)this.reference.href=reference;
     else this.reference.removeAttribute('href');
+    const korean=koreanTrialReference(this.boss?this.dossier.entry:null);
+    this.koreanReference.hidden=!korean;
+    if(korean)this.koreanReference.href=korean;
+    else this.koreanReference.removeAttribute('href');
     this.focusReturn=document.activeElement;
     this.title.textContent=title;
     this.role.textContent=role;
@@ -306,8 +313,9 @@ export class WeaponViewer {
   }
 
   resetRotation(){
-    this.yaw=this.boss?-.53:-.37;
-    this.pitch=-.13;
+    const mounted=this.bossRig?.entry.family==='rider';
+    this.yaw=mounted?-1.18:this.boss?-.53:-.37;
+    this.pitch=mounted?.10:-.13;
     this.setZoom(1);
     this.turn(0,0);
   }

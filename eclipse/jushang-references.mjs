@@ -34,3 +34,7 @@ export function jushangReference(weapon,entry){
   if(!page||page==='story')return null;
   return new URL((weapon?'item/':'monster/')+page+'.asp',site).href;
 }
+
+export function koreanTrialReference(entry){
+  return entry?.source==='kuanglu15'?'https://www.gersangjjang.com/monster/kuanglu15.asp':null;
+}

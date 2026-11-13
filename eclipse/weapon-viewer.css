@@ -34,6 +34,7 @@
 .weapon-viewer-description {margin:0;line-height:1.6;font-size:13px;color:#dbc5af}
 .weapon-viewer-reference {display:inline-flex;align-items:center;min-height:31px;margin-top:2px;color:#dec694;
   font-size:12px;text-underline-offset:.25em;touch-action:manipulation}
+.weapon-viewer-reference:not([hidden])+.weapon-viewer-reference {margin-inline-start:16px}
 .weapon-viewer-footer .primary {white-space:normal;text-align:center;max-width:46%;justify-content:center}
 .weapon-viewer-actions {display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .weapon-viewer-actions button {padding-inline:14px}

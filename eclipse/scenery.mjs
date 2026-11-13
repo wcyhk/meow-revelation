@@ -11,7 +11,7 @@ import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=patina-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=sigils-1';
-import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=patina-1';
+import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=patina-2';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
 
 const PI = Math.PI;

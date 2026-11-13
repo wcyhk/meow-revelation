@@ -1,4 +1,4 @@
-import {Scenery} from './scenery.mjs?v=patina-1';
+import {Scenery} from './scenery.mjs?v=patina-2';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=maw-1';

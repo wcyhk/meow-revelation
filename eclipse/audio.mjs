@@ -122,8 +122,13 @@ export class Audio {
         this.rasp(now,.15,.13,530);
         this.note(99,42,now,.26,.16,'triangle');
         break;
-      case 'branch-spirit':
-        this.note(412,207,now,.26,.073,'sine');
+      case 'maw-open':
+        if(now-(this.lastImpact.maw??-1)<.11) break;
+        this.lastImpact.maw=now;
+        this.rasp(now,.29,.16,420);
+        this.note(72,38,now,.35,.15,'sine',.021);
+        this.rasp(now+.35,.22,.14,1040);
+        this.note(126,49,now+.48,.23,.12,'triangle',.009);
         break;
       case 'tentacle-sweep':
         this.rasp(now,.17,.15,780);

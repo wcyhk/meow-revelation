@@ -9,6 +9,9 @@ export const techniques = [
   {id:'ward', name:'思念護符', mark:'◇', cost:120, detail:'每層第一次受傷減傷 45%。'},
 ];
 
+export const mawSkill={id:'funeral-seal',name:'撒托古亞之口',cost:190,damage:6,speed:4.5,duration:8,limit:8,
+  detail:'每次擊倒都會吞噬敵人，獲得 +6% 傷害同 +4.5% 普攻速度。每層維持 8 秒，最多 8 層。'};
+
 export const branches = [
   {id:'tech', name:'科技', tint:'#a9e3ee', skills:[
     {id:'robot-squad',name:'機械人小隊',cost:180,detail:'三台機械人跟隨你，自動發射遠程火箭、近程衝鋒槍同中程機槍。'},
@@ -18,7 +21,7 @@ export const branches = [
   {id:'mystic',name:'神祕',tint:'#e4b8ef',skills:[
     {id:'cthun-hand',name:'克蘇恩之手',cost:180,detail:'三條背生觸手自動出擊。黑色近掃、紅色穿刺、紫色遠處破地。'},
     {id:'black-goat-eye',name:'黑山羊之眼',cost:135,detail:'持續擴散黑紫電波。敵人一進入 6 格範圍，即有眼印同減速。'},
-    {id:'funeral-seal',name:'送魂祭印',cost:190,detail:'擊倒敵人會留下延時祭印，爆發時傷害附近敵人，冷卻 5 秒。'},
+    mawSkill,
   ]},
 ];
 

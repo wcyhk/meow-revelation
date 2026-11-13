@@ -1,5 +1,5 @@
 import {Scenery} from './scenery.mjs?v=squad-1';
-import {Audio} from './audio.mjs?v=eye-aura-1';
+import {Audio} from './audio.mjs?v=maw-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs?v=clock-1';
@@ -21,9 +21,9 @@ import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
-import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=eye-aura-1';
-import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=eye-aura-1';
-import {BranchCombat} from './branch-combat.mjs?v=eye-aura-1';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=maw-1';
+import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=maw-1';
+import {BranchCombat} from './branch-combat.mjs?v=maw-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=lantern-dialogue-1';
 import {dialoguePanel} from './dialogue.mjs?v=lantern-dialogue-1';
 
@@ -313,6 +313,7 @@ export class Game {
   }
 
   clearActors() {
+    this.branchCombat.activeMaw?.clearVisuals();
     const actors = new Set([...this.enemies,...this.fallen,...this.pickups]);
     for (const unit of actors) this.view.removeActor(unit.visual);
     this.enemies.length = this.fallen.length = this.pickups.length = 0;
@@ -738,7 +739,8 @@ export class Game {
     if (Math.abs(dx)>.12) h.face = Math.sign(dx);
     h.combo = h.comboLeft>0 ? h.combo%3+1 : 1;
     const move=comboMove(this.weapon,h.combo);
-    const timing=comboTiming(this.weapon,move,h.attackPeriod);
+    const speed=this.branchCombat.activeMaw?.speed??1;
+    const timing=comboTiming(this.weapon,move,h.attackPeriod/speed);
     h.comboLeft=timing.cycle+.57;
     h.atk=h.atkTotal=timing.cycle;
     h.attackAge = 0;
@@ -874,10 +876,11 @@ export class Game {
   }
 
   hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report,source) {
-    if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
+    const damage=amount*(this.branchCombat.activeMaw?.damage??1);
+    if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,damage)??false;
     if (unit.kind==='breakable') {
       if(unit.hp<=0)return false;
-      unit.hp=Math.max(0,unit.hp-amount);
+      unit.hp=Math.max(0,unit.hp-damage);
       this.view.spark(unit.x,.42,unit.z,unit.hp?0xd3a779:0xffc484,unit.hp?5:14,.91,unit.style==='urn'?'stone':'flare');
       if(!unit.hp){this.view.lanternArt.smash(unit);this.audio.impact('break',unit.style==='urn'?'stone':'hide');}
       return true;
@@ -893,7 +896,7 @@ export class Game {
     const nextPhaseHp=phaseBoundary*unit.spec.hp;
     const shield=unit.spec.guard&&unit.guardOpen<=0&&unit.attack&&unit.attack.time>unit.spec.time*.34;
     const heavy=weight==='heavy'||(!weight&&(Math.abs(knock)>=1.21||amount>=this.hero.damage*1.44));
-    unit.hp -= amount*(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
+    unit.hp -= damage*(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     const kind=unit.hp<=0?'fall':shield?(heavy?'break':'block'):heavy?'heavy':'light';
     if (kind==='break') {
@@ -929,7 +932,7 @@ export class Game {
       const h = this.hero;
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
       this.fallen.push(unit);
-      this.branchCombat.defeat(this,unit);
+      this.branchCombat.activeMaw?.defeat(this,unit);
       giftKill(this,unit);
       if(unit.spec.deathOmen||unit.omen?.id==='grudge')this.deathOmen(unit);
       if (boss) this.view.bossCue(unit,'defeat');
@@ -1345,6 +1348,8 @@ export class Game {
 
   animateActors(dt) {
     const h=this.hero, t=this.t;
+    const maw=this.branchCombat.activeMaw;
+    maw?.update(t);
     advanceReaction(h,dt);
     const isRoll=h.rolling>0;
     const action=heroPose(h);
@@ -1390,6 +1395,11 @@ export class Game {
       this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
     }
     this.fallen=this.fallen.filter(unit=>{
+      if(unit.maw&&maw) {
+        const visible=maw.poseVictim(unit,t);
+        if(!visible) this.view.removeActor(unit.visual);
+        return visible;
+      }
       advanceReaction(unit,dt);
       this.playLanding(unit);
       if (unit.reaction.age>=reactionTime.fall) {
@@ -1431,6 +1441,7 @@ export class Game {
     }
     this.elapsed+=dt;
     this.t+=dt;
+    this.branchCombat.activeMaw?.expire(this.t);
     this.updateHero(dt,input);
     if (this.state!=='play') return;
     this.updateRituals(dt);
@@ -1449,9 +1460,13 @@ export class Game {
 
   renderUI() {
     const h=this.hero;
-    const support=this.branchCombat.skills.has('medic')?(this.branchCombat.reviveReady?'✚ 急救可用':'✚ 急救已用')
+    const maw=this.branchCombat.activeMaw;
+    const stacks=maw?.stacks??0;
+    const support=stacks?`噬食 ×${stacks} · ${Math.ceil(maw.remaining(this.t))} 秒`
+      :this.branchCombat.skills.has('medic')?(this.branchCombat.reviveReady?'✚ 急救可用':'✚ 急救已用')
       :this.branchCombat.skills.has('radar')?'◉ 雷達運作中':'';
     const badge=this.ui['field-support'];
+    badge.classList.toggle('maw-stacks',stacks>0);
     if(badge.textContent!==support) badge.textContent=support;
     badge.hidden=!support;
     const hp=fixed(h.hp);

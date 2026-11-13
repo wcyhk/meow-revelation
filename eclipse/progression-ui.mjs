@@ -1,4 +1,4 @@
-import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=eye-aura-1';
+import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=maw-1';
 
 function element(tag,className,content) {
   const node=document.createElement(tag);

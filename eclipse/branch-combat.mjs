@@ -1,14 +1,12 @@
-import {branches} from './progression.mjs?v=eye-aura-1';
+import {branches,mawSkill} from './progression.mjs?v=maw-1';
 import {RobotSquad} from './robot-squad.mjs?v=squad-1';
 import {EnemyMarkers,Medics} from './tech-support.mjs?v=eye-aura-1';
 import {CthunHand} from './cthun-hand.mjs?v=squad-1';
 import {BlackGoatEye} from './black-goat-eye.mjs?v=eye-aura-1';
+import {TsathogguaMouth} from './tsathoggua.mjs?v=maw-1';
 
-const hex=0xe597ff;
 const radarRange=13;
 const range=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-const targetable=(game,enemy)=>enemy.hp>0&&enemy.age>=.23&&enemy.phaseGuard<=0
-  &&!(game.bossArena?.locked&&game.bossArena.boss===enemy);
 
 export class BranchCombat {
   constructor(view) {
@@ -19,7 +17,8 @@ export class BranchCombat {
     this.tendrils=null;
     this.eye=null;
     this.medics=null;
-    this.ready={};
+    this.maw=null;
+    this.activeMaw=null;
   }
 
   start(profile) {
@@ -29,6 +28,7 @@ export class BranchCombat {
     if(this.skills.has('robot-squad')) this.squad??=new RobotSquad(this.view);
     if(this.skills.has('cthun-hand')) this.tendrils??=new CthunHand(this.view);
     if(this.skills.has('black-goat-eye')) this.eye??=new BlackGoatEye(this.view);
+    if(this.skills.has(mawSkill.id)) this.activeMaw=this.maw??=new TsathogguaMouth(this.view);
     this.reviveReady=this.skills.has('medic');
     if(this.reviveReady) this.medics??=new Medics(this.view);
   }
@@ -47,7 +47,8 @@ export class BranchCombat {
     this.eye?.reset();
     this.medics?.hide();
     this.radar.hide();
-    this.ready={seal:0};
+    this.maw?.reset();
+    this.activeMaw=null;
     this.reviveReady=false;
     this.skills.clear();
   }
@@ -67,15 +68,6 @@ export class BranchCombat {
     this.medics?.update(game);
   }
 
-  targets(game,point,radius) {
-    return game.enemies.filter(enemy=>targetable(game,enemy)&&range(point,enemy)<radius)
-      .sort((a,b)=>range(a,point)-range(b,point));
-  }
-
-  hit(game,enemy,point,multiplier,tint) {
-    return game.hit(enemy,game.hero.damage*multiplier,point,.12,tint,'light',undefined,'support');
-  }
-
   revive(game) {
     if(!this.reviveReady) return false;
     this.reviveReady=false;
@@ -92,20 +84,5 @@ export class BranchCombat {
     game.audio.play('branch-revive');
     game.announce('科技','急救小隊抵達','生命已回滿 · 本局復活機會已用',2.1);
     return true;
-  }
-
-  defeat(game,enemy) {
-    if(!this.skills.has('funeral-seal')||this.ready.seal>game.t) return;
-    this.ready.seal=game.t+5;
-    const {x,z}=enemy;
-    const point={x,z};
-    game.view.sealFx(x,z,hex,1.56,.66);
-    game.schedule(.36,()=>this.burst(game,point,2.08,.69,hex));
-  }
-
-  burst(game,point,radius,multiplier,tint) {
-    game.view.shock(point.x,point.z,tint,radius,.8);
-    game.audio.play('branch-spirit');
-    for(const target of this.targets(game,point,radius)) this.hit(game,target,point,multiplier,tint);
   }
 }

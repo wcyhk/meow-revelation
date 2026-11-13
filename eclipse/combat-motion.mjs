@@ -153,17 +153,21 @@ export function enemyPose(unit) {
     return {bend:-side*load*(style==='charge'?.27:.19),
       offsetX:-dx*load*.22,offsetZ:-dz*load*.22,tilt:side*load*.22,
       squash:1-load*(gather?.03:.22),stretch:1+load*(style==='charge'?.18:.055),
-      bob:gather?load*(style==='slam'?.52:.29):0,warm:load*.55};
+      bob:gather?load*(style==='slam'?.52:.29):0,warm:load*.55,
+      lag:side*load*.048,compression:load*(gather?.022:.054)};
   }
   const t=release.age/(style==='charge'?.42:.32);
   if (t>=1) return null;
   const power=fade(t);
   const air=style==='charge'?Math.sin(clamp(t)*PI)*.58:0;
   const slam=style==='slam'?power*.19:0;
+  const settle=Math.sin(t*PI*2)*power;
   return {bend:side*power*(style==='shoot'?.09:.26),
     offsetX:dx*power*(style==='thrust'?.59:.33),offsetZ:dz*power*(style==='thrust'?.59:.33),
     tilt:-side*power*(style==='sweep'?.39:.24),squash:1-slam+air*.19,
-    stretch:1+power*.16,bob:air,warm:power*.48};
+    stretch:1+power*.16,bob:air,warm:power*.48,
+    lag:-side*settle*(style==='sweep'?.14:.080),
+    compression:Math.max(0,settle)*(style==='slam'?.11:.046)};
 }
 
 export function reactionPose(unit,boss=false) {
@@ -177,6 +181,7 @@ export function reactionPose(unit,boss=false) {
     return {fall,offsetX:dx*(.19+fall*.53),offsetZ:dz*(.19+fall*.53),
       tilt:-side*(.18+fall*.77),bend:side*fade(fall)*.14,
       squash:1-fall*.29,stretch:1+fall*.18,bob:Math.sin(fall*PI)*.27,
+      lag:side*Math.sin(fall*PI)*.092,compression:Math.sin(fall*PI)*.065,
       fade:fade((t-.66)/.34),flash:fade(t*4)*.73};
   }
   const tail=fade(t);
@@ -191,6 +196,8 @@ export function reactionPose(unit,boss=false) {
     tilt:-side*snap*(heavy?.47:broken?.41:block?.16:.25)*scale,
     squash:1-snap*(heavy?.18:broken?.27:block?.11:.095),
     stretch:1+snap*(heavy?.16:broken?.12:.045),bob:heavy?Math.sin(t*PI)*.24*scale:0,
+    lag:side*Math.sin(t*PI*(broken?3:2))*tail*(heavy||broken?.14:.064)*scale,
+    compression:Math.sin(t*PI)*tail*(broken?.12:heavy?.086:.035)*scale,
     flash:tail*(broken?.68:block?.27:.61),guardFlash:broken||block};
 }
 
@@ -203,6 +210,8 @@ export function blendPose(base,motion) {
   base.squash*=motion.squash;
   base.stretch=(base.stretch??1)*motion.stretch;
   base.bob+=motion.bob;
+  base.lag=(base.lag??0)+(motion.lag??0);
+  base.compression=(base.compression??0)+(motion.compression??0);
   base.flash=Math.max(base.flash??0,motion.flash??0);
   if (motion.warm) base.warm=Math.max(base.warm??0,motion.warm);
   if (motion.grip) base.grip=motion.grip;

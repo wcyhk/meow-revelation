@@ -7,26 +7,28 @@ export function lanternRadius(stage) {
 // Opening positions and masonry sampled from the painted rooms. Coordinates are
 // in the same world space as the collision and interaction radius.
 const doorways={
-  'grove.jpg':{x:.38,z:-14.6,setback:1.95,stone:0x383c41,trim:0x5d6668,light:0x9fe2e2,shape:'round'},
-  'fen.jpg':{x:2.71,z:-14.25,setback:1.65,stone:0x294644,trim:0x5c7770,light:0x71efce,shape:'point'},
-  'lotus.jpg':{x:10.1,z:-12.2,setback:.70,stone:0x525641,trim:0x9d7e4c,light:0xffda8e,shape:'round',yaw:-.19},
-  'frost.jpg':{x:-8.8,z:-13.2,setback:1.55,stone:0x565570,trim:0x8887ab,light:0xc9e1ff,shape:'point',yaw:.12},
-  'forge.jpg':{x:6.72,z:-12.1,setback:1.45,stone:0x3e292e,trim:0x995b48,light:0xff9b55,shape:'forge',yaw:-.12},
-  'grave.jpg':{x:.15,z:-10.95,stone:0x52536d,trim:0x84829e,light:0xc69fff,shape:'point'},
-  'vault-gold.jpg':{x:-.35,z:-10.9,stone:0x464038,trim:0x9e7745,light:0xffd47d,shape:'vault'},
-  'dunes.jpg':{x:11.05,z:-10.35,stone:0x714837,trim:0xb37a4c,light:0xffbb70,shape:'round',yaw:-.18},
-  'fungus.jpg':{x:.19,z:-10.85,stone:0x344a3c,trim:0x658671,light:0x9bd5b6,shape:'root'},
-  'cathedral.jpg':{x:-.22,z:-10.55,stone:0x4c4055,trim:0x80708a,light:0xba92fa,shape:'point'},
-  'desecrated-cathedral.jpg':{x:.34,z:-10.45,stone:0x59454e,trim:0x956d85,light:0xf1a7db,shape:'root'},
-  'throne.jpg':{x:1.02,z:-13.9,setback:1.7,stone:0x4a272c,trim:0x875647,light:0xef976f,shape:'point'},
-  'crimson-throne.jpg':{x:1.02,z:-13.9,setback:1.7,stone:0x4a272c,trim:0x875647,light:0xff795c,shape:'point'},
+  'grove.jpg':{art:[.508,.103,.133,.136],z:-14.6,stone:0x383c41,trim:0x5d6668,light:0x9fe2e2},
+  'fen.jpg':{art:[.569,.085,.120,.157],z:-14.25,stone:0x294644,trim:0x5c7770,light:0x71efce},
+  'lotus.jpg':{art:[.833,.155,.104,.217],z:-12.2,stone:0x525641,trim:0x9d7e4c,light:0xffda8e,yaw:-.19},
+  'frost.jpg':{art:[.254,.113,.091,.177],z:-13.2,stone:0x565570,trim:0x8887ab,light:0xc9e1ff,yaw:.12},
+  'forge.jpg':{art:[.684,.164,.111,.118],z:-12.1,stone:0x3e292e,trim:0x995b48,light:0xff9b55,yaw:-.12,veil:true},
+  'grave.jpg':{art:[.504,.181,.102,.189],z:-10.95,stone:0x52536d,trim:0x84829e,light:0xc69fff},
+  'vault-gold.jpg':{art:[.499,.168,.151,.229],z:-10.9,stone:0x464038,trim:0x9e7745,light:0xffd47d},
+  'dunes.jpg':{art:[.887,.157,.083,.201],z:-10.35,stone:0x714837,trim:0xb37a4c,light:0xffbb70,yaw:-.18},
+  'fungus.jpg':{art:[.500,.147,.096,.223],z:-10.85,stone:0x344a3c,trim:0x658671,light:0x9bd5b6,veil:true},
+  'cathedral.jpg':{art:[.145,.185,.131,.229],z:-10.55,stone:0x4c4055,trim:0x80708a,light:0xba92fa,veil:true},
+  'desecrated-cathedral.jpg':{art:[.504,.239,.153,.125],z:-10.45,stone:0x59454e,trim:0x956d85,light:0xf1a7db,veil:true},
+  'throne.jpg':{art:[.505,.160,.137,.162],z:-13.9,stone:0x4a272c,trim:0x875647,light:0xef976f,veil:true},
+  'crimson-throne.jpg':{art:[.505,.160,.137,.162],z:-13.9,stone:0x4a272c,trim:0x875647,light:0xff795c,veil:true},
 };
+
+export const backdropSpan=34;
 
 export function routeLayout(stage,seed) {
   let value=(seed^Math.imul(stage.floor,0x9e3779b9))>>>0;
   const draw=()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
   const frame=doorways[stage.picture]??doorways['grove.jpg'];
-  const exit={x:frame.x+(draw()-.5)*.42,z:frame.z+(draw()-.5)*.44,frame};
+  const exit={x:(frame.art[0]-.5)*backdropSpan+(draw()-.5)*.30,z:frame.z+(draw()-.5)*.44,frame};
   const yaw=frame.yaw??0,cos=Math.cos(yaw),sin=Math.sin(yaw);
   const barricades=[];
   for(const [i,step] of [-.91,.91].entries()){

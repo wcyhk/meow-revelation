@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
+import {forgedMaterials} from './forge-materials.mjs?v=patina-1';
 
 export const arms = [
   {id:'tiger', name:'白虎之聖輪', mark:'✧', tone:0xece7c5, ink:'#f1ddb2', role:'近身 · 高機動',
@@ -45,15 +46,6 @@ export const arms = [
   ...nightArms,
 ];
 
-function materials(weapon) {
-  return {
-    brass: new T.MeshStandardMaterial({color:0xc59350,metalness:.47,roughness:.36}),
-    dark: new T.MeshStandardMaterial({color:0x302722,metalness:.32,roughness:.62}),
-    stone: new T.MeshStandardMaterial({color:weapon.tone,metalness:.29,roughness:.32,emissive:weapon.tone,emissiveIntensity:.19}),
-    ivory: new T.MeshStandardMaterial({color:0xf7d8a4,roughness:.56}),
-  };
-}
-
 function piece(parent, geometry, material, x=0, y=0, z=0) {
   const mesh = new T.Mesh(geometry,material);
   mesh.position.set(x,y,z);
@@ -74,19 +66,33 @@ function ring(parent, radius, thickness, material, y=0, sides=28) {
   return piece(parent,new T.TorusGeometry(radius,thickness,6,sides),material,0,y);
 }
 
-export function armLighting(scene) {
-  scene.add(new T.HemisphereLight(0xffedc9,0x6a4550,2.05));
-  const light = new T.DirectionalLight(0xffecd4,2.18);
+function wrap(parent,material,center,length,radius) {
+  for(let i=-2;i<=2;i++){
+    const strap=piece(parent,new T.TorusGeometry(radius,.010,4,9).rotateX(Math.PI/2),material,0,center+i*length*.20);
+    strap.rotation.z=i*.039;
+  }
+}
+
+function etching(parent,material,path,z,width=.009) {
+  for(const side of [-1,1]) {
+    const curve=new T.CatmullRomCurve3(path.map(([x,y])=>new T.Vector3(x,y,z*side)));
+    piece(parent,new T.TubeGeometry(curve,13,width,4,false),material);
+  }
+}
+
+export function armLighting(scene,field=false) {
+  scene.add(new T.HemisphereLight(field?0xe0deeb:0xffedc9,0x504052,field?1.03:1.86));
+  const light = new T.DirectionalLight(0xffecd4,field?1.0:1.96);
   light.position.set(-3,6,6);
   scene.add(light);
-  const edge = new T.DirectionalLight(0x82badb,1.26);
+  const edge = new T.DirectionalLight(0x9bb7cb,field?.63:1.31);
   edge.position.set(4,-2,-3);
   scene.add(edge);
 }
 
 export function forge(weapon) {
   const root = new T.Group();
-  const {brass,dark,stone,ivory} = materials(weapon);
+  const {brass,dark,stone,ivory} = forgedMaterials(weapon);
   switch (weapon.id) {
     case 'tiger':
       ring(root,.42,.066,dark,0,14);
@@ -96,6 +102,8 @@ export function forge(weapon) {
       for (let i=0;i<4;i++) {
         const spur=piece(root,blade([[0,.35],[-.10,.45],[.11,.64],[.12,.45]],.06),stone);
         spur.rotation.z=i*Math.PI/2+.23;
+        const cap=piece(root,blade([[.02,.44],[-.038,.48],[.11,.635],[.078,.48]],.037),ivory,0,0,.026);
+        cap.rotation.z=spur.rotation.z;
       }
       break;
     case 'dragon':
@@ -108,6 +116,7 @@ export function forge(weapon) {
         const clasp=piece(root,new T.OctahedronGeometry(.11),brass,Math.sin(angle)*.45,Math.cos(angle)*.45);
         clasp.rotation.z=-angle;
       }
+      etching(root,ivory,[[-.26,-.20],[-.14,-.05],[.12,-.05],[.23,.10],[.13,.22]],.19,.014);
       break;
     case 'phoenix':
       piece(root,new T.CylinderGeometry(.07,.10,.51,7),dark,0,-.42);
@@ -119,6 +128,7 @@ export function forge(weapon) {
         pinion.position.set(side*.064,-.03,side*.09);
         pinion.rotation.z=side*.53;
       }
+      etching(root,ivory,[[-.05,-.04],[-.085,.22],[.06,.48],[.28,.70]],.079);
       break;
     case 'turtle':
       piece(root,new T.CylinderGeometry(.068,.078,.71,7),dark,0,-.35);
@@ -130,6 +140,7 @@ export function forge(weapon) {
         needle.rotation.set(Math.cos(angle)*1.09,0,-Math.sin(angle)*1.09);
       }
       piece(root,new T.ConeGeometry(.13,.46,6),ivory,0,.49);
+      ring(root,.22,.019,brass,.12,9).rotation.x=Math.PI/2;
       break;
     case 'qilin':
       piece(root,new T.CylinderGeometry(.057,.075,1.19,7),dark,0,-.34);
@@ -137,12 +148,14 @@ export function forge(weapon) {
       piece(root,new T.CylinderGeometry(.19,.12,.12,8),brass,0,.23);
       piece(root,blade([[-.11,.18],[-.23,.38],[-.21,.68],[.10,1.04],[.06,.77],[.19,.63],[.12,.30]],.115),ivory);
       piece(root,blade([[-.057,.25],[-.14,.44],[-.12,.65],[.08,.98],[.017,.70],[.10,.56],[.075,.32]],.134),stone);
+      etching(root,brass,[[.009,.29],[-.067,.48],[-.045,.63],[.063,.84]],.077);
       break;
     case 'flameblade':
       piece(root,new T.CylinderGeometry(.06,.075,.48,7),dark,0,-.60);
       piece(root,blade([[-.32,-.28],[0,-.12],[.32,-.28],[0,-.40]],.08),brass);
       piece(root,blade([[-.16,-.30],[-.17,.50],[0,1.01],[.19,.47],[.17,-.30]],.11),ivory);
       piece(root,blade([[0,-.25],[-.082,.42],[0,.96],[.09,.43]],.13),stone);
+      etching(root,brass,[[.0,-.18],[-.041,.05],[.035,.30],[-.031,.49],[.0,.81]],.078,.010);
       break;
     case 'stormbow': {
       const path=new T.CatmullRomCurve3([
@@ -150,6 +163,9 @@ export function forge(weapon) {
         new T.Vector3(-.31,.53,0),new T.Vector3(.06,.82,0),
       ]);
       const limbs=piece(root,new T.TubeGeometry(path,22,.058,7,false),brass);
+      const brace=new T.CatmullRomCurve3([new T.Vector3(-.29,-.52,.042),new T.Vector3(-.21,-.22,.073),
+        new T.Vector3(-.15,0,.074),new T.Vector3(-.21,.22,.073),new T.Vector3(-.29,.52,.042)]);
+      piece(root,new T.TubeGeometry(brace,14,.014,5,false),ivory);
       const string=Array.from({length:2},()=>piece(root,new T.CylinderGeometry(.014,.014,1,5),ivory));
       const arrow=piece(root,new T.CylinderGeometry(.024,.019,.71,6).rotateZ(Math.PI*.5),stone);
       arrow.visible=false;
@@ -170,6 +186,7 @@ export function forge(weapon) {
       piece(root,blade([[-.065,.31],[-.10,.71],[.028,1.08],[.12,.72],[.08,.37]],.09),stone);
       piece(root,blade([[-.03,.31],[-.38,.40],[-.48,.72],[-.32,.69],[-.21,.53],[.04,.49]],.095),ivory);
       piece(root,new T.CylinderGeometry(.093,.093,.10,7),brass,0,-.91);
+      etching(root,brass,[[-.40,.64],[-.31,.49],[-.19,.45],[-.085,.46]],.058);
       break;
     case 'frostlute': {
       const body=piece(root,new T.SphereGeometry(.38,12,10),stone,0,-.33);
@@ -179,6 +196,9 @@ export function forge(weapon) {
       for (const x of [-.075,-.026,.027,.077]) {
         piece(root,new T.CylinderGeometry(.009,.009,1.17,5),ivory,x,.02,.13);
       }
+      const rim=ring(root,.291,.019,ivory,-.35,18);
+      rim.position.z=.09;rim.scale.y=1.34;
+      piece(root,new T.BoxGeometry(.27,.028,.033),brass,0,-.48,.132);
       break;
     }
     case 'chakra':
@@ -189,6 +209,7 @@ export function forge(weapon) {
         const tooth=piece(root,blade([[0,.40],[-.077,.53],[.08,.70],[.11,.49]],.055),stone);
         tooth.rotation.z=i*Math.PI/4;
       }
+      ring(root,.376,.012,stone,0,26).position.z=.037;
       break;
     case 'reaper':
       piece(root,new T.CylinderGeometry(.054,.073,1.82,8),dark,0,-.24);
@@ -196,6 +217,7 @@ export function forge(weapon) {
       piece(root,blade([[-.12,.55],[.18,.85],[.54,.94],[.87,.71],[1.01,.31],[.78,.53],[.47,.59],[.16,.45]],.13),ivory);
       piece(root,blade([[.03,.59],[.23,.78],[.55,.87],[.84,.64],[.92,.43],[.73,.58],[.45,.65]],.16),stone);
       piece(root,new T.OctahedronGeometry(.17),stone,0,.66);
+      etching(root,brass,[[.06,.64],[.34,.76],[.59,.74],[.83,.55]],.089,.011);
       break;
     case 'bell': {
       piece(root,new T.CylinderGeometry(.057,.078,1.48,7),dark,0,-.37);
@@ -205,6 +227,12 @@ export function forge(weapon) {
       piece(root,new T.TorusGeometry(.331,.036,6,16).rotateX(Math.PI/2),ivory,0,.55);
       piece(root,new T.OctahedronGeometry(.19),stone,0,.53);
       ring(root,.46,.025,dark,.74);
+      for(let i=0;i<6;i++){
+        const angle=i*Math.PI/3;
+        const band=piece(root,blade([[-.031,-.095],[0,.095],[.031,-.095],[0,-.060]],.027),ivory,
+          Math.sin(angle)*.226,.703,Math.cos(angle)*.226);
+        band.rotation.y=angle;
+      }
       break;
     }
     case 'fangs':
@@ -214,17 +242,28 @@ export function forge(weapon) {
         piece(tooth,new T.CylinderGeometry(.055,.075,.40,6),dark,0,-.36);
         piece(tooth,blade([[-.13,-.20],[.19,-.11],[.30,.20],[.28,.69],[.02,.38],[-.14,.16]],.105),ivory);
         piece(tooth,blade([[-.07,-.14],[.11,-.04],[.23,.24],[.25,.59],[.04,.29]],.128),stone);
+        etching(tooth,brass,[[.02,-.09],[.16,.13],[.225,.36],[.27,.56]],.075);
+        wrap(tooth,brass,-.36,.21,.066);
       }
       break;
     case 'cannon':
-      piece(root,new T.CylinderGeometry(.155,.20,.88,9),dark,0,.28);
-      for (const y of [-.12,.23,.58,.77]) piece(root,new T.CylinderGeometry(.203,.203,.086,9),brass,0,y);
-      piece(root,new T.CylinderGeometry(.145,.145,.11,10),dark,0,.823);
-      piece(root,new T.TorusGeometry(.12,.024,6,12).rotateX(Math.PI/2),stone,0,.887);
-      piece(root,new T.BoxGeometry(.24,.48,.27),ivory,-.067,-.38).rotation.z=.43;
-      for (const side of [-1,1]) piece(root,new T.BoxGeometry(.062,.43,.074),stone,side*.16,.32,0);
+      piece(root,new T.LatheGeometry([[.008,-.23],[.137,-.23],[.177,-.13],[.157,.05],[.142,.44],[.183,.67],
+        [.192,.79],[.148,.83],[.109,.81],[.104,.48],[.008,.42]].map(([x,y])=>new T.Vector2(x,y)),16),dark);
+      for (const [y,r] of [[-.15,.17],[.03,.167],[.40,.151],[.71,.193],[.79,.187]]) {
+        piece(root,new T.TorusGeometry(r,.021,5,16).rotateX(Math.PI/2),brass,0,y);
+      }
+      piece(root,blade([[-.18,-.52],[-.25,-.36],[-.16,-.14],[-.07,-.11],[.08,-.24],[.018,-.49]],.16),dark);
+      piece(root,blade([[-.17,-.45],[-.21,-.36],[-.13,-.19],[-.08,-.17],[-.02,-.24],[-.068,-.41]],.163),brass);
+      for(const side of [-1,1]) {
+        const plate=piece(root,blade([[-.071,.07],[0,.001],[.071,.12],[.047,.42],[0,.52],[-.047,.42]],.022),brass,0,.02,side*.142);
+        plate.rotation.x=side*.045;
+      }
+      etching(root,stone,[[.002,.13],[.035,.22],[-.027,.32],[.0,.47]],.159,.012);
       break;
   }
+  const wrapped={phoenix:[-.43,.25,.087],turtle:[-.32,.29,.078],qilin:[-.27,.27,.065],flameblade:[-.59,.24,.071],
+    windhalberd:[-.36,.35,.058],reaper:[-.30,.34,.068],bell:[-.31,.32,.066]};
+  if(wrapped[weapon.id])wrap(root,brass,...wrapped[weapon.id]);
   return root;
 }
 

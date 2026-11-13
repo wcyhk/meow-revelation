@@ -1,16 +1,17 @@
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=nightfall-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=patina-1';
 import {pictures, stages} from './expedition.mjs?v=clock-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=gilded-1';
-import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=sigils-1';
-import {LanternArt} from './lantern-art.mjs?v=sigils-1';
+import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=patina-1';
+import {LanternArt} from './lantern-art.mjs?v=patina-1';
+import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=patina-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=sigils-1';
-import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=sigils-1';
+import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=patina-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
 
 const PI = Math.PI;
@@ -20,11 +21,12 @@ const weaponUp = new T.Vector3(0,1,0);
 const weaponPoint = new T.Vector3();
 const weaponOffset = new T.Vector3();
 const handPoint = new T.Vector3();
+const previousGrip = new T.Quaternion();
 const plane = new T.PlaneGeometry(1, 1);
-const actorPlane = new T.PlaneGeometry(1,1,4,6);
+const actorPlane = new T.PlaneGeometry(1,1,12,16);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
 const sceneAngle = new T.Vector3(0, 16, 19.6).normalize();
-const ART_SIZE = 34;
+const wristMask=(value)=>1-T.MathUtils.smoothstep(value,.07,.25);
 
 function texture(canvas) {
   const result = new T.CanvasTexture(canvas);
@@ -177,7 +179,7 @@ export class Scenery {
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, this.mobile ? 1.35 : 1.65));
     this.renderer.setClearColor(0x151912);
     this.scene = new T.Scene();
-    armLighting(this.scene);
+    armLighting(this.scene,true);
     this.camera = new T.OrthographicCamera(-10, 10, 8, -8, .1, 100);
     this.camera.position.copy(sceneAngle).multiplyScalar(28);
     this.camera.lookAt(unit);
@@ -412,18 +414,26 @@ export class Scenery {
   createActor(frame, height) {
     const spriteMaterial = new T.ShaderMaterial({
       uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
+        stride:{value:0},footLift:{value:0},lag:{value:0},paw:{value:new T.Vector2()},wrist:{value:new T.Vector2()},
         guard:{value:0},ink:{value:new T.Color(0xffffff)},rim:{value:new T.Color()},texel:{value:new T.Vector2()},
         rimLight:{value:0}},
       vertexShader:`
         varying vec2 artUV;
-        uniform float bend,sway,compression;
+        uniform float bend,sway,compression,stride,footLift,lag;
+        uniform vec2 paw,wrist;
         void main() {
           artUV=uv;
           vec3 body=position;
           float upper=smoothstep(.12,.94,uv.y);
           float torso=sin(uv.y*3.14159);
+          float leg=1.-smoothstep(.09,.37,uv.y);
+          float side=smoothstep(.38,.62,uv.x)*2.-1.;
+          float loose=(1.-smoothstep(.19,.54,uv.x))*smoothstep(.14,.42,uv.y)*(1.-smoothstep(.58,.84,uv.y));
+          float hand=1.-smoothstep(.07,.25,length(position.xy-paw));
           body.x+=bend*upper*upper+sway*torso*torso;
           body.y-=torso*(abs(bend)*.055+compression);
+          body.x+=side*stride*leg+loose*lag+hand*wrist.x;
+          body.y+=max(0.,side*footLift)*leg+loose*abs(lag)*.37+hand*wrist.y;
           gl_Position=projectionMatrix*modelViewMatrix*vec4(body,1.);
         }
       `,
@@ -506,11 +516,12 @@ export class Scenery {
   equip(actor, weapon) {
     this.unequip(actor);
     const model = forge(weapon);
-    const glow = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.32,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
-    glow.scale.set(1.55,1.55,1);
+    const glow = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.08,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+    glow.scale.set(.90,.90,1);
     model.add(glow);
     this.scene.add(model);
     const profile=weaponGrips[weapon.id];
+    glow.position.y=profile.glow??.48;
     actor.weapon = {model,glow,id:weapon.id,profile,anchor:new T.Vector3(...profile.anchor),
       blades:weapon.id==='fangs'?model.children.slice(0,2):null};
     if(!this.sigilTextures.has(weapon.id)) this.sigilTextures.set(weapon.id,texture(skillSigil(weapon.id).canvas));
@@ -558,6 +569,15 @@ export class Scenery {
     art.material.uniforms.bend.value = (spec.bend??0)*direction;
     art.material.uniforms.sway.value = spec.sway??0;
     art.material.uniforms.compression.value = spec.compression??0;
+    const {stride,footLift,lag,paw,wrist}=art.material.uniforms;
+    stride.value=spec.stride??0;
+    footLift.value=spec.footLift??0;
+    lag.value=spec.lag??0;
+    if(visual.weapon){
+      const paws=pawPositions[spec.frame]??pawPositions[0];
+      paw.value.set(...paws[visual.weapon.profile.hand??0]);
+    }
+    wrist.value.set(spec.armReach??0,spec.armLift??0);
     art.material.uniforms.guard.value=spec.guardFlash?1:0;
     art.material.uniforms.rim.value.setHex(spec.rim??0xc78f71);
     art.material.uniforms.texel.value.set(1/atlas.image.width,1/atlas.image.height);
@@ -565,10 +585,10 @@ export class Scenery {
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
     poseEffigy(visual,spec,this.time,x,z);
-    const foot=unit.gait===undefined?null:Math.floor(unit.gait/PI);
-    if(foot!==visual.footPhase&&unit.move>.52&&!(unit.rolling>0)&&!unit.spec?.float){
+    const foot=spec.feet??null;
+    if(foot!==null&&visual.footPhase!==null&&foot!==visual.footPhase&&!unit.spec?.float){
       const hue=unit.spec?.tint??0xc6a88f;
-      this.elementBurst(x,.08,z,hue,unit.spec?.effect??'wind',unit.kind==='boss'?4:2,.63);
+      this.elementBurst(x+direction*(foot===0?-.22:.22),.08,z,hue,unit.spec?.effect??'wind',unit.kind==='boss'?4:2,.63);
     }
     visual.footPhase=foot;
     const fall=spec.fall??0;
@@ -602,8 +622,9 @@ export class Scenery {
       const {model,glow,id,profile,anchor,blades} = visual.weapon;
       const paws=pawPositions[spec.frame]??pawPositions[0];
       this.pawPosition(art,paws[profile.hand??0],handPoint);
+      previousGrip.copy(model.quaternion);
       model.rotation.set(profile.pitch, direction*(.32+Math.sin(this.time*3.2)*.08),
-        direction*(profile.turn+(spec.frame===1?-.32:0)+(spec.sway??0)*1.3)+roll*.75);
+        direction*(profile.turn+(spec.frame===1?-.32:0)+(spec.sway??0)*1.3-(spec.lag??0)*2.2)+roll*.75);
       const grip=spec.grip;
       if (grip) {
         const sweep=grip.sweep;
@@ -625,10 +646,14 @@ export class Scenery {
         model.rotation.x-=fall*.93;
       }
       if (id==='dragon') model.rotation.y+=this.time*(grip?4.2:2.1);
+      if(!grip&&!roll&&spec.dt&&visual.weapon.posed&&id!=='dragon'){
+        model.quaternion.slerp(previousGrip,Math.exp(-spec.dt*22));
+      }
+      visual.weapon.posed=true;
       if (id==='stormbow') shapeBow(model,grip?.draw??0,grip?.nocked??false);
       const charge=grip?.charge??0;
-      glow.material.opacity=.19+charge*.36;
-      glow.scale.set(1.30+charge*.64,1.30+charge*.64,1);
+      glow.material.opacity=.072+charge*.30;
+      glow.scale.set(.88+charge*.53,.88+charge*.53,1);
       model.scale.setScalar(profile.scale*(roll?.85:1)*(1-fall*.16));
       model.position.copy(handPoint).sub(weaponOffset.copy(anchor).multiply(model.scale).applyQuaternion(model.quaternion));
       if(blades) {
@@ -649,10 +674,17 @@ export class Scenery {
     const uv=y+.5;
     const upper=T.MathUtils.smoothstep(uv,.12,.94);
     const torso=Math.sin(uv*PI);
-    const {bend,sway,compression}=art.material.uniforms;
+    const {bend,sway,compression,stride,footLift,lag,paw,wrist}=art.material.uniforms;
+    const leg=1-T.MathUtils.smoothstep(uv,.09,.37);
+    const side=T.MathUtils.smoothstep(x+.5,.38,.62)*2-1;
+    const loose=(1-T.MathUtils.smoothstep(x+.5,.19,.54))*T.MathUtils.smoothstep(uv,.14,.42)
+      *(1-T.MathUtils.smoothstep(uv,.58,.84));
+    const hand=wristMask(Math.hypot(x-paw.value.x,y-paw.value.y));
     target.set(x+bend.value*upper*upper+sway.value*torso*torso,
       y-torso*(Math.abs(bend.value)*.055+compression.value),0);
-    target.multiply(art.scale).applyQuaternion(art.quaternion).add(art.position).addScaledVector(sceneAngle,.15);
+    target.x+=side*stride.value*leg+loose*lag.value+hand*wrist.value.x;
+    target.y+=Math.max(0,side*footLift.value)*leg+loose*Math.abs(lag.value)*.37+hand*wrist.value.y;
+    target.multiply(art.scale).applyQuaternion(art.quaternion).add(art.position).addScaledVector(sceneAngle,.094);
   }
 
   prepareEffigy(visual,kind) {
@@ -661,7 +693,10 @@ export class Scenery {
 
   removeActor({art, shade, rim, form,effigy}) {
     this.scene.remove(art, shade, rim);
-    if(effigy)this.scene.remove(effigy);
+    if(effigy){
+      this.scene.remove(effigy);
+      for(const mesh of effigy.children)mesh.material.dispose();
+    }
     art.material.dispose();
     shade.material.dispose();
     rim.material.dispose();
@@ -1281,7 +1316,7 @@ export class Scenery {
       this.camera.position.x += Math.sin(time * 116) * this.shake;
       this.camera.position.y += Math.cos(time * 98) * this.shake * .38;
       this.camera.updateMatrixWorld();
-      this.lanternArt.tick(hero,time,this.stage);
+      this.lanternArt.tick(hero,time,this.stage,dt);
       this.groveLight.update(hero,this.lanternArt,this.accent,time);
     }
     for (const [index, lamp] of this.candles.entries()) {

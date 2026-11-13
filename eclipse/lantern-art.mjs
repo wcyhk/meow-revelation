@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
-import {lanternRadius} from './lantern-route.mjs?v=sigils-1';
+import {lanternRadius} from './lantern-route.mjs?v=patina-1';
+import {PaintedExit} from './painted-exit.mjs?v=patina-1';
 
 const stone=new T.MeshStandardMaterial({color:0x51414b,roughness:.88,metalness:.16});
 const bevel=new T.MeshStandardMaterial({color:0xa88269,roughness:.69,metalness:.26});
@@ -9,23 +10,7 @@ const ember=new T.MeshBasicMaterial({color:0xffc67b,toneMapped:false});
 const box=new T.BoxGeometry(1,1,1);
 const diamond=new T.OctahedronGeometry(1);
 const urn=new T.LatheGeometry([[.20,0],[.36,.14],[.37,.40],[.23,.56],[.22,.68],[.31,.71]].map(([x,y])=>new T.Vector2(x,y)),9);
-const arch=new T.TorusGeometry(.98,.16,6,16,Math.PI);
-const archInlay=new T.TorusGeometry(.99,.032,5,20,Math.PI);
-const mark=new T.RingGeometry(.62,.71,18).rotateX(-Math.PI/2);
-const doorShape=new T.Shape();
-doorShape.moveTo(-.83,0);doorShape.lineTo(.83,0);doorShape.lineTo(.83,1.12);
-doorShape.quadraticCurveTo(.83,1.98,0,2.05);doorShape.quadraticCurveTo(-.83,1.98,-.83,1.12);
-doorShape.lineTo(-.83,0);
-const pointedDoor=new T.Shape();
-pointedDoor.moveTo(-.83,0);pointedDoor.lineTo(.83,0);pointedDoor.lineTo(.83,1.04);
-pointedDoor.quadraticCurveTo(.83,1.65,0,2.25);pointedDoor.quadraticCurveTo(-.83,1.65,-.83,1.04);
-pointedDoor.lineTo(-.83,0);
-const doorFace=new T.ShapeGeometry(doorShape,10);
-const pointFace=new T.ShapeGeometry(pointedDoor,10);
-const ribs=new T.TubeGeometry(new T.CatmullRomCurve3([
-  new T.Vector3(.96,.03,0),new T.Vector3(.97,.96,0),new T.Vector3(.78,1.49,0),
-  new T.Vector3(.42,1.91,0),new T.Vector3(0,2.26,0),
-]),14,.096,6,false);
+const washPlane=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2);
 const gateThemes=new WeakMap();
 const lanternPalette={
   original:{flame:0xffc67b,light:0xffa65f,glow:0xffa253,wash:'#ffb86d14'},
@@ -41,63 +26,13 @@ function part(parent,geometry,material,x,y,z,sx=1,sy=1,sz=1,turn=0) {
 
 function gateTheme(frame) {
   if(gateThemes.has(frame))return gateThemes.get(frame);
-  const stonework=stone.clone(),edging=bevel.clone();
-  stonework.color.setHex(frame.stone);stonework.emissive.setHex(frame.stone);stonework.emissiveIntensity=.20;
-  edging.color.setHex(frame.trim);edging.emissive.setHex(frame.trim);edging.emissiveIntensity=.12;
-  const shadow=new T.MeshBasicMaterial({color:new T.Color(frame.stone).multiplyScalar(.25),side:T.DoubleSide});
-  const glow=new T.MeshBasicMaterial({color:frame.light,transparent:true,opacity:.62,side:T.DoubleSide,depthWrite:false,blending:T.AdditiveBlending});
   const barricade=bark.clone();
   barricade.color.setHex(frame.stone).lerp(new T.Color(0x4b342b),.43);
   const brace=plank.clone();
   brace.color.setHex(frame.trim).lerp(new T.Color(0x73553f),.37);
-  const theme={stonework,edging,shadow,glow,barricade,brace};
+  const theme={barricade,brace};
   gateThemes.set(frame,theme);
   return theme;
-}
-
-function makeGate(route,halo) {
-  const gate=new T.Group();
-  const {frame}=route;
-  gate.position.set(route.x,0,route.z-(frame.setback??.26));
-  gate.rotation.y=frame.yaw??0;
-  const {stonework,edging,shadow,glow}=gateTheme(frame);
-  const pointed=frame.shape==='point'||frame.shape==='root';
-  for(let step=0;step<3;step++) {
-    part(gate,box,stonework,0,.034+step*.041,.47-step*.23,2.52-step*.22,.064,.32);
-    part(gate,box,edging,0,.069+step*.041,.608-step*.23,2.36-step*.22,.011,.025);
-  }
-  for(const side of [-1,1]){
-    part(gate,box,stonework,side*1.01,.58,0,.33,1.18,.54);
-    part(gate,box,edging,side*1.01,.21,.01,.48,.13,.72);
-    part(gate,box,edging,side*1.01,1.10,.005,.40,.14,.57);
-    part(gate,box,edging,side*1.01,.66,.275,.068,.72,.035);
-    if(pointed)part(gate,ribs,edging,0,0,.04,side,1,1);
-    if(frame.shape==='root') {
-      part(gate,box,stonework,side*1.23,.43,.14,.13,.91,.28,side*.29);
-      part(gate,urn,edging,side*1.43,.08,.29,.50,.72,.50,side*.15);
-    }
-    if(frame.shape==='forge')part(gate,box,edging,side*.78,.83,-.031,.12,1.40,.15,side*.20);
-  }
-  if(!pointed){
-    part(gate,arch,stonework,0,1.09,0,1.05,.96,1.35);
-    part(gate,archInlay,edging,0,1.09,.21,1.04,.95,1.1);
-  }
-  const opening=pointed?pointFace:doorFace;
-  const depth=part(gate,opening,shadow,0,.14,-.185);
-  depth.scale.set(1.04,.94,1);
-  const door=new T.Group();
-  part(door,opening,stonework,0,.15,-.092,.97,.93,1);
-  part(door,box,edging,0,.91,-.075,.022,1.51,.03);
-  for(const side of [-1,1]){
-    part(door,diamond,edging,side*.18,.94,-.058,.063,.087,.027);
-    if(frame.shape==='vault')part(door,box,edging,side*.50,.95,-.059,.045,1.58,.034);
-  }
-  gate.add(door);
-  const threshold=part(gate,mark,glow,0,.049,.39+(frame.setback??.26)*.85,1.25,1,1.03);
-  const gleam=new T.Sprite(new T.SpriteMaterial({map:halo,color:frame.light,opacity:.38,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
-  gleam.position.set(0,.92,-.12);gleam.scale.set(2.24,2.60,1);
-  gleam.visible=false;threshold.visible=false;gate.add(gleam);
-  return {gate,door,threshold,gleam};
 }
 
 function makeMoonlessLantern(parent) {
@@ -167,6 +102,10 @@ export class LanternArt {
     this.floor=new T.Mesh(new T.PlaneGeometry(59,59).rotateX(-Math.PI/2),new T.MeshBasicMaterial({map:floorTexture(),depthTest:false,depthWrite:false}));
     this.floor.position.y=-.12;this.floor.renderOrder=-54;
     this.root=new T.Group();
+    this.paintedExit=new PaintedExit(view);
+    this.threshold=new T.Mesh(washPlane,new T.MeshBasicMaterial({map:view.halo,transparent:true,opacity:0,depthWrite:false,blending:T.AdditiveBlending}));
+    this.threshold.renderOrder=-5;
+    this.threshold.visible=false;
     this.lamp=new T.Group();this.lamp.visible=false;
     this.standardLamp=new T.Group();this.lamp.add(this.standardLamp);
     part(this.standardLamp,box,bark,0,0,0,.19,.25,.20);
@@ -180,16 +119,19 @@ export class LanternArt {
     glow.scale.set(.95,.95,1);glow.position.y=.01;this.lamp.add(glow);
     this.light=new T.PointLight(0xffa65f,0,10,1.8);
     this.glow=glow;
-    view.scene.add(this.floor,this.root,this.lamp,this.light);
+    view.scene.add(this.floor,this.root,this.lamp,this.light,this.threshold);
   }
 
   set(route) {
-    this.gleam?.material.dispose();
-    this.gleam=null;
     this.root.clear();
     this.route=route;
     this.broken=new Map();
+    this.threshold.visible=this.paintedExit.mesh.visible=false;
     if(!route)return;
+    this.paintedExit.set(route.frame);
+    this.threshold.position.set(route.x,.035,route.z-.22);
+    this.threshold.scale.set(4.7,1,3.1);
+    this.threshold.material.color.setHex(route.frame.light);
     const {barricade,brace}=gateTheme(route.frame);
     for(const object of route.barricades){
       const model=new T.Group();
@@ -211,9 +153,6 @@ export class LanternArt {
       }
       this.root.add(model);this.broken.set(object,model);
     }
-    const {gate,door,threshold,gleam}=makeGate(route,this.view.halo);
-    Object.assign(this,{gate,door,threshold,gleam});
-    this.root.add(gate);
   }
 
   smash(object) {
@@ -222,7 +161,7 @@ export class LanternArt {
     this.broken.delete(object);
   }
 
-  tick(hero,time,stage) {
+  tick(hero,time,stage,dt) {
     if(!hero)return;
     if(this.skin!==hero.lanternStyle){
       this.skin=hero.lanternStyle;
@@ -255,13 +194,9 @@ export class LanternArt {
     this.glow.material.opacity=.72+flicker*5;
     if(this.route){
       const open=this.route.ready&&this.route.barricades.every(item=>!item.gate||item.hp<=0);
-      this.door.visible=!open;
       this.threshold.visible=open&&this.route.found;
-      this.gleam.visible=this.threshold.visible;
-      if(this.threshold.visible){
-        this.threshold.rotation.y=time*.25;
-        this.gleam.material.opacity=.26+Math.sin(time*3.2)*.08;
-      }
+      this.paintedExit.update(open,time,dt);
+      if(this.threshold.visible)this.threshold.material.opacity=.29+Math.sin(time*2.3)*.045;
       for(const [object,model] of this.broken){
         model.rotation.z=(1-object.hp/object.maxHp)*.16*Math.sin(time*15+object.x);
       }

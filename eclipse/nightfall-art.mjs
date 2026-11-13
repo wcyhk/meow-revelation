@@ -6,6 +6,23 @@ const shapes={box:new T.BoxGeometry(1,1,1),egg:new T.IcosahedronGeometry(1,1),or
   cone:new T.ConeGeometry(1,1,6),tube:new T.CylinderGeometry(1,1,1,7),spike:new T.OctahedronGeometry(1)};
 const body=new T.MeshStandardMaterial({vertexColors:true,roughness:.73,metalness:.16,side:T.DoubleSide});
 const glimmer=new T.MeshBasicMaterial({vertexColors:true,toneMapped:false});
+function flexibleMaterial(base,pose) {
+  const material=base.clone();
+  material.onBeforeCompile=shader=>{
+    shader.uniforms.effigyPose={value:pose};
+    shader.vertexShader='uniform vec4 effigyPose;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`
+      #include <begin_vertex>
+      float feet=1.-smoothstep(.18,.96,position.y);
+      float side=smoothstep(-.26,.26,position.x)*2.-1.;
+      float upper=smoothstep(.78,1.86,position.y);
+      transformed.z+=effigyPose.x*side*feet;
+      transformed.y+=max(0.,effigyPose.y*side)*feet;
+      transformed.x+=upper*effigyPose.z+effigyPose.w*sin(position.y*1.94);
+    `);
+  };
+  return material;
+}
 
 function pack(parts) {
   const positions=[],normals=[],colors=[];
@@ -114,7 +131,10 @@ export function mountEffigy(scene,visual,kind) {
   if(!models.has(kind))models.set(kind,craft(kind));
   const [figure,eyes]=models.get(kind);
   const root=new T.Group();
-  root.add(new T.Mesh(figure,body),new T.Mesh(eyes,glimmer));
+  root.userData.pose=new T.Vector4();
+  for(const [geometry,material] of [[figure,body],[eyes,glimmer]]){
+    root.add(new T.Mesh(geometry,flexibleMaterial(material,root.userData.pose)));
+  }
   root.rotation.y=0;
   root.userData.kind=kind;
   visual.art.visible=false;
@@ -130,6 +150,7 @@ export function poseEffigy(visual,spec,time,x,z) {
   const size=visual.height*.51;
   root.position.set(x,.02+Math.max(0,spec.bob??0)*(1-f),z);
   const sway=spec.sway??0,compression=spec.compression??0;
+  root.userData.pose.set((spec.stride??0)*1.76,(spec.footLift??0)*1.52,(spec.bend??0)*.26,(spec.lag??0)*.70);
   root.rotation.set(f*1.53+.065*Math.sin(time*9+z)*(1-motion)+compression*.88,
     .36*(spec.face||1)+(spec.bend??0)*.51+sway*3.1,(spec.tilt??0)*1.10+sway);
   root.scale.set(size*((spec.stretch??1)+compression*.35),size*motion,size*(1+compression*.50));

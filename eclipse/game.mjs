@@ -1,9 +1,9 @@
-import {Scenery} from './scenery.mjs?v=sigils-1';
+import {Scenery} from './scenery.mjs?v=patina-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=maw-1';
 import {Input} from './input.mjs?v=sigils-1';
-import {arms} from './armory.mjs?v=nightfall-1';
+import {arms} from './armory.mjs?v=patina-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=clock-1';
@@ -13,7 +13,7 @@ import {RoomObjective} from './objectives.mjs?v=battle-1';
 import {invokeSchool} from './schools.mjs?v=nightfall-1';
 import {BossArena} from './boss-arena.mjs?v=impact-1';
 import {bossArenas} from './arena-layouts.mjs?v=arena-1';
-import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=nightfall-1';
+import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=patina-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=nightfall-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
@@ -22,7 +22,8 @@ import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
-import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=sigils-1';
+import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=patina-1';
+import {actorMotion} from './actor-kinetics.mjs?v=patina-1';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
 import {BranchCombat} from './branch-combat.mjs?v=sigils-1';
@@ -346,6 +347,7 @@ export class Game {
     h.lanternOut=0;
     h.snuffCooldown=0;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
+    h.visualMotion=null;
     h.invulnerable = 1;
     h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = h.snared = 0;
     h.slash = h.rush = null;
@@ -1370,23 +1372,29 @@ export class Game {
     const action=heroPose(h);
     const knockedDown=h.reaction?.kind==='fall';
     if (knockedDown) this.playLanding(h);
-    h.gait=(h.gait??0)+dt*(2+h.move*15);
-    const step=Math.sin(h.gait),plant=Math.cos(h.gait*2);
-    const running=h.move>.24;
+    const gait=actorMotion(h,dt,t,true);
+    const running=gait.weight>.26;
     const bracing=h.reaction&&h.reaction.age<.16;
     const striking=action&&(h.attackAge>.055||h.motion?.kind!=='strike');
     const pose=knockedDown||bracing?heroFrames.recoil:isRoll?heroFrames.run:striking?heroFrames.attack
-      :running&&step>-.44?heroFrames.run:heroFrames.idle;
-    const stride=running?h.move*step:0;
+      :running?heroFrames.run:heroFrames.idle;
+    const rollPhase=isRoll?clamp(1-h.rolling/h.rollDuration,0,1):0;
+    const tuck=Math.sin(rollPhase*Math.PI);
+    const movingLimbs=!action&&!bracing&&!isRoll;
     const heroFrame={
-      frame:pose,poseSize:isRoll?.84:pose===heroFrames.run?.94:1,face:action?.face??h.face,
-      bob:isRoll?.14:.035+Math.abs(stride)*.12+Math.sin(t*4.1)*.032,
-      tilt:isRoll?0:stride*.095+h.move*h.dx*.034,
-      squash:isRoll?.74:1+Math.sin(t*(h.move>.25?20:4.2))*(.03+h.move*.027),
-      stretch:isRoll?1.08:1,
-      sway:isRoll?.027*step:stride*.046+Math.sin(t*3.6)*.012,
-      compression:isRoll?.045:Math.max(0,plant)*h.move*.055,
-      roll:isRoll&&!h.rush?-h.face*(1-h.rolling/h.rollDuration)*TAU:0,
+      dt,
+      frame:pose,poseSize:isRoll?.92:pose===heroFrames.run?.93:1,face:action?.face??h.face,
+      bob:isRoll?.024+tuck*.26:.037+gait.bob+Math.sin(t*4.1)*.018,
+      tilt:isRoll?0:-gait.tilt,
+      squash:isRoll?1-tuck*.32:1-gait.compression*.7,
+      stretch:gait.width*(1+tuck*.13),
+      sway:gait.sway,lag:gait.lag+(action?.grip.sweep??0)*.017,
+      compression:isRoll?tuck*.071:gait.compression,
+      stride:movingLimbs?gait.swing:0,footLift:movingLimbs?gait.footLift:0,
+      feet:movingLimbs&&running?gait.foot:null,
+      armReach:action?clamp((action.grip.reach-.25)*.13,-.075,.12):0,
+      armLift:action?clamp((action.grip.raise-.26)*.21,-.10,.17):0,
+      roll:isRoll&&!h.rush?-h.face*rollPhase*TAU:0,
       flash:h.flash,fade:h.invulnerable>0 && !isRoll && Math.sin(t*33)<-.35 ? .74 : 1,
       aura:h.ward>0||h.surge>0?.55:.24,rim:this.weapon.tone,
     };
@@ -1400,21 +1408,23 @@ export class Game {
       const shielded=primary&&this.bossArena?.locked;
       const staggered=primary&&this.bossArena?.counters.stagger>0;
       const frozen=unit.frozen>0;
-      const wind=unit.attack ? 1-clamp(unit.attack.time/unit.attack.windup,0,1) : 0;
-      unit.gait=(unit.gait??unit.phase)+(frozen?0:dt*(2.1+unit.move*(boss?7:13)));
-      const oscillation=frozen?0:Math.sin(unit.gait);
-      const contact=frozen?0:Math.max(0,Math.cos(unit.gait*2))*unit.move;
-      const recoil=unit.reaction?Math.exp(-unit.reaction.age*12)*Math.sin(unit.reaction.age*38):0;
+      const wind=unit.attack ? 1-clamp(unit.attack.time/(unit.attack.windup??unit.spec.time),0,1) : 0;
+      const gait=actorMotion(unit,dt,t);
+      const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
       const fierce=unit.bossPhase>0;
       const owlDive=unit.spec.frame===6&&(wind>.42||unit.recover>.37);
       const frame={
         frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
         poseSize:owlDive?.84:1,
-        bob:Math.abs(oscillation)*unit.move*.14+(unit.spec.float??0)*(1.7+oscillation)+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
-        squash:1+oscillation*(.028+unit.move*.058)-contact*.035,
-        tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.059*unit.move,
-        sway:unit.face*(oscillation*(boss?.022:.037)*unit.move-wind*.032+recoil*.042),
-        compression:contact*(unit.spec.float?.017:.065)+Math.sin(wind*Math.PI)*.045,
+        bob:gait.bob+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
+        squash:1-gait.compression,
+        stretch:gait.width,
+        tilt:staggered?unit.face*-.25+gait.step*.052:-gait.tilt,
+        sway:gait.sway-unit.face*wind*.036,
+        lag:gait.lag+Math.sin(wind*Math.PI)*.037,
+        compression:gait.compression+Math.sin(wind*Math.PI)*.045,
+        stride:stepping?gait.swing:0,footLift:stepping?gait.footLift:0,
+        feet:stepping&&gait.weight>.34?gait.foot:null,
         warm:fierce?.42:0,
         aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
         rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),

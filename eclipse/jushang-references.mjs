@@ -185,7 +185,7 @@ const clientBosses={
   m090:'sangmun_w',m091:'gaemun_a',m092:'samun_t',m093:'samun_t_l',m094:'samun_t_d',
   m001:'mon_snake',m002:'bsnake',m004:'horsespear',m005:'whitebear',m008:'misil_g',
   m014:'honma',m015:'redjujak',m016:'statuea',m017:'statueb',m019:'youbang_g',
-  m021:'sanyeo_transform',m022:'whitehyunmu',m024:'poisondragon',m027:'destroyer',
+  m021:'sanyeo_transform',m022:'whitehyunmu',m024:'poisondragon',m025:'pao',m026:'pao2',m027:'destroyer',
   m101:'honganji_g',m106:'madragon',m107:'captin_jack',m109:'yoksu',m114:'shahjahan_mu',m115:'yamayami',
   m117:'asura_pawn',m119:'shiva_pawn',m121:'despiderqueen',m122:'varuna',
   m124:'tiamat',m125:'britra',m133:'gajin',m148:'ancient_goongi',m149:'ancient_dowol',

@@ -1,5 +1,6 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=forgelight-4';
+import {bestiaryTint} from './bestiary-models.mjs?v=pao-1';
+import {paoForms} from './pao-model.mjs?v=pao-1';
 
 const patterns={
   serpent:['lance','roots','gravity','sweep'],hydra:['jaws','prison','summon','cross'],
@@ -57,18 +58,23 @@ export function visitorFor(stage,seed){
 }
 
 export function monsterBattle(entry,floor,mode={}){
-  const effect=toneEffect[entry.tone];
+  const pao=paoForms.has(entry.id);
+  const effect=pao?'water':toneEffect[entry.tone];
   const bag=patterns[entry.family];
   const stagger=(entry.name.length+entry.crest.length)%bag.length;
   const familyAttacks=[...bag.slice(stagger),...bag.slice(0,stagger)];
-  const attacks=[...(giantAttacks[entry.name]??new Set([...entry.attacks,...familyAttacks]))].slice(0,4);
-  const finishing=entry.source==='big'?(giantAttacks[entry.name]?.[2]??finishers[effect]):finishers[effect];
+  const attacks=pao?['marked','prison','lance','ring']:
+    [...(giantAttacks[entry.name]??new Set([...entry.attacks,...familyAttacks]))].slice(0,4);
+  const finishing=pao?(entry.id==='m025'?'lance':'gravity'):
+    entry.source==='big'?(giantAttacks[entry.name]?.[2]??finishers[effect]):finishers[effect];
   if(!attacks.includes(finishing))attacks.push(finishing);
   const brute=['turtle','ogre','emperor'].includes(entry.family);
   const quick=['wasp','bird','duelist','spider'].includes(entry.family);
-  const ranged=['priest','captain','wasp','star'].includes(entry.family);
+  const ranged=pao||['priest','captain','wasp','star'].includes(entry.family);
+  const moveLabels=pao?{marked:'破奧咒印',prison:'破奧陣',lance:'破奧光',ring:'法輪震波',gravity:'雙輪牽引'}:null;
   return {name:entry.name,frame:6,bestiary:entry,secondary:true,tint:bestiaryTint(entry),effect,
-    form:'邪相現形',signature:attacks.map(attack=>bossMoveNames[attack]).slice(0,3).join(' · '),
+    form:entry.id==='m025'?'真・破奧':pao?'雙輪全開':'邪相現形',
+    signature:attacks.map(attack=>moveLabels?.[attack]??bossMoveNames[attack]).slice(0,3).join(' · '),moveLabels,
     attacks,finishing,
     hp:Math.round((285+floor*17)*(mode.hp??1)*(brute?1.13:.96)),
     height:brute?4.1:entry.family==='eggs'?3.22:quick?3.66:3.9,

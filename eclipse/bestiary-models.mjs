@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
-import {KoreanBossArt} from './korean-art.mjs?v=forgelight-4';
+import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
+import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -40,6 +41,7 @@ const referencePalettes={
   m015:[0x68271d,0xb44b23,0xffd74d,0xfff4c1],
   m008:[0x3b362c,0x416647,0xe7d6ab,0xa3d49a],m022:[0x2c2628,0x646169,0xded8cc,0xa9e7ff],
   m024:[0x282e29,0x5a5d60,0xb8a465,0xb7d85b],
+  m025:[0x141823,0x273752,0xe0d9cc,0x8af3e7],m026:[0x10141c,0x233547,0xf0e4cc,0x66ffee],
   m021:[0x312b29,0x9f3220,0xf0dcbd,0x78d4c9],m027:[0x2b2224,0x684433,0xad7e60,0xf46847],
   m016:[0x3d322e,0x9b7143,0xe4d3ac,0xffa35a],m017:[0x332a23,0x8c826e,0xe4b85f,0xffcf69],
   m019:[0x224756,0x6cabad,0xe0ecea,0x9eeaff],
@@ -127,6 +129,31 @@ function buildMaterials(entry){
   });
   if(entry.id==='m150')finishes.copper=surface(0xb7693d,.52,.39,'bronze');
   if(entry.id==='m154')finishes.iron=surface(0x4c4745,.66,.41,'iron');
+  if(paoForms.has(entry.id)){
+    finishes.deep=surface(0x221f2a,.26,.67,'cloth');
+    finishes.body=surface(0x3d5273,.46,.39,'iron');
+    finishes.trim=surface(0xa37a42,.56,.41,'bronze');
+    finishes.edge=surface(0xd4d5cd,.22,.52,'bone');
+    finishes.ivoryShade=surface(0x8a8175,.11,.66,'bone');
+    finishes.bronzeShade=surface(0x75483d,.38,.48,'bronze');
+    finishes.wingEdge=surface(0x58618d,.58,.47,'iron');
+    finishes.webbing=new T.MeshStandardMaterial({
+      color:0xffffff,vertexColors:true,side:T.DoubleSide,metalness:.12,roughness:.77,bumpMap:relief(),bumpScale:.062,
+      emissive:0x9a594b,emissiveIntensity:.07,
+    });
+    finishes.webbing.onBeforeCompile=shader=>{
+      shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+        if(!gl_FrontFacing) diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.026,.052,.12),.88);
+      `);
+    };
+    finishes.cyan=new T.MeshStandardMaterial({
+      color:0x32acb7,emissive:0x138fa9,emissiveIntensity:.82,metalness:.23,roughness:.35,
+    });
+    finishes.eye=new T.MeshBasicMaterial({color:0xf38342});
+    finishes.mist=new T.MeshBasicMaterial({
+      color:0x65f7ec,transparent:true,opacity:.18,depthWrite:false,blending:T.AdditiveBlending,
+    });
+  }
   if(entry.id==='m133')finishes.mist=new T.MeshStandardMaterial({
     color:0xc5bdbc,emissive:0x726d6a,emissiveIntensity:.36,roughness:1,transparent:true,opacity:.54,depthWrite:false,
   });
@@ -1507,7 +1534,8 @@ export function mountBestiary(scene,entry,height){
   const root=new T.Group(),materials=buildMaterials(entry);
   const k=kit(root,materials);
   let parts;
-  if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
+  if(paoForms.has(entry.id))parts=buildPao(k,entry);
+  else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
   else if(entry.id==='m114')parts=shahRoyalPair(k);
   else if(entry.id==='m115')parts=yamaTwins(k);
   else if(entry.id==='m117')parts=asuraDisciple(k,entry);
@@ -1530,16 +1558,16 @@ export function mountBestiary(scene,entry,height){
     default:parts=humanoid(k,entry);break;
   }
   const dedicatedSilhouette=['m114','m115','m122','m133','m150','m154'].includes(entry.id);
-  const crest=parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
+  const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));
   k.finish();
   const box=new T.Box3().setFromObject(root);
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
   const width=ratio?T.MathUtils.clamp(Math.sqrt(ratio/.91),.80,1.20):1;
-  const dimensions=entry.proportions??[width,1,1+(width-1)*.36];
+  const dimensions=entry.proportions??(parts.pao?[1,1,1]:[width,1,1+(width-1)*.36]);
   scene.add(root);
-  const pattern=parts.mount?'gallop':entry.id==='m005'?'slam':entry.crest==='scarab'||entry.id==='m154'?'crawl':
+  const pattern=parts.pao?'hover':parts.mount?'gallop':entry.id==='m005'?'slam':entry.crest==='scarab'||entry.id==='m154'?'crawl':
     entry.id==='m106'?'coil':entry.id==='m124'?'duel':['m114','m115','m133','m155'].includes(entry.id)?'hover':poses[entry.family];
   return {root,materials,entry,crest,dimensions,palette:colors(entry),bounce:reference?Math.min(.39,reference[3])*.13:0,
     scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,...parts};
@@ -1556,7 +1584,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const travel=spec.stepWeight??unit.move??0;
   const step=spec.gaitPhase??beat;
   const float=airborne?.24+Math.sin(beat)*(.145+model.bounce)+stage*.10:Math.sin(beat)*(.05+model.bounce*travel);
-  const phaseScale=1+stage*.155;
+  const phaseScale=1+stage*(model.pao?.047:.155);
   root.visible=(spec.fade??1)>.18;
   root.position.set(x,.02+Math.max(0,(spec.bob??0)*.38+float)*(1-fall),z);
   const attack=unit.attack??unit.motion;
@@ -1613,6 +1641,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.spellHood.scale.set(1+wind*.21,1+strike*.17,1+wind*.08);
     model.spellHood.rotation.x=wind*.23-strike*.29;
   }
+  if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall});
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
     for(const [index,shield] of arms.entries()){

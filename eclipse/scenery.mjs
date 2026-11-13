@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgelight-4';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=forgelight-4';
 import {pictures, stages} from './expedition.mjs?v=forgelight-4';
@@ -1414,7 +1414,8 @@ export class Scenery {
   }
 
   threatImpact(hazard) {
-    const {kind,x,z,radius,tint,width,angle,pattern,effect}=hazard;
+    const {kind,x,z,radius,tint,width,angle,pattern,effect,owner}=hazard;
+    const pao=owner?.visual?.bestiary?.pao;
     this.elementBurst(x,.24,z,tint,effect,kind==='cone'?13:9,Math.min(1.2,.74+radius*.08),angle);
     const point={x,y:.08,z};
     if (kind==='cone') {
@@ -1428,8 +1429,15 @@ export class Scenery {
     } else if (kind==='line') {
       if (['lance','pounce','sweep','feathers','barrage','jaws'].includes(pattern)) {
         const dx=Math.cos(angle),dz=Math.sin(angle);
-        this.motion.thrust({x:x-dx*radius*.5,y:pattern==='pounce'?.30:.55,z:z-dz*radius*.5},
-          dx,dz,radius,tint,pattern==='lance'||pattern==='sweep');
+        if(pao&&pattern==='lance'){
+          const start={x:x-dx*radius*.5,y:.91,z:z-dz*radius*.5};
+          const end={x:x+dx*radius*.5,y:.38,z:z+dz*radius*.5};
+          this.motion.thrust(start,dx,dz,radius,0xacfdf6,true);
+          this.motion.bolt(start,end,tint,1.65);
+        }else{
+          this.motion.thrust({x:x-dx*radius*.5,y:pattern==='pounce'?.30:.55,z:z-dz*radius*.5},
+            dx,dz,radius,tint,pattern==='lance'||pattern==='sweep');
+        }
       } else {
         const strip=new T.PlaneGeometry(radius,width*1.42).rotateX(-PI/2);
         this.addEffect(strip,point,tint,.25,{owned:true,angle:-angle,opacity:.32,growth:.07});
@@ -1448,6 +1456,7 @@ export class Scenery {
       }
     } else if (pattern==='prison'||pattern==='eclipse') {
       this.vortex(x,z,radius,tint);
+      if(pao)this.sealFx(x,z,tint,radius*.74,.58);
     } else {
       this.shock(x,z,tint,radius,pattern==='burst'?.92:.63);
     }

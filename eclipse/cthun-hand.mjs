@@ -86,6 +86,9 @@ export class CthunHand {
     const {hero}=game;
     const dx=Math.sin(attack.angle),dz=Math.cos(attack.angle);
     const origin=config.id==='erupt'?attack.point:hero;
+    const reach=config.id==='erupt'?0:config.range*.57;
+    this.view.elementBurst(origin.x+dx*reach,.52,origin.z+dz*reach,config.tint,
+      config.id==='pierce'?'blood':'void',12,1.12,Math.atan2(dz,dx));
     if(config.id==='sweep') {
       this.view.slash(hero.x,hero.z,dx,dz,config.tint,config.range,false,-1,.72);
       this.view.spark(hero.x+dx*1.63,.7,hero.z+dz*1.63,0xd03b5a,12,.95,'void');

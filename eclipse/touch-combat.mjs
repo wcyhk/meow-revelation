@@ -1,9 +1,11 @@
+import {skillSigil} from './skill-sigils.mjs?v=sigils-1';
+
 const moveThreshold=11;
 const moveRadius=38;
 const holdDelay=300;
 const flickDuration=175;
 const flickDistance=33;
-const castDistance=32;
+const iconRadius=34;
 
 export class TouchCombat {
   constructor(world,running,enqueue) {
@@ -12,6 +14,7 @@ export class TouchCombat {
     this.enqueue=enqueue;
     this.stick=document.getElementById('stick');
     this.prompt=document.getElementById('touch-cast');
+    this.caption=this.prompt.querySelector('b');
     this.x=this.z=0;
     this.gesture=null;
     this.timer=0;
@@ -37,8 +40,12 @@ export class TouchCombat {
     this.stick.dataset.mode='press';
     this.stick.hidden=false;
     const bounds=this.world.getBoundingClientRect();
-    this.prompt.style.left=Math.max(85,Math.min(bounds.width-85,x))+'px';
-    this.prompt.style.top=(y<110?y+48:y-102)+'px';
+    const above=y-bounds.top>=98;
+    const tx=Math.max(bounds.left+37,Math.min(bounds.right-37,x));
+    const ty=y+(above?-68:68);
+    Object.assign(this.gesture,{tx,ty,above,selected:false});
+    this.prompt.style.left=tx+'px';
+    this.prompt.style.top=ty+'px';
     this.timer=setTimeout(()=>this.arm(),holdDelay);
   }
 
@@ -47,12 +54,23 @@ export class TouchCombat {
     this.gesture.mode='skill';
     this.stick.dataset.mode='skill';
     this.prompt.dataset.selected='false';
-    this.prompt.textContent='向上滑 · 神器技能';
+    this.caption.textContent=this.gesture.above?'向上拖到紋章':'向下拖到紋章';
     this.prompt.hidden=false;
   }
 
-  skillSelected(dx,dy) {
-    return dy<=-castDistance&&Math.abs(dx)<=-dy*1.25;
+  setWeapon(weapon) {
+    const icon=skillSigil(weapon.id);
+    document.getElementById('hud').style.setProperty('--skill-icon',icon.url);
+    document.getElementById('hud').style.setProperty('--skill-color',weapon.ink);
+  }
+
+  get preview() {
+    if(this.gesture?.mode!=='skill') return 0;
+    return this.gesture.selected?2:1;
+  }
+
+  skillSelected(g,event) {
+    return Math.hypot(event.clientX-g.tx,event.clientY-g.ty)<=iconRadius;
   }
 
   move(event) {
@@ -83,9 +101,10 @@ export class TouchCombat {
       this.x=distance?dx/distance*strength:0;
       this.z=distance?dy/distance*strength:0;
     } else if(g.mode==='skill') {
-      const selected=this.skillSelected(dx,dy);
+      const selected=this.skillSelected(g,event);
+      g.selected=selected;
       this.prompt.dataset.selected=String(selected);
-      this.prompt.textContent=selected?'放手施放':'向上滑 · 神器技能';
+      this.caption.textContent=selected?'放手施放':g.above?'向上拖到紋章':'向下拖到紋章';
     }
   }
 
@@ -98,7 +117,7 @@ export class TouchCombat {
     const elapsed=event.timeStamp-g.start;
     if(this.running()) {
       if(g.mode!=='move'&&elapsed>=holdDelay) {
-        if(this.skillSelected(dx,dy)) this.enqueue('spell');
+        if(this.skillSelected(g,event)) this.enqueue('spell');
       } else if(elapsed<=flickDuration&&distance>=flickDistance) {
         this.enqueue('dodge',[dx/distance,dy/distance]);
       } else if(g.mode!=='move'&&Math.max(g.drift,distance)<moveThreshold) {

@@ -14,14 +14,21 @@
   letter-spacing:.055em;
 }
 #touch-skill-status {
-  display:block;
-  padding:4px 9px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:1px 10px 1px 3px;
   margin-bottom:2px;
   border:1px solid #d1a77476;
-  border-radius:5px;
+  border-radius:16px;
   background:#1a1422db;
   color:#ffe2b4;
 }
+#touch-skill-status::before,#spell>span {
+  background:var(--skill-icon) center/contain no-repeat;
+}
+#touch-skill-status::before {content:'';width:25px;height:25px;flex:none}
+#spell>span {color:transparent!important;width:1.42em;height:1.42em}
 #touch-skill-status.link-ready {color:#ffe0f2;border-color:#e1a6cc;box-shadow:0 0 13px #e99bc14f}
 .touch-controls #objective {bottom:max(87px,calc(env(safe-area-inset-bottom) + 76px))}
 .touch-controls #inspect {
@@ -55,16 +62,31 @@
 #stick[data-mode=skill] {border-color:#e5addd;box-shadow:inset 0 0 0 4px #e9b1e037,0 0 18px #bd65a35e}
 #touch-cast {
   z-index:3;
-  transform:translateX(-50%);
-  padding:7px 12px;
-  border:1px solid #dba6c6;
-  border-radius:5px;
-  color:#f8d2eb;
-  background:#241729f5;
-  font-size:12px;
-  white-space:nowrap;
+  width:68px;height:68px;
+  transform:translate(-50%,-50%);
+  border:1px solid color-mix(in srgb,var(--skill-color),#140c1b 45%);
+  border-radius:50%;
+  color:#fff0dd;
+  background:radial-gradient(circle at 50% 45%,#453444,#17121df2 70%);
+  box-shadow:0 4px 14px #0c0815cf,inset 0 0 16px #1c101a;
 }
-#touch-cast[data-selected=true] {color:#fff1cc;border-color:#f0cb8e;background:#523342}
+#touch-cast i {
+  position:absolute;inset:2px;
+  border-radius:50%;
+  background:var(--skill-icon) center/contain no-repeat;
+  filter:drop-shadow(0 0 5px var(--skill-color));
+}
+#touch-cast b {
+  position:absolute;top:-15px;left:50%;transform:translateX(-50%);
+  font-size:10px;letter-spacing:.065em;white-space:nowrap;color:var(--skill-color);
+  padding:1px 5px;background:#100b15eb;border-radius:5px;
+}
+#touch-cast[data-selected=true] {
+  border-color:var(--skill-color);
+  background:radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--skill-color),#201623 68%),#23182c 74%);
+  box-shadow:0 0 16px var(--skill-color),inset 0 0 12px #e3bc985c;
+}
+#touch-cast[data-cooldown=true] i {opacity:.48;filter:saturate(.45)}
 @media (max-width:650px) and (orientation:portrait) {
   .touch-controls .route-hud {top:max(69px,calc(env(safe-area-inset-top) + 54px))}
   .touch-controls #boss-hud,.touch-controls #mission-status {top:max(140px,calc(env(safe-area-inset-top) + 126px))}

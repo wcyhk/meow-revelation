@@ -5,16 +5,21 @@ import {battleTextures, disposeForm, nightmareForm, particleShapes} from './batt
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=gilded-1';
-import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=nightfall-1';
-import {LanternArt} from './lantern-art.mjs?v=squad-1';
+import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=sigils-1';
+import {LanternArt} from './lantern-art.mjs?v=sigils-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
+import {skillSigil} from './skill-sigils.mjs?v=sigils-1';
+import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=sigils-1';
+import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
 
 const PI = Math.PI;
 const color = new T.Color();
 const unit = new T.Vector3(0, 0, 0);
 const weaponUp = new T.Vector3(0,1,0);
 const weaponPoint = new T.Vector3();
+const weaponOffset = new T.Vector3();
+const handPoint = new T.Vector3();
 const plane = new T.PlaneGeometry(1, 1);
 const actorPlane = new T.PlaneGeometry(1,1,4,6);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
@@ -191,12 +196,25 @@ export class Scenery {
     this.scene.add(this.back);
     this.nightShade=makeShade(this);
     this.lanternArt=new LanternArt(this);
+    this.sigilTextures=new Map();
+    const sigilMaterial=new T.MeshBasicMaterial({opacity:0,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false});
+    this.sigilPreview=new T.Mesh(plane,sigilMaterial);
+    this.sigilBurst=new T.Mesh(plane,sigilMaterial.clone());
+    for(const sigil of [this.sigilPreview,this.sigilBurst]){
+      sigil.rotation.x=-PI/2;
+      sigil.renderOrder=24;
+      sigil.visible=false;
+      this.scene.add(sigil);
+    }
+    this.sigilTime=0;
     this.groveLight=new GroveLight(this.scene);
     this.candles = Array.from({length:6}, (_, index) => this.makeAirGlow(index));
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
     this.motes = this.createParticleSystem(this.mobile ? 215 : 385);
+    this.elementSeed=857302;
+    this.elementBudget=0;
     this.leaves = this.createLeaves(this.mobile ? 15 : 28);
     this.effects = [];
     this.motion = new MotionArt(this);
@@ -255,6 +273,9 @@ export class Scenery {
 
   setStage(stage) {
     this.stage = stage;
+    this.sigilPreview.visible=this.sigilBurst.visible=false;
+    this.sigilPreview.material.opacity=0;
+    this.sigilTime=0;
     this.back.material.map = this.pictures.get(stage.picture);
     const warmth=(stage.room%4)*.014;
     const dread=stage.dread;
@@ -390,18 +411,19 @@ export class Scenery {
 
   createActor(frame, height) {
     const spriteMaterial = new T.ShaderMaterial({
-      uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0},bend:{value:0},
+      uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
         guard:{value:0},ink:{value:new T.Color(0xffffff)},rim:{value:new T.Color()},texel:{value:new T.Vector2()},
         rimLight:{value:0}},
       vertexShader:`
         varying vec2 artUV;
-        uniform float bend;
+        uniform float bend,sway,compression;
         void main() {
           artUV=uv;
           vec3 body=position;
           float upper=smoothstep(.12,.94,uv.y);
-          body.x+=bend*upper*upper;
-          body.y-=abs(bend)*sin(uv.y*3.14159)*.055;
+          float torso=sin(uv.y*3.14159);
+          body.x+=bend*upper*upper+sway*torso*torso;
+          body.y-=torso*(abs(bend)*.055+compression);
           gl_Position=projectionMatrix*modelViewMatrix*vec4(body,1.);
         }
       `,
@@ -438,7 +460,7 @@ export class Scenery {
     const rim = this.ground(this.halo, 0xff8d52, .19, height * 1.6, height * 1.06);
     rim.material.blending = T.AdditiveBlending;
     this.scene.add(art, shade, rim);
-    return {art, shade, rim, height};
+    return {art, shade, rim, height,footPhase:null};
   }
 
   prepareBoss(visual,spec) {
@@ -488,7 +510,38 @@ export class Scenery {
     glow.scale.set(1.55,1.55,1);
     model.add(glow);
     this.scene.add(model);
-    actor.weapon = {model,glow,id:weapon.id};
+    const profile=weaponGrips[weapon.id];
+    actor.weapon = {model,glow,id:weapon.id,profile,anchor:new T.Vector3(...profile.anchor),
+      blades:weapon.id==='fangs'?model.children.slice(0,2):null};
+    if(!this.sigilTextures.has(weapon.id)) this.sigilTextures.set(weapon.id,texture(skillSigil(weapon.id).canvas));
+    this.sigilPreview.material.map=this.sigilTextures.get(weapon.id);
+    this.sigilPreview.material.needsUpdate=true;
+    this.sigilPreview.material.color.setHex(weapon.tone);
+  }
+
+  previewSkill(hero,preview,dt) {
+    const sigil=this.sigilPreview;
+    const target=preview===2?.95:preview===1?.51:0;
+    sigil.material.opacity+= (target-sigil.material.opacity)*(1-Math.exp(-dt*23));
+    sigil.visible=sigil.material.opacity>.025;
+    sigil.position.set(hero.x,.085,hero.z);
+    sigil.scale.setScalar(3.65+Math.sin(this.time*4)*.10+(preview===2?.32:0));
+    if(this.sigilTime>0){
+      this.sigilTime=Math.max(0,this.sigilTime-dt);
+      const progress=1-this.sigilTime/.48;
+      this.sigilBurst.scale.setScalar(3.7+2.0*progress);
+      this.sigilBurst.material.opacity=.94*(1-progress)**1.45;
+      this.sigilBurst.visible=this.sigilTime>0;
+    }
+  }
+
+  releaseSigil(hero) {
+    this.sigilBurst.material.map=this.sigilPreview.material.map;
+    this.sigilBurst.material.color.copy(this.sigilPreview.material.color);
+    this.sigilBurst.material.needsUpdate=true;
+    this.sigilBurst.position.set(hero.x,.091,hero.z);
+    this.sigilTime=.48;
+    this.sigilPreview.material.opacity=0;
   }
 
   actor(visual, unit, spec) {
@@ -503,6 +556,8 @@ export class Scenery {
     art.material.uniforms.fade.value = spec.fade ?? 1;
     art.material.uniforms.warm.value = spec.warm || 0;
     art.material.uniforms.bend.value = (spec.bend??0)*direction;
+    art.material.uniforms.sway.value = spec.sway??0;
+    art.material.uniforms.compression.value = spec.compression??0;
     art.material.uniforms.guard.value=spec.guardFlash?1:0;
     art.material.uniforms.rim.value.setHex(spec.rim??0xc78f71);
     art.material.uniforms.texel.value.set(1/atlas.image.width,1/atlas.image.height);
@@ -510,6 +565,12 @@ export class Scenery {
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
     poseEffigy(visual,spec,this.time,x,z);
+    const foot=unit.gait===undefined?null:Math.floor(unit.gait/PI);
+    if(foot!==visual.footPhase&&unit.move>.52&&!(unit.rolling>0)&&!unit.spec?.float){
+      const hue=unit.spec?.tint??0xc6a88f;
+      this.elementBurst(x,.08,z,hue,unit.spec?.effect??'wind',unit.kind==='boss'?4:2,.63);
+    }
+    visual.footPhase=foot;
     const fall=spec.fall??0;
     art.position.set(x,.02+fall*.055,z);
     const roll = spec.roll || 0;
@@ -538,25 +599,16 @@ export class Scenery {
     rim.material.color.setHex(spec.rim || 0xc48747);
     rim.material.opacity = (spec.aura ?? .12) * (spec.fade ?? 1);
     if (visual.weapon) {
-      const {model,glow,id} = visual.weapon;
-      const pose = spec.frame===40?0:spec.frame;
-      const reach = pose===2 ? .38 : pose===1 ? .36 : .23;
-      const lift = pose===2 ? .29 : pose===1 ? -.15 : -.185;
-      const theta=(spec.tilt || 0)+roll;
-      const handX=direction*reach*displayedHeight*Math.min(1.21,aspect), handY=lift*displayedHeight;
-      model.position.copy(art.position)
-        .addScaledVector(this.cameraUp,handX*Math.sin(theta)+handY*Math.cos(theta))
-        .addScaledVector(sceneAngle,.24);
-      model.position.x += handX*Math.cos(theta)-handY*Math.sin(theta);
-      model.rotation.set(-.30, direction*(.38+Math.sin(this.time*3.2)*.15), direction*(pose===2?-.7:pose===1?-1.23:-.39)+roll*.5);
+      const {model,glow,id,profile,anchor,blades} = visual.weapon;
+      const paws=pawPositions[spec.frame]??pawPositions[0];
+      this.pawPosition(art,paws[profile.hand??0],handPoint);
+      model.rotation.set(profile.pitch, direction*(.32+Math.sin(this.time*3.2)*.08),
+        direction*(profile.turn+(spec.frame===1?-.32:0)+(spec.sway??0)*1.3)+roll*.75);
       const grip=spec.grip;
       if (grip) {
         const sweep=grip.sweep;
         const dx=grip.dx*Math.cos(sweep)-grip.dz*Math.sin(sweep);
         const dz=grip.dx*Math.sin(sweep)+grip.dz*Math.cos(sweep);
-        model.position.x=x+direction*.31+dx*grip.reach;
-        model.position.z=z+dz*grip.reach+.12;
-        model.position.y=.94+grip.raise;
         if (grip.pointed) {
           const slant=Math.sin(grip.pitch);
           weaponPoint.set(dx*slant,Math.cos(grip.pitch),dz*slant).normalize();
@@ -565,26 +617,42 @@ export class Scenery {
         } else {
           const yaw=id==='stormbow'?Math.atan2(dz,-dx)+(1-Math.abs(dx))*direction*.38:-Math.atan2(dz,dx)+PI*.5;
           model.rotation.set(-.21-grip.pitch*.31,yaw,
-            direction*grip.roll);
+            direction*(grip.roll+profile.turn*.22));
         }
       }
       if (fall>0) {
-        model.position.y=Math.max(.12,model.position.y*(1-fall)+.12*fall);
+        handPoint.y=Math.max(.10,handPoint.y);
         model.rotation.x-=fall*.93;
       }
-      if (id==='dragon') {
-        model.rotation.y+=this.time*(grip?4.2:2.1);
-        model.position.y+=.085*Math.sin(this.time*5);
-      }
+      if (id==='dragon') model.rotation.y+=this.time*(grip?4.2:2.1);
       if (id==='stormbow') shapeBow(model,grip?.draw??0,grip?.nocked??false);
       const charge=grip?.charge??0;
-      glow.material.opacity=.32+charge*.31;
-      glow.scale.set(1.55+charge*.64,1.55+charge*.64,1);
-      model.scale.setScalar((id==='tiger'||id==='dragon'?.83:.95)*(roll?.77:1)*(1-fall*.16));
+      glow.material.opacity=.19+charge*.36;
+      glow.scale.set(1.30+charge*.64,1.30+charge*.64,1);
+      model.scale.setScalar(profile.scale*(roll?.85:1)*(1-fall*.16));
+      model.position.copy(handPoint).sub(weaponOffset.copy(anchor).multiply(model.scale).applyQuaternion(model.quaternion));
+      if(blades) {
+        for(const [index,blade] of blades.entries()){
+          blade.rotation.z=(index?1:-1)*direction*(.34+charge*.29);
+          this.pawPosition(art,paws[index],handPoint);
+          model.worldToLocal(handPoint);
+          blade.position.copy(handPoint).sub(weaponOffset.copy(anchor).applyQuaternion(blade.quaternion));
+        }
+      }
       model.visible=(spec.fade??1)>.19;
       model.renderOrder=art.renderOrder+1;
       glow.renderOrder=art.renderOrder+2;
     }
+  }
+
+  pawPosition(art,[x,y],target) {
+    const uv=y+.5;
+    const upper=T.MathUtils.smoothstep(uv,.12,.94);
+    const torso=Math.sin(uv*PI);
+    const {bend,sway,compression}=art.material.uniforms;
+    target.set(x+bend.value*upper*upper+sway.value*torso*torso,
+      y-torso*(Math.abs(bend.value)*.055+compression.value),0);
+    target.multiply(art.scale).applyQuaternion(art.quaternion).add(art.position).addScaledVector(sceneAngle,.15);
   }
 
   prepareEffigy(visual,kind) {
@@ -791,10 +859,12 @@ export class Scenery {
         if(motif>0.5&&motif<1.5) contour=abs(p.x)*.88+abs(p.y);
         if(motif>1.5&&motif<2.5) contour=length(vec2((p.x+p.y)*1.7,(p.x-p.y)*.75));
         if(motif>2.5&&motif<3.5) contour=max(abs(p.x),abs(p.y))*.88+abs(p.x*p.y)*1.2;
-        if(motif>3.5) contour=min(max(abs(p.x)*2.8,abs(p.y)),max(abs(p.y)*2.8,abs(p.x)));
+        if(motif>3.5&&motif<4.5) contour=min(max(abs(p.x)*2.8,abs(p.y)),max(abs(p.y)*2.8,abs(p.x)));
+        ${particleContours}
         float fall=1.-smoothstep(.045,.50,contour);
         float shine=pow(1.-smoothstep(.01,.22,contour),2.);
-        if (ink.a<.01) discard;gl_FragColor=vec4(mix(ink.rgb,vec3(1.,.95,.78),shine*.49),fall*fall*ink.a);}
+        float hot=motif>9.5?.12:motif>7.5?.65:.49;
+        if (ink.a<.01) discard;gl_FragColor=vec4(mix(ink.rgb,vec3(1.,.95,.78),shine*hot),fall*fall*ink.a);}
       `,
     });
     const particles = new T.Points(geometry, material);
@@ -852,6 +922,30 @@ export class Scenery {
       Object.assign(point,{x,y,z,dx:Math.cos(theta)*speed,dz:Math.sin(theta)*speed,dy:Math.random()*2.8+.25,life,ttl:life,
         r:color.r,g:color.g,b:color.b,size:2.8+Math.random()*8,gravity:3.5,shape:effect==='flare'?4:particleShapes[effect]??0});
     }
+  }
+
+  elementBurst(x,y,z,tint,element,count,power=1,bearing) {
+    const limit=this.mobile?22:42;
+    const remaining=Math.min(limit-this.elementBudget,this.mobile?Math.ceil(count*.68):count);
+    if(remaining<=0)return;
+    this.elementBudget+=remaining;
+    const style=elementStyle(element);
+    color.setHex(tint);
+    for(let i=0;i<remaining;i++){
+      this.elementSeed=(Math.imul(this.elementSeed,1664525)+1013904223)>>>0;
+      const salt=this.elementSeed/4294967296;
+      const angle=bearing===undefined?i*2.399+salt:bearing+(salt-.5)*1.85;
+      const speed=style.speed*(.38+salt*.88)*power;
+      const life=style.life*(.67+salt*.63);
+      const point=this.motes.items[this.motes.cursor++%this.motes.items.length];
+      Object.assign(point,{x:x+Math.cos(angle)*.18,y:y+salt*.28,z:z+Math.sin(angle)*.18,
+        dx:Math.cos(angle)*speed,dz:Math.sin(angle)*speed,dy:style.lift*(.45+salt),life,ttl:life,
+        r:color.r,g:color.g,b:color.b,size:style.size*(.55+salt*.75)*power,gravity:style.gravity,shape:style.shape});
+    }
+  }
+
+  castElements(hero,weapon) {
+    this.elementBurst(hero.x,.20,hero.z,weapon.tone,weaponElements[weapon.id],18,1.18);
   }
 
   addEffect(geometry, position, tint, duration, settings = {}) {
@@ -920,6 +1014,8 @@ export class Scenery {
 
   comboTrail(origin,dx,dz,reach,tint,move,heavy,weapon) {
     const {x,z}=origin;
+    this.elementBurst(x+dx*Math.min(reach*.58,2),.42,z+dz*Math.min(reach*.58,2),tint,
+      weaponElements[weapon],heavy?13:6,heavy?1.18:.78,Math.atan2(dz,dx));
     if (move.shape==='cleave') {
       this.motion.overhead(origin,dx,dz,reach,tint);
       this.spark(x+dx*reach*.78,.28,z+dz*reach*.78,tint,18,1.31,'fire',Math.atan2(dz,dx));
@@ -969,6 +1065,8 @@ export class Scenery {
     const count=kind==='break'?22:kind==='fall'?18:heavy?14:kind==='block'?6:8;
     this.spark(x,height,z,impactColor,this.mobile?Math.ceil(count*.73):count,
       kind==='break'?1.29:heavy?1.40:.89,shield?'ice':'flare',angle);
+    this.elementBurst(x,height*.78,z,shield?impactColor:0xa72b45,shield?'ice':'blood',
+      shield||heavy||kind==='fall'?9:3,heavy?1.14:.82,angle);
     if (this.motion.accent()) this.motion.impact({x,y:height,z},angle,impactColor,kind);
   }
 
@@ -1045,6 +1143,7 @@ export class Scenery {
 
   threatImpact(hazard) {
     const {kind,x,z,radius,tint,width,angle,pattern,effect}=hazard;
+    this.elementBurst(x,.24,z,tint,effect,kind==='cone'?13:9,Math.min(1.2,.74+radius*.08),angle);
     const point={x,y:.08,z};
     if (kind==='cone') {
       this.motion.enemyCleave(hazard);
@@ -1236,6 +1335,7 @@ export class Scenery {
     this.arenaArt.render(time);
     this.renderer.render(this.scene,this.camera);
     this.motion.budget=0;
+    this.elementBudget=0;
   }
 
   renderParticles(dt) {
@@ -1261,8 +1361,9 @@ export class Scenery {
       p.z += p.dz*dt;
       p.y += p.dy*dt;
       p.dy -= p.gravity*dt;
-      positions.set([p.x,p.y,p.z],i*3);
-      colors.set([p.r,p.g,p.b],i*3);
+      const j=i*3;
+      positions[j]=p.x;positions[j+1]=p.y;positions[j+2]=p.z;
+      colors[j]=p.r;colors[j+1]=p.g;colors[j+2]=p.b;
       alpha[i] = Math.max(0, p.life/p.ttl) * (p.gravity ? 1 : .63);
       radius[i] = p.size * this.renderer.getPixelRatio();
       shape[i] = p.shape;

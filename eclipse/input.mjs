@@ -1,4 +1,4 @@
-import {TouchCombat} from './touch-combat.mjs?v=thumb-1';
+import {TouchCombat} from './touch-combat.mjs?v=sigils-1';
 
 const $ = id => document.getElementById(id);
 const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','KeyL','Escape']);

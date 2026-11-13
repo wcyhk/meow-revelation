@@ -129,8 +129,10 @@ export function poseEffigy(visual,spec,time,x,z) {
   const motion=spec.squash??1;
   const size=visual.height*.51;
   root.position.set(x,.02+Math.max(0,spec.bob??0)*(1-f),z);
-  root.rotation.set(f*1.53+.065*Math.sin(time*9+z)*(1-motion),.36*(spec.face||1)+(spec.bend??0)*.51,(spec.tilt??0)*1.10);
-  root.scale.set(size*(spec.stretch??1),size*motion,size);
+  const sway=spec.sway??0,compression=spec.compression??0;
+  root.rotation.set(f*1.53+.065*Math.sin(time*9+z)*(1-motion)+compression*.88,
+    .36*(spec.face||1)+(spec.bend??0)*.51+sway*3.1,(spec.tilt??0)*1.10+sway);
+  root.scale.set(size*((spec.stretch??1)+compression*.35),size*motion,size*(1+compression*.50));
   root.visible=(spec.fade??1)>.13;
 }
 

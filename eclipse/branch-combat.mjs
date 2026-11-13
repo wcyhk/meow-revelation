@@ -1,9 +1,9 @@
 import {branches,loadoutSkills,mawSkill} from './progression.mjs?v=last-bell-1';
-import {RobotSquad} from './robot-squad.mjs?v=squad-1';
+import {RobotSquad} from './robot-squad.mjs?v=sigils-1';
 import {EnemyMarkers,Medics} from './tech-support.mjs?v=eye-aura-1';
-import {CthunHand} from './cthun-hand.mjs?v=squad-1';
-import {BlackGoatEye} from './black-goat-eye.mjs?v=eye-aura-1';
-import {TsathogguaMouth} from './tsathoggua.mjs?v=maw-1';
+import {CthunHand} from './cthun-hand.mjs?v=sigils-1';
+import {BlackGoatEye} from './black-goat-eye.mjs?v=sigils-1';
+import {TsathogguaMouth} from './tsathoggua.mjs?v=sigils-1';
 
 const radarRange=13;
 const range=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -83,6 +83,7 @@ export class BranchCombat {
     this.medics.launch(game);
     game.view.shock(h.x,h.z,0x98ffce,2.3,.83);
     game.view.sealFx(h.x,h.z,0xc3ffeb,1.2,1.15);
+    game.view.elementBurst(h.x,.36,h.z,0x9bffd2,'light',19,1.16);
     game.audio.play('branch-revive');
     game.announce('科技','急救小隊抵達','生命已回滿 · 本局復活機會已用',2.1);
     return true;

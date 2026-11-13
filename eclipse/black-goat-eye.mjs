@@ -47,6 +47,7 @@ export class BlackGoatEye {
 
   reset() {
     this.wave.visible=false;
+    this.lastPulse=null;
     this.markers.hide();
   }
 
@@ -60,6 +61,12 @@ export class BlackGoatEye {
     this.wave.position.set(hero.x,.087,hero.z);
     this.wave.material.uniforms.time.value=t%600;
     this.wave.visible=true;
+    const pulse=Math.floor(t*1.5);
+    if(this.lastPulse!==pulse){
+      this.lastPulse=pulse;
+      const angle=pulse*2.399;
+      game.view.elementBurst(hero.x+Math.cos(angle)*1.75,.16,hero.z+Math.sin(angle)*1.75,0x9a5cd8,'void',5,.72,angle);
+    }
   }
 
   render(game) {

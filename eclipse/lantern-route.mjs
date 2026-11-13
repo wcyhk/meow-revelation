@@ -4,16 +4,35 @@ export function lanternRadius(stage) {
   return 8.5-Math.min(.95,(stage?.dread??0)*.57)-(stage?.difficulty?.id==='abyss'?.38:0);
 }
 
+// Opening positions and masonry sampled from the painted rooms. Coordinates are
+// in the same world space as the collision and interaction radius.
+const doorways={
+  'grove.jpg':{x:.38,z:-14.6,setback:1.95,stone:0x383c41,trim:0x5d6668,light:0x9fe2e2,shape:'round'},
+  'fen.jpg':{x:2.71,z:-14.25,setback:1.65,stone:0x294644,trim:0x5c7770,light:0x71efce,shape:'point'},
+  'lotus.jpg':{x:10.1,z:-12.2,setback:.70,stone:0x525641,trim:0x9d7e4c,light:0xffda8e,shape:'round',yaw:-.19},
+  'frost.jpg':{x:-8.8,z:-13.2,setback:1.55,stone:0x565570,trim:0x8887ab,light:0xc9e1ff,shape:'point',yaw:.12},
+  'forge.jpg':{x:6.72,z:-12.1,setback:1.45,stone:0x3e292e,trim:0x995b48,light:0xff9b55,shape:'forge',yaw:-.12},
+  'grave.jpg':{x:.15,z:-10.95,stone:0x52536d,trim:0x84829e,light:0xc69fff,shape:'point'},
+  'vault-gold.jpg':{x:-.35,z:-10.9,stone:0x464038,trim:0x9e7745,light:0xffd47d,shape:'vault'},
+  'dunes.jpg':{x:11.05,z:-10.35,stone:0x714837,trim:0xb37a4c,light:0xffbb70,shape:'round',yaw:-.18},
+  'fungus.jpg':{x:.19,z:-10.85,stone:0x344a3c,trim:0x658671,light:0x9bd5b6,shape:'root'},
+  'cathedral.jpg':{x:-.22,z:-10.55,stone:0x4c4055,trim:0x80708a,light:0xba92fa,shape:'point'},
+  'desecrated-cathedral.jpg':{x:.34,z:-10.45,stone:0x59454e,trim:0x956d85,light:0xf1a7db,shape:'root'},
+  'throne.jpg':{x:1.02,z:-13.9,setback:1.7,stone:0x4a272c,trim:0x875647,light:0xef976f,shape:'point'},
+  'crimson-throne.jpg':{x:1.02,z:-13.9,setback:1.7,stone:0x4a272c,trim:0x875647,light:0xff795c,shape:'point'},
+};
+
 export function routeLayout(stage,seed) {
   let value=(seed^Math.imul(stage.floor,0x9e3779b9))>>>0;
   const draw=()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
-  const side=draw()>.5?1:-1;
-  const exit=stage.boss?{x:side*(1.2+draw()*2.2),z:-9.65-draw()*1.6}
-    :{x:side*(4.3+draw()*7.4),z:-11.6-draw()*3.05};
+  const frame=doorways[stage.picture]??doorways['grove.jpg'];
+  const exit={x:frame.x+(draw()-.5)*.42,z:frame.z+(draw()-.5)*.44,frame};
+  const yaw=frame.yaw??0,cos=Math.cos(yaw),sin=Math.sin(yaw);
   const barricades=[];
   for(const [i,step] of [-.91,.91].entries()){
     const hp=15+stage.floor*.29;
-    barricades.push({kind:'breakable',style:'fence',key:'gate-'+i,x:exit.x+step,z:exit.z+1.23,radius:.65,hp,maxHp:hp,chill:0,gate:true});
+    barricades.push({kind:'breakable',style:'fence',key:'gate-'+i,x:exit.x+step*cos+1.23*sin,z:exit.z+1.23*cos-step*sin,
+      yaw,radius:.65,hp,maxHp:hp,chill:0,gate:true});
   }
   for(let i=0;i<4;i++){
     const x=(i%2?-1:1)*(7.2+draw()*5.15);

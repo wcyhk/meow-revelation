@@ -163,6 +163,8 @@ export class RobotSquad {
     bot.recoil=config.id==='rocket'?1:config.id==='smg'?.65:.38;
     game.audio.play('robot-'+config.id);
     game.view.spark(origin.x,origin.y,origin.z,config.tint,config.id==='rocket'?8:3,.67,'flare');
+    game.view.elementBurst(origin.x,origin.y,origin.z,config.tint,config.id==='rocket'?'fire':'lightning',
+      config.id==='rocket'?7:3,.72,Math.atan2(this.to.z-origin.z,this.to.x-origin.x));
     if(config.id==='rocket') this.launchRocket(origin,this.to);
     else {
       this.trace(origin,this.to,config);
@@ -216,6 +218,7 @@ export class RobotSquad {
     const {x,z}=point;
     const config=models[0];
     game.view.shock(x,z,config.tint,1.62,.72);
+    game.view.elementBurst(x,.24,z,0xff9162,'fire',15,1.10);
     game.audio.play('robot-impact');
     for(const enemy of game.enemies) {
       if(valid(game,enemy)&&gap(enemy,point)<1.62+(enemy.spec.radius??0)*.28&&clearShot(game,point,enemy)) {

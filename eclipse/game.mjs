@@ -1,8 +1,8 @@
-import {Scenery} from './scenery.mjs?v=gilded-1';
+import {Scenery} from './scenery.mjs?v=sigils-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=maw-1';
-import {Input} from './input.mjs?v=thumb-1';
+import {Input} from './input.mjs?v=sigils-1';
 import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
@@ -22,10 +22,10 @@ import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
-import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
+import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=sigils-1';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
-import {BranchCombat} from './branch-combat.mjs?v=last-bell-1';
+import {BranchCombat} from './branch-combat.mjs?v=sigils-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
@@ -269,6 +269,7 @@ export class Game {
   equip(weapon) {
     this.weapon=weapon;
     this.view.equip(this.heroVisual,weapon);
+    this.input.touch.setWeapon(weapon);
     this.ranks=buildStats(this.hero,weapon,this.level+1,this.relics,this.training);
     this.ui.equipped.textContent=weapon.name;
     this.ui.equipped.style.color=weapon.ink;
@@ -825,6 +826,8 @@ export class Game {
 
   cast(input,link=this.readyLink()) {
     const h = this.hero;
+    this.view.releaseSigil(h);
+    this.view.castElements(h,this.weapon);
     h.spellCool = h.spellTime;
     h.link=null;
     if (link) {
@@ -1068,6 +1071,8 @@ export class Game {
       unit.z=z;
       this.view.spark(x,.58,z,unit.spec.tint,18,.86,'void');
     }
+    this.view.elementBurst(unit.x,unit.spec.height*.38,unit.z,unit.spec.tint,unit.spec.effect,boss?12:6,
+      boss?1.14:.83,Math.atan2(attack.dz,attack.dx));
     this.audio.release(attack.pattern,boss);
     if (boss) {
       this.bossArena?.counters.resolveAttack(attack);
@@ -1366,7 +1371,7 @@ export class Game {
     const knockedDown=h.reaction?.kind==='fall';
     if (knockedDown) this.playLanding(h);
     h.gait=(h.gait??0)+dt*(2+h.move*15);
-    const step=Math.sin(h.gait);
+    const step=Math.sin(h.gait),plant=Math.cos(h.gait*2);
     const running=h.move>.24;
     const bracing=h.reaction&&h.reaction.age<.16;
     const striking=action&&(h.attackAge>.055||h.motion?.kind!=='strike');
@@ -1376,9 +1381,11 @@ export class Game {
     const heroFrame={
       frame:pose,poseSize:isRoll?.84:pose===heroFrames.run?.94:1,face:action?.face??h.face,
       bob:isRoll?.14:.035+Math.abs(stride)*.12+Math.sin(t*4.1)*.032,
-      tilt:isRoll?0:stride*.095,
+      tilt:isRoll?0:stride*.095+h.move*h.dx*.034,
       squash:isRoll?.74:1+Math.sin(t*(h.move>.25?20:4.2))*(.03+h.move*.027),
       stretch:isRoll?1.08:1,
+      sway:isRoll?.027*step:stride*.046+Math.sin(t*3.6)*.012,
+      compression:isRoll?.045:Math.max(0,plant)*h.move*.055,
       roll:isRoll&&!h.rush?-h.face*(1-h.rolling/h.rollDuration)*TAU:0,
       flash:h.flash,fade:h.invulnerable>0 && !isRoll && Math.sin(t*33)<-.35 ? .74 : 1,
       aura:h.ward>0||h.surge>0?.55:.24,rim:this.weapon.tone,
@@ -1393,16 +1400,21 @@ export class Game {
       const shielded=primary&&this.bossArena?.locked;
       const staggered=primary&&this.bossArena?.counters.stagger>0;
       const frozen=unit.frozen>0;
-      const wind=unit.attack ? 1-clamp(unit.attack.time/unit.spec.time,0,1) : 0;
-      const oscillation=frozen?0:Math.sin(t*(boss?7:13)+unit.phase);
+      const wind=unit.attack ? 1-clamp(unit.attack.time/unit.attack.windup,0,1) : 0;
+      unit.gait=(unit.gait??unit.phase)+(frozen?0:dt*(2.1+unit.move*(boss?7:13)));
+      const oscillation=frozen?0:Math.sin(unit.gait);
+      const contact=frozen?0:Math.max(0,Math.cos(unit.gait*2))*unit.move;
+      const recoil=unit.reaction?Math.exp(-unit.reaction.age*12)*Math.sin(unit.reaction.age*38):0;
       const fierce=unit.bossPhase>0;
       const owlDive=unit.spec.frame===6&&(wind>.42||unit.recover>.37);
       const frame={
         frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
         poseSize:owlDive?.84:1,
         bob:Math.abs(oscillation)*unit.move*.14+(unit.spec.float??0)*(1.7+oscillation)+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
-        squash:1+oscillation*(.028+unit.move*.058),
-        tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.046*unit.move,
+        squash:1+oscillation*(.028+unit.move*.058)-contact*.035,
+        tilt:staggered?unit.face*-.25+oscillation*.052:oscillation*.059*unit.move,
+        sway:unit.face*(oscillation*(boss?.022:.037)*unit.move-wind*.032+recoil*.042),
+        compression:contact*(unit.spec.float?.017:.065)+Math.sin(wind*Math.PI)*.045,
         warm:fierce?.42:0,
         aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
         rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
@@ -1552,6 +1564,7 @@ export class Game {
       const text=ready?(hint.textContent||'接技就緒'):this.weapon.skill+(seconds?' · '+seconds+' 秒':' · 可用');
       if(label.textContent!==text) label.textContent=text;
       label.classList.toggle('link-ready',!!ready);
+      this.input.touch.prompt.dataset.cooldown=String(!!seconds&&!ready);
     }
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
@@ -1586,6 +1599,7 @@ export class Game {
       this.renderUI();
       this.audio.update();
     }
+    this.view.previewSkill(this.hero,this.state==='play'?this.input.touch.preview:0,dt);
     this.view.render(dt,this.hero,this.state!=='play'&&this.state!=='falling',freezeWarnings&&this.state==='play');
     this.branchCombat.render(this);
     this.updateMissionPins();
@@ -1870,7 +1884,7 @@ export class Game {
     this.state='pause';
     this.audio.active=false;
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
-      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按見到提示後向上滑，放手施放神器技能。點「調查」可同場景互動。'
+      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按後向上滑到神器紋章，放手施法。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',
       content:this.fusionMenu(),
       buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))]});

@@ -2,6 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=armory-art-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=bestiary-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -53,24 +54,34 @@ export class WeaponViewer {
     this.image=node('img','weapon-viewer-fallback');
     this.image.alt='';
     this.hint=node('p','weapon-viewer-hint');
+    this.hint.setAttribute('aria-live','polite');
     this.canvas=node('canvas','weapon-viewer-canvas');
     this.canvas.tabIndex=0;
-    this.canvas.setAttribute('aria-label','神器模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
-    this.stage.append(this.image,this.canvas,this.hint);
+    this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
+    this.zoomTools=node('div','model-zoom');
+    this.zoomOut=button('−',()=>this.zoom(1/1.18));
+    this.zoomIn=button('＋',()=>this.zoom(1.18));
+    this.zoomOut.setAttribute('aria-label','縮小頭目模型');
+    this.zoomIn.setAttribute('aria-label','放大頭目模型');
+    this.zoomTools.append(this.zoomOut,this.zoomIn);
+    this.stage.append(this.image,this.canvas,this.hint,this.zoomTools);
     this.inspect=button('旋轉睇模型',()=>this.showModel());
     this.combo=button('播放三段普攻',()=>this.play('combo'));
     this.skill=button('播放技能',()=>this.play('skill'));
-    const tools=node('div','weapon-viewer-tools');
-    tools.append(this.inspect,this.combo,this.skill);
+    this.tools=node('div','weapon-viewer-tools');
+    this.tools.append(this.inspect,this.combo,this.skill);
+    this.attacks=node('div','boss-preview-attacks');
+    this.attacks.setAttribute('role','group');
+    this.attacks.setAttribute('aria-label','頭目攻擊預覽');
     this.detail=node('p','weapon-viewer-description');
     this.choose=button('',()=>{
-      const {weapon,commit}=this;
+      const {commit}=this;
       this.dialog.close();
-      commit(weapon);
+      commit();
     },'primary');
     const footer=node('footer','weapon-viewer-footer');
     footer.append(this.detail,this.choose);
-    this.dialog.append(header,this.stage,tools,footer);
+    this.dialog.append(header,this.stage,this.tools,this.attacks,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
       if(this.dialog.open)return;
@@ -97,6 +108,11 @@ export class WeaponViewer {
       this.drag.x=event.clientX;
       this.drag.y=event.clientY;
     });
+    this.canvas.addEventListener('wheel',event=>{
+      if(!this.boss||this.mode!=='model'||!event.deltaY)return;
+      event.preventDefault();
+      this.zoom(event.deltaY<0?1.18:1/1.18);
+    },{passive:false});
     for(const event of ['pointerup','pointercancel','lostpointercapture']){
       this.canvas.addEventListener(event,event=>{if(this.drag?.id===event.pointerId)this.drag=null;});
     }
@@ -119,25 +135,68 @@ export class WeaponViewer {
   get open(){return this.dialog.open;}
 
   show(weapon,commit){
-    this.clear();
+    this.boss=null;
     this.weapon=weapon;
+    this.phaseControls?.forEach(control=>control.remove());
+    this.phaseControls=[];
+    this.attackControls=[];
+    this.attacks.replaceChildren();
+    this.inspect.textContent='旋轉睇模型';
+    this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice:'選擇'+weapon.name,
+      image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:()=>commit(weapon)});
+  }
+
+  showBoss(spec,names,makePractice,commit){
+    this.boss=spec;
+    this.weapon=null;
+    this.moveNames=names;
+    this.makeBossPractice=makePractice;
+    this.inspect.textContent='旋轉睇模型';
+    this.phaseControls?.forEach(control=>control.remove());
+    this.phaseControls=spec.phases.map((_,index)=>{
+      const control=button(index===0?'二段變身':'三段變身',()=>this.playBoss({phase:index+1},control));
+      control.dataset.phase=String(index+1);
+      return control;
+    });
+    this.tools.append(...this.phaseControls);
+    this.attackControls=spec.attacks.map(pattern=>{
+      const control=button(names[pattern],()=>this.playBoss({pattern},control));
+      control.dataset.attack=pattern;
+      return control;
+    });
+    this.attacks.replaceChildren(...this.attackControls);
+    const {bestiary}=spec;
+    this.openViewer({title:bestiary.name,role:'頭目圖鑑',ink:new T.Color(spec.tint).getStyle(),
+      choice:'挑戰此頭目',description:spec.signature,commit});
+  }
+
+  get controls(){return [this.inspect,this.combo,this.skill,...this.phaseControls,...this.attackControls];}
+
+  openViewer({title,role,choice,ink,image,description,commit}){
+    this.clear();
     this.commit=commit;
+    this.description=description;
     this.focusReturn=document.activeElement;
-    this.title.textContent=weapon.name;
-    this.role.textContent=weapon.role;
-    this.choose.textContent='選擇'+weapon.name;
-    this.dialog.style.setProperty('--preview-ink',weapon.ink);
-    this.image.src=this.main.armIcons.get(weapon.id);
+    this.title.textContent=title;
+    this.role.textContent=role;
+    this.choose.textContent=choice;
+    this.dialog.dataset.subject=this.boss?'boss':'weapon';
+    this.dialog.style.setProperty('--preview-ink',ink);
+    this.combo.hidden=this.skill.hidden=!!this.boss;
+    this.attacks.hidden=!this.boss;
+    if(image)this.image.src=image;
+    else this.image.removeAttribute('src');
     this.canvas.hidden=false;
+    this.zoomTools.hidden=true;
     this.dialog.showModal();
     try{
       this.renderer??=new T.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:!this.main.mobile,powerPreference:'low-power'});
     }catch{
       this.canvas.hidden=true;
-      this.image.hidden=false;
-      this.inspect.disabled=this.combo.disabled=this.skill.disabled=true;
+      this.image.hidden=!image;
+      for(const control of this.controls)control.disabled=true;
       this.hint.textContent='3D 預覽暫未能載入';
-      this.detail.textContent=weapon.skill+' · '+weapon.detail;
+      this.detail.textContent=description;
       return;
     }
     this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
@@ -146,7 +205,7 @@ export class WeaponViewer {
     this.renderer.toneMappingExposure=1.18;
     this.canvas.hidden=false;
     this.image.hidden=true;
-    this.inspect.disabled=this.combo.disabled=this.skill.disabled=false;
+    for(const control of this.controls)control.disabled=false;
     this.showModel();
   }
 
@@ -155,7 +214,8 @@ export class WeaponViewer {
     if(!width||!height||!this.renderer)return;
     this.renderer.setSize(width,height,false);
     fit(inspectCamera,width,height,2.30,2.24);
-    fit(battleCamera,width,height,Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61)),7.6);
+    const battleWidth=this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
+    fit(battleCamera,width,height,battleWidth,this.boss?8.4:7.6);
     if(this.mode==='model')this.renderer.render(this.scene,inspectCamera);
     else if(this.practice)this.renderer.render(this.scene,battleCamera);
   }
@@ -163,14 +223,28 @@ export class WeaponViewer {
   turn(dx,dy){
     this.yaw+=dx;
     this.pitch=T.MathUtils.clamp(this.pitch+dy,-1.55,1.55);
-    this.model.rotation.set(this.pitch,this.yaw,-tilt);
+    this.model.rotation.set(this.pitch,this.yaw,this.boss?-.04:-tilt);
     this.renderer.render(this.scene,inspectCamera);
   }
 
   resetRotation(){
-    this.yaw=-.37;
+    this.yaw=this.boss?-.53:-.37;
     this.pitch=-.13;
+    this.setZoom(1);
     this.turn(0,0);
+  }
+
+  zoom(factor){
+    if(this.mode!=='model')return;
+    this.setZoom(inspectCamera.zoom*factor);
+    this.renderer.render(this.scene,inspectCamera);
+  }
+
+  setZoom(value){
+    inspectCamera.zoom=T.MathUtils.clamp(value,.75,1.8);
+    inspectCamera.updateProjectionMatrix();
+    this.zoomOut.disabled=inspectCamera.zoom<=.75;
+    this.zoomIn.disabled=inspectCamera.zoom>=1.8;
   }
 
   showModel(){
@@ -179,21 +253,27 @@ export class WeaponViewer {
     this.stage.dataset.preview='model';
     this.setActive(this.inspect);
     this.hint.textContent='拖動旋轉';
-    this.detail.textContent=this.weapon.skill+' · '+this.weapon.detail;
+    this.zoomTools.hidden=!this.boss;
+    this.detail.textContent=this.description;
     this.scene=new T.Scene();
     armLighting(this.scene);
     const pivot=new T.Group();
     this.model=pivot;
-    const item=forge(this.weapon);
+    let item;
+    if(this.boss){
+      this.bossRig=mountBestiary(this.scene,this.boss.bestiary,this.boss.height);
+      poseBestiary(this.bossRig,{phase:0,move:0,face:1,spec:this.boss},{phase:0},0,0,0);
+      item=this.bossRig.root;
+    }else item=forge(this.weapon);
     const bounds=new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
-    item.position.copy(bounds.getCenter(new T.Vector3()).negate());
-    pivot.scale.setScalar(1.68/Math.hypot(size.x,size.y,size.z));
+    item.position.sub(bounds.getCenter(new T.Vector3()));
+    pivot.scale.setScalar((this.boss?2:1.68)/size.length());
     pivot.add(item);
     this.scene.add(pivot);
     this.item=item;
-    this.resize();
     this.resetRotation();
+    this.resize();
   }
 
   makeStage(){
@@ -208,7 +288,8 @@ export class WeaponViewer {
     Object.assign(view,{scene,renderer:this.renderer,camera:battleCamera,cameraUp:axis,mobile:source.mobile,
       atlas:source.atlas,halo:source.halo,shadow:source.shadow,battleTextures:source.battleTextures,
       sigilTextures:source.sigilTextures,ring:source.ring,disc:source.disc,effects:[],time:0,shake:0,
-      elementBudget:0,elementSeed:857302,stage:{dread:0}});
+      projectileShape:source.projectileShape,coinShape:source.coinShape,shardShape:source.shardShape,
+      elementBudget:0,elementSeed:857302,stage:{dread:this.boss ? .45 : 0}});
     view.motes=view.createParticleSystem(view.mobile?125:220);
     view.motion=new MotionArt(view);
     view.makeSkillSeals();
@@ -220,7 +301,7 @@ export class WeaponViewer {
     stage.add(ground);
     for(const radius of [3.12,4.86,6.48]){
       const ring=new T.Mesh(new T.RingGeometry(radius-.018,radius,60).rotateX(-Math.PI/2),
-        new T.MeshBasicMaterial({color:this.weapon.tone,transparent:true,opacity:.20}));
+        new T.MeshBasicMaterial({color:this.weapon?.tone??this.boss.tint,transparent:true,opacity:.20}));
       ring.position.y=-.016;
       stage.add(ring);
     }
@@ -231,7 +312,23 @@ export class WeaponViewer {
   }
 
   setActive(active){
-    for(const control of [this.inspect,this.combo,this.skill])control.setAttribute('aria-pressed',String(control===active));
+    for(const control of this.controls)control.setAttribute('aria-pressed',String(control===active));
+  }
+
+  playBoss(action,control){
+    this.clearScene();
+    this.mode=action.phase?'phase':'attack';
+    this.stage.dataset.preview=this.mode;
+    this.setActive(control);
+    this.zoomTools.hidden=true;
+    const name=this.moveNames[action.pattern??this.boss.finishing];
+    this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):name;
+    this.detail.textContent=action.phase?`變身後出招 · ${name}`:name;
+    const view=this.makeStage();
+    this.practice=this.makeBossPractice(view,this.boss,action,phase=>{
+      this.hint.textContent=phase===1?'第二階段 · 邪相現形':'第三階段 · 最後攻勢';
+    });
+    this.startPlayback();
   }
 
   play(kind){
@@ -243,6 +340,10 @@ export class WeaponViewer {
     this.practice=this.makePractice(view,this.weapon,kind);
     this.hint.textContent='';
     this.detail.textContent=kind==='combo'?comboNames(this.weapon).join(' → '):this.weapon.skill+' · '+this.weapon.detail;
+    this.startPlayback();
+  }
+
+  startPlayback(){
     this.resize();
     this.previous=performance.now();
     this.animate(this.previous);
@@ -265,11 +366,15 @@ export class WeaponViewer {
 
   clearScene(){
     cancelAnimationFrame(this.raf);
-    if(this.item)disposeForge(this.item);
+    if(this.bossRig){
+      this.bossRig.root.removeFromParent();
+      removeBestiary(this.scene,this.bossRig);
+      this.bossRig=null;
+    }else if(this.item)disposeForge(this.item);
     this.item=null;
     if(this.view){
       const {view}=this;
-      this.practice.dispose();
+      this.practice?.dispose();
       for(const fx of view.effects)view.release(fx);
       const geometries=new Set(),materials=new Set();
       view.scene.traverse(part=>{

@@ -29,7 +29,7 @@ const giantAttacks={
 };
 const finishers={fire:'cinders',blood:'jaws',wind:'spiral',root:'roots',water:'gravity',
   ice:'icicles',stone:'burst',gold:'coins',lightning:'cross',void:'eclipse'};
-const moves={
+export const bossMoveNames={
   lance:'貫穿長刺',roots:'地刺',gravity:'牽引',sweep:'橫掃',jaws:'雙顎撕咬',prison:'四角圍陣',summon:'召喚援兵',
   cross:'交叉封鎖',cleave:'重斬',burst:'震地衝擊',pounce:'直線突襲',toll:'震波',barrage:'扇面彈幕',blink:'移影伏擊',
   feathers:'飛羽箭陣',spiral:'迴旋彈幕',marked:'追身咒印',eclipse:'月蝕爆裂',ring:'環形震擊',coins:'迴旋飛刃',
@@ -68,7 +68,7 @@ export function monsterBattle(entry,floor,mode={}){
   const quick=['wasp','bird','duelist','spider'].includes(entry.family);
   const ranged=['priest','captain','wasp','star'].includes(entry.family);
   return {name:entry.name,frame:6,bestiary:entry,secondary:true,tint:bestiaryTint(entry.tone),effect,
-    form:'邪相現形',signature:attacks.map(attack=>moves[attack]).slice(0,3).join(' · '),
+    form:'邪相現形',signature:attacks.map(attack=>bossMoveNames[attack]).slice(0,3).join(' · '),
     attacks,finishing,
     hp:Math.round((285+floor*17)*(mode.hp??1)*(brute?1.13:.96)),
     height:brute?4.1:entry.family==='eggs'?3.22:quick?3.66:3.9,
@@ -107,7 +107,11 @@ export function fightCatalogue(document,entries,select){
       const spec=monsterBattle(monster,12);
       label.textContent=spec.signature;
       card.style.setProperty('--bestiary-ink','#'+spec.tint.toString(16).padStart(6,'0'));
-      card.append(heading,label);
+      const action=document.createElement('span');
+      action.className='bestiary-preview-label';
+      action.textContent='3D 預覽';
+      card.setAttribute('aria-label',monster.name+'，3D 預覽');
+      card.append(heading,label,action);
       card.addEventListener('click',()=>select(monster));
       return card;
     }));

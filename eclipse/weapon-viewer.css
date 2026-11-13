@@ -69,6 +69,28 @@
 .bestiary-fight:hover,.bestiary-fight:focus-visible {border-color:var(--bestiary-ink);background:#322635}
 .bestiary-fight strong {font-size:13px}
 .bestiary-fight small {color:#d3baaf;font-size:10px;line-height:1.36}
+.bestiary-preview-label {font-size:10px;letter-spacing:.08em;color:var(--bestiary-ink)}
+.weapon-viewer [hidden] {display:none}
+.weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:clamp(210px,45dvh,440px)}
+.weapon-viewer-stage:is([data-preview=attack],[data-preview=phase]) {
+  background:radial-gradient(ellipse at 50% 61%,color-mix(in srgb,var(--preview-ink) 17%,#201928),#0d0c13 75%);
+}
+.model-zoom {position:absolute;top:11px;right:12px;display:flex;gap:5px}
+.model-zoom .secondary {width:44px;min-height:44px;padding:0;background:#201827db;font-size:18px}
+.model-zoom .secondary:disabled {opacity:.55}
+.boss-preview-attacks {
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(102px,1fr));gap:7px;margin:8px 20px 0;padding-top:8px;
+  border-top:1px solid color-mix(in srgb,var(--preview-ink) 27%,transparent);
+}
+.boss-preview-attacks .secondary {padding:5px 4px;font-size:12px;background:#211d2b}
+.boss-preview-attacks [aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
+.weapon-viewer[data-subject=boss] .weapon-viewer-tools {display:flex}
+.weapon-viewer[data-subject=boss] .weapon-viewer-tools button:not([hidden]) {flex:1;min-height:44px}
 @media(max-width:540px){
   .bestiary-results {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .boss-preview-attacks {margin-inline:12px}
+  .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:42dvh}
+}
+@media(max-height:490px) and (orientation:landscape){
+  .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:44dvh;min-height:145px}
 }

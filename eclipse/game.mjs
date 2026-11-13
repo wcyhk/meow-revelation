@@ -1,5 +1,5 @@
-import {fightCatalogue,monsterCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=bestiary-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=bestiary-1';
+import {bossMoveNames,fightCatalogue,monsterCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=boss-preview-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=boss-preview-1';
 import {Scenery} from './scenery.mjs?v=bestiary-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
@@ -156,10 +156,13 @@ export class Game {
   openBestiary() {
     if(this.state!=='cover')return;
     this.openModal({kind:'bestiary',mark:'☽',kicker:'巨商妖異',title:'頭目圖鑑',
-      copy:'揀一名頭目，再選神器入場。試戰獨立計時。',
+      copy:'撳頭目卡睇模型同招式，準備好就選神器試戰。',
       content:fightCatalogue(document,monsterCatalogue,monster=>{
-        this.duelMonster=monster;
-        this.prepare();
+        const spec=monsterBattle(monster,12,this.difficulty);
+        this.weaponViewer.showBoss(spec,bossMoveNames,makeBossPractice,()=>{
+          this.duelMonster=monster;
+          this.prepare();
+        });
       }),buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 
@@ -1050,18 +1053,7 @@ export class Game {
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
     unit.kz += (unit.z-origin.z)/len*knock*4.4/unit.spec.mass;
     if (phaseBoundary && unit.hp<=nextPhaseHp) {
-      unit.bossPhase++;
-      unit.phaseGuard=.91;
-      unit.step=Math.max(unit.step,unit.bossPhase);
-      if(primary)this.bossArena.transform(unit.bossPhase);
-      this.beginEnemyAttack(unit,unit.spec.finishing??unit.spec.attacks[0]);
-      this.view.bossCue(unit,'phase');
-      this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
-      const terrain=primary?this.bossArena?.plan:null;
-      const form=unit.bossPhase===2?'最後攻勢':unit.spec.form;
-      const title=primary&&this.bossArena?.aftershock?'場地再變':terrain?.title;
-      this.announce(unit.spec.name,form+(title?' · '+title:''),terrain?.hint??unit.spec.signature,2.0);
-      this.audio.boss(unit.spec.effect,true);
+      this.advanceBossPhase(unit);
     }
     if (unit.hp<=0) {
       this.kills++;
@@ -1078,6 +1070,22 @@ export class Game {
     }
     report?.(unit,kind);
     return true;
+  }
+
+  advanceBossPhase(unit) {
+    const primary=this.bossArena?.boss===unit;
+    unit.bossPhase++;
+    unit.phaseGuard=.91;
+    unit.step=Math.max(unit.step,unit.bossPhase);
+    if(primary)this.bossArena.transform(unit.bossPhase);
+    this.beginEnemyAttack(unit,unit.spec.finishing??unit.spec.attacks[0]);
+    this.view.bossCue(unit,'phase');
+    this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
+    const terrain=primary?this.bossArena?.plan:null;
+    const form=unit.bossPhase===2?'最後攻勢':unit.spec.form;
+    const title=primary&&this.bossArena?.aftershock?'場地再變':terrain?.title;
+    this.announce(unit.spec.name,form+(title?' · '+title:''),terrain?.hint??unit.spec.signature,2.0);
+    this.audio.boss(unit.spec.effect,true);
   }
 
   deathOmen(unit) {
@@ -1515,6 +1523,39 @@ export class Game {
     this.view.actor(this.heroVisual,h,blendPose(blendPose(heroFrame,action),reactionPose(h)));
   }
 
+  poseEnemy(unit,dt) {
+    const t=this.t;
+    advanceReaction(unit,dt);
+    const boss=unit.kind==='boss';
+    const primary=this.bossArena?.boss===unit;
+    const shielded=primary&&this.bossArena?.locked;
+    const staggered=primary&&this.bossArena?.counters.stagger>0;
+    const frozen=unit.frozen>0;
+    const wind=unit.attack ? 1-clamp(unit.attack.time/(unit.attack.windup??unit.spec.time),0,1) : 0;
+    const gait=actorMotion(unit,dt,t);
+    const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
+    const fierce=unit.bossPhase>0;
+    const owlDive=!unit.spec.bestiary&&unit.spec.frame===6&&(wind>.42||unit.recover>.37);
+    const frame={
+      frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
+      poseSize:owlDive?.84:1,
+      bob:gait.bob+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
+      squash:1-gait.compression,
+      stretch:gait.width,
+      tilt:staggered?unit.face*-.25+gait.step*.052:-gait.tilt,
+      sway:gait.sway-unit.face*wind*.036,
+      lag:gait.lag+Math.sin(wind*Math.PI)*.037,
+      compression:gait.compression+Math.sin(wind*Math.PI)*.045,
+      stride:stepping?gait.swing:0,footLift:stepping?gait.footLift:0,
+      feet:stepping&&gait.weight>.34?gait.foot:null,
+      warm:fierce?.42:0,
+      aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+      rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
+      phase:unit.bossPhase,
+    };
+    this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
+  }
+
   animateActors(dt) {
     const h=this.hero, t=this.t;
     this.branchCombat.activeMaw?.update(t);
@@ -1524,35 +1565,7 @@ export class Game {
     this.view.setWard(h);
     for (const unit of this.enemies) {
       if (unit.hp<=0) continue;
-      advanceReaction(unit,dt);
-      const boss=unit.kind==='boss';
-      const primary=this.bossArena?.boss===unit;
-      const shielded=primary&&this.bossArena?.locked;
-      const staggered=primary&&this.bossArena?.counters.stagger>0;
-      const frozen=unit.frozen>0;
-      const wind=unit.attack ? 1-clamp(unit.attack.time/(unit.attack.windup??unit.spec.time),0,1) : 0;
-      const gait=actorMotion(unit,dt,t);
-      const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
-      const fierce=unit.bossPhase>0;
-      const owlDive=!unit.spec.bestiary&&unit.spec.frame===6&&(wind>.42||unit.recover>.37);
-      const frame={
-        frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
-        poseSize:owlDive?.84:1,
-        bob:gait.bob+(boss?.035:0),fade:Math.min(1,unit.age*4.5),
-        squash:1-gait.compression,
-        stretch:gait.width,
-        tilt:staggered?unit.face*-.25+gait.step*.052:-gait.tilt,
-        sway:gait.sway-unit.face*wind*.036,
-        lag:gait.lag+Math.sin(wind*Math.PI)*.037,
-        compression:gait.compression+Math.sin(wind*Math.PI)*.045,
-        stride:stepping?gait.swing:0,footLift:stepping?gait.footLift:0,
-        feet:stepping&&gait.weight>.34?gait.foot:null,
-        warm:fierce?.42:0,
-        aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-        rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
-        phase:unit.bossPhase,
-      };
-      this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
+      this.poseEnemy(unit,dt);
     }
     this.fallen=this.fallen.filter(unit=>{
       if(unit.maw&&maw) {
@@ -2237,6 +2250,81 @@ function makeWeaponPractice(view,weapon,kind) {
     dispose(){
       view.removeEquippedActor(practice.heroVisual);
       for(const unit of practice.enemies)view.removeActor(unit.visual);
+    },
+  };
+}
+
+function makeBossPractice(view,spec,action,showPhase) {
+  const practice=Object.create(Game.prototype);
+  const stage={...stages[10],props:[],bearing:.23,positions:[
+    {x:-5,z:-3},{x:4.5,z:-3.5},{x:0,z:-2.8},{x:-.6,z:2.6},{x:3,z:1.4},
+  ]};
+  const hero=Object.assign(makeHero(),{x:2.95,z:.82,face:-1,invulnerable:0});
+  Object.assign(practice,{view,stage,hero,t:0,hazards:[],enemies:[],relicWalls:[],wave:0,
+    audio:{play(){},release(){},boss(){}},announce(){}});
+  const unit=practice.spawn('boss',-2.4,-.46,null,spec);
+  unit.age=3;
+  unit.face=1;
+  if(action.phase>1){
+    unit.bossPhase=action.phase-1;
+    unit.hp=spec.hp*spec.phases[action.phase-2];
+  }
+  const target=view.createActor(0,2.36);
+  practice.hurt=(amount,x,z)=>{
+    if(hero.invulnerable>0)return false;
+    recoil(hero,{x,z},amount>19?'heavy':'light');
+    hero.invulnerable=.28;
+    view.impact({...hero,spec:{height:2.36}},{x,z},'light',spec.tint);
+    return true;
+  };
+  const paint=dt=>{
+    advanceReaction(hero,dt);
+    view.actor(target,hero,blendPose({frame:hero.reaction?heroFrames.recoil:heroFrames.idle,face:-1,
+      fade:1,rim:0xdbb195,bob:.035,squash:1,tilt:0},reactionPose(hero)));
+    for(const actor of practice.enemies)practice.poseEnemy(actor,dt);
+  };
+  paint(0);
+  let fired=false;
+  const hold=action.phase ? .42 : .20;
+  const duration=hold+spec.time+2.75;
+  return {
+    step(dt) {
+      practice.t+=dt;
+      hero.invulnerable-=dt;
+      for(const actor of practice.enemies){
+        actor.age+=dt;
+        actor.phaseGuard-=dt;
+      }
+      if(!fired&&practice.t>=hold){
+        fired=true;
+        if(action.phase){
+          unit.hp=spec.hp*spec.phases[unit.bossPhase];
+          practice.advanceBossPhase(unit);
+          showPhase(unit.bossPhase);
+        }else{
+          practice.beginEnemyAttack(unit,action.pattern);
+        }
+      }
+      if(unit.attack){
+        unit.attack.time-=dt;
+        if(unit.attack.time<=0)practice.resolveEnemyAttack(unit);
+      }
+      if(unit.motion)unit.motion.age+=dt;
+      if(unit.kx||unit.kz){
+        const before={x:unit.x,z:unit.z};
+        practice.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
+        if(unit.motion?.pattern==='pounce')view.motion.enemyTrail(before,unit);
+        const friction=Math.exp(-dt*10);
+        unit.kx*=friction;unit.kz*=friction;
+      }
+      advanceThreats(practice,dt);
+      paint(dt);
+      return practice.t<duration;
+    },
+    dispose() {
+      for(const hazard of practice.hazards)if(hazard.visual)view.removeProjectile(hazard.visual);
+      for(const actor of practice.enemies)view.removeActor(actor.visual);
+      view.removeActor(target);
     },
   };
 }

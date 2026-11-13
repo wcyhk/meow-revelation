@@ -181,10 +181,12 @@ const clientBosses={
   'trial-jing-light':'gyeongmun_f_l','trial-jing-dark':'gyeongmun_f_d',
   'trial-shang-light':'sangmun_w_l','trial-shang-dark':'sangmun_w_d',
   'trial-kai-light':'gaemun_a_l','trial-kai-dark':'gaemun_a_d',
-  m085:'nabata_f',m086:'nabata_w',m087:'nabata_t',m088:'nabata_a',
+  m081:'nachal_f',m085:'nabata_f',m086:'nabata_w',m087:'nabata_t',m088:'nabata_a',
   m090:'sangmun_w',m091:'gaemun_a',m092:'samun_t',m093:'samun_t_l',m094:'samun_t_d',
-  m001:'mon_snake',m002:'bsnake',m004:'horsespear',m008:'misil_g',m014:'honma',m015:'redjujak',m022:'whitehyunmu',m024:'poisondragon',
-  m101:'honganji_g',m106:'madragon',m115:'yamayami',m117:'asura_pawn',m124:'tiamat',m125:'britra',m133:'gajin',
+  m001:'mon_snake',m002:'bsnake',m004:'horsespear',m008:'misil_g',m014:'honma',m015:'redjujak',
+  m021:'sanyeo_transform',m022:'whitehyunmu',m024:'poisondragon',m027:'destroyer',
+  m101:'honganji_g',m106:'madragon',m107:'captin_jack',m115:'yamayami',m117:'asura_pawn',m121:'despiderqueen',
+  m124:'tiamat',m125:'britra',m133:'gajin',
   m150:'emperorturtle',m151:'kinghornet',m154:'bullmonster',m155:'eggghost',
 };
 
@@ -198,7 +200,9 @@ export function clientSpriteGuide(weapon,entry){
   if(frame)return {filename:'weapon01_i.AGF',frame};
   const prefix=clientBosses[entry?.id];
   if(!prefix)return null;
-  if(prefix.startsWith('nabata_')||entry.id==='m090')return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _a／_a2 攻擊 · _d 倒地'};
+  if(prefix.startsWith('nabata_')||['m081','m090'].includes(entry.id))return {
+    filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _a／_a2 攻擊 · _d 倒地',
+  };
   if(['m091','m092','m133','m150','m151','m154'].includes(entry.id))return {
     filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _a1 攻擊 · _d 倒地',
   };

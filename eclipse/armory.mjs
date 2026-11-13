@@ -1,8 +1,8 @@
 import * as T from '../three.min.mjs';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
-import {forgedMaterials} from './forge-materials.mjs?v=forgelight-2';
+import {forgedMaterials} from './forge-materials.mjs?v=forgelight-3';
 import {huntArms} from './relic-arsenal.mjs?v=weapon-audit-1';
-import {buildWeapon,disposeWeapon,shapeBow} from './weapon-forge.mjs?v=forgelight-2';
+import {buildWeapon,disposeWeapon,shapeBow} from './weapon-forge.mjs?v=forgelight-3';
 
 export const arms = [
   {id:'tiger', name:'白虎之聖輪', mark:'✧', tone:0xece7c5, ink:'#f1ddb2', role:'近身 · 高機動',

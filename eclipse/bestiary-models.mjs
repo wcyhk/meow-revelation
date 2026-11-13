@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
-import {KoreanBossArt} from './korean-art.mjs?v=forgelight-2';
+import {KoreanBossArt} from './korean-art.mjs?v=forgelight-3';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -39,6 +39,9 @@ const referencePalettes={
   m015:[0x68271d,0xb44b23,0xffd74d,0xfff4c1],
   m008:[0x3b362c,0x416647,0xe7d6ab,0xa3d49a],m022:[0x2c2628,0x646169,0xded8cc,0xa9e7ff],
   m024:[0x282e29,0x5a5d60,0xb8a465,0xb7d85b],
+  m021:[0x312b29,0x9f3220,0xf0dcbd,0x78d4c9],m027:[0x2b2224,0x684433,0xad7e60,0xf46847],
+  m081:[0x231b24,0x583934,0xe58a55,0xff6d27],m107:[0x231e28,0x903127,0xcc9b63,0xf88d45],
+  m121:[0x352b2d,0x684739,0xceae87,0xffb859],
   m150:[0x3e2118,0xa6633d,0xf3d6a9,0xff793e],m151:[0x1b2210,0x556427,0xc1ba53,0xd7f277],
   m152:[0x142331,0x215b7b,0x46b7bd,0xff9674],m153:[0x14151a,0x252731,0x655c79,0xa99cd4],
   m154:[0x231e23,0x46362c,0xae8c6b,0xf77744],m155:[0x2a191d,0xc28646,0xf3cd8b,0xff653c],
@@ -325,6 +328,18 @@ function humanoid(k,entry){
     mesh(head,'scale','edge',0,-.03,.32,.32,.40,.87,0,0,PI);
     mesh(body,'mantle','body',0,.57,-.28,1.12,1.29,1.22,.15,1.76);
     mesh(body,'ring','trim',0,.69,.03,.62,.62,.82,PI*.48,0,.18);
+  }else if(entry.id==='m021'){
+    mesh(head,'ring','trim',0,.42,-.18,.59,.61,.55);
+    const train=bone(body,0,.86,-.08);
+    for(const side of [-1,1]){
+      mesh(train,'mantle','edge',0,.45,-.16,side*.68,1.27,.73,.16,-side*.24,0);
+      for(let strand=0;strand<4;strand++){
+        rod(train,'edge',[side*strand*.059,.35,-.18],[side*(.46-strand*.05),-.68+strand*.03,-.34],.086,'horn');
+      }
+      rod(head,'body',[side*.28,.22,.03],[side*.63,1.02,-.13],.094,'horn');
+      mesh(body,'mantle','body',side*.19,.45,0,side*.66,1.39,.94,0,-side*.54,0);
+    }
+    body.userData.train=train;
   }else if(!occult&&(mage||royal||entry.crest==='mask')){
     mesh(head,'pearl','deep',0,.16,-.12,.51,.54,.45);
     mesh(head,'gem','edge',0,.43,.20,.33,.46,.19);
@@ -353,7 +368,7 @@ function humanoid(k,entry){
         const a=bead*TAU/10;
         mesh(arm,'round',bead%4===0?'glow':'body',Math.cos(a)*.20,-.64+Math.sin(a)*.38,.31,.096,.093,.096);
       }
-    }else if((side===1||['twins','pair','twin'].includes(entry.crest))&&
+    }else if(!['m081','m107'].includes(entry.id)&&(side===1||['twins','pair','twin'].includes(entry.crest))&&
       !(entry.palette&&['lantern','drum','bell','coffin','coin','orb','wax','eyes','greatblade','bloodblade'].includes(entry.crest))){
       const hand=bone(arm,side*.08,-.73,.16);
       blade(k,hand,entry.crest,huge||royal);
@@ -372,6 +387,44 @@ function humanoid(k,entry){
   if(entry.family==='captain'){
     mesh(head,'metal','deep',0,.39,-.02,1.09,.14,.73,0,0,-.10);
     mesh(head,'gem','edge',.05,.47,.29,.32,.17,.09);
+    if(entry.id==='m107'){
+      const carriage=bone(body,.56,-.22,.35);
+      mesh(carriage,'pearl','deep',0,.16,.37,.27,.26,.61);
+      mesh(carriage,'ring','edge',0,.16,.97,.24,.23,1.2);
+      mesh(carriage,'bar','deep',0,.18,.92,.18,.08,.18,PI/2);
+      for(const side of [-1,1]){
+        mesh(carriage,'ring','trim',side*.32,-.05,.42,.24,.24,.91,0,PI/2);
+        rod(carriage,'body',[side*.32,-.04,-.33],[side*.32,-.08,.83],.044);
+      }
+      const parrot=bone(body,-.56,1.82,-.14);
+      mesh(parrot,'pearl','body',0,0,0,.10,.112,.28);
+      mesh(parrot,'gem','trim',0,.047,.29,.069,.060,.095);
+      for(const side of [-1,1])mesh(parrot,'wing','body',0,.02,.11,side*.32,.23,.49,PI*.43,0,side*.21);
+      body.userData.parrot=parrot;
+      body.userData.cannon=carriage;
+    }
+  }
+  if(entry.id==='m081')for(const [index,arm] of arms.entries()){
+    const side=index?1:-1;
+    const blade=bone(arm,side*.07,-.41,.17);
+    mesh(blade,'wing','body',0,0,0,side*.37,.77,.94,0,0,side*.79);
+    const arc=[[0,0,0],[side*.41,.10,.03],[side*.68,.61,.02],[side*.79,1.27,-.04]];
+    for(let link=1;link<arc.length;link++)rod(blade,'glow',arc[link-1],arc[link],.065-link*.011);
+    rod(blade,'trim',[side*.39,.22,.10],[side*.64,.77,.07],.044,'horn');
+  }
+  if(entry.id==='m027'){
+    const tail=bone(body,0,-.42,-.28);
+    mesh(body,'scale','trim',0,.10,.48,.75,1.01,.69,0,0,PI);
+    for(const side of [-1,1]){
+      rod(head,'trim',[side*.20,.17,.07],[side*.51,.53,-.13],.12,'horn');
+      rod(head,'deep',[side*.48,.48,-.10],[side*.50,.77,-.31],.085,'horn');
+      for(let spike=0;spike<3;spike++)rod(body,'trim',[side*.37,.59-spike*.10,-.08],[side*(.80-spike*.03),.94-spike*.18,-.13],.077,'horn');
+    }
+    for(let segment=0;segment<6;segment++){
+      const point=i=>[i*.13,Math.sin(i*.49)*.35,-i*.19];
+      rod(tail,segment%2?'body':'deep',point(segment),point(segment+1),.13-segment*.014);
+    }
+    return {body,arms,legs,head,tail};
   }
   if(entry.family==='straw'){
     mesh(head,'bar','edge',0,.49,0,.65,.13,.65);
@@ -878,19 +931,35 @@ function eggGhost(k){
   return {body,arms};
 }
 
-function spider(k){
+function spider(k,queen=false){
   const {root,bone,mesh,rod}=k;
   const body=bone(root,0,.90,0);
-  mesh(body,'pearl','deep',0,.28,-.55,.58,.65,.77);
+  mesh(body,'pearl',queen?'body':'deep',0,.28,-.55,queen?.75:.58,queen?.72:.65,queen?.92:.77);
   const head=bone(body,0,.02,.43);
   face(k,head,{broad:.34,snout:.28,horns:0});
+  if(queen){
+    for(let spine=0;spine<12;spine++){
+      const angle=spine*2.399;
+      const x=Math.cos(angle)*.46,z=-.53+Math.sin(angle)*.60;
+      rod(body,'deep',[x,.73,z],[x*1.39,.92+spine%3*.075,z-.12],.064,'horn');
+    }
+    for(let fringe=-3;fringe<=3;fringe++){
+      rod(head,'trim',[fringe*.071,.36,-.16],[fringe*.11,.02,.16+Math.cos(fringe)*.16],.095,'horn');
+    }
+    rod(body,'trim',[0,.04,-1.31],[0,-.04,-1.59],.10,'horn');
+  }
   const legs=[];
   for(const side of [-1,1])for(let i=0;i<4;i++){
     const z=.58-i*.34;
     const limb=bone(root,side*.29,.86,z);
     const foot=[side*(1.39-i*.025),-.80,.20-z*.46];
-    rod(limb,'body',[0,0,0],[side*1.14,.43,z*.5],.083);
-    rod(limb,'edge',[side*1.14,.43,z*.5],foot,.09,'horn');
+    const knee=[side*1.14,queen?.57:.43,z*.5];
+    rod(limb,'body',[0,0,0],knee,queen?.15:.083);
+    rod(limb,'edge',knee,foot,queen?.145:.09,'horn');
+    if(queen){
+      mesh(limb,'gem','trim',knee[0],knee[1],knee[2],.17,.15,.17);
+      rod(limb,'deep',[side*1.20,.29,z*.39],foot,.082,'horn');
+    }
     legs.push(limb);
   }
   return {body,head,legs};
@@ -1306,7 +1375,7 @@ export function mountBestiary(scene,entry,height){
     case 'dragon':case 'bird':case 'wasp':parts=flyer(k,entry);break;
     case 'serpent':case 'hydra':parts=coil(k,entry);break;
     case 'star':case 'eggs':parts=star(k,entry);break;
-    case 'spider':parts=spider(k);break;
+    case 'spider':parts=spider(k,entry.id==='m121');break;
     default:parts=humanoid(k,entry);break;
   }
   const dedicatedSilhouette=['m115','m133','m150','m154'].includes(entry.id);
@@ -1378,6 +1447,13 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.clouds.rotation.y=beat*.24;
     model.clouds.position.z=-strike*.37;
     model.clouds.scale.set(1+strike*.27,1+Math.sin(beat)*.17,1+wind*.26);
+  }
+  if(body.userData.parrot){
+    const {parrot,cannon}=body.userData;
+    parrot.position.set(Math.cos(time*2.1)*.62,1.78+Math.sin(time*9.4)*.14,Math.sin(time*2.1)*.62);
+    parrot.rotation.set(Math.sin(time*9.4)*.39,time*2.1,Math.cos(time*9.4)*.15);
+    cannon.position.z=.35-strike*.27;
+    cannon.rotation.x=-wind*.13+strike*.15;
   }
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;

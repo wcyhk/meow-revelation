@@ -7,10 +7,11 @@
   <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
   <link rel="preload" href="./art/moon-gate.webp" as="image">
-  <link rel="stylesheet" href="./style.css?v=last-bell-1">
+  <link rel="stylesheet" href="./style.css?v=thumb-1">
   <link rel="stylesheet" href="./dialogue.css?v=last-bell-1">
   <link rel="stylesheet" href="./gilded.css?v=gilded-1">
-  <script type="module" src="./game.mjs?v=gilded-1"></script>
+  <link rel="stylesheet" href="./touch.css?v=thumb-1">
+  <script type="module" src="./game.mjs?v=thumb-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -69,7 +70,13 @@
       <button id="inspect" hidden><i aria-hidden="true">◇</i><span></span><kbd>E</kbd></button>
       <div id="announce" aria-live="polite"><small id="announce-kicker"></small><strong id="announce-title"></strong><p id="announce-line"></p></div>
       <div class="inputs">
-        <div id="stick-zone" aria-hidden="true"><div id="stick"><i></i></div></div>
+        <div id="stick" aria-hidden="true" hidden><i></i></div>
+        <div id="touch-cast" aria-hidden="true" hidden></div>
+        <div class="touch-guide">
+          <span id="touch-skill-status"></span>
+          <span>拖動移動 · 點按普攻 · 快撥翻滾</span>
+          <span>長按向上滑放技能</span>
+        </div>
         <div class="keys"><kbd>W A S D</kbd> 移動 <kbd>Esc</kbd> 暫停</div>
         <div class="actions">
           <button id="dodge" class="action" aria-label="翻滾"><span>»</span><em>翻滾</em><kbd>Space</kbd></button>

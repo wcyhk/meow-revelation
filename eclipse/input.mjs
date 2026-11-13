@@ -1,15 +1,27 @@
+import {TouchCombat} from './touch-combat.mjs?v=thumb-1';
+
 const $ = id => document.getElementById(id);
 const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','KeyL','Escape']);
 
 export class Input {
   constructor(world, dispatch, running) {
     this.keys = new Set();
-    this.joyX = this.joyZ = 0;
-    this.pointer = null;
-    this.stick = $('stick');
-    this.stickZone = $('stick-zone');
     this.hold = new Set();
     this.actions = new Set();
+    this.dodgeDirection=null;
+    const hud=$('hud');
+    const touchLayout=active=>{
+      this.touchMode=active;
+      hud.classList.toggle('touch-controls',active);
+    };
+    touchLayout(matchMedia('(pointer:coarse)').matches);
+    addEventListener('pointerdown',event=>{
+      if(event.pointerType==='touch'&&!this.touchMode) touchLayout(true);
+    },{capture:true,passive:true});
+    this.touch=new TouchCombat(world,running,(action,direction)=>{
+      if(action==='dodge') this.dodgeDirection=direction;
+      this.actions.add(action);
+    });
     const bindings = new Map([['KeyJ','strike'],['KeyQ','spell'],['Space','dodge'],['KeyE','interact']]);
     addEventListener('keydown', event => {
       const {code,repeat} = event;
@@ -22,30 +34,6 @@ export class Input {
     });
     addEventListener('keyup', event => this.keys.delete(event.code));
     addEventListener('blur', () => this.reset());
-    this.stickZone.addEventListener('pointerdown', event => {
-      if (this.pointer !== null) return;
-      event.preventDefault();
-      this.pointer = event.pointerId;
-      this.originX = event.clientX;
-      this.originY = event.clientY;
-      this.stickZone.setPointerCapture(event.pointerId);
-      this.stick.style.setProperty('--stick-x',event.clientX+'px');
-      this.stick.style.setProperty('--stick-y',(event.clientY-this.stickZone.getBoundingClientRect().top)+'px');
-      this.stick.classList.add('active');
-    });
-    this.stickZone.addEventListener('pointermove', event => {
-      if (event.pointerId !== this.pointer) return;
-      const dx = event.clientX-this.originX, dy = event.clientY-this.originY;
-      const length = Math.hypot(dx,dy);
-      const factor = 1/Math.max(32,length);
-      this.joyX = length > 5 ? dx*factor : 0;
-      this.joyZ = length > 5 ? dy*factor : 0;
-      this.stick.style.setProperty('--joy-x',(this.joyX * 24)+'px');
-      this.stick.style.setProperty('--joy-y',(this.joyZ * 24)+'px');
-    });
-    for (const name of ['pointerup','pointercancel','lostpointercapture']) {
-      this.stickZone.addEventListener(name,event => {if(event.pointerId === this.pointer) this.releaseStick();});
-    }
     for (const action of ['strike','spell','dodge']) {
       const button = $(action);
       button.addEventListener('pointerdown',event => {
@@ -81,27 +69,20 @@ export class Input {
 
   read() {
     const k = this.keys;
-    let x = Number(k.has('KeyD')||k.has('ArrowRight'))-Number(k.has('KeyA')||k.has('ArrowLeft'))+this.joyX;
-    let z = Number(k.has('KeyS')||k.has('ArrowDown'))-Number(k.has('KeyW')||k.has('ArrowUp'))+this.joyZ;
+    let x = Number(k.has('KeyD')||k.has('ArrowRight'))-Number(k.has('KeyA')||k.has('ArrowLeft'))+this.touch.x;
+    let z = Number(k.has('KeyS')||k.has('ArrowDown'))-Number(k.has('KeyW')||k.has('ArrowUp'))+this.touch.z;
     const length = Math.max(1,Math.hypot(x,z));
     x /= length;
     z /= length;
     const input = {
-      x,z, dodge:this.actions.has('dodge'), spell:this.actions.has('spell'), interact:this.actions.has('interact'),
+      x,z, dodge:this.actions.has('dodge'), dodgeDirection:this.dodgeDirection, spell:this.actions.has('spell'), interact:this.actions.has('interact'),
       strike:this.actions.has('strike')||k.has('KeyJ')||this.hold.size>0,
       aim:this.mouseAim,
     };
     this.actions.clear();
+    this.dodgeDirection=null;
     if (!this.hold.size) this.mouseAim = null;
     return input;
-  }
-
-  releaseStick() {
-    this.pointer = null;
-    this.joyX = this.joyZ = 0;
-    this.stick.classList.remove('active');
-    this.stick.style.removeProperty('--joy-x');
-    this.stick.style.removeProperty('--joy-y');
   }
 
   reset() {
@@ -109,6 +90,7 @@ export class Input {
     this.hold.clear();
     this.actions.clear();
     this.mouseAim = null;
-    this.releaseStick();
+    this.dodgeDirection=null;
+    this.touch.reset();
   }
 }

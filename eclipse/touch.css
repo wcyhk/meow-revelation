@@ -1,0 +1,76 @@
+.touch-guide {display:none}
+.touch-controls :is(.actions,.keys,#inspect kbd) {display:none}
+.touch-controls .touch-guide {
+  position:absolute;
+  display:grid;
+  gap:3px;
+  justify-items:center;
+  width:100%;
+  padding-inline:12px;
+  bottom:max(17px,calc(env(safe-area-inset-bottom) + 8px));
+  color:#e4cfac;
+  font-size:10px;
+  text-align:center;
+  letter-spacing:.055em;
+}
+#touch-skill-status {
+  display:block;
+  padding:4px 9px;
+  margin-bottom:2px;
+  border:1px solid #d1a77476;
+  border-radius:5px;
+  background:#1a1422db;
+  color:#ffe2b4;
+}
+#touch-skill-status.link-ready {color:#ffe0f2;border-color:#e1a6cc;box-shadow:0 0 13px #e99bc14f}
+.touch-controls #objective {bottom:max(87px,calc(env(safe-area-inset-bottom) + 76px))}
+.touch-controls #inspect {
+  bottom:max(126px,calc(env(safe-area-inset-bottom) + 115px));
+  min-height:44px;
+}
+.touch-controls .utility button {min-width:40px;min-height:42px}
+#world {touch-action:none}
+#stick,#touch-cast {position:absolute;pointer-events:none}
+#stick {
+  z-index:2;
+  width:74px;
+  height:74px;
+  transform:translate(-50%,-50%);
+  border:1px solid #e4ba81a1;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#18121a72;
+  box-shadow:inset 0 0 0 4px #e0bb8125,0 0 17px #0d0a13a1;
+}
+#stick i {
+  width:26px;
+  height:26px;
+  border:1px solid #ffdbad;
+  border-radius:50%;
+  transform:translate(var(--joy-x,0px),var(--joy-y,0px));
+  background:radial-gradient(circle at 35% 25%,#f7d6aabf,#825362d4);
+}
+#stick[data-mode=press] {opacity:.64}
+#stick[data-mode=skill] {border-color:#e5addd;box-shadow:inset 0 0 0 4px #e9b1e037,0 0 18px #bd65a35e}
+#touch-cast {
+  z-index:3;
+  transform:translateX(-50%);
+  padding:7px 12px;
+  border:1px solid #dba6c6;
+  border-radius:5px;
+  color:#f8d2eb;
+  background:#241729f5;
+  font-size:12px;
+  white-space:nowrap;
+}
+#touch-cast[data-selected=true] {color:#fff1cc;border-color:#f0cb8e;background:#523342}
+@media (max-width:650px) and (orientation:portrait) {
+  .touch-controls .route-hud {top:max(69px,calc(env(safe-area-inset-top) + 54px))}
+  .touch-controls #boss-hud,.touch-controls #mission-status {top:max(140px,calc(env(safe-area-inset-top) + 126px))}
+}
+@media (max-height:470px) and (orientation:landscape) {
+  .touch-controls .touch-guide {bottom:max(8px,env(safe-area-inset-bottom));justify-items:end;padding-right:max(12px,env(safe-area-inset-right))}
+  .touch-controls #objective {bottom:max(14px,env(safe-area-inset-bottom));max-width:55%}
+  .touch-controls #inspect {bottom:max(46px,calc(env(safe-area-inset-bottom) + 32px))}
+}

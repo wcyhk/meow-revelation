@@ -2,7 +2,7 @@ import {Scenery} from './scenery.mjs?v=gilded-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=maw-1';
-import {Input} from './input.mjs?v=armory-1';
+import {Input} from './input.mjs?v=thumb-1';
 import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=clock-1';
@@ -96,13 +96,13 @@ export class Game {
     this.startDelay = Infinity;
     this.clearDelay = 0;
     this.kills = 0;
-    this.buffered = {dodge:0,spell:0,strike:0};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
     this.previousTime = performance.now();
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
       'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','time-fracture',
-      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support',...actionIds].map(id=>[id,$(id)]));
+      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','touch-skill-status',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
@@ -252,7 +252,7 @@ export class Game {
     this.kills = 0;
     this.hitstop = 0;
     this.damageFlash = 0;
-    this.buffered = {dodge:0,spell:0,strike:0};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
     this.level = 0;
     this.wave = 0;
     this.equip(weapon);
@@ -620,13 +620,19 @@ export class Game {
       if (Math.abs(h.dx)>.14) h.face = Math.sign(h.dx);
     }
     if (this.buffered.dodge>0 && h.rollCool<=0 && h.rolling<=0) {
+      const direction=this.buffered.dodgeDirection;
       this.buffered.dodge=0;
+      this.buffered.dodgeDirection=null;
       h.rolling = h.rollDuration = .30;
       h.rollSpeed=13.6*(h.technique==='stride'?1.18:1);
       h.rollCool = h.rollTime;
       h.invulnerable = Math.max(h.invulnerable,.35);
-      h.rollX = movement>.07 ? input.x/movement : h.dx;
-      h.rollZ = movement>.07 ? input.z/movement : h.dz;
+      h.rollX = direction?.[0]??(movement>.07 ? input.x/movement : h.dx);
+      h.rollZ = direction?.[1]??(movement>.07 ? input.z/movement : h.dz);
+      if(direction) {
+        h.dx=h.rollX; h.dz=h.rollZ;
+        if(Math.abs(h.dx)>.14) h.face=Math.sign(h.dx);
+      }
       h.rollOrigin={x:h.x,z:h.z};
       if (h.slash) h.atk=Math.min(h.atk,.20);
       this.interruptLink();
@@ -1441,6 +1447,7 @@ export class Game {
       return;
     }
     this.buffered.dodge = input.dodge ? .39 : this.buffered.dodge-dt;
+    if(input.dodge) this.buffered.dodgeDirection=input.dodgeDirection??null;
     const h=this.hero;
     const finishing=h.link?.pending||(h.combo===2&&h.comboLeft>0&&h.atk<.14&&(input.strike||this.buffered.strike>0));
     this.buffered.spell = input.spell ? (finishing?.96:.35) : this.buffered.spell-(this.hitstop>0?0:dt);
@@ -1539,6 +1546,13 @@ export class Game {
       if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name+suffix:name+'！'+suffix;
     }
     if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/ready.window*360)+'deg');
+    if(this.input.touchMode) {
+      const label=this.ui['touch-skill-status'];
+      const seconds=Math.ceil(Math.max(0,h.spellCool));
+      const text=ready?(hint.textContent||'接技就緒'):this.weapon.skill+(seconds?' · '+seconds+' 秒':' · 可用');
+      if(label.textContent!==text) label.textContent=text;
+      label.classList.toggle('link-ready',!!ready);
+    }
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
     const mission=this.mission;
@@ -1579,7 +1593,7 @@ export class Game {
 
   openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
     this.input.reset();
-    this.buffered = {dodge:0,spell:0,strike:0};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
     this.ui['modal-mark'].textContent=mark;
     this.ui['modal-kicker'].textContent=kicker;
     this.ui['modal-title'].textContent=title;
@@ -1856,7 +1870,8 @@ export class Game {
     this.state='pause';
     this.audio.active=false;
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
-      copy:'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。手機用搖桿和畫面按鈕。',
+      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按見到提示後向上滑，放手施放神器技能。點「調查」可同場景互動。'
+        :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',
       content:this.fusionMenu(),
       buttons:[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))]});
   }

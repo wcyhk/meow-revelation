@@ -1,9 +1,10 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=sculpted-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=sculpted-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=lantern-nave-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=lantern-nave-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=sculpted-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=lantern-nave-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=sculpted-1';
+import {Scenery} from './scenery.mjs?v=lantern-nave-1';
+import {LanternNave} from './lantern-nave.mjs?v=lantern-nave-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=pao-polish-1';
@@ -1802,7 +1803,12 @@ export class Game {
     requestAnimationFrame(this.loop);
     const dt=clamp((now-this.previousTime)/1000,0,.045);
     this.previousTime=now;
-    if(!this.hero||document.hidden||!this.ui.cover.hidden||this.weaponViewer.open)return;
+    if(document.hidden||this.weaponViewer.open)return;
+    if(!this.ui.cover.hidden){
+      if(this.ui.modal.hidden)this.nave?.render(now,dt);
+      return;
+    }
+    if(!this.hero)return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
     if (this.state==='play'||this.state==='falling') {
@@ -2536,6 +2542,15 @@ try {
   $('records').disabled=false;
   $('bestiary').disabled=false;
   requestAnimationFrame(game.loop);
+  try {
+    const canvas=$('nave-scene'),controls=$('nave-controls');
+    game.nave=new LanternNave(world,canvas,controls);
+    canvas.hidden=controls.hidden=$('nave-guide').hidden=false;
+    $('cover').classList.add('has-nave');
+    game.nave.resize();
+  } catch (error) {
+    console.warn('Could not render the lantern nave',error);
+  }
 } catch (error) {
   console.error('Could not initialize the Eclipse Grove',error);
   $('load-note').textContent='森林載入失敗。請重新整理，並確認瀏覽器已啟用 WebGL。';

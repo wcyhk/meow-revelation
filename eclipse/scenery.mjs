@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=sculpted-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=lantern-nave-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=sculpted-1';
 import {pictures, stages} from './expedition.mjs?v=forgelight-4';

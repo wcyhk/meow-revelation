@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=sculpted-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=sculpted-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=lantern-nave-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';

@@ -9,6 +9,7 @@ import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from '
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
+import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -165,6 +166,17 @@ function buildMaterials(entry){
       finishes.ember.color.setHex(0xb04725);
       finishes.ivory.color.setHex(0xa99171);
     }
+  }
+  if(entry.id==='m014'){
+    finishes.body=surface(0x3d496b,.62,.46,'iron');
+    finishes.edge=surface(0x9cabc2,.66,.44,'iron');
+    finishes.trim=surface(0x817183,.51,.54,'bronze');
+    finishes.coal=surface(0x222a40,.30,.73,'stone');
+    finishes.ivory=surface(0x9aadb5,.38,.58,'bone');
+    finishes.rust=surface(0x68190e,.19,.61,'stone');
+    finishes.ember=surface(0xbd3c13,.29,.45,'iron');
+    finishes.ember.emissive.setHex(0xff3707);
+    finishes.ember.emissiveIntensity=.48;
   }
   if(entry.family==='turtle'){
     finishes.shell=surface(new T.Color(body).lerp(new T.Color(0x23334d),.61),.54,.62,'iron');
@@ -588,7 +600,7 @@ function humanoid(k,entry){
 
 function quadruped(k,entry){
   const {root,bone,mesh,rod}=k;
-  const turtle=entry.family==='turtle',rider=entry.family==='rider',fireKirin=entry.id==='m014';
+  const turtle=entry.family==='turtle',rider=entry.family==='rider';
   const trial=trialType(entry.id),windBeast=entry.id==='m149';
   const body=bone(root,0,turtle?.85:1.11,0);
   const corpus=turtle?.81:.51;
@@ -648,19 +660,6 @@ function quadruped(k,entry){
         rod(head,'trim',[side*.26,.05+shift,.40],[side*(.61+shift),-.23+shift,.33],.039,'horn');
       }
     }
-  }else if(fireKirin){
-    mesh(body,'scale','edge',0,.33,.27,.57,.69,1.28,-.64);
-    mesh(body,'round','body',0,.29,.53,.40,.70,.50,-.52);
-    for(const side of [-1,1]){
-      rod(head,'edge',[side*.25,.27,.13],[side*.47,.57,.14],.11,'horn');
-      rod(head,'edge',[side*.45,.54,.14],[side*.37,.92,-.05],.077,'horn');
-      rod(head,'edge',[side*.36,.79,-.02],[side*.57,.86,-.26],.050,'horn');
-      for(let spike=0;spike<6;spike++){
-        const z=.60-spike*.29,y=.40+Math.sin(spike*.57)*.13;
-        mesh(body,'scale','edge',side*.29,y,z,.34,.40,.55,.32,side*.14,side*-.52);
-        rod(body,'edge',[side*.32,y+.12,z],[side*.63,y+.42,z-.29],.12,'horn');
-      }
-    }
   }else {
     for(let i=0;i<5;i++){
       const z=.74-i*.37;
@@ -691,12 +690,6 @@ function quadruped(k,entry){
       mesh(limb,'pearl','edge',0,turtle?-.67:-.94,.28,.228,.14,.32);
       for(let i=-1;i<=1;i++)rod(limb,'edge',[i*.086,turtle?-.67:-.94,.33],[i*.092,turtle?-.72:-.96,.51],.054,'horn');
     }
-    if(fireKirin){
-      for(let flame=0;flame<4;flame++){
-        rod(limb,flame%2?'glow':'trim',[side*(.03+flame*.04),-.93,-.12],
-          [side*(.22+flame*.045),-.50-flame*.08,-.25-flame*.08],.10,'horn');
-      }
-    }
     legs.push(limb);
   }
   const tail=bone(body,0,.09,-1.18);
@@ -716,13 +709,6 @@ function quadruped(k,entry){
   }else{
     rod(tail,'body',[0,0,.09],[0,.21,-.53],.135,'horn');
     rod(tail,'edge',[0,.13,-.40],[.17,.48,-.89],.10,'horn');
-  }
-  if(fireKirin){
-    for(let plume=0;plume<9;plume++){
-      const side=plume%2?1:-1;
-      rod(tail,plume%3?'glow':'trim',[side*.048,.26+plume*.019,-.50-plume*.027],
-        [side*(.13+plume*.031),.65-plume*.038,-1.00-plume*.075],.12,'horn');
-    }
   }
   if(rider){
     const knight=bone(body,0,.6,-.27);
@@ -1557,6 +1543,7 @@ export function mountBestiary(scene,entry,height,mobile=false){
   else if(entry.id==='m124'||entry.id==='m125')parts=serpentGuardian(k,entry.id==='m124');
   else if(entry.id==='m106')parts=coil(k,entry);
   else if(entry.id==='m005')parts=sculptWhiteBear(k);
+  else if(entry.id==='m014')parts=sculptKirin(k,mobile);
   else if(entry.id==='m015')parts=sculptPhoenix(k);
   else if(entry.id==='m027')parts=sculptDestroyer(k);
   else if(['m090','m091','m092'].includes(entry.id))parts=quadruped(k,{...entry,family:'rider'});
@@ -1575,7 +1562,7 @@ export function mountBestiary(scene,entry,height,mobile=false){
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
-  const aura=detail&&!entry.field?creatureAura(root,box,colors(entry)[3],detail):null;
+  const aura=detail&&!entry.field&&!parts.signature?.lume?creatureAura(root,box,colors(entry)[3],detail):null;
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
   const width=ratio?T.MathUtils.clamp(Math.sqrt(ratio/.91),.80,1.20):1;
@@ -1661,7 +1648,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.spellHood.rotation.x=wind*.23-strike*.29;
   }
   if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
-  if(model.signature)poseSignatureBeast(model,time,beat,{wind,strike,travel,fall});
+  if(model.signature?.type==='kirin')poseKirin(model,time,step,{wind,strike,travel,fall,stage});
+  else if(model.signature)poseSignatureBeast(model,time,beat,{wind,strike,travel,fall});
   for(const {root:wing,elbow,hand,side,membranous} of model.flight??[]){
     const pulse=Math.sin(beat-.59);
     wing.rotation.y=side*(.035+wind*.22-strike*.34);
@@ -1718,6 +1706,7 @@ export function removeBestiary(scene,model){
   scene.remove(model.root);
   model.pao?.energy.dispose();
   model.aura?.dispose();
+  model.signature?.lume?.dispose();
   model.root.traverse(part=>{if(part.isMesh)part.geometry.dispose();});
   for(const material of Object.values(model.materials))material.dispose();
 }

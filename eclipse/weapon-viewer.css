@@ -32,6 +32,8 @@
 .weapon-viewer-tools button {padding:6px 4px;font-size:12px;min-width:0}
 .weapon-viewer-tools button[aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
 .weapon-viewer-description {margin:0;line-height:1.6;font-size:13px;color:#dbc5af}
+.weapon-viewer-reference {display:inline-flex;align-items:center;min-height:31px;margin-top:2px;color:#dec694;
+  font-size:12px;text-underline-offset:.25em;touch-action:manipulation}
 .weapon-viewer-footer .primary {white-space:normal;text-align:center;max-width:46%;justify-content:center}
 .weapon-viewer-actions {display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .weapon-viewer-actions button {padding-inline:14px}
@@ -166,6 +168,24 @@
 .practice-stepper button {min-height:44px;min-width:40px;padding:0;font-size:17px;letter-spacing:0}
 .practice-empty {margin:8px;color:#e0cec1;font-size:13px}
 .utility #practice-edit {width:auto;min-height:38px;padding-inline:9px;font-size:12px;color:#d6f1e5;border-color:#81b3a8;background:#152c30e8;touch-action:manipulation}
+#practice-damage {pointer-events:auto;min-height:40px;padding:4px 9px;margin-top:5px;border:1px solid #d4ac7385;
+  background:#221c28e8;color:#fae2b5;font-size:12px;white-space:nowrap;touch-action:manipulation;font-variant-numeric:tabular-nums}
+.practice-damage-report {text-align:left;max-width:520px;margin-inline:auto}
+.practice-damage-total {display:block;color:#ffe1ae;font-size:24px;padding:0 0 9px}
+.practice-damage-row {display:grid;grid-template-columns:minmax(104px,1fr) auto minmax(85px,auto);gap:5px 12px;
+  align-items:center;margin-block:5px;padding:7px 10px;background:#28222c;border:1px solid #a47e5d55;
+  color:#eddbcc;font-size:13px;font-variant-numeric:tabular-nums;--damage-ink:#bda691}
+.practice-damage-row b,.practice-damage-row small {text-align:right;color:var(--damage-ink)}
+.practice-damage-row small {font-size:11px}
+.practice-damage-row i {grid-column:1/-1;height:3px;background:#100f16;position:relative}
+.practice-damage-row i::after {content:'';position:absolute;inset:0;background:var(--damage-ink);
+  transform-origin:left;transform:scaleX(var(--damage-share))}
+.practice-damage-row[data-tone=warm] {--damage-ink:#efaa7f}
+.practice-damage-row[data-tone=cool] {--damage-ink:#9edbf4}
+.practice-damage-row[data-tone=violet] {--damage-ink:#d5b1f0}
+.practice-damage-row[data-tone=gold] {--damage-ink:#f4c967}
+.practice-damage-row[data-tone=green] {--damage-ink:#9ce5c6}
+.practice-damage-report p {font-size:12px;line-height:1.5;color:#cfbba6;margin:9px 0 0}
 @media(max-width:540px){
   .bestiary-results {grid-template-columns:repeat(2,minmax(0,1fr))}
   .boss-preview-attacks,.boss-preview-weakness {margin-inline:12px}

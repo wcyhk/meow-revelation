@@ -12,8 +12,8 @@
   <link rel="stylesheet" href="./gilded.css?v=gilded-1">
   <link rel="stylesheet" href="./touch.css?v=sigils-1">
   <link rel="stylesheet" href="./relic-interface.css?v=armory-art-1">
-  <link rel="stylesheet" href="./weapon-viewer.css?v=practice-1">
-  <script type="module" src="./game.mjs?v=practice-1"></script>
+  <link rel="stylesheet" href="./weapon-viewer.css?v=ledger-1">
+  <script type="module" src="./game.mjs?v=ledger-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -45,6 +45,7 @@
         <div class="hero-name">守燈貓 <span id="hp-number"></span></div>
         <div class="health-track" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="hp-fill"></div></div>
         <div class="hero-loadout"><span id="equipped"></span><button id="relic-icons" type="button" aria-label="已獲得的祝福" hidden></button></div>
+        <button id="practice-damage" type="button" aria-label="查看傷害統計" hidden>傷害 0</button>
         <span id="field-support" hidden></span>
       </div></div>
       <div class="route-hud"><div id="route-name"></div><div id="route-floor"></div><div id="route-dots"></div><div class="run-counters"><span>擊倒 <b id="run-kills">0</b></span><span>時間 <b id="run-time">0:00</b></span><span>金幣 <b id="run-gold">0</b></span></div></div>

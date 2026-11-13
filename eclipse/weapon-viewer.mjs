@@ -1,10 +1,11 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=practice-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=ledger-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=practice-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=ledger-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
+import {jushangReference} from './jushang-references.mjs?v=ledger-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -85,6 +86,11 @@ export class WeaponViewer {
     this.attacks.setAttribute('role','group');
     this.attacks.setAttribute('aria-label','頭目攻擊預覽');
     this.detail=node('p','weapon-viewer-description');
+    const copy=node('div','weapon-viewer-copy');
+    this.reference=node('a','weapon-viewer-reference','52 巨商原圖資料 ↗');
+    this.reference.target='_blank';
+    this.reference.rel='noopener noreferrer';
+    copy.append(this.detail,this.reference);
     this.choose=button('',()=>{
       const {commit}=this;
       this.dialog.close();
@@ -98,7 +104,7 @@ export class WeaponViewer {
     });
     const actions=node('div','weapon-viewer-actions');
     actions.append(this.practiceChoice,this.choose);
-    footer.append(this.detail,actions);
+    footer.append(copy,actions);
     this.dialog.append(header,this.stage,this.tools,this.weakness,this.attacks,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
@@ -238,6 +244,10 @@ export class WeaponViewer {
     this.practiceAction=practice;
     this.practiceChoice.hidden=!practice;
     this.description=description;
+    const reference=jushangReference(this.weapon,this.boss?this.dossier.entry:null);
+    this.reference.hidden=!reference;
+    if(reference)this.reference.href=reference;
+    else this.reference.removeAttribute('href');
     this.focusReturn=document.activeElement;
     this.title.textContent=title;
     this.role.textContent=role;

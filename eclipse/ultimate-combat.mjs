@@ -75,7 +75,7 @@ export function launchUltimate(game,link,wind,rite) {
   const {tint,accent}=rite;
   const power=h.spellDamage;
   const release=(fn,delay=0)=>game.schedule(wind+delay,fn);
-  const hit=(unit,scale,from,force=1,weight)=>game.hit(unit,power*scale,from,force,tint,weight);
+  const hit=(unit,scale,from,force=1,weight)=>game.hit(unit,power*scale,from,force,tint,weight,undefined,'link');
   const disk=(center,radius,fn,low=0)=>{
     for (const unit of game.enemies) {
       if (!valid(game,unit)) continue;

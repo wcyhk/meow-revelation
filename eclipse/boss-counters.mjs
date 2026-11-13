@@ -69,7 +69,7 @@ export class BossCounters {
     view.spark(boss.x,boss.spec.height*.53,boss.z,INK,26,1.18,'stone');
     view.shake=Math.max(view.shake,.26);
     audio.play('heavy');
-    if (!arena.locked) game.hit(boss,boss.spec.hp*weakness.damage,source,0,INK);
+    if (!arena.locked) game.hit(boss,boss.spec.hp*weakness.damage,source,0,INK,undefined,undefined,'counter');
     if (boss.hp>0&&arena.phase===phase) {
       this.stagger=weakness.stun;
       boss.exposed=Math.max(boss.exposed,weakness.stun+.75);

@@ -1,6 +1,6 @@
 import {comboMove} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
-import {castRelic} from './relic-cast.mjs?v=weapon-audit-1';
+import {castRelic} from './relic-cast.mjs?v=ledger-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const active = game => {
@@ -114,7 +114,7 @@ export function strikeWith(game,dx,dz,move=comboMove(game.weapon,game.hero.combo
   const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1)*powerScale;
   const source={x:h.x,z:h.z};
   const weight=finish?'heavy':'light';
-  const land=(unit,scale=1,origin=source,force=move.force)=>game.hit(unit,power*scale,origin,force,arm.tone,weight,onContact);
+  const land=(unit,scale=1,origin=source,force=move.force)=>game.hit(unit,power*scale,origin,force,arm.tone,weight,onContact,'basic');
   let hits=0;
   if (move.shape==='arrow') {
     bowShot(game,source,dx,dz,reach,move,arm.tone,finish,land,confirm);
@@ -450,7 +450,7 @@ function frostLance(game,center,power,fusion) {
   game.audio.weave(fusion.id);
   for (const unit of game.enemies) {
     if (!resonanceTarget(game,unit)||distance(unit,center)>radius+(unit.kind==='boss'?.40:0)) continue;
-    if (!game.hit(unit,power*(.30+fusion.rank*.06),center,.26,fusion.tint,'light')||unit.hp<=0||unit.phaseGuard>0) continue;
+    if (!game.hit(unit,power*(.30+fusion.rank*.06),center,.26,fusion.tint,'light',undefined,'blessing')||unit.hp<=0||unit.phaseGuard>0) continue;
     unit.chill=Math.max(unit.chill,1.85+fusion.rank*.28);
     if (unit.kind==='boss') continue;
     unit.frozen=Math.max(unit.frozen??0,.47+fusion.rank*.23);
@@ -468,7 +468,7 @@ function railCut(game,from,to,power,fusion,first,last) {
   game.audio.weave(fusion.id);
   for (const unit of lineTargets(game.enemies,to,dx,dz,reach,.39+fusion.rank*.12)) {
     if (unit===first||unit===last||!resonanceTarget(game,unit)) continue;
-    game.hit(unit,power*(.43+fusion.rank*.09),to,.75,fusion.tint);
+    game.hit(unit,power*(.43+fusion.rank*.09),to,.75,fusion.tint,undefined,undefined,'blessing');
   }
 }
 
@@ -486,7 +486,7 @@ export function dischargeFusion(game,attacker,fusion) {
     const spot={x:unit.x,z:unit.z};
     view.bolt(point(origin,.85),point(unit,.62),fusion.tint,1.70-index*.21);
     view.shock(spot.x,spot.z,fusion.tint,.83,.55);
-    game.hit(unit,h.spellDamage*(index===0?.87:.54),origin,.64,fusion.tint);
+    game.hit(unit,h.spellDamage*(index===0?.87:.54),origin,.64,fusion.tint,undefined,undefined,'blessing');
     if (index>=Math.min(2,fusion.rank)) return;
     game.schedule(.11,()=>{
       const next=jumpTarget(game,seen,spot,3.54);
@@ -518,10 +518,10 @@ function linkedResonance(game,power,tier,fusion) {
       game.audio.weave(recipe);
       for (const foe of game.enemies) {
         if (!resonanceTarget(game,foe)||distance(foe,seed)>radius+.15) continue;
-        if (recipe==='firewhirl') game.hit(foe,power*.27,seed,-2.36,fusion.tint,'light');
+        if (recipe==='firewhirl') game.hit(foe,power*.27,seed,-2.36,fusion.tint,'light',undefined,'blessing');
         else {
           const chilled=foe.chill>0;
-          if (game.hit(foe,power*(chilled?.67:.27),seed,.45,fusion.tint,'light')) {
+          if (game.hit(foe,power*(chilled?.67:.27),seed,.45,fusion.tint,'light',undefined,'blessing')) {
             foe.exposed=Math.max(foe.exposed,1.65+fusion.rank*.35);
             if (chilled) view.spark(foe.x,.58,foe.z,0xc6eff5,9,.87,'ice');
           }
@@ -547,7 +547,7 @@ function linkedResonance(game,power,tier,fusion) {
           const count=burns.get(foe)??0;
           if (count>=2||!resonanceTarget(game,foe)||distance(center,foe)>radius+.17) continue;
           const strike=(arm.id==='flameblade'?.54:.43)+(embers&&foe===next?.13+fusion.rank*.045:0);
-          if (game.hit(foe,power*strike*(count?.66:1),center,.45,tint)) burns.set(foe,count+1);
+          if (game.hit(foe,power*strike*(count?.66:1),center,.45,tint,undefined,undefined,'blessing')) burns.set(foe,count+1);
         }
         if (index+1<echoes) game.schedule(.17,()=>blast(center,index+1));
       };
@@ -564,7 +564,7 @@ function linkedResonance(game,power,tier,fusion) {
         const spot={x:next.x,z:next.z};
         view.bolt(point(from,.84),point(next,.71),tint,1.55);
         view.spark(next.x,.72,next.z,tint,6,.75);
-        game.hit(next,power*.52,from,.35,tint);
+        game.hit(next,power*.52,from,.35,tint,undefined,undefined,'blessing');
         if (recipe==='rail'&&remaining===hops) railCut(game,from,spot,power,fusion,unit,next);
         if (remaining>1) game.schedule(.10,()=>jump(spot,remaining-1));
       };
@@ -594,8 +594,8 @@ export function invokeLinkedArm(game,link,wind,fusion) {
   const tier=h.resonance;
   const resonates=tier.fire||(tier.thunder&&arm.id!=='stormbow')||fusion?.id==='frostlance';
   const connect=resonates?linkedResonance(game,power,tier,fusion):null;
-  const hit=(unit,scale,source,force)=>{
-    const landed=game.hit(unit,power*scale,source,force,tone);
+  const hit=(unit,scale,source,force,category='link')=>{
+    const landed=game.hit(unit,power*scale,source,force,tone,undefined,undefined,category);
     if (landed) connect?.(unit,source);
     return landed;
   };
@@ -682,7 +682,7 @@ export function invokeLinkedArm(game,link,wind,fusion) {
               const length=distance(from,foe)+.28;
               const ghost={x:from.x-tz*(i?.28:-.28),z:from.z+tx*(i?.28:-.28)};
               view.comboTrail(ghost,tx,tz,length,0xf6e4b6,{shape:'line',width:.47,pose:'jab'},false,arm.id);
-              if (game.hit(foe,power*(tier.wind===1?.57:.70),ghost,.52,0xf6e4b6,'light')) {
+              if (game.hit(foe,power*(tier.wind===1?.57:.70),ghost,.52,0xf6e4b6,'light',undefined,'blessing')) {
                 view.spark(foe.x,.91,foe.z,0xffd591,8,.82);
                 game.audio.attack(arm.id,2,'release',i);
                 if (!froze&&fusion?.id==='frostlance') {
@@ -734,7 +734,7 @@ export function invokeLinkedArm(game,link,wind,fusion) {
           if (hop===0) view.bolt(point(end,6.5),point(end,.7),tone,2.53);
           else view.bolt(point(from,.82),point(end,.72),tone,1.69-hop*.15);
           view.shock(end.x,end.z,tone,hop===0?1.32:.77,.59);
-          if (foe) hit(foe,Math.max(.53,1.53-hop*.29),from,hop===0?1.07:.48);
+          if (foe) hit(foe,Math.max(.53,1.53-hop*.29),from,hop===0?1.07:.48,hop>3?'blessing':'link');
           if (hop===1&&fusion?.id==='rail') railCut(game,from,end,power,fusion,previous,foe);
           if (hop>=maxHops) return;
           const spot={x:end.x,z:end.z};
@@ -799,7 +799,7 @@ export function rushHit(game,start) {
   for (const foe of lineTargets(active(game),start,h.rollX,h.rollZ,step+.27,.86)) {
     if (h.rush.has(foe)) continue;
     h.rush.add(foe);
-    if (game.hit(foe,h.spellDamage,start,1.28)) h.rushLink?.connect?.(foe,start);
+    if (game.hit(foe,h.spellDamage,start,1.28,undefined,undefined,undefined,h.rushLink?'link':'skill')) h.rushLink?.connect?.(foe,start);
   }
   if (Math.random()<.65) view.spark(h.x,.36,h.z,arm.tone,4,.78);
 }
@@ -810,7 +810,7 @@ export function finishLinkedRush(game) {
   view.comboTrail(center,-h.rollX,-h.rollZ,2.65,arm.tone,{shape:'arc',width:1.45,pose:'return'},true,arm.id);
   view.shock(center.x,center.z,arm.tone,2.05,.65);
   for (const foe of arcTargets(active(game),center,-h.rollX,-h.rollZ,2.65,1.45)) {
-    if (game.hit(foe,h.spellDamage*.78,center,1.18)) h.rushLink?.connect?.(foe,center);
+    if (game.hit(foe,h.spellDamage*.78,center,1.18,undefined,undefined,undefined,'link')) h.rushLink?.connect?.(foe,center);
   }
 }
 
@@ -821,6 +821,6 @@ export function reflectHit(game,attacker) {
   const target=attacker?.hp>0 ? attacker : closest(active(game),h,range+.8);
   if (!target) return;
   view.bolt(point(h,.61),point(target,.77),arm.tone,1.68);
-  game.hit(target,h.spellDamage*(h.linkWard?1.60:1.15),h,1.22);
+  game.hit(target,h.spellDamage*(h.linkWard?1.60:1.15),h,1.22,undefined,undefined,undefined,h.linkWard?'link':'skill');
   target.chill=h.linkWard?3.45:2.4;
 }

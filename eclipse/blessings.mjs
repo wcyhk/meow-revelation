@@ -1,5 +1,5 @@
 import {linkLoadout} from './link-blessings.mjs?v=resonance-1';
-import {nightBlessings,seals} from './relic-gifts.mjs?v=nightfall-1';
+import {nightBlessings,seals} from './relic-gifts.mjs?v=ledger-1';
 
 const curve = (count,limit) => limit*count/(count+5);
 

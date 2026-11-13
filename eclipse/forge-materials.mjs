@@ -3,10 +3,10 @@ import {paintedFinish} from './painted-finish.mjs?v=practice-1';
 
 const surfaces={};
 const palettes={
-  tiger:'1c2f3a 5f9ba7 c9e0d8 293f4c 70c6d8', dragon:'291a20 8d5b21 f6c470 53492e ffb941',
-  phoenix:'512818 b08132 f8d180 47393e f07b32', turtle:'183b48 488e9a e6f7fc 25465a 89ebff',
-  qilin:'192d27 8a7544 e1cb91 315b4d 92d4aa', flameblade:'35181c ab3f24 fcf3cd 512725 ff6d30',
-  stormbow:'27293b b3944c f8e8b5 46647b 70c5ff', windhalberd:'253033 8b8567 edeee0 374d42 82cd8e',
+  tiger:'1a242e 698a9a c2d6e3 3a6880 92c9ef', dragon:'291a20 a65f16 db9c29 634117 f4d575',
+  phoenix:'502e1b 936938 e9c99c 4e3c36 e6b678', turtle:'1b3343 6cb9d4 c7ecff 2e7189 75d5f2',
+  qilin:'393323 bda374 e1cb91 2f5149 9ab0a2', flameblade:'311c23 bb4423 dddfe7 5a565a f9763a',
+  stormbow:'302a22 c3a260 edd59d 605632 f5df99', windhalberd:'242930 8c8c8c e2e3e9 343c47 f4edcb',
   frostlute:'312128 b58941 f7dda2 294f57 73d3ef', chakra:'362225 ac7731 ffe193 756123 f7bc40',
   reaper:'232534 6a654b e9e0ce 50425e b68af0', bell:'27221e 986138 d5b174 264747 7cddc6',
   fangs:'35202a 85616c f2d1ad 662936 ff4568', cannon:'222531 836149 f0cb8e 45323a ff823b',

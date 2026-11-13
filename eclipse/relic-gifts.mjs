@@ -43,7 +43,7 @@ function closest(game,center,range,except) {
 
 function burst(game,at,radius,tint,effect,damage,force=.62,after) {
   game.view.threatImpact({...at,kind:'circle',radius,tint,effect,pattern:effect==='ice'?'icicles':'burst'});
-  area(game,at,radius,foe=>{if(game.hit(foe,damage,at,force,tint,'light')) after?.(foe);});
+  area(game,at,radius,foe=>{if(game.hit(foe,damage,at,force,tint,'light',undefined,'blessing')) after?.(foe);});
 }
 
 function freeze(foe,time) {
@@ -72,7 +72,7 @@ export function giftFinisher(game,strike,unit,kind) {
   strike.giftBreak=true;
   game.schedule(.14,()=>{
     game.view.bolt(point(p,4.8),point(p,.43),0xafdbff,1.67);
-    if(valid(game,unit)&&distance(unit,p)<2.8)game.hit(unit,h.damage*.74*curve(thunder),p,.67,0xafdbff,'light');
+    if(valid(game,unit)&&distance(unit,p)<2.8)game.hit(unit,h.damage*.74*curve(thunder),p,.67,0xafdbff,'light',undefined,'blessing');
     if(hasSeal(h,'shatter'))burst(game,p,2.12,0xc4f8ff,'ice',h.damage*.34,.40,foe=>freeze(foe,.72));
   });
 }
@@ -89,11 +89,11 @@ export function giftCast(game,link) {
     const unit=valid(game,mark.unit)&&distance(mark.unit,p)<2.2?mark.unit:closest(game,p,1.9);
     const origin=unit?{x:unit.x,z:unit.z}:p;
     game.view.bolt(point(origin,5.5),point(origin,.51),0xb0e5ff,1.75);
-    if(unit)game.hit(unit,h.spellDamage*.38*curve(spark),p,.42,0xb0e5ff,'light');
+    if(unit)game.hit(unit,h.spellDamage*.38*curve(spark),p,.42,0xb0e5ff,'light',undefined,'blessing');
     const next=closest(game,origin,3.45,unit);
     if(!next)return;
     game.view.bolt(point(origin,.71),point(next,.56),0x9bd8ff,1.40);
-    game.hit(next,h.spellDamage*.35*curve(spark),origin,.42,0xb0e5ff,'light');
+    game.hit(next,h.spellDamage*.35*curve(spark),origin,.42,0xb0e5ff,'light',undefined,'blessing');
     if(hasSeal(h,'fireline'))burst(game,{x:next.x,z:next.z},1.72,0xffa05e,'fire',h.spellDamage*.49);
   });
 }
@@ -108,7 +108,7 @@ export function giftRoll(game,from) {
   for(const unit of game.enemies){
     if(!valid(game,unit))continue;
     const x=unit.x-from.x,z=unit.z-from.z,p=x*dx+z*dz;
-    if(p>=0&&p<=gap+.36&&Math.abs(-x*dz+z*dx)<.77)game.hit(unit,h.damage*.62*curve(n),from,.61,0xc9e6b6,'light');
+    if(p>=0&&p<=gap+.36&&Math.abs(-x*dz+z*dx)<.77)game.hit(unit,h.damage*.62*curve(n),from,.61,0xc9e6b6,'light',undefined,'blessing');
   }
   if(hasSeal(h,'burialwind'))burst(game,{x:h.x,z:h.z},2.15,0xff8d64,'fire',h.damage*.60);
 }

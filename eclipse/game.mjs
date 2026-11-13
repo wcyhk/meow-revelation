@@ -1,31 +1,32 @@
-import {bossMoveNames,fightCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=practice-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=practice-1';
-import {blessingCatalogue,catalogue,practiceLoadout,techniqueCatalogue} from './catalogue.mjs?v=practice-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=practice-1';
-import {Scenery} from './scenery.mjs?v=practice-1';
+import {bossMoveNames,fightCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=ledger-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=ledger-1';
+import {blessingCatalogue,catalogue,practiceLoadout,techniqueCatalogue} from './catalogue.mjs?v=ledger-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=ledger-1';
+import {damageReport,PracticeDamage} from './practice-damage.mjs?v=ledger-1';
+import {Scenery} from './scenery.mjs?v=ledger-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=weapon-audit-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=practice-1';
+import {arms} from './armory.mjs?v=ledger-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=bestiary-1';
-import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=heirlooms-1';
+import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ledger-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=codex-1';
-import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=weapon-audit-1';
+import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=ledger-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=bestiary-1';
-import {invokeSchool} from './schools.mjs?v=nightfall-1';
-import {BossArena} from './boss-arena.mjs?v=codex-1';
+import {invokeSchool} from './schools.mjs?v=ledger-1';
+import {BossArena} from './boss-arena.mjs?v=ledger-1';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
 import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
-import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=weapon-audit-1';
+import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=ledger-1';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
-import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
+import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=patina-1';
 import {actorMotion} from './actor-kinetics.mjs?v=patina-1';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
@@ -35,7 +36,7 @@ import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
 import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
-import {relicCounter} from './relic-cast.mjs?v=weapon-audit-1';
+import {relicCounter} from './relic-cast.mjs?v=ledger-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
@@ -123,6 +124,8 @@ export class Game {
     this.ui.records.addEventListener('click',()=>this.openRecords());
     this.ui.bestiary.addEventListener('click',()=>this.openCatalogue());
     this.ui['practice-edit'].addEventListener('click',()=>this.openPracticeLoadout());
+    this.damageControl=$('practice-damage');
+    this.damageControl.addEventListener('click',()=>this.openDamageReport());
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
@@ -223,7 +226,7 @@ export class Game {
     const pool=weapon.blessing?[...blessings,weapon.blessing]:blessings;
     const relics=pool.flatMap(item=>Array.from({length:ranks.get(item.id)??0},()=>item));
     this.duelMonster=boss;
-    this.practiceRun={phase,seed:draft.seed,relics};
+    this.practiceRun={phase,seed:draft.seed,relics,damage:new PracticeDamage()};
     this.audio.start().catch(()=>{});
     this.start(weapon);
   }
@@ -300,8 +303,18 @@ export class Game {
     this.ui.announce.classList.remove('visible');
     this.openModal({kind:'practice-result',mark:'✧',kicker:'頭目練習場',
       title:won?'已擊敗 '+this.duelMonster.name:'練習結束',copy:'用時 '+formatTime(this.elapsed),
+      content:damageReport(this.practiceRun.damage),
       buttons:[makeButton('換配搭',()=>this.openPracticeLoadout(),'primary'),makeButton('原配搭再試',()=>this.startPractice()),
         makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();})]});
+  }
+
+  openDamageReport() {
+    if(this.state!=='play'||!this.practiceRun)return;
+    this.state='practice-damage';
+    this.audio.active=false;
+    this.openModal({kind:'practice-result',mark:'✧',kicker:'頭目練習場',title:'傷害統計',copy:'用時 '+formatTime(this.elapsed),
+      content:damageReport(this.practiceRun.damage),
+      buttons:[makeButton('繼續練習',()=>this.togglePause(),'primary'),makeButton('換配搭',()=>this.openPracticeLoadout())]});
   }
 
   prepare(milestone=false) {
@@ -440,6 +453,8 @@ export class Game {
     this.ui.cover.hidden = true;
     this.ui.hud.hidden = false;
     this.ui['practice-edit'].hidden=!this.practiceRun;
+    this.damageControl.hidden=!this.practiceRun;
+    this.damageRevision=-1;
     this.closeModal();
     if(this.duelMonster)this.startMonsterDuel();
     else this.enter(0);
@@ -858,7 +873,7 @@ export class Game {
       }
       if (h.rolling<=0 && h.ember) {
         this.view.shock(h.x,h.z,0xff783c,2.05,.64);
-        for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,h.ember,h,.6);
+        for (const foe of this.enemies) if (distance(h,foe)<2.1) this.hit(foe,h.ember,h,.6,undefined,undefined,undefined,'blessing');
       }
     } else {
       const charging=h.slash?.move&&h.combo===3&&h.attackAge<h.slash.timing.hits[0].at;
@@ -1123,8 +1138,10 @@ export class Game {
     const nextPhaseHp=phaseBoundary*unit.spec.hp;
     const shield=unit.spec.guard&&unit.guardOpen<=0&&unit.attack&&unit.attack.time>unit.spec.time*.34;
     const heavy=weight==='heavy'||(!weight&&(Math.abs(knock)>=1.21||amount>=this.hero.damage*1.44));
+    const before=unit.hp;
     unit.hp -= damage*(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
+    this.practiceRun?.damage.record(source,before,unit.hp);
     const kind=unit.hp<=0?'fall':shield?(heavy?'break':'block'):heavy?'heavy':'light';
     if (kind==='break') {
       unit.guardOpen=1.48;
@@ -1723,6 +1740,11 @@ export class Game {
   }
 
   renderUI() {
+    const damage=this.practiceRun?.damage;
+    if(damage&&damage.revision!==this.damageRevision){
+      this.damageRevision=damage.revision;
+      this.damageControl.textContent='傷害 '+damage.label();
+    }
     const h=this.hero;
     const maw=this.branchCombat.activeMaw;
     const stacks=maw?.stacks??0;
@@ -2131,12 +2153,14 @@ export class Game {
   }
 
   togglePause() {
-    if (this.state==='pause'||this.state==='journal'||this.state==='run-blessings') {
+    if (['pause','journal','run-blessings','practice-damage'].includes(this.state)) {
       const fromBlessings=this.state==='run-blessings';
+      const fromDamage=this.state==='practice-damage';
       this.state='play';
       this.audio.active=true;
       this.closeModal();
       if(fromBlessings)this.ui['relic-icons'].focus({preventScroll:true});
+      if(fromDamage)this.damageControl.focus({preventScroll:true});
       return;
     }
     if (this.state!=='play') return;
@@ -2264,6 +2288,7 @@ export class Game {
     if(this.practiceRun){this.clearThreats();this.clearActors();this.view.setBossArena(null);this.bossArena=null;}
     this.practiceRun=null;
     this.ui['practice-edit'].hidden=true;
+    this.damageControl.hidden=true;
     this.duelMonster=null;
     this.audio.active=false;
     this.failure=null;

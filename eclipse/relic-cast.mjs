@@ -30,8 +30,9 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
   const aim=(from,to)=>gap(from,to)>.12?Math.atan2(to.z-from.z,to.x-from.x):bearing;
   let healed=0, chained=false;
 
-  function strike(target,source,scale,force=.65,react=true){
-    const landed=game.hit(target,damage*scale,source,force,weapon.tone,force>1?'heavy':'light');
+  const castSource=linked?'link':'skill';
+  function strike(target,source,scale,force=.65,react=true,credit=castSource){
+    const landed=game.hit(target,damage*scale,source,force,weapon.tone,force>1?'heavy':'light',undefined,credit);
     if(!landed||!react||!target.spec)return landed;
     onHit?.(target,source);
     if(weapon.element==='ice'||boon==='chill'||look==='thunder-orbs'){
@@ -61,7 +62,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
         const next=closest(game,last,3.6,visited);
         if(!next)break;
         view.bolt(height(last),height(next),weapon.tone,1.15);
-        strike(next,last,.38,.27,false);
+        strike(next,last,.38,.27,false,'blessing');
         visited.add(next);
         last=next;
       }
@@ -69,10 +70,10 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
     return landed;
   }
 
-  function burst(point,size,scale=1,index=0,accent=true,force=.72){
+  function burst(point,size,scale=1,index=0,accent=true,force=.72,credit=castSource){
     if(accent)view.relicPulse(weapon,point,size,index);
     for(const unit of [...game.enemies,...game.breakables(),...(game.bossArena?.targets??[])]){
-      if(unit.hp>0&&gap(unit,point)<=size+(unit.kind==='boss'?.58:.12))strike(unit,point,scale,force);
+      if(unit.hp>0&&gap(unit,point)<=size+(unit.kind==='boss'?.58:.12))strike(unit,point,scale,force,true,credit);
     }
   }
 
@@ -140,7 +141,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
       break;
     case 'guard':
       hero.ward=Math.max(hero.ward,2.2+(boon==='guard'?rank*.60:0));
-      hero.relicCounter={weapon,power:damage*(boon==='riposte'?1+rank*.28:.74),rank};
+      hero.relicCounter={weapon,power:damage*(boon==='riposte'?1+rank*.28:.74),rank,linked};
       view.relicAura(weapon,hero,2.25);
       for(let i=0;i<hits;i++)schedule(i*interval,()=>burst({x:hero.x,z:hero.z},radius,.71,i));
       break;
@@ -307,7 +308,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
   if(boon==='echo'||boon==='burn'){
     const count=boon==='burn'?2:1;
     for(let i=0;i<count;i++)schedule(hits*interval+.31+i*.34,
-      ()=>burst(action==='blink'?origin:center,radius*.84,.48+rank*.075,hits+i,true,.40));
+      ()=>burst(action==='blink'?origin:center,radius*.84,.48+rank*.075,hits+i,true,.40,'blessing'));
   }
 }
 
@@ -319,6 +320,6 @@ export function relicCounter(game,attacker){
   const point=attacker??game.hero;
   game.view.relicPulse(weapon,point,1.8,1);
   for(const unit of game.enemies)if(live(unit)&&gap(unit,point)<1.88){
-    if(game.hit(unit,power,game.hero,1.24,weapon.tone,'heavy')&&weapon.element==='ice')unit.chill=Math.max(unit.chill,1.3+rank*.4);
+    if(game.hit(unit,power,game.hero,1.24,weapon.tone,'heavy',undefined,counter.linked?'link':'skill')&&weapon.element==='ice')unit.chill=Math.max(unit.chill,1.3+rank*.4);
   }
 }

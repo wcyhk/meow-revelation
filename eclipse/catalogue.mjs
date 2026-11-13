@@ -1,6 +1,6 @@
-import {blessings,schools} from './blessings.mjs?v=heirlooms-1';
+import {blessings,schools} from './blessings.mjs?v=ledger-1';
 import {branches,techniques} from './progression.mjs?v=last-bell-1';
-import {seals} from './relic-gifts.mjs?v=nightfall-1';
+import {seals} from './relic-gifts.mjs?v=ledger-1';
 import {blessingIcon} from './relic-interface.mjs?v=codex-1';
 
 function element(tag,style,content){

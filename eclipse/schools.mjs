@@ -28,23 +28,23 @@ export function invokeSchool(game,school,attacker) {
     for (const enemy of targets) {
       const ex=enemy.x-x,ez=enemy.z-z;
       if (ex*dx+ez*dz>-.2&&ex*dx+ez*dz<reach&&Math.abs(-ex*dz+ez*dx)<1.79) {
-        game.hit(enemy,power,hero,1.65);
+        game.hit(enemy,power,hero,1.65,undefined,undefined,undefined,'blessing');
       }
     }
   } else if (school==='thunder') {
     view.bolt(point(target,6),point(target,.65),0x93ceff,2.1);
     view.shock(target.x,target.z,0xa3e9ff,1.38,.65);
-    game.hit(target,power*1.22,hero,.43);
+    game.hit(target,power*1.22,hero,.43,undefined,undefined,undefined,'blessing');
     const next=targets.find(enemy=>enemy!==target&&distance(enemy,target)<3.7);
     if (next) {
       view.bolt(point(target,.83),point(next,.69),0xc5f3ff,1.25);
-      game.hit(next,power*.68,target,.26);
+      game.hit(next,power*.68,target,.26,undefined,undefined,undefined,'blessing');
     }
   } else if (school==='fire') {
     const center={x:target.x,z:target.z};
     game.schedule(.21,()=>{
       view.threatImpact({...center,kind:'circle',radius:2.6,tint:0xff9b5e,pattern:'marked',effect:'fire'});
-      for (const enemy of game.enemies) if (distance(center,enemy)<2.8) game.hit(enemy,power*1.65,center,.89);
+      for (const enemy of game.enemies) if (distance(center,enemy)<2.8) game.hit(enemy,power*1.65,center,.89,undefined,undefined,undefined,'blessing');
     });
   } else {
     hero.ward=Math.max(hero.ward,1.35);
@@ -52,7 +52,7 @@ export function invokeSchool(game,school,attacker) {
     for (const enemy of targets) {
       if (enemy!==attacker&&distance(hero,enemy)>3.35) continue;
       enemy.chill=Math.max(enemy.chill,1.9);
-      game.hit(enemy,power*.95,hero,1.3);
+      game.hit(enemy,power*.95,hero,1.3,undefined,undefined,undefined,'blessing');
     }
   }
   game.audio.play(school==='thunder'?'warning':'blessing');

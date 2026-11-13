@@ -2,7 +2,7 @@ import {arenaTerrain} from './arena-layouts.mjs?v=bestiary-1';
 import {withinThreat} from './threats.mjs?v=impact-1';
 import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
-import {BossCounters} from './boss-counters.mjs?v=codex-1';
+import {BossCounters} from './boss-counters.mjs?v=ledger-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 

@@ -1,4 +1,4 @@
-import {branches,mawSkill} from './progression.mjs?v=maw-1';
+import {branches,loadoutSkills,mawSkill} from './progression.mjs?v=last-bell-1';
 import {RobotSquad} from './robot-squad.mjs?v=squad-1';
 import {EnemyMarkers,Medics} from './tech-support.mjs?v=eye-aura-1';
 import {CthunHand} from './cthun-hand.mjs?v=squad-1';
@@ -12,6 +12,7 @@ export class BranchCombat {
   constructor(view) {
     this.view=view;
     this.skills=new Set();
+    this.branch=null;
     this.radar=new EnemyMarkers('enemy-radar');
     this.squad=null;
     this.tendrils=null;
@@ -23,8 +24,8 @@ export class BranchCombat {
 
   start(profile) {
     this.end();
-    const branch=branches.find(entry=>entry.id===profile.branch);
-    this.skills=new Set(branch?.skills.filter(skill=>profile.branchSkills.includes(skill.id)).map(skill=>skill.id));
+    this.branch=branches.find(entry=>entry.id===profile.branch)??null;
+    this.skills=new Set(loadoutSkills(profile).map(skill=>skill.id));
     if(this.skills.has('robot-squad')) this.squad??=new RobotSquad(this.view);
     if(this.skills.has('cthun-hand')) this.tendrils??=new CthunHand(this.view);
     if(this.skills.has('black-goat-eye')) this.eye??=new BlackGoatEye(this.view);
@@ -50,6 +51,7 @@ export class BranchCombat {
     this.maw?.reset();
     this.activeMaw=null;
     this.reviveReady=false;
+    this.branch=null;
     this.skills.clear();
   }
 

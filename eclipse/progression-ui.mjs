@@ -1,4 +1,4 @@
-import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=maw-1';
+import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,loadoutSkills,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=last-bell-1';
 
 function element(tag,className,content) {
   const node=document.createElement(tag);
@@ -60,7 +60,7 @@ export function trainingPanel(profile,updateBalance) {
     });
   }
   const paths=section('技能分支');
-  paths.append(element('p','branch-hint','兩邊都可以學。入林時只會啟用揀咗嗰個分支嘅已學技能。'));
+  paths.append(element('p','branch-hint','兩邊都可以學。入林前揀一邊，再勾選今局想帶嘅技能。'));
   const cards=element('div','branch-cards');
   for (const branch of branches) {
     const card=element('article','branch-card');
@@ -107,12 +107,40 @@ export function branchPicker(profile,updates) {
   root.setAttribute('aria-label','入場技能分支');
   root.append(element('span',null,'入場分支'));
   const controls=element('div','branch-choices');
+  const summary=element('p','branch-loadout-summary');
+  const loadout=element('div','branch-skill-choices');
+  loadout.setAttribute('role','group');
+  loadout.setAttribute('aria-label','攜帶技能');
+  const skillButtons=new Map();
+  for(const branch of branches) for(const skill of branch.skills) {
+    const button=element('button','secondary branch-skill');
+    const check=element('i','branch-check','✓');
+    check.setAttribute('aria-hidden','true');
+    button.append(check,element('span',null,skill.name));
+    button.type='button';
+    button.dataset.branchSkill=skill.id;
+    button.style.setProperty('--branch-tint',branch.tint);
+    button.addEventListener('click',()=>{
+      profile.toggleBranchSkill(skill.id);
+      update(profile.data);
+    });
+    skillButtons.set(skill.id,{branch:branch.id,button});
+    loadout.append(button);
+  }
   const update=data=>{
     for (const button of controls.children) {
       const id=button.dataset.branch||null;
       button.disabled=id!==null&&!hasBranch(data,id);
       button.setAttribute('aria-pressed',String(id===data.branch));
     }
+    const active=loadoutSkills(data);
+    for(const [id,{branch,button}] of skillButtons) {
+      button.hidden=data.branch!==branch;
+      button.disabled=!data.branchSkills.includes(id);
+      button.setAttribute('aria-pressed',String(active.some(skill=>skill.id===id)));
+    }
+    loadout.hidden=!data.branch;
+    summary.textContent=active.length?`已帶 ${active.length} 個技能 · 攜帶組合會影響結局`:'已帶 0 個技能 · 通關後進入普通結局';
   };
   for (const branch of [{id:null,name:'不帶分支'},...branches]) {
     const button=element('button','secondary branch-choice',branch.name);
@@ -125,7 +153,7 @@ export function branchPicker(profile,updates) {
     });
     controls.append(button);
   }
-  root.append(controls);
+  root.append(controls,loadout,summary);
   updates?.push(update);
   update(profile.data);
   return root;

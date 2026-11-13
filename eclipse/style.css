@@ -196,6 +196,14 @@ kbd{font:600 10px/1 Georgia,serif;letter-spacing:.05em;border:1px solid #cba5786
 .branch-choices{display:flex;flex-wrap:wrap;gap:5px}
 .branch-choice{min-height:37px;padding:4px 10px;font-size:11px;letter-spacing:.02em}
 .branch-choice[aria-pressed=true]{border-color:var(--branch-tint,#edb981);color:var(--branch-tint,#ffdeb4);background:#474038}
+.branch-skill-choices{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;width:100%}
+.branch-skill{display:inline-flex;align-items:center;gap:5px;min-height:35px;padding:4px 8px;font-size:11px;letter-spacing:0}
+.branch-check{width:15px;height:15px;display:grid;place-items:center;border:1px solid currentColor;border-radius:2px;font:700 10px/1 var(--sans);color:#aa9f95}
+.branch-skill[aria-pressed=false] .branch-check{font-size:0}
+.branch-skill[aria-pressed=true]{color:var(--branch-tint);border-color:color-mix(in srgb,var(--branch-tint) 63%,#222)}
+.branch-skill[aria-pressed=true] .branch-check{color:var(--branch-tint)}
+.branch-loadout-summary{width:100%;margin:0;text-align:center;line-height:1.35;color:#cebca7}
+@media(pointer:coarse){.branch-skill{min-height:44px}}
 @media(max-width:520px){.branch-cards{grid-template-columns:1fr}.branch-choice{min-height:42px}}
 .records-ledger{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
 .record-card{padding:10px;border:1px solid #c69b6359;background:#191a15a8}

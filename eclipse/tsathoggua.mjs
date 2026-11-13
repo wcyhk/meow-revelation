@@ -1,5 +1,5 @@
 import {createMaw,poseMaw} from './tsathoggua-art.mjs?v=maw-1';
-import {mawSkill} from './progression.mjs?v=maw-1';
+import {mawSkill} from './progression.mjs?v=last-bell-1';
 
 const life=1.04,swallowed=.86;
 const clamp=t=>Math.max(0,Math.min(1,t));

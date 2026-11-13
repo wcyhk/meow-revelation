@@ -54,6 +54,23 @@
   background:linear-gradient(0deg,#0d0d13 0%,#101019de 15%,#14131e00 47%),linear-gradient(180deg,#0d0c13c9,transparent 23%);
 }
 
+.vn-ending {background:radial-gradient(ellipse at 50% 20%,#21171d,#0d0c11 77%)}
+.vn-ending-art {
+  position:absolute;
+  z-index:-2;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center 30%;
+  mask-image:radial-gradient(ellipse 66% 84% at 50% 33%,#000 48%,transparent 100%);
+  pointer-events:none;
+}
+.vn-ending::after {background:linear-gradient(180deg,#0b080dcf,transparent 23%,transparent 61%,#0c0a12ef 98%)}
+@media (orientation:portrait) {
+  .vn-ending-art {top:5%;height:72%;object-fit:contain;object-position:50% 24%}
+}
+
 .vn[data-speaker=little] {--vn-accent:#eeb6d1}
 .vn[data-speaker=keeper] {--vn-accent:#b2caff}
 .vn[data-speaker=warden] {--vn-accent:#b5dfcc}

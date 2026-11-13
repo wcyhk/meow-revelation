@@ -29,6 +29,11 @@ export function hasBranch(data,id) {
   return branches.find(branch=>branch.id===id)?.skills.some(skill=>data.branchSkills.includes(skill.id))??false;
 }
 
+export function loadoutSkills(data) {
+  const branch=branches.find(item=>item.id===data.branch);
+  return branch?.skills.filter(skill=>data.branchSkills.includes(skill.id)&&!data.disabledBranchSkills.includes(skill.id))??[];
+}
+
 export const moonlessTitle={id:'moonless',name:'無月歸名者',tint:'#bcdfff'};
 export const moonlessLantern={id:'moonless',name:'無月引魂燈',tint:'#bcdfff',detail:'完成無月第 100 關並敲響歸名鐘。'};
 
@@ -63,6 +68,7 @@ function normalize(raw) {
   const unlocked=Array.isArray(raw?.techniques)?raw.techniques:[];
   const owned=techniques.filter(item=>unlocked.includes(item.id)).map(item=>item.id);
   const learned=Array.isArray(raw?.branchSkills)?raw.branchSkills:[];
+  const disabled=Array.isArray(raw?.disabledBranchSkills)?raw.disabledBranchSkills:[];
   const crimson=raw?.crimson===true;
   const records=Object.fromEntries(Object.keys(milestones).map(mode=>{
     const old=raw?.records?.[mode];
@@ -75,9 +81,11 @@ function normalize(raw) {
     technique:owned.includes(raw?.technique)?raw.technique:null,
     branchSkills:branches.flatMap(branch=>branch.skills.filter(skill=>learned.includes(skill.id)
       ||(skill.id==='black-goat-eye'&&learned.includes('veil'))).map(skill=>skill.id)),
+    disabledBranchSkills:[],
     crimson,
     records,
   };
+  data.disabledBranchSkills=data.branchSkills.filter(id=>disabled.includes(id));
   data.lantern=lanternUnlocked(data,raw?.lantern)?raw.lantern:'original';
   data.branch=hasBranch(data,raw?.branch)?raw.branch:null;
   data.title=raw?.title===moonlessTitle.id&&records.abyss.fastest!==null?raw.title:null;
@@ -180,6 +188,16 @@ export class Progression {
     return this.change(data=>{
       if (id!==null&&!hasBranch(data,id)) return false;
       data.branch=id;
+      return true;
+    });
+  }
+
+  toggleBranchSkill(id) {
+    return this.change(data=>{
+      const branch=branches.find(item=>item.id===data.branch);
+      if (!branch?.skills.some(skill=>skill.id===id)||!data.branchSkills.includes(id)) return false;
+      if (data.disabledBranchSkills.includes(id)) data.disabledBranchSkills=data.disabledBranchSkills.filter(skill=>skill!==id);
+      else data.disabledBranchSkills.push(id);
       return true;
     });
   }

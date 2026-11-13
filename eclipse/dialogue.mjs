@@ -21,6 +21,14 @@ function button(className,text) {
 
 export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary}) {
   const root=element('div','vn');
+  if(scene.art) {
+    root.classList.add('vn-ending');
+    root.dataset.ending=scene.id;
+    const art=element('img','vn-ending-art');
+    art.alt='';
+    art.src=scene.art;
+    root.append(art);
+  }
   const portraits=element('div','vn-cast');
   portraits.setAttribute('aria-hidden','true');
   const cast=['hero','little','keeper','warden'].map(id=>{

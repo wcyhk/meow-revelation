@@ -186,10 +186,6 @@ const scenes={
         warden('等山下每一戶，都聽清楚自己屋企人個名。'),
       ]),
     ],
-    outro:[
-      {...little('……哥哥？'),cast:['little','hero']},
-      {...narration('等喺家門口嘅小貓抬起頭。司刻合上帳簿，入口座鐘第一次行過午夜。'),cast:['little','hero']},
-    ],
   },
 };
 

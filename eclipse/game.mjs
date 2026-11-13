@@ -21,11 +21,12 @@ import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
-import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=maw-1';
-import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=maw-1';
-import {BranchCombat} from './branch-combat.mjs?v=maw-1';
-import {storyDialogue} from './dialogue-scenes.mjs?v=lantern-dialogue-1';
-import {dialoguePanel} from './dialogue.mjs?v=lantern-dialogue-1';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
+import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
+import {BranchCombat} from './branch-combat.mjs?v=last-bell-1';
+import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
+import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
+import {endingFor} from './endings.mjs?v=last-bell-1';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -197,7 +198,7 @@ export class Game {
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
       title:milestone?'領取頭目遺物':'向林火借一件神器',
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
-        :'揀難度同入場分支，再帶一件神器出發。',content,
+        :'揀難度、勾選入場技能，再帶一件神器出發。',content,
       buttons:milestone?[]:[makeButton('返回主畫面',()=>this.showCover())]});
   }
 
@@ -430,7 +431,7 @@ export class Game {
     this.audio.play('blessing');
     const final=clue===ending;
     this.openDialogue(clue.title,final?'尾聲':this.stage.zone.name,storyDialogue(clue,this.storyChoices),
-      final?'望向山下':'收起線索',selected=>{
+      final?'聽鐘聲':'收起線索',selected=>{
       if (selected) this.storyChoices[clue.title]=selected.id;
       if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:this.stage.zone.name,note:selected?.note});
       this.closeModal();
@@ -1909,11 +1910,13 @@ export class Game {
     }
     this.state='won';
     const unlocked=this.progress.win(this.difficulty.id,Math.round(this.elapsed*1000));
+    const finale=endingFor(this.branchCombat.branch,this.branchCombat.skills);
     this.audio.play('blessing');
-    this.openModal({kind:'win',mark:'✷',kicker:this.difficulty.name+' · 第 100 關',title:'星火歸家',
-      copy:unlocked?`歸名鐘響起。已永久解鎖「${moonlessLantern.name}」及稱號「${moonlessTitle.name}」，可到訓練所換上。`
-        :'歸名鐘響起，這一次天亮了。',content:this.runResults(true),
-      buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
+    this.openDialogue(finale.title,finale.route,finale,'查看通關結果',()=>{
+      this.openModal({kind:'win',mark:'✷',kicker:this.difficulty.name+' · 第 100 關 · '+finale.route,title:finale.title,
+        copy:unlocked?`已永久解鎖「${moonlessLantern.name}」及稱號「${moonlessTitle.name}」，可到訓練所換上。`:'',
+        content:this.runResults(true),buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
+    });
   }
 
   runResults(includeClues=false) {

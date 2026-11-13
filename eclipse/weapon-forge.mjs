@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {designs} from './weapon-designs.mjs?v=forgelight-3';
+import {designs} from './weapon-designs.mjs?v=forgelight-4';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;

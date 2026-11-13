@@ -1,7 +1,7 @@
-import {monsterBattle,monsterCatalogue} from './monster-bestiary.mjs?v=forgelight-3';
+import {monsterBattle,monsterCatalogue} from './monster-bestiary.mjs?v=forgelight-4';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {bossWeaknesses} from './boss-weaknesses.mjs?v=counter-1';
-import {enemySpec,stages} from './expedition.mjs?v=forgelight-3';
+import {enemySpec,stages} from './expedition.mjs?v=forgelight-4';
 import {modeStage} from './nightfall.mjs?v=clock-1';
 
 const storyBosses=stages.filter(stage=>stage.boss).map(stage=>({

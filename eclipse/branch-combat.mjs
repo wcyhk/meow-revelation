@@ -1,8 +1,8 @@
-import {branches} from './progression.mjs?v=squad-2';
+import {branches} from './progression.mjs?v=eye-aura-1';
 import {RobotSquad} from './robot-squad.mjs?v=squad-1';
-import {EnemyMarkers,Medics} from './tech-support.mjs?v=squad-2';
+import {EnemyMarkers,Medics} from './tech-support.mjs?v=eye-aura-1';
 import {CthunHand} from './cthun-hand.mjs?v=squad-1';
-import {BlackGoatEye} from './black-goat-eye.mjs?v=squad-2';
+import {BlackGoatEye} from './black-goat-eye.mjs?v=eye-aura-1';
 
 const hex=0xe597ff;
 const radarRange=13;
@@ -35,7 +35,7 @@ export class BranchCombat {
 
   enter(game) {
     this.radar.hide();
-    this.eye?.reset();
+    if(this.skills.has('black-goat-eye')) this.eye.update(game);
     this.medics?.hide();
     if(this.skills.has('robot-squad')) this.squad.enter(game);
     if(this.skills.has('cthun-hand')) this.tendrils.enter(game);
@@ -54,7 +54,7 @@ export class BranchCombat {
 
   render(game) {
     if(this.skills.has('radar')&&game.state==='play') {
-      this.radar.render(this.view,game.enemies,foe=>range(foe,game.hero)<=radarRange,()=>.045);
+      this.radar.render(this.view,game.enemies,foe=>foe.age>=.23&&range(foe,game.hero)<=radarRange,()=>.045);
     }
     else this.radar.hide();
     if(this.skills.has('black-goat-eye')) this.eye.render(game);

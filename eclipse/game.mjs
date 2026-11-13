@@ -1,5 +1,5 @@
 import {Scenery} from './scenery.mjs?v=squad-1';
-import {Audio} from './audio.mjs?v=squad-2';
+import {Audio} from './audio.mjs?v=eye-aura-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs?v=clock-1';
@@ -21,9 +21,9 @@ import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
-import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=squad-2';
-import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=squad-2';
-import {BranchCombat} from './branch-combat.mjs?v=squad-2';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=eye-aura-1';
+import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=eye-aura-1';
+import {BranchCombat} from './branch-combat.mjs?v=eye-aura-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=lantern-dialogue-1';
 import {dialoguePanel} from './dialogue.mjs?v=lantern-dialogue-1';
 
@@ -1063,6 +1063,7 @@ export class Game {
   }
 
   updateEnemies(dt) {
+    const eye=this.branchCombat.skills.has('black-goat-eye')?this.branchCombat.eye:null;
     for (const unit of this.enemies) {
       if (unit.hp<=0) continue;
       const spec=unit.spec;
@@ -1123,7 +1124,7 @@ export class Game {
       }
       const boss=unit.kind==='boss';
       const chilled=unit.chill>0?(boss?.81:.57):1;
-      const marked=unit.goatEyeUntil>this.t?(boss?.84:.65):1;
+      const marked=eye?.contains(this.hero,unit)?(boss?.84:.65):1;
       const aggression = (1+unit.bossPhase*.17)*Math.min(chilled,marked)*(unit.morale>0?1.31:1)
         *(unit.omen?.id==='hunt'&&unit.hp<unit.spec.hp*.5?1.31:1);
       const advance=direction*spec.speed*aggression*dt;

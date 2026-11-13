@@ -125,11 +125,6 @@ export class Audio {
       case 'branch-spirit':
         this.note(412,207,now,.26,.073,'sine');
         break;
-      case 'goat-eye':
-        this.rasp(now,.21,.13,660);
-        this.note(206,72,now,.58,.10,'triangle',.030);
-        this.note(311,119,now+.065,.44,.065,'sine');
-        break;
       case 'tentacle-sweep':
         this.rasp(now,.17,.15,780);
         this.note(116,51,now,.18,.095,'triangle');

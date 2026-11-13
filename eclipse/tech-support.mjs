@@ -11,7 +11,7 @@ export class EnemyMarkers {
     this.root.hidden=false;
     let index=0;
     for(const enemy of enemies) {
-      if(enemy.hp<=0||enemy.age<.23||!include(enemy)) continue;
+      if(enemy.hp<=0||!include(enemy)) continue;
       const point=view.project(enemy.x,height(enemy),enemy.z);
       if(point.x<0||point.y<0||point.x>view.width||point.y>view.height) continue;
       if(!this.markers[index]) {

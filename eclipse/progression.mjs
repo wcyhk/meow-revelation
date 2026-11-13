@@ -17,7 +17,7 @@ export const branches = [
   ]},
   {id:'mystic',name:'神祕',tint:'#e4b8ef',skills:[
     {id:'cthun-hand',name:'克蘇恩之手',cost:180,detail:'三條背生觸手自動出擊。黑色近掃、紅色穿刺、紫色遠處破地。'},
-    {id:'black-goat-eye',name:'黑山羊之眼',cost:135,detail:'每 5 秒放出黑紫電波（6 格），為敵人加上眼印並減速 3 秒。'},
+    {id:'black-goat-eye',name:'黑山羊之眼',cost:135,detail:'持續擴散黑紫電波。敵人一進入 6 格範圍，即有眼印同減速。'},
     {id:'funeral-seal',name:'送魂祭印',cost:190,detail:'擊倒敵人會留下延時祭印，爆發時傷害附近敵人，冷卻 5 秒。'},
   ]},
 ];

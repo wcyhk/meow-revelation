@@ -1,5 +1,5 @@
 import {Scenery} from './scenery.mjs?v=squad-1';
-import {Audio} from './audio.mjs?v=squad-1';
+import {Audio} from './audio.mjs?v=squad-2';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs?v=clock-1';
@@ -21,9 +21,9 @@ import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
-import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=squad-1';
-import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=squad-1';
-import {BranchCombat} from './branch-combat.mjs?v=squad-1';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=squad-2';
+import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=squad-2';
+import {BranchCombat} from './branch-combat.mjs?v=squad-2';
 import {storyDialogue} from './dialogue-scenes.mjs?v=lantern-dialogue-1';
 import {dialoguePanel} from './dialogue.mjs?v=lantern-dialogue-1';
 
@@ -338,7 +338,6 @@ export class Game {
     this.ranks=buildStats(h,this.weapon,stage.floor,this.relics,this.training);
     h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
     h.trainingWardSpent=false;
-    h.veilUntil=0;
     h.lanternOut=0;
     h.snuffCooldown=0;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
@@ -639,7 +638,6 @@ export class Game {
       h.rolling -= dt;
       h.vx = h.rollX * 4; h.vz = h.rollZ * 4;
       if (h.rolling<=0) {
-        this.branchCombat.rollEnd(this);
         if(h.rollOrigin)giftRoll(this,h.rollOrigin);
         h.rollOrigin=null;
         if (h.rushLink) finishLinkedRush(this);
@@ -962,10 +960,8 @@ export class Game {
     const barrier=h.linkGuard;
     h.linkGuard=null;
     const trained=h.technique==='ward'&&!h.trainingWardSpent&&amount>0;
-    const veiled=h.veilUntil>this.t&&amount>0;
     if (trained) h.trainingWardSpent=true;
-    if (veiled) h.veilUntil=0;
-    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1)*(trained?.55:1)*(veiled?.70:1));
+    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1)*(trained?.55:1));
     if (h.hp===0&&this.branchCombat.revive(this)) return true;
     h.invulnerable = .64;
     if (h.hp>0&&h.snuffCooldown<=0&&pattern==='marked'&&(attacker?.kind==='cultist'||attacker?.kind==='oracle')) {
@@ -977,10 +973,10 @@ export class Game {
     const heavy=['cleave','pounce','lance','burst','counterCharge','sweep','arenaBait'].includes(pattern)
       || amount>=h.maxHp*.15;
     const origin=Math.hypot(h.x-x,h.z-z)<.18&&attacker ? attacker : {x,z};
-    const blocked=guarded||barrier||trained||veiled;
+    const blocked=guarded||barrier||trained;
     const kind=h.hp===0?'fall':blocked?'block':heavy?'heavy':'light';
     this.impact(h,origin,kind,blocked?0x91eee0:0xffad7d);
-    if (barrier||trained||veiled) this.view.shock(h.x,h.z,veiled?0xbbabff:trained?0xffba7b:0xa9eee0,1.65,.63);
+    if (barrier||trained) this.view.shock(h.x,h.z,trained?0xffba7b:0xa9eee0,1.65,.63);
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
     this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
     this.interruptLink();
@@ -1125,7 +1121,10 @@ export class Game {
           sz+=(unit.z-other.z)/between*(1.30-between)*2.3;
         }
       }
-      const aggression = (1+unit.bossPhase*.17)*(unit.chill>0?(unit.kind==='boss'?.81:.57):1)*(unit.morale>0?1.31:1)
+      const boss=unit.kind==='boss';
+      const chilled=unit.chill>0?(boss?.81:.57):1;
+      const marked=unit.goatEyeUntil>this.t?(boss?.84:.65):1;
+      const aggression = (1+unit.bossPhase*.17)*Math.min(chilled,marked)*(unit.morale>0?1.31:1)
         *(unit.omen?.id==='hunt'&&unit.hp<unit.spec.hp*.5?1.31:1);
       const advance=direction*spec.speed*aggression*dt;
       const traveled=this.moveUnit(unit,dx*advance+sx*dt,dz*advance+sz*dt,.35);

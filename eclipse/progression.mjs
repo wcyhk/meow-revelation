@@ -12,12 +12,12 @@ export const techniques = [
 export const branches = [
   {id:'tech', name:'科技', tint:'#a9e3ee', skills:[
     {id:'robot-squad',name:'機械人小隊',cost:180,detail:'三台機械人跟隨你，自動發射遠程火箭、近程衝鋒槍同中程機槍。'},
-    {id:'radar',name:'搜敵雷達',cost:140,detail:'持續標示視野內敵人嘅腳下位置，提燈熄滅時仍然可見。'},
+    {id:'radar',name:'搜敵雷達',cost:140,detail:'持續偵測大範圍敵人（13 格），腳下紅印喺提燈熄滅時仍然可見。'},
     {id:'medic',name:'召喚急救小隊',cost:220,detail:'每次挑戰可用一次。受到致命傷害時原地復活，回滿生命。'},
   ]},
   {id:'mystic',name:'神祕',tint:'#e4b8ef',skills:[
     {id:'cthun-hand',name:'克蘇恩之手',cost:180,detail:'三條背生觸手自動出擊。黑色近掃、紅色穿刺、紫色遠處破地。'},
-    {id:'veil',name:'月影護身',cost:135,detail:'翻滾結束後 2 秒內，下一次受傷減少 30%，冷卻 8 秒。'},
+    {id:'black-goat-eye',name:'黑山羊之眼',cost:135,detail:'每 5 秒放出黑紫電波（6 格），為敵人加上眼印並減速 3 秒。'},
     {id:'funeral-seal',name:'送魂祭印',cost:190,detail:'擊倒敵人會留下延時祭印，爆發時傷害附近敵人，冷卻 5 秒。'},
   ]},
 ];
@@ -70,7 +70,8 @@ function normalize(raw) {
     training:Object.fromEntries(training.map(item=>[item.id,integer(raw?.training?.[item.id],item.costs.length)])),
     techniques:owned,
     technique:owned.includes(raw?.technique)?raw.technique:null,
-    branchSkills:branches.flatMap(branch=>branch.skills.filter(skill=>learned.includes(skill.id)).map(skill=>skill.id)),
+    branchSkills:branches.flatMap(branch=>branch.skills.filter(skill=>learned.includes(skill.id)
+      ||(skill.id==='black-goat-eye'&&learned.includes('veil'))).map(skill=>skill.id)),
     crimson,
     records,
   };

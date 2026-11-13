@@ -1,18 +1,18 @@
 import * as T from '../three.min.mjs';
 import {createRobot,poseRobot} from './robot-art.mjs?v=squad-1';
 
-export class EnemyRadar {
-  constructor() {
-    this.root=document.getElementById('enemy-radar');
+export class EnemyMarkers {
+  constructor(id) {
+    this.root=document.getElementById(id);
     this.markers=[];
   }
 
-  render(view,enemies) {
+  render(view,enemies,include,height) {
     this.root.hidden=false;
     let index=0;
     for(const enemy of enemies) {
-      if(enemy.hp<=0||enemy.age<.23) continue;
-      const point=view.project(enemy.x,.045,enemy.z);
+      if(enemy.hp<=0||enemy.age<.23||!include(enemy)) continue;
+      const point=view.project(enemy.x,height(enemy),enemy.z);
       if(point.x<0||point.y<0||point.x>view.width||point.y>view.height) continue;
       if(!this.markers[index]) {
         const marker=document.createElement('i');
@@ -20,7 +20,7 @@ export class EnemyRadar {
         this.markers.push(marker);
       }
       const marker=this.markers[index++];
-      marker.classList.toggle('radar-boss',enemy.kind==='boss');
+      marker.classList.toggle('boss-mark',enemy.kind==='boss');
       marker.style.transform=`translate(${Math.round(point.x)}px,${Math.round(point.y)}px) translate(-50%,-50%)`;
       marker.hidden=false;
     }

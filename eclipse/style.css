@@ -16,12 +16,16 @@ button:focus-visible{outline:2px solid #ffe0a3;outline-offset:4px}
   radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),var(--lamp-wash,#ffb86d14) 0%,var(--lamp-wash,#ffb86d14) 22%,transparent 78%),
   radial-gradient(ellipse var(--light-w,245px) var(--light-h,165px) at var(--light-x,50%) var(--light-y,61%),transparent 42%,#0e091412 63%,#0d0a1a3b 85%,#08071282 106%,#05050dbf 141%,#06050de5 192%)}
 #lantern-dark.extinguished{background:#05040cf6}
-#enemy-radar{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+#enemy-radar,#eye-marks{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
 #enemy-radar i{display:block;position:absolute;left:0;top:0;width:32px;height:12px;border:1.5px solid #ff6d79;
   border-radius:50%;box-shadow:0 0 8px #ff3c62,inset 0 0 4px #fa415a;text-align:center}
 #enemy-radar i::before{content:'';display:block;width:4px;height:4px;margin:2px auto;background:#ffb1a4;transform:rotate(45deg)}
-#enemy-radar i.radar-boss{width:55px;height:19px;border:2px double #ffa6aa}
-#enemy-radar i.radar-boss::before{margin-top:5px}
+#enemy-radar i.boss-mark{width:55px;height:19px;border:2px double #ffa6aa}
+#enemy-radar i.boss-mark::before{margin-top:5px}
+#eye-marks i{position:absolute;left:0;top:0;width:33px;height:23px;display:grid;place-items:center;filter:drop-shadow(0 0 5px #c252ff)}
+#eye-marks i::before{content:'';display:block;width:20px;height:13px;transform:rotate(-20deg);border-radius:75% 20% 75% 20%;border:1.5px solid #ecbdff;background:#261031}
+#eye-marks i::after{content:'';position:absolute;width:4px;height:10px;background:#f6c9ff;border-radius:75%;box-shadow:0 0 5px #f787ff}
+#eye-marks i.boss-mark::before{width:25px;height:16px}
 #cover{isolation:isolate;z-index:10;background:#191b13 url("./cover.jpg") 58% 48% / cover no-repeat}
 #cover::before,.cover-grain{content:"";position:absolute;inset:0;pointer-events:none}
 #cover::before{z-index:-1;background:linear-gradient(90deg,#10130fed 0%,#10130fbc 26%,#10130f47 52%,transparent 73%),linear-gradient(0deg,#0d110fba,transparent 27%,transparent 76%,#10130f61)}

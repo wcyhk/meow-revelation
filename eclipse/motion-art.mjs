@@ -143,19 +143,22 @@ const fragment=`
     float ribbon=pow(max(0.,sin(v*3.14159)),1.5);
     float crease=exp(-abs(v-.79)*31.);
     float fibers=pow(.5+.5*sin(u*17.+v*33.-life*5.),8.)*.24;
+    float ridges=pow(.5+.5*sin(91.*u+v*13.+sin(u*18.+life*23.)*.73),12.);
+    float curl=exp(-abs(v-(.33+sin(u*12.-life*6.)*.087))*17.)*ridges;
+    float current=pow(.5+.5*sin(u*55.-v*31.-life*10.),6.);
     float split=.67+.33*sin(u*16.+life*4.);
-    float alpha=tip*sweep*(ribbon*.65+crease*.59+fibers*ribbon)*opacity;
-    vec3 tone=mix(ink*.77,edge,crease*.86+fibers*.23);
+    float alpha=tip*sweep*(ribbon*(.44+.21*current)+crease*.59+fibers*ribbon+curl*.35)*opacity;
+    vec3 tone=mix(ink*.77,edge,clamp(crease*.86+fibers*.23+curl*.32,0.,1.));
     if(kind>.5&&kind<1.5){
       float beam=abs(v-.5);
-      float halo=exp(-beam*5.1)*(1.-smoothstep(.31,.50,beam));
+      float halo=exp(-beam*5.1)*(1.-smoothstep(.31,.50,beam))*(.67+current*.33);
       float core=exp(-beam*17.);
       alpha=(halo*.51+core*.87)*mix(.66,1.,tip)*opacity;
-      tone=mix(ink,edge,core*.89)*split;
+      tone=mix(ink,edge,core*.89)*split*(.83+current*.17);
     }
     if(kind>1.5){
-      alpha=tip*(ribbon*.61+crease*.43)*opacity;
-      tone=mix(ink*.64,edge,crease*.74+fibers);
+      alpha=tip*(ribbon*(.38+current*.23)+crease*.43+curl*.32)*opacity;
+      tone=mix(ink*.64,edge,clamp(crease*.74+fibers+curl*.25,0.,1.));
     }
     gl_FragColor=vec4(tone,alpha);
     #include <colorspace_fragment>
@@ -168,7 +171,8 @@ function shardGeometry() {
   path.lineTo(.057,1.05);path.lineTo(-.062,1.05);path.lineTo(-.064,.70);
   path.lineTo(-.26,.74);path.lineTo(-.30,.62);path.lineTo(-.135,.54);path.lineTo(-.21,-.73);
   path.closePath();
-  return new T.ShapeGeometry(path);
+  return new T.ExtrudeGeometry(path,{depth:.084,bevelEnabled:true,bevelThickness:.038,
+    bevelSize:.027,bevelSegments:2,steps:1}).translate(0,0,-.042);
 }
 
 function flashGeometry() {
@@ -429,11 +433,23 @@ export class MotionArt {
   }
 
   bladefall(x,z,tint,wait,index) {
-    const fx=this.view.addEffect(this.blade,{x,y:5.3,z},tint,wait+.075,
-      {angle:index*2.4+.6,scale:1.11,opacity:.91,order:89,fade:true});
+    const duration=wait+.075;
+    const fx=this.view.addEffect(this.blade,{x,y:5.3,z},tint,duration,
+      {angle:index*2.4+.6,scale:1.11,opacity:.91,order:89,fade:true,
+        material:new T.MeshStandardMaterial({
+          color:tint,metalness:.41,roughness:.33,emissive:tint,emissiveIntensity:.79,transparent:true,depthWrite:false,
+        })});
     fx.drop=5.0;
     fx.spin=1.6;
     fx.combatClock=true;
+    if(this.accent()){
+      const heat=this.ribbon(this.jet,{x,y:5.3,z},tint,duration,{
+        kind:2,scale:2.30,angle:0,opacity:.71,order:84,
+      });
+      heat.mesh.rotation.z=Math.PI*.50;
+      heat.drop=5.0;
+      heat.combatClock=true;
+    }
   }
 
   rush(from,to,tint) {

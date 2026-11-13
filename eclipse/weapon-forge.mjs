@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {designs} from './weapon-designs.mjs?v=forgelight-4';
+import {detailWeapon,detailForgedBlade} from './forge-detail.mjs?v=nightforge-1';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -26,7 +27,7 @@ function workshop(root,materials) {
     }
     shape.closePath();
     const geometry=new T.ExtrudeGeometry(shape,{depth:depth*s,bevelEnabled:true,
-      bevelThickness:bevel*s,bevelSize:bevel*s,bevelSegments:1,steps:1});
+      bevelThickness:bevel*s,bevelSize:bevel*s,bevelSegments:2,steps:1});
     geometry.translate(0,0,-depth*s/2);
     return add(geometry,finish,point);
   }
@@ -945,6 +946,7 @@ function twins(h) {
       [-1.16,-2.21,-1.98,-.24,-1.45,2.31,-.63,4.41,2.0,6.27,1.32,4.77,.73,3.18,2.02,2.36,1.42,.35,1.20,-2.08];
     plate(contour,'edge',.93);
     plate(contour.map((v,i)=>i%2?(v+2.3)*.80-2.3:v*.68),'body',1.06);
+    detailForgedBlade(bladeKit,contour,.56,side<0?11:23);
     loop([0,-1.78],1.59,.20,'trim','xz',12);
     gem([0,-1.46,.69],.56,'core');
   }
@@ -994,7 +996,9 @@ export function buildWeapon(weapon,finishes){
   const root=new T.Group();
   const [kind,...recipe]=designs[weapon.id];
   root.userData.finishes=finishes;
-  makers[kind](workshop(root,finishes),...recipe);
+  const kit=workshop(root,finishes);
+  makers[kind](kit,...recipe);
+  detailWeapon(kit,weapon,kind,recipe);
   const animated=new Set();
   const bow=root.userData.bow;
   if(bow){

@@ -1,21 +1,21 @@
 import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=pao-geometry-1';
 import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=pao-geometry-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=pao-geometry-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=nightforge-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=pao-geometry-1';
+import {Scenery} from './scenery.mjs?v=nightforge-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=pao-polish-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=forgelight-4';
+import {arms} from './armory.mjs?v=nightforge-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=forgelight-4';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ledger-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=codex-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=ledger-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=bestiary-1';
-import {invokeSchool} from './schools.mjs?v=ledger-1';
+import {invokeSchool} from './schools.mjs?v=nightforge-1';
 import {BossArena} from './boss-arena.mjs?v=ledger-1';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
@@ -23,7 +23,7 @@ import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weap
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
 import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
-import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=ledger-1';
+import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=nightforge-1';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
@@ -31,7 +31,7 @@ import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs
 import {actorMotion} from './actor-kinetics.mjs?v=forgelight-4';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
-import {BranchCombat} from './branch-combat.mjs?v=sigils-1';
+import {BranchCombat} from './branch-combat.mjs?v=nightforge-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
@@ -1019,7 +1019,7 @@ export class Game {
   cast(input,link=this.readyLink()) {
     const h = this.hero;
     this.view.releaseSigil(h);
-    this.view.castElements(h,this.weapon);
+    this.view.castElements(h,this.weapon,this.aim(input,Math.max(h.reach+.8,h.spellRadius+.55)));
     h.spellCool = h.spellTime;
     h.link=null;
     if (link) {

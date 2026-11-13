@@ -55,7 +55,11 @@ void main(){
   float tail=1.0-smoothstep(.73,1.0,life);
   vec3 lit=mix(ink,flare,clamp(core,0.0,1.0))*(1.0+core*.41);
   lit=mix(lit,vec3(.28,.65,1.0)*(1.0+charge*.65),clamp(charge*.94,0.0,1.0));
-  gl_FragColor=vec4(lit,clamp(glow*opacity*intro*tail,0.0,.98));
+  float stratum=volume>.5?abs(sin(paper.y*47.-life*15.+paper.x*18.85)):
+    abs(sin(length(paper*2.0-1.0)*62.-life*17.));
+  float speed=0.81+.13*sin(paper.x*44.+paper.y*25.-life*19.);
+  lit=mix(lit*.81,flare,stratum*core*.46)*speed;
+  gl_FragColor=vec4(lit,clamp(glow*(.75+stratum*.48)*opacity*intro*tail,0.0,.98));
 }`;
 
 function art(view,rite,point,radius,time,geometry,volume) {
@@ -71,6 +75,9 @@ function art(view,rite,point,radius,time,geometry,volume) {
 }
 
 export function ultimateSeal(view,rite,point,radius,time=.57) {
+  const element=['fire','fire','lightning','fire','ice','stone','lightning','wind','ice','gold','void','ice','blood','fire'][rite.skin];
+  const accents=['storm','cone','guard','wave','guard','spikes','cone','cone','ring','ring','storm','rain','storm','storm'];
+  view.spellAccent(point,{action:accents[rite.skin],element,tint:rite.accent,radius,seed:rite.skin,power:.83});
   return art(view,rite,point,radius,time,floor,0);
 }
 

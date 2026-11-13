@@ -1,4 +1,4 @@
-import {trackUltimate, ultimateBody, ultimateSeal} from './ultimate-art.mjs?v=ultimates-1';
+import {trackUltimate, ultimateBody, ultimateSeal} from './ultimate-art.mjs?v=nightforge-1';
 
 const tau=Math.PI*2;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);

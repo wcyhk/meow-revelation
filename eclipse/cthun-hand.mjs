@@ -87,6 +87,9 @@ export class CthunHand {
     const dx=Math.sin(attack.angle),dz=Math.cos(attack.angle);
     const origin=config.id==='erupt'?attack.point:hero;
     const reach=config.id==='erupt'?0:config.range*.57;
+    this.view.spellAccent(origin,{action:config.id==='erupt'?'spikes':config.id==='pierce'?'line':'cone',
+      element:config.id==='pierce'?'blood':'void',tint:config.tint,radius:config.id==='erupt'?1.75:config.range,
+      angle:Math.atan2(dz,dx),seed:16,power:.76});
     this.view.elementBurst(origin.x+dx*reach,.52,origin.z+dz*reach,config.tint,
       config.id==='pierce'?'blood':'void',12,1.12,Math.atan2(dz,dx));
     if(config.id==='sweep') {

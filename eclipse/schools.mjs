@@ -24,6 +24,7 @@ export function invokeSchool(game,school,attacker) {
   if (school==='wind') {
     const {x,z,dx,dz}=hero;
     const reach=5.3+Math.min(1.4,level*.13);
+    view.spellAccent(hero,{action:'cone',element:'wind',tint:0xbaf1ca,radius:reach,angle:Math.atan2(dz,dx),seed:34,power:.85});
     for (const side of [-1,1]) view.wave(x-dz*side*.49,z+dx*side*.49,dx,dz,reach,0xbaf1ca);
     for (const enemy of targets) {
       const ex=enemy.x-x,ez=enemy.z-z;
@@ -32,6 +33,7 @@ export function invokeSchool(game,school,attacker) {
       }
     }
   } else if (school==='thunder') {
+    view.spellAccent(target,{action:'rain',element:'lightning',tint:0xa3e9ff,radius:1.92,seed:53,power:1.02});
     view.bolt(point(target,6),point(target,.65),0x93ceff,2.1);
     view.shock(target.x,target.z,0xa3e9ff,1.38,.65);
     game.hit(target,power*1.22,hero,.43,undefined,undefined,undefined,'blessing');
@@ -48,6 +50,7 @@ export function invokeSchool(game,school,attacker) {
     });
   } else {
     hero.ward=Math.max(hero.ward,1.35);
+    view.spellAccent(hero,{action:'guard',element:'ice',tint:0xa8f5de,radius:3.2,seed:60,power:.88});
     view.shock(hero.x,hero.z,0xa8f5de,3.2,.85);
     for (const enemy of targets) {
       if (enemy!==attacker&&distance(hero,enemy)>3.35) continue;

@@ -37,10 +37,10 @@
   left:23%;right:23%;bottom:10%;height:13%;opacity:.91;
   background:radial-gradient(ellipse,#101014 3%,#050609b5 30%,#1832373d 53%,transparent 72%);
 }
-.pao-view-angles:not([hidden]) {
+.model-view-angles:not([hidden]) {
   position:absolute;top:10px;left:11px;display:flex;gap:4px;z-index:3;
 }
-.pao-view-angles .secondary {min-height:44px;padding:0 10px;font-size:12px;background:#171b25e8}
+.model-view-angles .secondary {min-height:44px;padding:0 10px;font-size:12px;background:#171b25e8}
 .sprite-reference {display:grid;grid-template-rows:auto minmax(68px,1fr) auto auto auto auto;gap:4px;min-width:0;padding:8px;
   border-block:1px solid #a07e624f;border-left:1px solid #a07e624f;background:#1b1621;color:#efdfc7}
 .sprite-reference h3 {margin:0;font:800 13px/1.35 var(--serif);color:#f1cd9f}

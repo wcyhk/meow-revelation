@@ -1,11 +1,11 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-geometry-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=nightforge-1';
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=forgelight-4';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=nightforge-1';
 import {pictures, stages} from './expedition.mjs?v=forgelight-4';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
+import {MotionArt} from './motion-art.mjs?v=nightforge-1';
 import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=patina-1';
 import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=forgelight-4';
@@ -16,10 +16,27 @@ import {summonModel,summonMuzzle} from './relic-summons.mjs?v=forgelight-4';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
-import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
+import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=nightforge-1';
 import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=pao-detail-1';
+import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=nightforge-1';
 
 const PI = Math.PI;
+const baseCastLooks={
+  tiger:'line',dragon:'rain',phoenix:'wave',turtle:'guard',qilin:'storm',flameblade:'rain',
+  stormbow:'line',windhalberd:'cone',frostlute:'wave',chakra:'ring',reaper:'drain',
+  bell:'ring',fangs:'cone',cannon:'volley',
+};
+const spellIndex=(id='')=>Array.from(id).reduce((hash,char)=>(hash*31+char.charCodeAt(0))%65521,0);
+const projectileProfiles={
+  ice:{shape:new T.IcosahedronGeometry(.18,0),stretch:2.08,width:.61,glow:.64},
+  fire:{shape:new T.IcosahedronGeometry(.18,1),stretch:1.14,width:.88,glow:.96},
+  lightning:{shape:new T.OctahedronGeometry(.17),stretch:1.58,width:.56,glow:.83},
+  feather:{shape:new T.ConeGeometry(.14,.64,6).rotateZ(-PI/2),stretch:1.05,width:.72,glow:.65},
+  water:{shape:new T.IcosahedronGeometry(.19,1),stretch:1.36,width:.82,glow:.68},
+  void:{shape:new T.DodecahedronGeometry(.17,0),stretch:1.29,width:.86,glow:.77},
+  blood:{shape:new T.IcosahedronGeometry(.20,0),stretch:1.41,width:.78,glow:.66},
+};
+const regionalProjectiles=new Set(Object.values(projectileProfiles).map(profile=>profile.shape));
 const color = new T.Color();
 const unit = new T.Vector3(0, 0, 0);
 const weaponUp = new T.Vector3(0,1,0);
@@ -167,16 +184,18 @@ function laneEdges(length,width) {
 }
 
 function warningMaterial() {
-  return new T.ShaderMaterial({side:T.DoubleSide,transparent:true,depthWrite:false,
+  return new T.ShaderMaterial({side:T.DoubleSide,transparent:true,depthWrite:false,forceSinglePass:true,
     uniforms:{life:{value:0},opacity:{value:.41}},
     vertexShader:`varying vec2 tex; void main(){tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`
       varying vec2 tex; uniform float life,opacity;
       void main(){
         float threads=pow(.5+.5*sin((tex.x+tex.y*.43)*68.-life*9.),4.);
+        float grid=pow(.5+.5*sin(tex.x*32.-life*12.)*sin(tex.y*41.+life*6.),8.);
+        float sparks=pow(.5+.5*sin(tex.x*51.+tex.y*71.-life*19.),15.)*grid;
         float urgency=smoothstep(.52,.99,life);
-        gl_FragColor=vec4(.48+threads*.18,.025+threads*.041,.014,
-          opacity*(.53+urgency*.21+threads*.32));
+        gl_FragColor=vec4(.46+threads*.22+sparks*.29,.025+threads*.04+sparks*.05,.014,
+          opacity*(.55+urgency*.20+threads*.27+grid*.12));
         #include <colorspace_fragment>
       }
     `});
@@ -283,7 +302,9 @@ export class Scenery {
   }
 
   sharedPreviewGeometry(geometry) {
-    return geometry===plane||geometry===actorPlane||geometry===this.ring||geometry===this.disc||paoSharedGeometry.includes(geometry);
+    return geometry===plane||geometry===actorPlane||geometry===this.ring||geometry===this.disc||
+      geometry===this.projectileShape||geometry===this.coinShape||geometry===this.shardShape||
+      paoSharedGeometry.includes(geometry)||spellGeometry.has(geometry)||regionalProjectiles.has(geometry);
   }
 
   async load() {
@@ -629,6 +650,8 @@ export class Scenery {
 
   relicPulse(weapon,point,radius,index=0) {
     this.elementBurst(point.x,.35,point.z,weapon.tone,weapon.effect,index===0?12:7,.91+radius*.08);
+    if(index===0)this.spellAccent(point,{action:weapon.spell.action==='storm'?'storm':'circle',
+      element:weapon.element,tint:weapon.tone,radius,seed:weapon.sigil,power:.72});
     if(index===0||index%3===2){
       const crest=this.addEffect(plane,{...point,y:.091},weapon.tone,.51,
         {map:this.relicTexture(weapon.id),scale:radius*1.46,growth:.54,opacity:.67,fade:true,order:36});
@@ -774,6 +797,7 @@ export class Scenery {
   }
 
   relicCompanion(weapon,point,duration) {
+    this.spellAccent(point,{action:'minion',element:weapon.element,tint:weapon.tone,radius:1.78,seed:weapon.sigil,power:.87});
     this.elementBurst(point.x,.14,point.z,weapon.tone,weapon.effect,this.mobile?7:12,1.14);
     return summonModel(this,weapon,point,duration);
   }
@@ -1201,8 +1225,16 @@ export class Scenery {
     }
   }
 
-  castElements(hero,weapon) {
-    this.elementBurst(hero.x,.20,hero.z,weapon.tone,weapon.effect??weaponElements[weapon.id],18,1.18);
+  spellAccent(point,spec) {
+    return ornamentSpell(this,point,spec);
+  }
+
+  castElements(hero,weapon,[dx,dz]) {
+    const element=weapon.element??weaponElements[weapon.id]??weapon.effect;
+    const angle=Math.atan2(dz,dx);
+    this.elementBurst(hero.x,.20,hero.z,weapon.tone,element,18,1.18);
+    this.spellAccent(hero,{action:weapon.spell?.action??baseCastLooks[weapon.id],element,tint:weapon.tone,
+      radius:weapon.spell?.action==='minion'?1.64:2.06,angle,seed:weapon.sigil??spellIndex(weapon.id),power:.67});
   }
 
   addEffect(geometry, position, tint, duration, settings = {}) {
@@ -1271,8 +1303,12 @@ export class Scenery {
 
   comboTrail(origin,dx,dz,reach,tint,move,heavy,weapon) {
     const {x,z}=origin;
+    const relic=huntById.get(weapon);
+    const element=relic?.element??weaponElements[weapon];
+    if(heavy)this.spellAccent(origin,{action:move.shape==='line'?'line':move.shape==='circle'?'ring':'cone',
+      element,tint,radius:reach,angle:Math.atan2(dz,dx),power:.73,seed:relic?.sigil??spellIndex(weapon)});
     this.elementBurst(x+dx*Math.min(reach*.58,2),.42,z+dz*Math.min(reach*.58,2),tint,
-      huntById.get(weapon)?.effect??weaponElements[weapon],heavy?13:6,heavy?1.18:.78,Math.atan2(dz,dx));
+      element,heavy?13:6,heavy?1.18:.78,Math.atan2(dz,dx));
     if (move.shape==='cleave') {
       this.motion.overhead(origin,dx,dz,reach,tint);
       this.spark(x+dx*reach*.78,.28,z+dz*reach*.78,tint,18,1.31,'fire',Math.atan2(dz,dx));
@@ -1324,6 +1360,10 @@ export class Scenery {
     const shield=kind==='block'||kind==='break';
     const pao=unit.visual?.bestiary?.pao;
     const impactColor=shield?0xa7edff:tint;
+    if(kind==='break'||kind==='fall')this.spellAccent(unit,{
+      action:kind==='break'?'spikes':'ring',element:shield?'ice':'stone',tint:impactColor,
+      radius:unit.spec?.height*.47||1.25,angle,power:.67,seed:10,
+    });
     const count=kind==='break'?22:kind==='fall'?18:heavy?14:kind==='block'?6:8;
     this.spark(x,height,z,impactColor,this.mobile?Math.ceil(count*.73):count,
       kind==='break'?1.29:heavy?1.40:.89,shield?'ice':'flare',angle);
@@ -1360,6 +1400,8 @@ export class Scenery {
       return;
     }
     const size=phase==='defeat'?7.6:5.9+(this.stage.dread??0)*2.8;
+    this.spellAccent(unit,{action:phase,element:spec.effect,tint:spec.tint,radius:size*.46,
+      seed:spellIndex(spec.bestiary?.id??spec.name??phase),power:1.12});
     this.shroud=phase==='entrance'?.72:phase==='defeat'?.36:.61;
     const haze=this.addEffect(plane,{x,y:.063,z},0xffffff,phase==='entrance'?1.3:.86,
       {map:this.battleTextures.dark,blend:false,scale:size,growth:1.6,opacity:.94,order:12});
@@ -1430,6 +1472,10 @@ export class Scenery {
   threatImpact(hazard) {
     const {kind,x,z,radius,tint,width,angle,pattern,effect,owner}=hazard;
     if(owner?.visual?.bestiary?.pao&&paoStrike(this,hazard))return;
+    const line=kind==='line',bearing=angle??0;
+    const mark=line?{x:x-Math.cos(bearing)*radius*.5,z:z-Math.sin(bearing)*radius*.5}:{x,z};
+    this.spellAccent(mark,{action:pattern==='prison'||pattern==='eclipse'?'storm':kind,element:effect,tint,
+      radius,angle:bearing,seed:spellIndex(pattern??kind),power:.76});
     this.elementBurst(x,.24,z,tint,effect,kind==='cone'?13:9,Math.min(1.2,.74+radius*.08),angle);
     const point={x,y:.08,z};
     if (kind==='cone') {
@@ -1502,17 +1548,21 @@ export class Scenery {
 
   makeProjectile(x,z,tint,effect,pattern) {
     const disc=pattern==='coins';
-    const dart=new T.Mesh(disc?this.coinShape:this.projectileShape,new T.MeshBasicMaterial({color:tint}));
-    dart.userData={disc,tail:effect==='ice'||pattern==='feathers'};
-    if (dart.userData.tail) dart.scale.set(2.7,.64,.61);
+    const profile=disc?null:projectileProfiles[pattern==='feathers'?'feather':effect];
+    const geometry=disc?this.coinShape:profile?.shape??this.projectileShape;
+    const dart=new T.Mesh(geometry,new T.MeshStandardMaterial({
+      color:tint,emissive:tint,emissiveIntensity:disc?.39:.56,metalness:disc?.57:.16,roughness:disc?.33:.44,
+    }));
+    dart.userData={disc,tail:Boolean(profile)};
+    if(profile)dart.scale.set(profile.stretch,profile.width,profile.width);
     const glow=new T.Sprite(new T.SpriteMaterial({map:this.halo,color:tint,opacity:.83,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
-    glow.scale.set(.92,.92,1);
+    glow.scale.setScalar(profile?.glow??.89);
     dart.add(glow);
     if (dart.userData.tail) {
       const trail=new T.Mesh(this.motion.jet,new T.MeshBasicMaterial({color:tint,side:T.DoubleSide,
         transparent:true,depthWrite:false,opacity:.42,blending:T.AdditiveBlending}));
-      trail.position.set(-.74,.03,0);
-      trail.scale.set(.77,.74,1.18);
+      trail.position.set(-.54,.03,0);
+      trail.scale.set(.61,.65,1.11);
       dart.add(trail);
     }
     this.scene.add(dart);
@@ -1523,6 +1573,7 @@ export class Scenery {
   moveProjectile(dart,x,z,direction=0) {
     dart.position.set(x,.57,z);
     dart.rotation.y=dart.userData.tail?-direction:this.time*(dart.userData.disc?14:7.4);
+    if(dart.userData.tail)dart.rotation.x=Math.sin(this.time*8+x*.81)*.22;
   }
 
   removeProjectile(dart) {

@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {paintedFinish} from './painted-finish.mjs?v=practice-1';
+import {paintedFinish} from './painted-finish.mjs?v=nightforge-1';
 
 const palette={bone:0xe9cabb,porcelain:0xf0ddd0,iron:0x453b43,brass:0x92714e,dusk:0x2f263a,blood:0x8f263d,wax:0xc99068,ice:0x4c8a8a};
 const models=new Map();

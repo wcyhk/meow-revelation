@@ -55,6 +55,8 @@ export class TsathogguaMouth {
     slot.art.root.scale.setScalar(scale);
     slot.art.root.visible=true;
     poseMaw(slot.art,0,0,-victim.z/scale);
+    this.view.spellAccent(slot.art.root.position,{action:'blink',element:'blood',tint:0xb82a4d,radius:1.74*scale,
+      seed:30,power:.78});
     this.view.spark(enemy.x,.12,enemy.z,0xa62042,7,.69,'void');
     this.view.elementBurst(enemy.x,.20,enemy.z,0xb82a4d,'blood',10,.91);
     game.audio.play('maw-open');

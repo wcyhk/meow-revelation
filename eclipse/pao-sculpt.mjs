@@ -85,8 +85,12 @@ export function sculptPao(k){
     geometry.applyMatrix4(matrix);
     collect(part,finish,geometry);
   }
-  function finish(){
+  function finish(merge){
     for(const [part,finishes] of joints)for(const [finish,pieces] of finishes){
+      if(merge){
+        for(const piece of pieces)merge(part,finish,piece);
+        continue;
+      }
       const geometry=new T.BufferGeometry();
       for(const [name,size] of [['position',3],['normal',3],['uv',2]]){
         const values=new Float32Array(pieces.reduce((sum,piece)=>sum+piece.attributes[name].array.length,0));

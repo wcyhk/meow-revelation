@@ -1,13 +1,13 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=forgelight-4';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=nightforge-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
-import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-geometry-1';
+import {MotionArt} from './motion-art.mjs?v=nightforge-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=nightforge-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
-import {lightPaoDisplay} from './pao-materials.mjs?v=pao-geometry-1';
+import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
 import {paoForms} from './pao-model.mjs?v=pao-geometry-1';
 
 function node(tag,kind,text){
@@ -76,11 +76,11 @@ export class WeaponViewer {
     this.zoomTools=node('div','model-zoom');
     this.zoomOut=button('−',()=>this.zoom(1/1.18));
     this.zoomIn=button('＋',()=>this.zoom(1.18));
-    this.zoomOut.setAttribute('aria-label','縮小頭目模型');
-    this.zoomIn.setAttribute('aria-label','放大頭目模型');
+    this.zoomOut.setAttribute('aria-label','縮小模型');
+    this.zoomIn.setAttribute('aria-label','放大模型');
     this.zoomTools.append(this.zoomOut,this.zoomIn);
-    this.viewAngles=node('div','pao-view-angles');
-    this.viewAngles.setAttribute('aria-label','破奧模型角度');
+    this.viewAngles=node('div','model-view-angles');
+    this.viewAngles.setAttribute('aria-label','模型角度');
     this.viewAngles.setAttribute('role','group');
     for(const [key,label,angle] of [['front','正面',-.47],['side','側面',1.10],['back','背面',2.68]]){
       const control=button(label,()=>{
@@ -342,7 +342,7 @@ export class WeaponViewer {
     if(this.renderer.getPixelRatio()!==pixelRatio)this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width,height,false);
     const pao=paoForms.has(this.boss?.bestiary?.id);
-    this.viewAngles.hidden=!pao||this.mode!=='model';
+    this.viewAngles.hidden=this.mode!=='model';
     fit(inspectCamera,width,height,pao?2.03:2.30,pao?1.98:2.24);
     const arena=['phase','drill'].includes(this.mode);
     const battleWidth=arena?23:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
@@ -390,13 +390,13 @@ export class WeaponViewer {
     this.setActive(this.inspect);
     this.hint.textContent='拖動旋轉';
     this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
-    this.zoomTools.hidden=!this.boss;
+    this.zoomTools.hidden=false;
     this.drillTools.hidden=true;
     this.detail.textContent=this.description;
     this.scene=new T.Scene();
     const pao=paoForms.has(this.boss?.bestiary?.id);
     if(pao)lightPaoDisplay(this.scene);
-    else armLighting(this.scene,Boolean(this.boss));
+    else armLighting(this.scene);
     const pivot=new T.Group();
     this.model=pivot;
     let item;
@@ -405,11 +405,11 @@ export class WeaponViewer {
       const actor={phase:0,move:0,face:1,spec:this.boss};
       poseBestiary(this.bossRig,actor,{phase:0},0,0,0);
       item=this.bossRig.root;
-      if(pao)this.displayActor=actor;
+      this.displayActor=actor;
     }else item=forge(this.weapon);
     const bounds=new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
-    if(pao){
+    if(this.boss){
       const origin=new T.Group();
       origin.position.copy(bounds.getCenter(new T.Vector3())).negate();
       origin.add(item);
@@ -528,6 +528,7 @@ export class WeaponViewer {
     this.clearScene();
     this.mode=kind;
     this.stage.dataset.preview=kind;
+    this.zoomTools.hidden=true;
     this.setActive(kind==='combo'?this.combo:this.skill);
     const view=this.makeStage();
     this.practice=this.makePractice(view,this.weapon,kind);

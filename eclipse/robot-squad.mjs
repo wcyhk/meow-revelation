@@ -217,6 +217,7 @@ export class RobotSquad {
     rocket.mesh.visible=rocket.trail.visible=false;
     const {x,z}=point;
     const config=models[0];
+    game.view.spellAccent(point,{action:'spikes',element:'fire',tint:config.tint,radius:1.83,seed:71,power:.89});
     game.view.shock(x,z,config.tint,1.62,.72);
     game.view.elementBurst(x,.24,z,0xff9162,'fire',15,1.10);
     game.audio.play('robot-impact');

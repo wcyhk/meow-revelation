@@ -43,6 +43,8 @@ function textures(){
   return maps;
 }
 
+export const forgeEnvironment=()=>textures().env;
+
 export function paoMaterials(awakened,palette){
   const {env,bump}=textures();
   const metal=(color,metalness,roughness,patina)=>weather(new T.MeshPhysicalMaterial({

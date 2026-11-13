@@ -1,8 +1,10 @@
 import * as T from '../three.min.mjs';
-import {paintedFinish} from './painted-finish.mjs?v=practice-1';
+import {paintedFinish} from './painted-finish.mjs?v=nightforge-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-geometry-1';
-import {paoMaterials} from './pao-materials.mjs?v=pao-geometry-1';
+import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
+import {creatureFace,detailCreature,poseCreatureDetail,creatureAura} from './creature-detail.mjs?v=nightforge-1';
+import {sculptPao} from './pao-sculpt.mjs?v=nightforge-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -116,6 +118,7 @@ function buildMaterials(entry){
   const finish=entry.finish==='wood'?'hide':entry.finish;
   const surface=(color,metalness,roughness,finish)=>paintedFinish(new T.MeshStandardMaterial({
     color,metalness,roughness,bumpMap:relief(),bumpScale:chitin?.062:.043,emissive:color,emissiveIntensity:.07,
+    envMap:metalness>.24?forgeEnvironment():null,envMapIntensity:metal?.74:.38,
   }),finish);
   const pigment=color=>new T.Color(color).lerp(new T.Color(0x5d5049),.20);
   const trim=new T.Color(edge).lerp(new T.Color(0xb48556),.52);
@@ -139,6 +142,11 @@ function buildMaterials(entry){
 
 function kit(root,materials){
   const lists=new Map();
+  const identity=new T.Matrix4();
+  function geometry(part,finish,geo){
+    if(!lists.has(part))lists.set(part,new Map());
+    lists.get(part).set(geo,{geo,finish,parts:[identity]});
+  }
   function mesh(part,shape,finish,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0){
     const item=new T.Object3D();
     item.position.set(x,y,z);
@@ -180,13 +188,13 @@ function kit(root,materials){
       }
       for(const [finish,batches] of finishes){
         const count=batches.reduce((total,batch)=>{
-          const geo=shapes[batch.shape];
+          const geo=batch.geo??shapes[batch.shape];
           return total+(geo.index?.count??geo.attributes.position.count)*batch.parts.length;
         },0);
         const positions=new Float32Array(count*3), normals=new Float32Array(count*3), uv=new Float32Array(count*2);
         let cursor=0;
         for(const batch of batches){
-          const geo=shapes[batch.shape];
+          const geo=batch.geo??shapes[batch.shape];
           const {position,normal:direction,uv:tex}=geo.attributes;
           for(const transform of batch.parts){
             normalMatrix.getNormalMatrix(transform);
@@ -201,6 +209,7 @@ function kit(root,materials){
               cursor++;
             }
           }
+          batch.geo?.dispose();
         }
         const geo=new T.BufferGeometry();
         geo.setAttribute('position',new T.BufferAttribute(positions,3));
@@ -210,12 +219,12 @@ function kit(root,materials){
       }
     }
   }
-  return {root,mesh,rod,bone,finish,materials};
+  return {root,mesh,rod,bone,finish,geometry,materials};
 }
 
 function face(k,joint,options={}){
   const {mesh,rod}=k;
-  const {snout=.36,broad=.39,horns=2,shell=false,reptile=false}=options;
+  const {snout=.36,broad=.39,horns=2,shell=false,reptile=false,bear=false}=options;
   mesh(joint,'pearl','body',0,.052,0,broad,reptile?.33:.47,.43);
   if(reptile){
     mesh(joint,'scale','body',0,-.101,.35,broad*1.56,.285,snout*3.0,-.40);
@@ -232,10 +241,11 @@ function face(k,joint,options={}){
     mesh(joint,'gem','glow',side*broad*.61,.10,eye,.067,.043,.027,0,0,side*.19);
     rod(joint,'trim',[side*broad*.38,.148,eye+.008],[side*broad*.88,.159,eye-.02],.023);
     mesh(joint,reptile?'scale':'pearl',shell?'edge':'body',side*broad*.79,.025,.218,.17,.25,.45,0,side*.54,side*.34);
-    rod(joint,'edge',[side*broad*.48,-.21,.37],[side*broad*.43,-.41,.43],.085,'horn');
-    if(horns===2)rod(joint,'edge',[side*broad*.68,.34,-.03],[side*(broad+.17),.73,-.11],.15,'horn');
+    if(!bear)rod(joint,'edge',[side*broad*.48,-.21,.37],[side*broad*.43,-.41,.43],.068,'horn');
   }
-  if(horns===1)rod(joint,'edge',[.04,.34,.08],[.02,.83,-.08],.21,'horn');
+  if(horns===1)k.sculpt.sweep(joint,'edge',[[.04,.31,.075,.153],[.008,.46,.09,.125],[-.002,.62,.047,.084],
+    [.043,.81,-.095,.039],[.105,.85,-.194,.004]],{sides:9,steps:14,ridge:.21});
+  creatureFace(k,joint,{snout,broad,reptile,horns,bear});
 }
 
 function blade(k,hand,crest,huge=false){
@@ -316,7 +326,7 @@ function humanoid(k,entry){
     mesh(head,'mantle','body',-.14,.54,.20,.66,.82,.58,.39,0,-.24);
     mesh(head,'scale','deep',0,-.02,.41,.53,.41,.76);
     for(const side of [-1,1])mesh(head,'gem','glow',side*.16,.04,.49,.035,.023,.028);
-  }else face(k,head,{broad:court?.28:width*.62,snout:court?.11:.22,horns:entry.crest==='oni'?1:huge&&entry.id!=='m005'?2:0});
+  }else face(k,head,{broad:court?.28:width*.62,snout:court?.11:.22,horns:entry.crest==='oni'?1:huge&&entry.id!=='m005'?2:0,bear:entry.id==='m005'});
   if(court){
     const train=bone(body,0,.28,-.14);
     mesh(head,'scale','trim',0,.45,.06,.50,.45,1.08,0,0,.06);
@@ -1510,6 +1520,7 @@ export function mountBestiary(scene,entry,height,mobile=false){
   if(entry.source==='kuanglu15')entry={...entry,family:'rider'};
   const root=new T.Group(),materials=buildMaterials(entry);
   const k=kit(root,materials);
+  if(!paoForms.has(entry.id))k.sculpt=sculptPao(k);
   let parts;
   if(paoForms.has(entry.id))parts=buildPao(k,entry,mobile);
   else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
@@ -1534,11 +1545,15 @@ export function mountBestiary(scene,entry,height,mobile=false){
     case 'spider':parts=spider(k,entry.id==='m121');break;
     default:parts=humanoid(k,entry);break;
   }
+  const sculptEntry=entry.id==='m005'?{...entry,family:'ogre'}:entry;
   const dedicatedSilhouette=['m114','m115','m122','m133','m150','m154'].includes(entry.id);
   const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));
+  const detail=parts.pao?null:detailCreature(k,sculptEntry,parts,mobile);
+  k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
+  const aura=detail&&!entry.field?creatureAura(root,box,colors(entry)[3],detail):null;
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
   const width=ratio?T.MathUtils.clamp(Math.sqrt(ratio/.91),.80,1.20):1;
@@ -1547,7 +1562,7 @@ export function mountBestiary(scene,entry,height,mobile=false){
   const pattern=parts.pao?'hover':parts.mount?'gallop':entry.id==='m005'?'slam':entry.crest==='scarab'||entry.id==='m154'?'crawl':
     entry.id==='m106'?'coil':entry.id==='m124'?'duel':['m114','m115','m133','m155'].includes(entry.id)?'hover':poses[entry.family];
   return {root,materials,entry,crest,dimensions,palette:colors(entry),bounce:reference?Math.min(.39,reference[3])*.13:0,
-    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,...parts};
+    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,...parts};
 }
 
 export function poseBestiary(model,unit,spec,time,x,z){
@@ -1619,6 +1634,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.spellHood.rotation.x=wind*.23-strike*.29;
   }
   if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
+  if(model.detail)poseCreatureDetail(model.detail,model,time,beat,wind,strike,travel);
+  model.aura?.pose(time,stage,wind,fall);
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
     for(const [index,shield] of arms.entries()){
@@ -1658,6 +1675,7 @@ const white=new T.Color(0xfff4e0);
 export function removeBestiary(scene,model){
   scene.remove(model.root);
   model.pao?.energy.dispose();
+  model.aura?.dispose();
   model.root.traverse(part=>{if(part.isMesh)part.geometry.dispose();});
   for(const material of Object.values(model.materials))material.dispose();
 }

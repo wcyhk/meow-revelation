@@ -65,6 +65,8 @@ export class BlackGoatEye {
     if(this.lastPulse!==pulse){
       this.lastPulse=pulse;
       const angle=pulse*2.399;
+      if(pulse%2===0)game.view.spellAccent(hero,{action:'ring',element:'void',tint:0x9a5cd8,radius:3.81,
+        seed:pulse,power:.40});
       game.view.elementBurst(hero.x+Math.cos(angle)*1.75,.16,hero.z+Math.sin(angle)*1.75,0x9a5cd8,'void',5,.72,angle);
     }
   }

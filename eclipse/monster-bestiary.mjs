@@ -1,5 +1,5 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=dojo-2';
+import {bestiaryTint} from './bestiary-models.mjs?v=dojo-3';
 
 const patterns={
   serpent:['lance','roots','gravity','sweep'],hydra:['jaws','prison','summon','cross'],

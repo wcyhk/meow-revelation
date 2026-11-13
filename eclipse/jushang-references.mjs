@@ -170,21 +170,31 @@ const clientWeapons={
   'earth-beads':25,'fox-doll':27,'true-seven':29,airavata:30,cannon:58,'nether-box':66,
   'nether-bow':67,'sam-in':71,'nether-sword':73,'nether-halberd':74,stormbow:94,
 };
+const clientRelics={
+  'sky-dragon-staff':3,'treasure-staff':4,'blood-sword':23,'han-spear':41,
+  'kunoichi-claw':59,'sky-halberd':60,'oni-bow':61,'glacier-sword':62,'snow-axe':63,
+  'red-corporal':64,'blue-corporal':65,'wave-wheel':66,'blood-axe':67,'thunder-sword':68,
+  'red-bow':69,'zhurong-axe':82,'ice-talisman':89,snake:92,'emperor-rod':95,'western-rifle':98,
+};
 const clientBosses={
   'trial-jing-light':'gyeongmun_f_l','trial-jing-dark':'gyeongmun_f_d',
   'trial-shang-light':'sangmun_w_l','trial-shang-dark':'sangmun_w_d',
   'trial-kai-light':'gaemun_a_l','trial-kai-dark':'gaemun_a_d',
   m093:'samun_t_l',m094:'samun_t_d',
-  m014:'honma',m015:'redjujak',m022:'whitehyunmu',m106:'madragon',m124:'tiamat',m125:'britra',
+  m001:'mon_snake',m002:'bsnake',m008:'misil_g',m014:'honma',m015:'redjujak',m022:'whitehyunmu',
+  m106:'madragon',m124:'tiamat',m125:'britra',m151:'kinghornet',m155:'eggghost',
 };
 
 export function clientSpriteGuide(weapon,entry){
   if(weapon?.id==='vritra-spear')return {filename:'britra.AGF',note:'弗栗多手持三叉槍'};
+  const relic=clientRelics[weapon?.id];
+  if(relic)return {filename:'rweapon01_i.AGF',frame:relic};
   const frame=clientWeapons[weapon?.id];
   if(frame)return {filename:'weapon01_i.AGF',frame};
   const prefix=clientBosses[entry?.id];
   if(!prefix)return null;
-  if(entry.source==='kuanglu15')return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _m 移動 · _a／_a2 攻擊 · _d 倒地'};
+  if(entry.id==='m151')return {filename:'kinghornet_n.AGF',prefix,note:'_n 待機 · _r 移動 · _a1 攻擊 · _d 倒地'};
+  if(entry.source==='kuanglu15'||entry.id==='m155')return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _m 移動 · _a／_a2 攻擊 · _d 倒地'};
   return {filename:prefix+'.AGF',note:'檔案含多個動作與方向'};
 }
 

@@ -139,7 +139,7 @@ export function spriteReferenceView(){
       canvas.height=164;
       const filename=source.name.toLowerCase();
       const action=hint?.prefix&&filename.startsWith(hint.prefix+'_')?filename.slice(hint.prefix.length+1,-4):null;
-      const actionName={n:'待機',m:'移動',a:'攻擊',a2:'第二招',d:'倒地'}[action];
+      const actionName={n:'待機',m:'移動',r:'移動',a:'攻擊',a1:'攻擊',a2:'第二招',d:'倒地'}[action];
       const grouped=actionName&&action!=='d'&&sequence.count%5===0;
       direction.replaceChildren(...(grouped?['全部方向','方向 1','方向 2','方向 3','方向 4','方向 5']:[]).map((label,index)=>{
         const option=node('option',label);

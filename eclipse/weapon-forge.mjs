@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {designs} from './weapon-designs.mjs?v=dojo-2';
+import {designs} from './weapon-designs.mjs?v=dojo-3';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -133,9 +133,23 @@ function blade(h,guard,edge,fuller) {
       }
     }
   }
-  if(guard==='lightning')inlay([[.03,-.47],[.55,.84],[.16,1.71],[.64,2.79],[.22,3.4],[.81,4.95]],.60,.12,'core',false);
+  if(guard==='lightning'){
+    inlay([[.03,-.47],[.55,.84],[.16,1.71],[.64,2.79],[.22,3.4],[.81,4.95],[.41,6.7],[.94,8.05]],.49,.12,'core',false);
+    for(const side of [-1,1])for(let i=0;i<3;i++){
+      const y=.58+i*2.62;
+      line([[side*.15,y,.53],[side*1.08,y+.53,.41],[side*(1.42+i*.13),y+1.48,.22]],.102,'edge',false);
+    }
+  }
   if(guard==='frost')studs([[-.76,.25],[-.48,2.42],[-.52,4.6],[-.44,6.42]],.2,.6,'core');
-  if(guard==='blood')inlay([[-.45,-1.6],[-.81,.69],[-.68,2.4],[-.82,4.25],[-.55,5.7]],.60,.155,'core');
+  if(guard==='blood'){
+    inlay([[-.45,-1.6],[-.81,.69],[-.68,2.4],[-.82,4.25],[-.55,5.7]],.60,.155,'core');
+    for(let i=0;i<5;i++){
+      const y=1.1+i*1.6;
+      const flame=plate([-.42,-.46,-1.21,.36,.07,1.33,.72,1.54,.54,.23,.96,-.30],
+        i%2?'core':'trim',.15,[-1.65+i*.14,y,.33],.065);
+      flame.rotation.z=.12+i*.16;
+    }
+  }
   if(guard==='nether'){
     inlay([[.09,-1.60],[-.21,1.22],[-.03,4.22],[.67,7.07],[2.48,10.16]],.38,.15,'core');
     gem([-1.84,-2.60,.5],.52,'edge',[.61,.85,.90]);
@@ -190,6 +204,7 @@ function pole(h,style,outline) {
       const tassel=plate([0,0,-.79,-1.1,-.58,-2.86,.08,-4.7,.6,-3.59,.61,-1.5],
         'core',.23,[1.7*side,socket-.25,side*.27],.06);
       tassel.rotation.z=-side*.38;
+      line([[side*.39,2.84,.47],[side*1.14,4.15,.58],[side*2.30,5.70,.63],[side*3.02,7.44,.35]],.121,'edge');
     }
   }
   if(style==='wing'){
@@ -203,6 +218,14 @@ function pole(h,style,outline) {
     const crest=style==='red'?[[-.7,3.64],[-.5,5],[-2.22,7.48],[-2.2,9.78]]:[[0,3.43],[-.25,4.9],[-.37,6.29],[-.7,7.66],[-.12,9.89]];
     inlay(crest,.59,.13,'core',false);
     studs([[0,-6.65],[0,-6.1],[0,-5.55]],.14,.44);
+  }
+  if(style==='red'||style==='blue'){
+    for(const side of [-1,1]){
+      const web=style==='red'?[[0,3.3],[.56,5.25],[-.92,7.29],[-1.99,8.61]]
+        :[[.34,3.57],[-.47,5.52],[-.92,6.31],[-.95,8.07]];
+      line(web.map(([x,y])=>[x,y,side*.52]),.105,'edge');
+    }
+    for(const y of [-8.8,-7.4,-5.8,.46,1.38])loop([0,y],.47,.097,'trim','xz',11);
   }
   if(style==='vritra'){
     const wrap=Array.from({length:15},(_,i)=>[Math.cos(i*1.94)*.58,-9.7+i*.83,Math.sin(i*1.94)*.58]);
@@ -218,7 +241,7 @@ function pole(h,style,outline) {
 }
 
 function axe(h,style,outline) {
-  const {handle,grip,plate,gem,loop,studs}=h;
+  const {handle,grip,plate,gem,loop,studs,inlay}=h;
   handle(-8.96,style==='moon'?5.63:6.87,.68);
   grip(-4.4,.71,10,.43);
   plate(outline,'edge',1.04);
@@ -226,6 +249,21 @@ function axe(h,style,outline) {
   gem([0,3.9],1.48,'trim',[1,1.19,.63]);
   gem([0,3.91,.95],style==='sun'?.86:.66,'core',[1,1,.62],1);
   studs(style==='blood'?[[-4.15,2.4],[-3.57,3.0],[-2.91,3.67]]:[[-3.15,4.49],[-2.41,4.38],[-1.68,4.21]],.2,.62,'trim');
+  if(style==='moon')inlay([[-5.62,2.80],[-5.98,4.59],[-5.28,6.18],[-3.95,7.05]],.36,.17,'edge');
+  if(style==='sun'){
+    for(let tooth=0;tooth<5;tooth++){
+      const angle=(tooth-2)*.62;
+      const toothMesh=plate([-.55,-.28,-.46,.56,.08,1.29,.56,.41,.39,-.27],'trim',.48,
+        [Math.sin(angle)*2.42,4.66+Math.cos(angle)*1.58,.35],.07);
+      toothMesh.rotation.z=-angle;
+    }
+  }
+  if(style==='blood')for(const side of [-1,1]){
+      for(let tooth=0;tooth<3;tooth++){
+        plate([-.51,-.48,-.21,1.12,.72,1.53,.58,.38,.31,-.51],'edge',.37,
+          [-1.81+tooth*1.20,4.08+tooth*.55,side*.66],.08).rotation.z=-.36+tooth*.24;
+      }
+  }
   loop([0,-8.81],.74,.19,'edge','xz',10);
 }
 
@@ -252,6 +290,10 @@ function wheel(h,radius,teeth,style,center) {
     if(style==='wave'){
       loop([0,0,side*.67],radius-1.34,.17,'core').rotation.set(side*.24,side*.32,.26);
       loop([0,0,side*.53],radius+.55,.115,'trim','xy',24,PI*1.3).rotation.z=side*1.49;
+      for(let i=0;i<3;i++){
+        const angle=side*.22+i*TAU/3;
+        loop([0,0,side*.40],radius+.30+i*.12,.115,'core','xy',16,PI*.51).rotation.z=angle;
+      }
     }
   }
   if(center==='hub'){
@@ -263,6 +305,7 @@ function wheel(h,radius,teeth,style,center) {
       const angle=i*PI/2;
       segment([Math.sin(angle)*1.2,Math.cos(angle)*1.2],[Math.sin(angle)*radius,Math.cos(angle)*radius],.22,'trim');
     }
+    for(const side of [-1,1])loop([0,0,side*.78],.66,.079,'edge','xy',15);
   }
   const flanges={
     sun:[-.5,-.2,-.36,.73,.35,1.8,.67,.51,.43,-.24],
@@ -298,8 +341,10 @@ function staff(h,style) {
       line([[0,3.1,side*.35],[side*.76,4.6,side*.57],[side*.75,6.9,side*.53],[0,8.5,side*.4]],.24,'core');
     }
     for(const y of [-10,9.1])gem([0,y],.90,'edge',[.79,1.29,.79],1);
+    for(const y of [-9.65,-8.45,-6.68,5.1,6.7,8.02])loop([0,y],.57,.115,'edge','xz',13);
   }else if(style==='treasure'){
     segment([0,-7.18],[0,6.2],.47,'body',.49);
+    segment([0,-2.0],[0,3.26],.505,'core',.47);
     for(const y of [-10.5,8.83]){
       gem([0,y],.87,'core',[1,1.05,1],1);
       for(const d of [-.56,.56])loop([0,y+d],.52,.18,'trim','xz',12);
@@ -311,6 +356,7 @@ function staff(h,style) {
       const angle=i*TAU/7;
       gem([Math.cos(angle)*1.73,8.67,Math.sin(angle)*1.73],.53,i%2?'edge':'core');
     }
+    for(const y of [-9.9,-8.86,6.09,6.84])loop([0,y],.61,.14,'edge','xz',12);
     for(const y of [8.42,9.41])loop([0,y],1.93,.11,'dark','xz');
     gem([0,11.03],.76,'core',[1,1.16,1]);
     gem([0,-10.72],1.08,'trim');
@@ -507,6 +553,14 @@ function bow(h,limb,style){
         fittings.push(spike);
       }
     }
+    if(style==='red'||style==='oni'){
+      const bareHorn=style==='red'?[[-3.27,y,.18],[-4.76,y+side*.85,.37],[-4.15,y+side*2.15,.43]]
+        :[[-3.27,y,.18],[-4.68,y+side*1.05,.23],[-4.52,y+side*1.84,.63]];
+      const horn=line(bareHorn,style==='red'?.25:.148,style==='red'?'edge':'trim');
+      horn.geometry.translate(0,-y*s,0);
+      horn.position.y=y*s;
+      fittings.push(horn);
+    }
   }
   for(const y of [-.8,-.35,.35,.8])loop([-1.86,y],.54,.10,'trim','xz',12);
   const string=[-1,1].map(()=>h.add(new T.CylinderGeometry(.0105,.0105,1,5),'edge'));
@@ -599,7 +653,7 @@ function crossbow(h,style){
 }
 
 function gun(h,cannon){
-  const {plate,loop,lathe,segment,studs,box,gem}=h;
+  const {plate,loop,lathe,segment,studs,box,gem,line}=h;
   h.root.userData.launch={tip:[0,cannon?.838:.944,0]};
   if(cannon){
     lathe([[.04,-3.8],[1.28,-3.58],[1.62,-2.58],[1.51,-.3],[1.55,3.7],[1.98,6.43],[2.48,7.2],
@@ -627,6 +681,13 @@ function gun(h,cannon){
     loop([.83,-2.58,.01],.90,.13,'trim').scale.y=1.15;
     box([1.45,-7.59,0],[1.81,.34,1.25],'trim').rotation.z=.20;
     studs([[.42,-1.45],[.37,-.92],[.64,-5.36],[.7,-6.21]],.15,.64,'edge');
+    for(const side of [-1,1]){
+      plate([.17,.80,.55,1.06,.71,.36,.49,-.54,.20,-.73,-.07,-.29],'trim',.29,[.82,-2.40,side*.70],.07);
+      for(let seam=0;seam<3;seam++){
+        const y=-7.14+seam*.62;
+        line([[1.21,y-.13,side*.66],[1.62,y+.14,side*.68],[1.82,y+.54,side*.48]],.061,'edge');
+      }
+    }
   }
 }
 function beak(h){
@@ -699,6 +760,9 @@ function claw(h,style) {
     plate([-1.09,-3.12,-1.48,-.91,-1.76,.63,-4.58,.45,-5.76,1.48,-3.89,2.96,-2.84,5.26,-1.74,3.42,.19,3.26,2.6,6.61,2.59,3.52,5.41,2.47,3.14,1.22,2.32,-.42,1.18,-1.51,.58,-3.45],'edge',.82);
     plate([-1.2,-1.77,-.82,2.65,2.15,3.12,2.7,1.52,1.09,-.41,.29,-2.09],'body',1.04);
     gem([.7,1.81,.8],.71,'core',[1,1,.54],1);
+    for(const side of [-1,1]){
+      line([[.38,.69,side*.54],[.04,1.79,side*.59],[1.56,2.93,side*.49],[2.53,4.86,side*.32]],.105,'trim',false);
+    }
     loop([0,-1.72],1.15,.24,'trim','xz',12);
     return;
   }
@@ -740,6 +804,10 @@ function seal(h) {
       gem([x*4.21,y*4.21,side*.55],.20,'trim',[1,1,.48]);
     }
     gem([0,0,side*.56],1.26,'core',[1,1,.34],1);
+    for(let tooth=0;tooth<12;tooth++){
+      const angle=tooth*TAU/12;
+      gem([Math.sin(angle)*4.31,Math.cos(angle)*4.31,side*.54],.135,'edge',[1,.72,.50]);
+    }
   }
 }
 
@@ -752,6 +820,10 @@ function snake(h) {
   head.rotation.z=.18;
   gem([-1.89,6.72,.78],.20,'core');
   gem([-1.89,6.72,-.42],.20,'core');
+  for(let i=0;i<6;i++){
+    const y=.86+i*.72,z=.53+Math.cos(i*.42)*.19;
+    gem([.20+Math.sin(i*.33)*.13,y,z],.26,'trim',[.83,1.16,.36]);
+  }
   line([[-2.37,6.31,.18],[-2.86,6.11,.18],[-3.08,5.87,.31]],.10,'core');
 }
 

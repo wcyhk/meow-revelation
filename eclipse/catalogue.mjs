@@ -59,10 +59,9 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
   quickFind(weaponCard,arm,weapons.map(weapon=>weapon.skill+' '+weapon.role),'搜尋神器或技能');
   const enemyDetails=element('div','practice-pick-detail');
   const weakness=element('p');
-  const bossInspect=element('button','secondary','原圖／3D');
+  const bossInspect=element('button','secondary','預覽頭目');
   bossInspect.type='button';
   bossInspect.dataset.preview='boss';
-  bossInspect.setAttribute('aria-label','查看敵人原圖同 3D 預覽');
   bossInspect.addEventListener('click',()=>previewBoss(draft.boss));
   enemyDetails.append(weakness,bossInspect);
   enemyCard.append(enemyDetails);
@@ -85,10 +84,9 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
   const icon=element('img');
   icon.alt='';
   const details=element('p');
-  const inspect=element('button','secondary','原圖／3D');
+  const inspect=element('button','secondary','預覽神器');
   inspect.type='button';
   inspect.dataset.preview='weapon';
-  inspect.setAttribute('aria-label','查看神器原圖同 3D 預覽');
   inspect.addEventListener('click',()=>previewWeapon(draft.weapon));
   shown.append(icon,details,inspect);
   weaponCard.append(shown);

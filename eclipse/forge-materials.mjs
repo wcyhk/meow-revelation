@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
+import {KoreanWeaponColors} from './korean-art.mjs?v=forgelight-1';
 
 const surfaces={};
 const palettes={
@@ -81,19 +82,25 @@ const lacquer=new Set(['frostlute','treasure-staff','red-bow','venom-cane','bat-
 export function forgedMaterials(weapon) {
   const {id}=weapon;
   const [dark,trim,edge,body,core]=palettes[id].split(' ').map(hex=>Number.parseInt(hex,16));
-  function material(color,kind,metalness,roughness,emissiveIntensity=0){
+  const sample=KoreanWeaponColors[id];
+  const referenceColor=(original,index,weight)=>sample?
+    new T.Color(original).lerp(new T.Color(sample[index]),weight).getHex():original;
+  const chipped=bone.has(id),gem=crystal.has(id);
+  function material(color,kind,metalness,roughness,emissiveIntensity=0,bronze=false){
     const map=surfaces[kind]??=surface(kind);
     const paint={wood:'hide',cloth:'cloth',metal:'iron',bone:'bone',stone:'stone',crystal:'gem'};
-    const finish=kind==='metal'&&color===trim?'bronze':paint[kind];
-    return paintedFinish(new T.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==='wood'?.037:.024,metalness,roughness,
+    const finish=bronze?'bronze':paint[kind];
+    const shaded=paintedFinish(new T.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==='wood'?.037:.024,metalness,roughness,
       emissive:color,emissiveIntensity}),finish);
+    shaded.userData.restGlow=emissiveIntensity;
+    return shaded;
   }
   return {
     dark:material(dark,cloth.has(id)?'cloth':'wood',.12,.79),
-    trim:material(trim,'metal',.48,.43,.035),
-    edge:material(edge,bone.has(id)?'bone':'metal',bone.has(id)?.16:.50,bone.has(id)?.60:.36,.035),
-    body:material(body,crystal.has(id)?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
-      crystal.has(id)?.25:.34,lacquer.has(id)?.38:.59,.075),
-    core:material(core,crystal.has(id)?'crystal':'stone',.15,.38,crystal.has(id)?.48:.25),
+    trim:material(referenceColor(trim,2,.43),'metal',.58,.36,.035,true),
+    edge:material(referenceColor(edge,0,.63),chipped?'bone':'metal',chipped?.16:.62,chipped?.60:.30,.046),
+    body:material(referenceColor(body,1,.64),gem?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
+      gem?.29:.38,lacquer.has(id)?.38:.54,.075),
+    core:material(core,gem?'crystal':'stone',.15,.34,gem?.55:.26),
   };
 }

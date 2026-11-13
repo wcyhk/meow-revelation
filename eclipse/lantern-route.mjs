@@ -1,3 +1,5 @@
+import {forestVariant} from './forest-models.mjs?v=cast-1';
+
 export const roomBounds={minX:-14.7,maxX:14.7,minZ:-15.9,maxZ:13.0};
 
 export function lanternRadius(stage) {
@@ -55,6 +57,7 @@ export function twinSpec(stage) {
   const twin=twins[stage.floor];
   if(!twin||(stage.floor===75&&stage.difficulty?.id!=='abyss'))return null;
   const mode=stage.difficulty;
-  return {...twin,secondary:true,hp:Math.round((490+stage.floor*5.2)*(mode?.hp??1)),height:3.20,speed:2.52*Math.sqrt(mode?.pace??1),
+  return {...twin,model:forestVariant(twin.frame,twin.name,twin.effigy,twin.tint),secondary:true,
+    hp:Math.round((490+stage.floor*5.2)*(mode?.hp??1)),height:3.20,speed:2.52*Math.sqrt(mode?.pace??1),
     reach:5.12,radius:2.18,time:1.15/Math.sqrt(mode?.pace??1),hurt:(16+stage.floor*.19)*(mode?.damage??1),mass:4.0,phases:[.45]};
 }

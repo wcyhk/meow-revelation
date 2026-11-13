@@ -1,5 +1,6 @@
 import {stages as originalStory} from './campaign.mjs?v=clock-1';
 import {planObjective} from './objectives.mjs?v=bestiary-1';
+import {forestModel} from './forest-models.mjs?v=cast-1';
 import {chapterAttacks, enemies, regionalEnemies, wardens} from './bestiary.mjs?v=nightfall-1';
 
 const districts = [
@@ -172,7 +173,7 @@ export function enemySpec(stage, kind) {
     const {chapter,chapterBoss,guardian}=stage;
     const mode=stage.difficulty;
     return {
-      ...guardian, height:chapterBoss?(chapter===9?5.9:4.6+chapter*.10):3.7+chapter*.12,
+      ...guardian, model:forestModel(kind,guardian.frame), height:chapterBoss?(chapter===9?5.9:4.6+chapter*.10):3.7+chapter*.12,
       hp:Math.round((chapterBoss?540+chapter*210:320+chapter*142)*(mode?.hp??1)), speed:(2.43+chapter*.13)*Math.sqrt(mode?.pace??1), reach:6+chapter*.18,
       radius:(chapterBoss?2.85:2.42)+chapter*.12, time:(1.08-chapter*.022)/Math.sqrt(mode?.pace??1), hurt:((chapterBoss?23:18)+chapter*3.2)*(mode?.damage??1),
       mass:4.7+chapter*.28, phases:chapterBoss&&chapter>=2?[.58,.25]:[.54],
@@ -180,7 +181,7 @@ export function enemySpec(stage, kind) {
   }
   const type = enemies[kind];
   return {
-    ...type, hp:Math.round(type.hp*stage.pressure), speed:type.speed*Math.sqrt(stage.pace),
+    ...type, model:forestModel(kind), hp:Math.round(type.hp*stage.pressure), speed:type.speed*Math.sqrt(stage.pace),
     time:type.time/stage.pace, hurt:Math.round(type.hurt*stage.damage), radius:type.radius*(1+stage.room*.025),
   };
 }

@@ -20,6 +20,7 @@ export function actorMotion(unit,dt,time,isHero=false){
   const running=valid?clamp(distance/dt/((spec?.speed??5)*.83),0,1):0;
   motion.speed+=(running-motion.speed)*(1-Math.exp(-dt*(running>motion.speed?15:11)));
   if(valid) motion.phase=(motion.phase+distance/profile.stride*TAU)%TAU;
+  if(valid&&distance>.008)motion.heading=Math.atan2(dx,dz);
   if(unit.face!==motion.face)motion.turn=1;
   motion.face=unit.face;
   motion.turn*=Math.exp(-dt*14);
@@ -31,7 +32,7 @@ export function actorMotion(unit,dt,time,isHero=false){
   const flinch=unit.reaction?Math.exp(-unit.reaction.age*10)*Math.sin(unit.reaction.age*33):0;
   const idle=Math.sin(time*3.1+(unit.phase??0));
   return {
-    step,weight,phase:motion.phase,foot:Math.floor(motion.phase/Math.PI),
+    step,weight,phase:motion.phase,heading:motion.heading,foot:Math.floor(motion.phase/Math.PI),
     swing:step*profile.swing*weight,footLift:Math.cos(motion.phase)*profile.lift*weight,
     lag:Math.sin(motion.phase-.9)*weight*.042*profile.swingRate+idle*.009+flinch*.025,
     bob:profile.bounce*weight*(1-plant*.82)+(spec?.float??0)*(1.35+idle*.48),

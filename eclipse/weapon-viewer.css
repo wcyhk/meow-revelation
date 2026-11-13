@@ -23,7 +23,13 @@
   content:"";position:absolute;inset:15px;border:1px solid color-mix(in srgb,var(--preview-ink) 36%,transparent);
   mask-image:radial-gradient(ellipse,transparent 59%,#000 99%);pointer-events:none;
 }
+.weapon-viewer-stage[data-preview=model]::after {
+  content:"";position:absolute;left:12%;right:12%;bottom:13%;height:14%;
+  background:radial-gradient(ellipse, color-mix(in srgb,var(--preview-ink) 21%,transparent),transparent 67%);
+  opacity:.67;pointer-events:none;z-index:0;
+}
 .weapon-viewer-comparison {display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);align-items:stretch}
+.weapon-viewer-comparison:has(.sprite-reference[hidden]) {grid-template-columns:minmax(0,1fr)}
 .sprite-reference {display:grid;grid-template-rows:auto minmax(68px,1fr) auto auto auto auto;gap:4px;min-width:0;padding:8px;
   border-block:1px solid #a07e624f;border-left:1px solid #a07e624f;background:#1b1621;color:#efdfc7}
 .sprite-reference h3 {margin:0;font:800 13px/1.35 var(--serif);color:#f1cd9f}
@@ -49,11 +55,11 @@
 .weapon-viewer-comparison:has(.weapon-viewer-stage:is([data-preview=phase],[data-preview=drill])) .sprite-reference {
   display:none;
 }
-.weapon-viewer-canvas {display:block;width:100%;height:100%;touch-action:none}
+.weapon-viewer-canvas {position:relative;z-index:1;display:block;width:100%;height:100%;touch-action:none}
 .weapon-viewer-stage[data-preview=model] canvas {cursor:grab}
 .weapon-viewer-stage[data-preview=model] canvas:active {cursor:grabbing}
 .weapon-viewer-fallback {position:absolute;inset:6% 8%;width:84%;height:88%;object-fit:contain}
-.weapon-viewer-hint {position:absolute;bottom:9px;left:0;right:0;margin:0;text-align:center;pointer-events:none;color:#cfbda9;font-size:12px}
+.weapon-viewer-hint {position:absolute;z-index:2;bottom:9px;left:0;right:0;margin:0;text-align:center;pointer-events:none;color:#cfbda9;font-size:12px}
 .weapon-viewer-tools {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:12px 20px 0}
 .weapon-viewer-tools button {padding:6px 4px;font-size:12px;min-width:0}
 .weapon-viewer-tools button[aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
@@ -88,7 +94,7 @@
   .weapon-viewer-tools {padding-top:6px}
 }
 #modal[data-kind=practice-loadout] {z-index:11}
-.model-zoom {position:absolute;top:11px;right:12px;display:flex;gap:5px}
+.model-zoom {position:absolute;z-index:2;top:11px;right:12px;display:flex;gap:5px}
 .model-zoom .secondary {width:44px;min-height:44px;padding:0;background:#201827db;font-size:18px}
 .model-zoom .secondary:disabled {opacity:.55}
 .boss-preview-attacks {
@@ -117,7 +123,7 @@
   padding:5px 10px;border:1px solid #705c54;border-radius:3px;background:#15121ae8;color:#f3dfc4;
 }
 .weapon-viewer-stage.counter-success .weapon-viewer-hint {color:#c1f6e0;border-color:#84cabb;background:#16362fe8}
-.counter-drill-tools {position:absolute;display:flex;gap:6px;right:10px;bottom:10px}
+.counter-drill-tools {position:absolute;z-index:2;display:flex;gap:6px;right:10px;bottom:10px}
 .counter-drill-tools .secondary {min-height:44px;padding:7px 10px;background:#271f2cee;font-size:12px}
 #modal[data-kind=practice-loadout] .panel {display:flex;flex-direction:column;width:min(760px,100%);overflow:hidden;
   background:radial-gradient(ellipse at 50% 0,#412e39,#1b1923 74%)}

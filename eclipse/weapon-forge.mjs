@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {designs} from './weapon-designs.mjs?v=dojo-3';
+import {designs} from './weapon-designs.mjs?v=forgelight-1';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -661,14 +661,18 @@ function gun(h,cannon){
     for(const [y,r] of [[-2.53,1.64],[-1.12,1.55],[.19,1.54],[4.36,1.70],[6.48,2.00],[7.7,2.50]]){
       loop([0,y],r,.16,y>6?'edge':'trim','xz',16);
     }
-    plate([-.38,-1.47,2.04,-2.01,3.4,-3.47,2.73,-5.18,1.37,-5.79,1.01,-3.98,-.22,-3.64],'dark',1.42);
-    plate([1.26,-2.38,2.62,-3.53,2.37,-4.53,1.61,-4.72,1.14,-3.49],'trim',1.65);
+    plate([-.37,-3.55,.33,-3.90,1.90,-2.71,2.58,4.59,1.63,4.00,1.03,-.38,-.33,-1.26],'dark',2.65);
     studs([[0,1.6],[0,2.46],[0,3.34]],.27,1.48,'core');
     gem([0,5.84,1.59],.45,'core',[1,1,.55]);
     for(const side of [-1,1]){
-      loop([side*1.66,-.38,.26],.87,.15,'trim','yz',15).scale.y=.80;
-      plate([-.58,.17,.61,.17,.49,-1.46,-.18,-2.31,-.68,-1.73],'dark',
-        .38,[side*1.35,-.2,.94],.095).rotation.z=-side*.18;
+      const hub=[2.11,4.13,side*1.59];
+      loop(hub,1.10,.205,'body','xy',14);
+      loop([hub[0],hub[1],side*1.78],1.06,.105,'edge','xy',14);
+      gem(hub,.31,'trim',[1,1,.87]);
+      for(let spoke=0;spoke<5;spoke++){
+        const angle=spoke*TAU/5;
+        segment(hub,[hub[0]+Math.cos(angle),hub[1]+Math.sin(angle),hub[2]],.098,'trim');
+      }
     }
   }else{
     plate([.55,6.55,1.06,5.03,1.05,1.38,1.42,-.68,1.59,-2.19,1.38,-3.65,
@@ -803,7 +807,16 @@ function seal(h) {
       line([[x*3.08-y*.2,y*3.08+x*.2,side*.64],[x*2.67,y*2.67,side*.64],[x*3.08+y*.21,y*3.08-x*.21,side*.64]],.125,'edge',false);
       gem([x*4.21,y*4.21,side*.55],.20,'trim',[1,1,.48]);
     }
-    gem([0,0,side*.56],1.26,'core',[1,1,.34],1);
+    for(let turn=0;turn<4;turn++){
+      const radius=1.00+turn*.74;
+      loop([0,0,side*.59],radius,.091,'core','xy',26,PI*1.85).rotation.z=turn*.79;
+    }
+    for(let stroke=0;stroke<8;stroke++){
+      const angle=stroke*TAU/8;
+      const x=Math.cos(angle),y=Math.sin(angle);
+      line([[x*.32,y*.32,side*.62],[x*1.12,y*1.12,side*.62],
+        [x*1.27-y*.26,y*1.27+x*.26,side*.62]],.085,'core',false);
+    }
     for(let tooth=0;tooth<12;tooth++){
       const angle=tooth*TAU/12;
       gem([Math.sin(angle)*4.31,Math.cos(angle)*4.31,side*.54],.135,'edge',[1,.72,.50]);
@@ -829,20 +842,22 @@ function snake(h) {
 
 function box(h) {
   const {plate,loop,gem,box,line}=h;
-  plate([-2.88,-3.99,-3.48,-1.8,-3.15,2.75,-2.64,4.96,0,6.02,2.63,4.91,3.16,2.68,3.46,-1.87,2.82,-3.94,0,-4.36],'trim',2.22);
-  plate([-2.72,-3.14,-2.91,-1.58,-2.66,2.71,-2.12,4.3,0,5.35,2.12,4.33,2.68,2.66,2.91,-1.51,2.63,-3.16,0,-3.5],'body',2.48);
+  const frame=[0,-5.64,-1.81,-3.63,-2.68,-1.46,-2.62,2.44,-1.87,4.63,0,6.31,1.87,4.63,2.62,2.44,2.68,-1.46,1.81,-3.63];
+  plate(frame,'trim',1.92);
+  plate(frame.map((value,index)=>value*(index%2?.86:.79)),'body',2.19);
   for(const side of [-1,1]){
-    const eye=loop([0,1.22,side*1.43],2.0,.27,'edge','xy',20);
-    eye.scale.y=1.40;
-    gem([0,1.25,side*1.51],1.35,'core',[.87,1.30,.47],1);
+    plate([0,-2.39,-1.11,-.89,-1.64,.95,-1.26,3.23,0,4.59,1.26,3.23,1.64,.95,1.11,-.89],
+      'edge',.47,[0,0,side*.94],.12);
+    plate([0,-1.77,-.76,-.47,-1.11,1.02,-.91,2.92,0,3.93,.91,2.92,1.11,1.02,.76,-.47],
+      'core',.43,[0,0,side*1.16],.15);
     for(let tooth=0;tooth<10;tooth++){
       const angle=tooth*TAU/10;
-      const pin=gem([Math.sin(angle)*2.22,1.23+Math.cos(angle)*3.03,side*1.60],.29,'edge',[.54,1.57,.67]);
+      const pin=gem([Math.sin(angle)*2.41,1.23+Math.cos(angle)*3.72,side*.99],.31,'edge',[.54,1.57,.67]);
       pin.rotation.z=-angle;
     }
     for(const x of [-3.17,3.17]){
-      box([x,.69,side*1.43],[.42,3.13,.36],'trim');
-      line([[x*.82,-2.44,side*1.43],[x*.56,-3.7,side*1.35],[x*.52,-5.12,side*.63]],.18,'trim');
+      box([x*.69,.62,side*1.00],[.30,2.84,.39],'trim');
+      line([[x*.66,.11,side*.93],[x*.85,-2.51,side*.86],[x*.88,-5.37,side*.68],[x*.71,-6.64,side*.46]],.28,'trim');
     }
   }
   loop([0,-4.44],.94,.19,'trim','xz',12);
@@ -850,7 +865,7 @@ function box(h) {
 
 function lute(h) {
   const {plate,gem,loop,segment,box,line}=h;
-  const outline=[0,-8.15,-2.82,-7.52,-4.01,-5.38,-3.57,-3.1,-2.11,-1.63,-.98,.52,-.68,5.44,-1.04,7.29,-.40,9.83,.97,9.65,1.39,8.6,.65,6.91,.82,4.66,1.22,-.01,2.22,-1.62,3.62,-3.21,4.09,-5.42,2.94,-7.36];
+  const outline=[0,-8.15,-2.53,-7.52,-3.14,-5.38,-2.58,-3.1,-1.74,-1.63,-.89,.52,-.61,5.44,-1.04,7.29,-.40,9.83,.97,9.65,1.39,8.6,.65,6.91,.76,4.66,1.02,-.01,1.89,-1.62,2.72,-3.21,3.27,-5.42,2.48,-7.36];
   plate(outline,'dark',2.08,[0,0,0],.23);
   plate(outline.map((n,i)=>i%2?n*.95:n*.9),'trim',.87,[0,0,.89],.11);
   const inlay=loop([0,-4.92,1.42],2.15,.16,'edge');
@@ -866,6 +881,11 @@ function lute(h) {
     gem([x*1.57,y,.3],.39,'core');
   }
   box([0,-6.12,1.29],[2.69,.40,.72],'body');
+  for(let band=0;band<4;band++){
+    const y=-4.7+band*2.47;
+    const width=band===0?2.87:1.23-band*.18;
+    line([[-width,y,1.47],[width,y+.83,1.33],[-width,y+1.41,1.25]],.126,'edge',false);
+  }
   for(const side of [-1,1]){
     line([[side*1.19,-7.12,1.35],[side*2.49,-6.51,1.39],[side*2.58,-5.0,1.41],
       [side*1.94,-4.63,1.41],[side*1.49,-5.34,1.41],[side*1.89,-5.82,1.41]],.105,'body');

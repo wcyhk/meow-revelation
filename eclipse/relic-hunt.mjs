@@ -1,3 +1,5 @@
+import {forestVariant} from './forest-models.mjs?v=cast-1';
+
 const frames={light:38,lightning:31,earth:30,ice:32,void:34,fire:33,blood:39,poison:37,wind:36};
 const effigies={'fox-doll':'fox','snow-doll':'wax','oni-bow':'hound','turtle-bow':'coffin',
   'western-rifle':'veil','bat-cane':'veil','snake':'hound',airavata:'elephant',hundun:'eyes',
@@ -47,8 +49,9 @@ export class RelicHunt {
     const mode=game.difficulty;
     const special=['airavata','hundun','qiongqi','taotie','taowu','nether-box','nether-bow','nether-sword','nether-halberd'].includes(weapon.id);
     const attacks=[...new Set([...mark.attacks,secondary[weapon.spell.action],roll%2?'toll':'gravefan'])];
+    const frame=frames[weapon.element];
     const spec={
-      name:mark.name,frame:frames[weapon.element],effigy:effigies[weapon.id],relicWeapon:weapon,
+      name:mark.name,frame,model:forestVariant(frame,weapon.id,effigies[weapon.id],weapon.tone),relicWeapon:weapon,
       hp:Math.round((280+stage.floor*6.3+(special?74:0))*mode.hp),
       height:2.74+(roll%5)*.13,speed:2.5+(roll%4)*.20,reach:5.9+(roll%3)*.51,
       radius:1.90+(roll%4)*.16,time:(1.02+(roll%3)*.065)/Math.sqrt(mode.pace),

@@ -1,18 +1,18 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=dojo-3';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgelight-1';
 import * as T from '../three.min.mjs';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=dojo-3';
-import {pictures, stages} from './expedition.mjs?v=bestiary-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=forgelight-1';
+import {pictures, stages} from './expedition.mjs?v=forgelight-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
 import {makeShade,mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=patina-1';
-import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=patina-1';
+import {backdropSpan as ART_SIZE} from './lantern-route.mjs?v=forgelight-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight,paintedRooms,roomLights} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=dojo-3';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=forgelight-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
@@ -522,13 +522,14 @@ export class Scenery {
   }
 
   prepareBoss(visual,spec) {
-    if(spec.bestiary){
-      visual.bestiary=mountBestiary(this.scene,spec.bestiary,spec.height);
+    const model=spec.bestiary??spec.model;
+    if(model){
+      visual.bestiary=mountBestiary(this.scene,model,spec.height);
       visual.art.visible=false;
-      return;
+    }else{
+      visual.form=nightmareForm(spec);
+      this.scene.add(visual.form);
     }
-    visual.form=nightmareForm(spec);
-    this.scene.add(visual.form);
     if(spec.relicWeapon){
       const weapon=spec.relicWeapon;
       const crest=new T.Mesh(plane,new T.MeshBasicMaterial({map:this.relicTexture(weapon.id),color:weapon.tone,
@@ -931,6 +932,8 @@ export class Scenery {
       visual.weapon.posed=true;
       if (mount?.axis===bowForward) shapeBow(model,grip?.draw??0,grip?.nocked??false);
       const charge=grip?.charge??0;
+      const core=model.userData.finishes.core;
+      core.emissiveIntensity=core.userData.restGlow+charge*.53+(grip?.contact ? .20 : 0);
       glow.material.opacity=.072+charge*.30;
       glow.scale.set(.88+charge*.53,.88+charge*.53,1);
       model.scale.setScalar(profile.scale*(roll?.85:1)*(1-fall*.16));

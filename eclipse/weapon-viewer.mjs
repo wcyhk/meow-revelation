@@ -1,12 +1,12 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=dojo-3';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=forgelight-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=dojo-3';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgelight-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
-import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=dojo-3';
-import {spriteReferenceView} from './sprite-reference-view.mjs?v=dojo-3';
+import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=forgelight-1';
+import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -199,7 +199,7 @@ export class WeaponViewer {
     if(ray.ray.intersectPlane(floor,groundPoint))this.practice.controls.point={x:groundPoint.x,z:groundPoint.z};
   }
 
-  show(weapon,commit,choice='選擇'+weapon.name){
+  show(weapon,commit){
     this.boss=null;
     this.weapon=weapon;
     this.phaseControls?.forEach(control=>control.remove());
@@ -207,8 +207,9 @@ export class WeaponViewer {
     this.attackControls=[];
     this.attacks.replaceChildren();
     this.inspect.textContent='旋轉睇模型';
-    this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice,
-      image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon))});
+    this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice:'選擇'+weapon.name,
+      image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon)),
+      compare:!!commit});
   }
 
   showBoss(dossier,names,makePractice,commit,practice){
@@ -218,7 +219,7 @@ export class WeaponViewer {
     this.weapon=null;
     this.moveNames=names;
     this.makeBossPractice=makePractice;
-    this.inspect.textContent=spec.bestiary?'旋轉睇模型':'睇頭目';
+    this.inspect.textContent=spec.bestiary||spec.model?'旋轉睇模型':'睇頭目';
     this.phaseControls?.forEach(control=>control.remove());
     this.phaseControls=spec.phases.map((_,index)=>{
       const control=button(index===0?'二段變身':'三段變身',()=>this.playBoss({phase:index+1},control));
@@ -250,19 +251,20 @@ export class WeaponViewer {
   get controls(){return [this.inspect,this.combo,this.skill,...this.phaseControls,...this.attackControls,
     ...(this.boss?this.weakness.querySelectorAll('button'):[])];}
 
-  openViewer({title,role,choice,ink,image,description,commit,practice}){
+  openViewer({title,role,choice,ink,image,description,commit,practice,compare=false}){
     this.clear();
     this.commit=commit;
     this.practiceAction=practice;
     this.practiceChoice.hidden=!practice;
     this.description=description;
-    const reference=jushangReference(this.weapon,this.boss?this.dossier.entry:null);
     const entry=this.boss?this.dossier.entry:null;
-    this.spriteReference.setReference(jushangImage(this.weapon,entry),clientSpriteGuide(this.weapon,entry));
+    const reference=compare?jushangReference(this.weapon,entry):null;
+    this.spriteReference.root.hidden=!compare;
+    this.spriteReference.setReference(compare?jushangImage(this.weapon,entry):null,compare?clientSpriteGuide(this.weapon,entry):null);
     this.reference.hidden=!reference;
     if(reference)this.reference.href=reference;
     else this.reference.removeAttribute('href');
-    const korean=koreanTrialReference(this.boss?this.dossier.entry:null);
+    const korean=compare?koreanTrialReference(entry):null;
     this.koreanReference.hidden=!korean;
     if(korean)this.koreanReference.href=korean;
     else this.koreanReference.removeAttribute('href');
@@ -345,7 +347,8 @@ export class WeaponViewer {
   }
 
   showModel(){
-    if(this.boss&&!this.boss.bestiary){this.playBoss({portrait:true},this.inspect);return;}
+    const model=this.boss?.bestiary??this.boss?.model;
+    if(this.boss&&!model){this.playBoss({portrait:true},this.inspect);return;}
     this.clearScene();
     this.mode='model';
     this.stage.dataset.preview='model';
@@ -361,7 +364,7 @@ export class WeaponViewer {
     this.model=pivot;
     let item;
     if(this.boss){
-      this.bossRig=mountBestiary(this.scene,this.boss.bestiary,this.boss.height);
+      this.bossRig=mountBestiary(this.scene,model,this.boss.height);
       poseBestiary(this.bossRig,{phase:0,move:0,face:1,spec:this.boss},{phase:0},0,0,0);
       item=this.bossRig.root;
     }else item=forge(this.weapon);

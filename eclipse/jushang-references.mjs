@@ -181,8 +181,8 @@ const clientBosses={
   'trial-shang-light':'sangmun_w_l','trial-shang-dark':'sangmun_w_d',
   'trial-kai-light':'gaemun_a_l','trial-kai-dark':'gaemun_a_d',
   m093:'samun_t_l',m094:'samun_t_d',
-  m001:'mon_snake',m002:'bsnake',m008:'misil_g',m014:'honma',m015:'redjujak',m022:'whitehyunmu',
-  m106:'madragon',m124:'tiamat',m125:'britra',m151:'kinghornet',m155:'eggghost',
+  m001:'mon_snake',m002:'bsnake',m004:'horsespear',m008:'misil_g',m014:'honma',m015:'redjujak',m022:'whitehyunmu',
+  m101:'honganji_g',m106:'madragon',m124:'tiamat',m125:'britra',m150:'emperorturtle',m151:'kinghornet',m154:'bullmonster',m155:'eggghost',
 };
 
 export function clientSpriteGuide(weapon,entry){
@@ -193,7 +193,7 @@ export function clientSpriteGuide(weapon,entry){
   if(frame)return {filename:'weapon01_i.AGF',frame};
   const prefix=clientBosses[entry?.id];
   if(!prefix)return null;
-  if(entry.id==='m151')return {filename:'kinghornet_n.AGF',prefix,note:'_n 待機 · _r 移動 · _a1 攻擊 · _d 倒地'};
+  if(['m150','m151','m154'].includes(entry.id))return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _r 移動 · _a1 攻擊 · _d 倒地'};
   if(entry.source==='kuanglu15'||entry.id==='m155')return {filename:prefix+'_n.AGF',prefix,note:'_n 待機 · _m 移動 · _a／_a2 攻擊 · _d 倒地'};
   return {filename:prefix+'.AGF',note:'檔案含多個動作與方向'};
 }

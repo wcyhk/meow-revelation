@@ -1,16 +1,16 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=dojo-3';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=dojo-3';
-import {practiceLoadout} from './catalogue.mjs?v=dojo-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=dojo-3';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=forgelight-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=forgelight-1';
+import {practiceLoadout} from './catalogue.mjs?v=forgelight-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=forgelight-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=dojo-3';
+import {Scenery} from './scenery.mjs?v=forgelight-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=weapon-audit-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=dojo-3';
+import {arms} from './armory.mjs?v=forgelight-1';
 import {ending} from './campaign.mjs?v=clock-1';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=bestiary-1';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=forgelight-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ledger-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=codex-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=ledger-1';
@@ -27,15 +27,15 @@ import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
-import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=patina-1';
-import {actorMotion} from './actor-kinetics.mjs?v=patina-1';
+import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=forgelight-1';
+import {actorMotion} from './actor-kinetics.mjs?v=forgelight-1';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
 import {BranchCombat} from './branch-combat.mjs?v=sigils-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
 import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
-import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
+import {RelicHunt} from './relic-hunt.mjs?v=forgelight-1';
 import {relicCounter} from './relic-cast.mjs?v=ledger-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
@@ -667,8 +667,8 @@ export class Game {
       guardOpen:0,reaction:null,motion:null,frozen:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
-    if(spec.effigy)this.view.prepareEffigy(unit.visual,spec.effigy);
-    if (kind==='boss') this.view.prepareBoss(unit.visual,spec);
+    if (kind==='boss'||spec.model||spec.bestiary) this.view.prepareBoss(unit.visual,spec);
+    else if(spec.effigy)this.view.prepareEffigy(unit.visual,spec.effigy);
     this.bound(unit);
     if (this.isBlocked(unit,.45)) {
       const angle=this.stage.bearing;
@@ -1602,7 +1602,7 @@ export class Game {
     const gait=actorMotion(unit,dt,t);
     const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
     const fierce=unit.bossPhase>0;
-    const owlDive=!unit.spec.bestiary&&unit.spec.frame===6&&(wind>.42||unit.recover>.37);
+    const owlDive=!unit.visual.bestiary&&unit.spec.frame===6&&(wind>.42||unit.recover>.37);
     const frame={
       frame:owlDive?7:unit.spec.frame,face:unit.face,flash:unit.flash,ink:unit.spec.ink,
       poseSize:owlDive?.84:1,
@@ -1619,6 +1619,7 @@ export class Game {
       aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
       rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
       phase:unit.bossPhase,
+      gaitPhase:gait.phase,stepWeight:gait.weight,heading:gait.heading,
     };
     this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
   }

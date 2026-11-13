@@ -1,4 +1,4 @@
-import {formatTime,lanterns,lanternUnlocked,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=moonless-1';
+import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=squad-1';
 
 function element(tag,className,content) {
   const node=document.createElement(tag);
@@ -59,6 +59,24 @@ export function trainingPanel(profile,updateBalance) {
       button.setAttribute('aria-pressed',String(equipped));
     });
   }
+  const paths=section('技能分支');
+  paths.append(element('p','branch-hint','兩邊都可以學。入林時只會啟用揀咗嗰個分支嘅已學技能。'));
+  const cards=element('div','branch-cards');
+  for (const branch of branches) {
+    const card=element('article','branch-card');
+    card.style.setProperty('--branch-tint',branch.tint);
+    const label=element('h4',null,branch.name);
+    card.append(label);
+    for (const skill of branch.skills) {
+      row(card,skill,()=>profile.learnBranchSkill(skill.id),(data,name,button)=>{
+        const learned=data.branchSkills.includes(skill.id);
+        button.textContent=learned?'已學會':skill.cost+' 金幣';
+        button.disabled=learned||data.gold<skill.cost;
+      });
+    }
+    cards.append(card);
+  }
+  paths.append(cards,branchPicker(profile,updates));
   const skins=section('燈籠外觀');
   for (const item of lanterns) {
     row(skins,item,()=>profile.equipLantern(item.id),(data,name,button)=>{
@@ -80,6 +98,36 @@ export function trainingPanel(profile,updateBalance) {
     button.setAttribute('aria-pressed',String(equipped));
   });
   refresh();
+  return root;
+}
+
+export function branchPicker(profile,updates) {
+  const root=element('div','branch-picker');
+  root.setAttribute('role','group');
+  root.setAttribute('aria-label','入場技能分支');
+  root.append(element('span',null,'入場分支'));
+  const controls=element('div','branch-choices');
+  const update=data=>{
+    for (const button of controls.children) {
+      const id=button.dataset.branch||null;
+      button.disabled=id!==null&&!hasBranch(data,id);
+      button.setAttribute('aria-pressed',String(id===data.branch));
+    }
+  };
+  for (const branch of [{id:null,name:'不帶分支'},...branches]) {
+    const button=element('button','secondary branch-choice',branch.name);
+    button.type='button';
+    button.dataset.branch=branch.id??'';
+    if (branch.tint) button.style.setProperty('--branch-tint',branch.tint);
+    button.addEventListener('click',()=>{
+      profile.equipBranch(branch.id);
+      update(profile.data);
+    });
+    controls.append(button);
+  }
+  root.append(controls);
+  updates?.push(update);
+  update(profile.data);
   return root;
 }
 

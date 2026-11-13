@@ -5,9 +5,26 @@ export const training = [
 ];
 
 export const techniques = [
-  {id:'stride', name:'追影步', mark:'»', cost:95, detail:'普通翻滾距離加長 18%，冷卻縮短 10%。'},
-  {id:'ward', name:'藏火護符', mark:'◇', cost:120, detail:'每層第一次受傷減傷 45%。'},
+  {id:'stride', name:'閃身步', mark:'»', cost:95, detail:'普通翻滾距離加長 18%，冷卻縮短 10%。'},
+  {id:'ward', name:'思念護符', mark:'◇', cost:120, detail:'每層第一次受傷減傷 45%。'},
 ];
+
+export const branches = [
+  {id:'tech', name:'科技', tint:'#a9e3ee', skills:[
+    {id:'robot-squad',name:'機械人小隊',cost:180,detail:'三台機械人跟隨你，自動發射遠程火箭、近程衝鋒槍同中程機槍。'},
+    {id:'radar',name:'搜敵雷達',cost:140,detail:'持續標示視野內敵人嘅腳下位置，提燈熄滅時仍然可見。'},
+    {id:'medic',name:'召喚急救小隊',cost:220,detail:'每次挑戰可用一次。受到致命傷害時原地復活，回滿生命。'},
+  ]},
+  {id:'mystic',name:'神祕',tint:'#e4b8ef',skills:[
+    {id:'cthun-hand',name:'克蘇恩之手',cost:180,detail:'三條背生觸手自動出擊。黑色近掃、紅色穿刺、紫色遠處破地。'},
+    {id:'veil',name:'月影護身',cost:135,detail:'翻滾結束後 2 秒內，下一次受傷減少 30%，冷卻 8 秒。'},
+    {id:'funeral-seal',name:'送魂祭印',cost:190,detail:'擊倒敵人會留下延時祭印，爆發時傷害附近敵人，冷卻 5 秒。'},
+  ]},
+];
+
+export function hasBranch(data,id) {
+  return branches.find(branch=>branch.id===id)?.skills.some(skill=>data.branchSkills.includes(skill.id))??false;
+}
 
 export const moonlessTitle={id:'moonless',name:'無月歸名者',tint:'#bcdfff'};
 export const moonlessLantern={id:'moonless',name:'無月引魂燈',tint:'#bcdfff',detail:'完成無月第 100 關並敲響歸名鐘。'};
@@ -42,6 +59,7 @@ export function lanternUnlocked(data,id) {
 function normalize(raw) {
   const unlocked=Array.isArray(raw?.techniques)?raw.techniques:[];
   const owned=techniques.filter(item=>unlocked.includes(item.id)).map(item=>item.id);
+  const learned=Array.isArray(raw?.branchSkills)?raw.branchSkills:[];
   const crimson=raw?.crimson===true;
   const records=Object.fromEntries(Object.keys(milestones).map(mode=>{
     const old=raw?.records?.[mode];
@@ -52,10 +70,12 @@ function normalize(raw) {
     training:Object.fromEntries(training.map(item=>[item.id,integer(raw?.training?.[item.id],item.costs.length)])),
     techniques:owned,
     technique:owned.includes(raw?.technique)?raw.technique:null,
+    branchSkills:branches.flatMap(branch=>branch.skills.filter(skill=>learned.includes(skill.id)).map(skill=>skill.id)),
     crimson,
     records,
   };
   data.lantern=lanternUnlocked(data,raw?.lantern)?raw.lantern:'original';
+  data.branch=hasBranch(data,raw?.branch)?raw.branch:null;
   data.title=raw?.title===moonlessTitle.id&&records.abyss.fastest!==null?raw.title:null;
   return data;
 }
@@ -135,6 +155,27 @@ export class Progression {
         data.techniques.push(id);
       }
       data.technique=data.technique===id?null:id;
+      return true;
+    });
+  }
+
+  learnBranchSkill(id) {
+    const branch=branches.find(entry=>entry.skills.some(skill=>skill.id===id));
+    const skill=branch?.skills.find(entry=>entry.id===id);
+    if (!skill) return false;
+    return this.change(data=>{
+      if (data.branchSkills.includes(id)||data.gold<skill.cost) return false;
+      data.gold-=skill.cost;
+      data.branchSkills.push(id);
+      data.branch??=branch.id;
+      return true;
+    });
+  }
+
+  equipBranch(id) {
+    return this.change(data=>{
+      if (id!==null&&!hasBranch(data,id)) return false;
+      data.branch=id;
       return true;
     });
   }

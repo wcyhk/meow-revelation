@@ -1,5 +1,5 @@
-import {Scenery} from './scenery.mjs?v=moonless-1';
-import {Audio} from './audio.mjs?v=clock-1';
+import {Scenery} from './scenery.mjs?v=squad-1';
+import {Audio} from './audio.mjs?v=squad-1';
 import {Input} from './input.mjs?v=armory-1';
 import {arms} from './armory.mjs?v=nightfall-1';
 import {ending} from './campaign.mjs?v=clock-1';
@@ -21,8 +21,9 @@ import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=nightfall-1';
 import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=moonless-1';
-import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=moonless-1';
-import {recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=moonless-1';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle} from './progression.mjs?v=squad-1';
+import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=squad-1';
+import {BranchCombat} from './branch-combat.mjs?v=squad-1';
 import {storyDialogue} from './dialogue-scenes.mjs?v=lantern-dialogue-1';
 import {dialoguePanel} from './dialogue.mjs?v=lantern-dialogue-1';
 
@@ -70,6 +71,7 @@ export class Game {
     this.state = 'cover';
     this.difficulty=difficulties.vigil;
     this.progress=new Progression();
+    this.branchCombat=new BranchCombat(view);
     this.arenaSeed=Math.floor(Math.random()*0x100000000);
     this.level = 0;
     this.wave = 0;
@@ -97,7 +99,7 @@ export class Game {
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
       'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','time-fracture',
-      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped',...actionIds].map(id=>[id,$(id)]));
+      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>action==='journal'?this.showJournal():this.togglePause(),()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
@@ -186,13 +188,16 @@ export class Game {
       grid.append(choice);
     }
     const content=document.createElement('div');
-    if(!milestone)content.append(this.difficultyPicker());
+    if(!milestone) {
+      this.progress.refresh();
+      content.append(this.difficultyPicker(),branchPicker(this.progress));
+    }
     content.append(grid);
     this.openModal({kind:'armory',mark:'◇',
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
       title:milestone?'領取頭目遺物':'向林火借一件神器',
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
-        :'先揀難度，再揀一件神器，踏上百關尋名之路。',content,
+        :'揀難度同入場分支，再帶一件神器出發。',content,
       buttons:milestone?[]:[makeButton('返回主畫面',()=>this.showCover())]});
   }
 
@@ -220,6 +225,7 @@ export class Game {
     if (this.heroVisual) this.view.removeEquippedActor(this.heroVisual);
     this.hero = makeHero();
     this.progress.refresh();
+    this.branchCombat.start(this.progress.data);
     this.training={...this.progress.data.training};
     this.hero.technique=this.progress.data.technique;
     this.hero.lanternStyle=this.progress.data.lantern;
@@ -332,6 +338,9 @@ export class Game {
     this.ranks=buildStats(h,this.weapon,stage.floor,this.relics,this.training);
     h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
     h.trainingWardSpent=false;
+    h.veilUntil=0;
+    h.lanternOut=0;
+    h.snuffCooldown=0;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
     h.invulnerable = 1;
     h.rolling = h.atk = h.rollCool = h.spellCool = h.ward = h.surge = h.combo = h.comboLeft = h.snared = 0;
@@ -349,6 +358,7 @@ export class Game {
     this.ambientClock=(4.1+(stage.room%4)*.47)/this.difficulty.pace;
     this.view.focus.set(0,0,-.65);
     this.view.setStage(stage);
+    this.branchCombat.enter(this);
     this.view.lanternArt.set(this.escape);
     this.view.setMission(this.mission);
     this.view.setBossArena(null);
@@ -597,6 +607,8 @@ export class Game {
     if (h.linkGuard&&(h.linkGuard.left-=dt)<=0) h.linkGuard=null;
     h.surge -= dt;
     h.snared-=dt;
+    h.lanternOut=Math.max(0,h.lanternOut-dt);
+    h.snuffCooldown-=dt;
     h.flash = Math.max(0,h.flash-dt*4.3);
     const movement = Math.hypot(input.x,input.z);
     if (movement>.07 && h.rolling<=0 && !h.slash) {
@@ -627,6 +639,7 @@ export class Game {
       h.rolling -= dt;
       h.vx = h.rollX * 4; h.vz = h.rollZ * 4;
       if (h.rolling<=0) {
+        this.branchCombat.rollEnd(this);
         if(h.rollOrigin)giftRoll(this,h.rollOrigin);
         h.rollOrigin=null;
         if (h.rushLink) finishLinkedRush(this);
@@ -862,7 +875,7 @@ export class Game {
     if (kind==='break') this.hitstop=Math.max(this.hitstop,.066);
   }
 
-  hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report) {
+  hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report,source) {
     if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,amount)??false;
     if (unit.kind==='breakable') {
       if(unit.hp<=0)return false;
@@ -889,8 +902,11 @@ export class Game {
       unit.guardOpen=1.48;
       unit.exposed=Math.max(unit.exposed,1.48);
     }
-    this.impact(unit,origin,kind,tint);
-    unit.stun = unit.kind==='boss'?.033:kind==='break'?.31:.14;
+    const support=source==='support';
+    if (!support||kind==='fall') {
+      this.impact(unit,origin,kind,tint);
+      unit.stun=unit.kind==='boss'?.033:kind==='break'?.31:.14;
+    } else this.view.spark(unit.x,unit.spec.height*.48,unit.z,tint,4,.65,'flare');
     if (unit.raider && distance(this.hero,unit)<4.8) unit.lured=1.45;
     const len = Math.max(.05,distance(unit,origin));
     unit.kx += (unit.x-origin.x)/len*knock*4.4/unit.spec.mass;
@@ -915,6 +931,7 @@ export class Game {
       const h = this.hero;
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
       this.fallen.push(unit);
+      this.branchCombat.defeat(this,unit);
       giftKill(this,unit);
       if(unit.spec.deathOmen||unit.omen?.id==='grudge')this.deathOmen(unit);
       if (boss) this.view.bossCue(unit,'defeat');
@@ -945,16 +962,25 @@ export class Game {
     const barrier=h.linkGuard;
     h.linkGuard=null;
     const trained=h.technique==='ward'&&!h.trainingWardSpent&&amount>0;
+    const veiled=h.veilUntil>this.t&&amount>0;
     if (trained) h.trainingWardSpent=true;
-    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1)*(trained?.55:1));
+    if (veiled) h.veilUntil=0;
+    h.hp = Math.max(0,h.hp-amount*(1-h.armor)*(guarded?.24:1)*(barrier?.scale??1)*(trained?.55:1)*(veiled?.70:1));
+    if (h.hp===0&&this.branchCombat.revive(this)) return true;
     h.invulnerable = .64;
+    if (h.hp>0&&h.snuffCooldown<=0&&pattern==='marked'&&(attacker?.kind==='cultist'||attacker?.kind==='oracle')) {
+      h.lanternOut=2.15;
+      h.snuffCooldown=11;
+      this.announce('提燈熄滅','小心埋伏','燈火即將自行重燃',1.7);
+      this.audio.play('snuff');
+    }
     const heavy=['cleave','pounce','lance','burst','counterCharge','sweep','arenaBait'].includes(pattern)
       || amount>=h.maxHp*.15;
     const origin=Math.hypot(h.x-x,h.z-z)<.18&&attacker ? attacker : {x,z};
-    const blocked=guarded||barrier||trained;
+    const blocked=guarded||barrier||trained||veiled;
     const kind=h.hp===0?'fall':blocked?'block':heavy?'heavy':'light';
     this.impact(h,origin,kind,blocked?0x91eee0:0xffad7d);
-    if (barrier||trained) this.view.shock(h.x,h.z,trained?0xffba7b:0xa9eee0,1.65,.63);
+    if (barrier||trained||veiled) this.view.shock(h.x,h.z,veiled?0xbbabff:trained?0xffba7b:0xa9eee0,1.65,.63);
     const len = Math.max(.15,Math.hypot(h.x-x,h.z-z));
     this.moveUnit(h,(h.x-x)/len*.48,(h.z-z)/len*.48,.38);
     this.interruptLink();
@@ -1161,7 +1187,7 @@ export class Game {
   updateFlow(dt) {
     if (this.discovery) return;
     const exit=this.escape;
-    if(exit&&!exit.found&&distance(this.hero,exit)<lanternRadius(this.stage)*.96){
+    if(exit&&!exit.found&&this.hero.lanternOut<=0&&distance(this.hero,exit)<lanternRadius(this.stage)*.96){
       exit.found=true;
       if(exit.ready)this.audio.play('blessing');
     }
@@ -1212,7 +1238,7 @@ export class Game {
     this.ui.hud.dataset.mission='escape';
     this.escape.ready=true;
     this.escape.message=message;
-    this.escape.found||=distance(this.hero,this.escape)<lanternRadius(this.stage)*.96;
+    this.escape.found||=this.hero.lanternOut<=0&&distance(this.hero,this.escape)<lanternRadius(this.stage)*.96;
     this.announce('封印解除','尋找出口','留意北面拱門。黑暗入面仲有嘢跟住你。',1.95);
     this.updateEscape(0);
   }
@@ -1409,6 +1435,7 @@ export class Game {
     if (this.state!=='play') return;
     this.updateRituals(dt);
     if (this.ultimateFields.length) updateUltimates(this,dt);
+    this.branchCombat.update(this,dt);
     this.updateEnemies(dt);
     this.bossArena?.tick(dt);
     this.updateHazards(dt);
@@ -1422,6 +1449,11 @@ export class Game {
 
   renderUI() {
     const h=this.hero;
+    const support=this.branchCombat.skills.has('medic')?(this.branchCombat.reviveReady?'✚ 急救可用':'✚ 急救已用')
+      :this.branchCombat.skills.has('radar')?'◉ 雷達運作中':'';
+    const badge=this.ui['field-support'];
+    if(badge.textContent!==support) badge.textContent=support;
+    badge.hidden=!support;
     const hp=fixed(h.hp);
     const label=hp+' / '+h.maxHp;
     if (this.ui['hp-number'].textContent!==label) {
@@ -1516,6 +1548,7 @@ export class Game {
       this.audio.update();
     }
     this.view.render(dt,this.hero,this.state!=='play'&&this.state!=='falling',freezeWarnings&&this.state==='play');
+    this.branchCombat.render(this);
     this.updateMissionPins();
   }
 
@@ -1910,6 +1943,7 @@ export class Game {
     this.state='cover';
     this.audio.active=false;
     this.failure=null;
+    this.branchCombat.end();
     this.ui['time-fracture'].hidden=true;
     this.closeModal();
     this.ui.hud.hidden=true;

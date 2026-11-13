@@ -108,6 +108,43 @@ export class Audio {
       case 'warning':
         this.note(166,115,now,.24,.05,'triangle');
         break;
+      case 'robot-rocket':
+        this.rasp(now,.18,.14,980);
+        this.note(212,73,now,.27,.11,'sawtooth',.006);
+        break;
+      case 'robot-smg':
+        this.rasp(now,.035,.060,2590);
+        break;
+      case 'robot-minigun':
+        this.rasp(now,.045,.074,1470);
+        break;
+      case 'robot-impact':
+        this.rasp(now,.15,.13,530);
+        this.note(99,42,now,.26,.16,'triangle');
+        break;
+      case 'branch-spirit':
+        this.note(412,207,now,.26,.073,'sine');
+        break;
+      case 'tentacle-sweep':
+        this.rasp(now,.17,.15,780);
+        this.note(116,51,now,.18,.095,'triangle');
+        break;
+      case 'tentacle-pierce':
+        this.rasp(now,.067,.16,1930);
+        this.note(274,83,now,.13,.11,'triangle',.004);
+        break;
+      case 'tentacle-erupt':
+        this.rasp(now,.22,.16,465);
+        this.note(132,38,now,.36,.16,'sine');
+        this.note(481,154,now+.037,.28,.075,'triangle');
+        break;
+      case 'branch-revive':
+        [294,392,494,659].forEach((f,i)=>this.note(f,f,now+.10*i,.40,.12,'triangle'));
+        break;
+      case 'snuff':
+        this.rasp(now,.22,.11,1180);
+        this.note(145,57,now,.27,.077,'triangle');
+        break;
       case 'fracture':
         this.rasp(now,.32,.32,3150);
         this.note(740,117,now,.55,.16,'triangle',.009);

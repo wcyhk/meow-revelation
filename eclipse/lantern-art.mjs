@@ -169,17 +169,19 @@ export class LanternArt {
     const sx=this.view.height/(this.view.camera.top-this.view.camera.bottom);
     const screen=this.view.project(hero.x,.32,hero.z);
     const flicker=Math.sin(time*10.7)*.010+Math.sin(time*16.4)*.007;
+    const extinguished=hero.lanternOut>0;
     this.mask.hidden=false;
+    this.mask.classList.toggle('extinguished',extinguished);
     const style=this.mask.style;
     style.setProperty('--light-x',Math.round(screen.x)+'px');style.setProperty('--light-y',Math.round(screen.y)+'px');
     style.setProperty('--light-w',Math.round(beam*sx*(1+flicker))+'px');
     style.setProperty('--light-h',Math.round(beam*sx*.72*(1+flicker))+'px');
-    this.lamp.visible=true;
+    this.lamp.visible=!extinguished;
     this.lamp.position.set(hero.x-(hero.face??1)*.40,.69+Math.sin(time*7)*.054,hero.z+.22);
     this.lamp.rotation.z=Math.sin(time*7)*.13;
     this.light.position.set(hero.x,1.22,hero.z);
     this.light.distance=beam*1.25;
-    this.light.intensity=24+flicker*70;
+    this.light.intensity=extinguished?0:24+flicker*70;
     this.glow.material.opacity=.72+flicker*5;
     if(this.route){
       const open=this.route.ready&&this.route.barricades.every(item=>!item.gate||item.hp<=0);

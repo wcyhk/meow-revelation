@@ -1,6 +1,6 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=pao-1';
-import {paoForms} from './pao-model.mjs?v=pao-1';
+import {bestiaryTint} from './bestiary-models.mjs?v=pao-polish-1';
+import {paoForms} from './pao-model.mjs?v=pao-polish-1';
 
 const patterns={
   serpent:['lance','roots','gravity','sweep'],hydra:['jaws','prison','summon','cross'],
@@ -65,7 +65,7 @@ export function monsterBattle(entry,floor,mode={}){
   const familyAttacks=[...bag.slice(stagger),...bag.slice(0,stagger)];
   const attacks=pao?['marked','prison','lance','ring']:
     [...(giantAttacks[entry.name]??new Set([...entry.attacks,...familyAttacks]))].slice(0,4);
-  const finishing=pao?(entry.id==='m025'?'lance':'gravity'):
+  const finishing=pao?'gravity':
     entry.source==='big'?(giantAttacks[entry.name]?.[2]??finishers[effect]):finishers[effect];
   if(!attacks.includes(finishing))attacks.push(finishing);
   const brute=['turtle','ogre','emperor'].includes(entry.family);

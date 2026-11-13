@@ -2,11 +2,13 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=forgelight-4';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-polish-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
+import {lightPaoDisplay} from './pao-materials.mjs?v=pao-polish-1';
+import {paoForms} from './pao-model.mjs?v=pao-polish-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -31,6 +33,7 @@ const aim=new T.Vector3(.8,.30,0);
 const floor=new T.Plane(new T.Vector3(0,1,0));
 const cursor=new T.Vector2(), groundPoint=new T.Vector3(), ray=new T.Raycaster();
 const drillKeys={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down'};
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 
 function fit(camera,width,height,viewWidth,viewHeight){
   const ratio=width/height;
@@ -94,6 +97,9 @@ export class WeaponViewer {
     this.attacks=node('div','boss-preview-attacks');
     this.attacks.setAttribute('role','group');
     this.attacks.setAttribute('aria-label','頭目攻擊預覽');
+    this.motions=node('div','boss-preview-attacks pao-preview-motions');
+    this.motions.setAttribute('role','group');
+    this.motions.setAttribute('aria-label','破奧動作預覽');
     this.detail=node('p','weapon-viewer-description');
     const copy=node('div','weapon-viewer-copy');
     this.reference=node('a','weapon-viewer-reference','52 巨商原圖資料 ↗');
@@ -117,7 +123,7 @@ export class WeaponViewer {
     const actions=node('div','weapon-viewer-actions');
     actions.append(this.practiceChoice,this.choose);
     footer.append(copy,actions);
-    this.dialog.append(header,comparison,this.tools,this.weakness,this.attacks,footer);
+    this.dialog.append(header,comparison,this.tools,this.weakness,this.motions,this.attacks,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
       if(this.dialog.open)return;
@@ -218,6 +224,14 @@ export class WeaponViewer {
     this.boss=spec;
     this.weapon=null;
     this.moveNames={...names,...spec.moveLabels};
+    this.motionNames=paoForms.has(spec.bestiary?.id)?{
+      entrance:'出場',travel:spec.bestiary.id==='m026'?'落地步行':'低空飛行',hit:'受擊',defeat:'倒地',
+    }:null;
+    this.motions.replaceChildren(...Object.entries(this.motionNames??{}).map(([motion,label])=>{
+      const control=button(label,()=>this.playBoss({motion},control));
+      control.dataset.motion=motion;
+      return control;
+    }));
     this.makeBossPractice=makePractice;
     this.inspect.textContent=spec.bestiary||spec.model?'旋轉睇模型':'睇頭目';
     this.phaseControls?.forEach(control=>control.remove());
@@ -249,6 +263,7 @@ export class WeaponViewer {
   }
 
   get controls(){return [this.inspect,this.combo,this.skill,...this.phaseControls,...this.attackControls,
+    ...this.motions.querySelectorAll('button'),
     ...(this.boss?this.weakness.querySelectorAll('button'):[])];}
 
   openViewer({title,role,choice,ink,image,description,commit,practice,compare=false}){
@@ -277,6 +292,7 @@ export class WeaponViewer {
     this.dialog.style.setProperty('--preview-ink',ink);
     this.combo.hidden=this.skill.hidden=!!this.boss;
     this.attacks.hidden=!this.boss;
+    this.motions.hidden=!this.boss||!this.motionNames;
     this.weakness.hidden=!this.boss;
     this.drillTools.hidden=true;
     if(image)this.image.src=image;
@@ -312,8 +328,9 @@ export class WeaponViewer {
     this.renderer.setSize(width,height,false);
     fit(inspectCamera,width,height,2.30,2.24);
     const arena=['phase','drill'].includes(this.mode);
-    const battleWidth=arena?23:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
-    fit(battleCamera,width,height,battleWidth,arena?13:this.boss?8.4:7.6);
+    const pao=paoForms.has(this.boss?.bestiary?.id);
+    const battleWidth=arena?23:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
+    fit(battleCamera,width,height,battleWidth,arena?13:pao?10.3:this.boss?8.4:7.6);
     if(this.mode==='model')this.renderer.render(this.scene,inspectCamera);
     else if(this.practice)this.renderer.render(this.scene,battleCamera);
   }
@@ -361,29 +378,45 @@ export class WeaponViewer {
     this.drillTools.hidden=true;
     this.detail.textContent=this.description;
     this.scene=new T.Scene();
-    armLighting(this.scene,Boolean(this.boss));
-    if(this.boss?.bestiary?.id==='m025'||this.boss?.bestiary?.id==='m026'){
-      const fill=new T.DirectionalLight(0xd2e5ff,1.16);
-      fill.position.set(2,2.4,5);
-      this.scene.add(fill);
-    }
+    const pao=paoForms.has(this.boss?.bestiary?.id);
+    if(pao)lightPaoDisplay(this.scene);
+    else armLighting(this.scene,Boolean(this.boss));
     const pivot=new T.Group();
     this.model=pivot;
     let item;
     if(this.boss){
       this.bossRig=mountBestiary(this.scene,model,this.boss.height);
-      poseBestiary(this.bossRig,{phase:0,move:0,face:1,spec:this.boss},{phase:0},0,0,0);
+      const actor={phase:0,move:0,face:1,spec:this.boss};
+      poseBestiary(this.bossRig,actor,{phase:0},0,0,0);
       item=this.bossRig.root;
+      if(pao)this.displayActor=actor;
     }else item=forge(this.weapon);
     const bounds=new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
-    item.position.sub(bounds.getCenter(new T.Vector3()));
+    if(pao){
+      const origin=new T.Group();
+      origin.position.copy(bounds.getCenter(new T.Vector3())).negate();
+      origin.add(item);
+      pivot.add(origin);
+    }else{
+      item.position.sub(bounds.getCenter(new T.Vector3()));
+      pivot.add(item);
+    }
     pivot.scale.setScalar(this.boss?1.95/Math.max(size.x,size.y,size.z):1.68/size.length());
-    pivot.add(item);
     this.scene.add(pivot);
     this.item=item;
     this.resetRotation();
     this.resize();
+    if(this.displayActor&&!reducedMotion.matches){
+      const start=performance.now();
+      const update=now=>{
+        if(!this.open||this.mode!=='model'||!this.displayActor||reducedMotion.matches)return;
+        poseBestiary(this.bossRig,this.displayActor,{phase:0},(now-start)/1000,0,0);
+        this.renderer.render(this.scene,inspectCamera);
+        this.raf=requestAnimationFrame(update);
+      };
+      this.raf=requestAnimationFrame(update);
+    }
   }
 
   makeStage(){
@@ -391,7 +424,8 @@ export class WeaponViewer {
     const view=Object.create(Object.getPrototypeOf(source));
     const scene=new T.Scene();
     const arena=['phase','drill'].includes(this.mode);
-    armLighting(scene,arena);
+    if(paoForms.has(this.boss?.bestiary?.id))lightPaoDisplay(scene);
+    else armLighting(scene,arena);
     battleCamera.position.set(.8,arena?16:9.2,arena?21:15);
     if(arena)battleCamera.lookAt(0,.3,1.25);
     else battleCamera.lookAt(aim);
@@ -457,7 +491,7 @@ export class WeaponViewer {
     this.drillTools.lastElementChild.hidden=!['break','light'].includes(mechanism.mode);
     this.drillTools.lastElementChild.textContent=mechanism.mode==='light'?'重燃祭燈':'擊碎機關';
     this.canvas.setAttribute('aria-label',action.drill?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽');
-    const name=this.moveNames[action.pattern??this.boss.finishing];
+    const name=action.motion?this.motionNames[action.motion]:this.moveNames[action.pattern??this.boss.finishing];
     this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
     this.detail.textContent=action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
       :action.phase?`變身後出招 · ${name}`:action.portrait?this.description:name;
@@ -513,6 +547,7 @@ export class WeaponViewer {
 
   clearScene(){
     cancelAnimationFrame(this.raf);
+    this.displayActor=null;
     this.stage.classList.remove('counter-success');
     for(const control of this.weakness.querySelectorAll('[data-drill]'))control.textContent='試反制';
     if(this.bossRig){

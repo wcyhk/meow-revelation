@@ -195,9 +195,23 @@ export class Audio {
     }
   }
 
-  release(pattern,boss) {
+  release(pattern,boss,identity) {
     if (!this.context||this.muted) return;
     const now=this.context.currentTime;
+    if(identity==='m025'||identity==='m026'){
+      const voice={
+        lance:[440,92,2650],marked:[920,221,1830],prison:[392,199,1490],
+        ring:[525,370,1280],gravity:[217,54,980],cinders:[149,49,1540],
+      }[pattern];
+      if(voice){
+        const [start,end,filter]=voice;
+        this.note(start,end,now,.32,.16,'triangle',.011);
+        this.note(start*1.51,end*1.22,now+.035,.20,.064,'sine',.012);
+        this.rasp(now+.024,.16,pattern==='lance'?.24:.13,filter);
+        if(pattern==='gravity'||pattern==='lance')this.note(84,34,now+.054,.31,.13,'sine',.009);
+        return;
+      }
+    }
     const level=boss?1:.58;
     if (['cleave','sweep','lance','pounce','counterCharge'].includes(pattern)) {
       this.rasp(now,.11,.18*level,pattern==='pounce'?950:1750);

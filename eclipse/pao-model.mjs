@@ -104,6 +104,13 @@ function ring(k,hand,awakened){
     haze.add(new T.Mesh(new T.TubeGeometry(curve,16,.012,5),k.materials.mist));
   }
   wheel.userData.haze=haze;
+  const sparks=bone(wheel,0,0,.045);
+  for(let point=0;point<6;point++){
+    const angle=point*Math.PI/3, radius=.60+point%2*.07;
+    mesh(sparks,'gem',point%2?'cyan':'glow',Math.cos(angle)*radius,Math.sin(angle)*radius,.08,
+      .024,.067,.021,0,0,angle);
+  }
+  wheel.userData.sparks=sparks;
   for(let i=0;i<8;i++){
     const angle=i*Math.PI/4,x=Math.sin(angle),y=Math.cos(angle);
     rod(wheel,'cyan',[x*.39,y*.39,.031],[x*(awakened?.557:.50),y*(awakened?.557:.50),.049],.021,'horn');
@@ -126,9 +133,10 @@ export function buildPao(k,entry){
   mesh(body,'scale','deep',0,.15,-.362,.44,.52,.39,0,Math.PI);
   mesh(body,'gem','edge',0,-.032,-.401,.14,.16,.044);
   const skirt=bone(body,0,-.09,.06);
-  const boots=[],arms=[],wings=[],wheels=[];
+  const boots=[],arms=[],wings=[],wheels=[],mantles=[];
   for(const side of [-1,1]){
     const mantle=bone(skirt,side*.12,.04,-.15);
+    mantles.push(mantle);
     mesh(mantle,'mantle','deep',side*.18,.09,-.06,side*.68,1.34,1.48,.15,-side*.36,0);
     mesh(mantle,'mantle','body',side*.24,.02,-.07,side*.48,1.29,.68,.12,-side*.25,0);
     mesh(mantle,'mantle','deep',side*.12,.05,.15,side*.42,1.09,.92,-.11,-side*.23,0);
@@ -142,7 +150,11 @@ export function buildPao(k,entry){
       const y=.76-rib*.114;
       const x=.19+rib*.052;
       rod(body,'edge',[side*.12,y+.021,.29],[side*(x+.11),y-.057,.319],.027);
+      mesh(body,'gem','bronzeShade',side*(x+.115),y-.046,.317,.043,.034,.025);
     }
+    const seam=[[side*.05,.43,.415],[side*.34,.51,.40],[side*.46,.76,.29]];
+    rod(body,'cyan',seam[0],seam[1],.021);
+    rod(body,'wingEdge',seam[1],seam[2],.030);
     const leg=bone(body,side*.20,-.24,.02);
     mesh(leg,'pearl','deep',0,-.42,-.03,.17,.59,.19,.06);
     mesh(leg,'scale','body',0,-.50,.13,.29,.54,.49,-.13);
@@ -158,6 +170,7 @@ export function buildPao(k,entry){
     mesh(arm,'scale','body',side*.048,.05,.065,.34,.35,.68,.34,-side*.47,side*.77);
     rod(arm,'edge',[side*.033,.12,.095],[side*.33,.17,.11],.079,'horn');
     rod(arm,'wingEdge',[side*.04,.085,.19],[side*.245,-.113,.207],.028);
+    for(let stud=0;stud<3;stud++)mesh(arm,'gem','trim',side*(.08+stud*.057),.068-stud*.089,.215,.032,.036,.025);
     const elbow=bone(arm,side*.17,-.42,.035);
     rod(arm,'deep',[0,-.02,0],elbow.position.toArray(),.117);
     rod(elbow,'body',[0,0,0],[side*.074,-.26,.15],.101);
@@ -211,11 +224,21 @@ export function buildPao(k,entry){
     }
   }
   const crest=bone(body,0,0,0);
-  return {body,head,crest,pao:{awakened,beard,skirt,boots,arms,wings,wheels}};
+  return {body,head,crest,pao:{awakened,beard,skirt,boots,arms,wings,wheels,mantles}};
 }
 
-export function posePao(model,unit,time,{stage,wind,strike,travel,fall}){
-  const {awakened,beard,skirt,boots,arms,wings,wheels}=model.pao;
+// Wind-up and release weight separate body, wing, shoulder and elbow movement.
+const casting={
+  lance:{lean:.36,wing:.26,lift:[.31,1.24],spread:-.31,elbow:.26,thrust:-1.26},
+  marked:{lean:.11,wing:.09,lift:[1.20,.21],spread:.34,elbow:-.79,thrust:-.55},
+  prison:{lean:.05,wing:.48,lift:[1.06,1.06],spread:.55,elbow:-.53,thrust:-.67},
+  ring:{lean:.19,wing:.39,lift:[.52,.52],spread:.57,elbow:.36,thrust:.34},
+  gravity:{lean:-.22,wing:-.26,lift:[.94,.94],spread:-.69,elbow:-1.02,thrust:-.63},
+  cinders:{lean:.41,wing:.36,lift:[.25,1.35],spread:.31,elbow:-.39,thrust:1.08},
+};
+
+export function posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash}){
+  const {awakened,beard,skirt,boots,arms,wings,wheels,mantles}=model.pao;
   const trueForm=awakened||stage>0;
   const transform=model.pao;
   if(transform.awakening===undefined)transform.awakening=trueForm?1:0;
@@ -226,38 +249,57 @@ export function posePao(model,unit,time,{stage,wind,strike,travel,fall}){
   const settled=T.MathUtils.smoothstep(transform.awakening,0,1);
   const beat=time*(trueForm?3.15:4.55)+(unit.phase??0);
   const pattern=unit.attack?.pattern??unit.motion?.pattern;
-  const beam=pattern==='lance';
-  const cast=Math.max(wind,strike);
-  model.body.rotation.x=Math.sin(beat)*.056+travel*.19+wind*.21-strike*.25;
-  model.body.rotation.z=Math.sin(beat*.72)*.037;
-  model.body.position.y=1.59-.52*settled+(.14-.105*settled)*Math.sin(beat)+wind*.15;
+  const move=casting[pattern]??casting.ring;
+  const charge=T.MathUtils.smoothstep(wind,0,1);
+  const cast=Math.max(charge,strike);
+  const impact=unit.reaction;
+  const recoil=impact&&impact.kind!=='fall'?(1-T.MathUtils.smoothstep(impact.age,0,impact.kind==='break'?.53:.35)):0;
+  const heavy=impact?.kind==='heavy'||impact?.kind==='break';
+  const landing=awakened?0:Math.sin(settled*Math.PI);
+  const entrance=transform.entranceAt===undefined?0:1-T.MathUtils.smoothstep(time-transform.entranceAt,0,1.03);
+  const gait=travel*settled;
+  model.body.rotation.x=Math.sin(beat)*.056+travel*.19+charge*move.lean-strike*.25+recoil*(heavy?-.43:-.16)+fall*.17;
+  model.body.rotation.z=Math.sin(beat*.72)*.037+gait*Math.sin(step)*.067+(impact?.dx??0)*recoil*.20;
+  model.body.position.y=1.59-.52*settled+(.14-.105*settled)*Math.sin(beat)+charge*.15
+    +gait*Math.abs(Math.sin(step))*.062+landing*.32+entrance*(awakened?.26:.72);
   model.root.position.y=T.MathUtils.lerp(model.root.position.y+.12,.045+(model.root.position.y-.045)*.22,settled);
-  skirt.rotation.x=-travel*.24+Math.sin(beat+.6)*.09-strike*.20;
+  skirt.rotation.x=-travel*.24+Math.sin(beat+.6)*.09-strike*.20+landing*.23;
   skirt.scale.y=.62+.42*settled;
-  beard.rotation.x=Math.sin(beat-.57)*.082+travel*.24+wind*.09-strike*.26;
+  beard.rotation.x=Math.sin(beat-.57)*.082+travel*.24+charge*.09-strike*.26+recoil*.30;
   beard.scale.y=.84+.29*settled;
+  model.head.rotation.y=Math.sin(beat*.52)*.09*(1-cast)+(impact?.dx??0)*recoil*.29;
+  model.materials.cyan.emissiveIntensity=1.0+cast*1.8+landing*.92+flash*.49+entrance*.76;
+  model.materials.mist.opacity=(.20+cast*.24+landing*.18)*(1-fall*.91);
+  model.materials.eye.color.setHex(0xfda64b).multiplyScalar(1+cast*.64+flash*.41);
   for(const [i,wing] of wings.entries()){
     const side=i===0?-1:1;
-    const flap=Math.sin(beat+i*.18);
-    wing.rotation.set(-.17+flap*.17+wind*.37+fall*.17,
-      side*(-.13+flap*.18-wind*.49+strike*.44),
-      side*((trueForm?-.01:.13)+flap*.26+wind*.34-strike*.41-fall*.31));
+    const flap=Math.sin(beat+i*.18)*(1-settled*.41+travel*.32);
+    wing.rotation.set(-.17+flap*.17+charge*move.wing+fall*.47,
+      side*(-.13+flap*.18-charge*.49+strike*.44-landing*.55-fall*.57-entrance*.85),
+      side*((trueForm?-.01:.13)+flap*.26+charge*move.wing-strike*.41-fall*.54+landing*.28+recoil*.14-entrance*.49));
     wing.scale.set(1+Number(stage>0&&!awakened)*.075,1+Number(trueForm)*.07,1);
     const {shoulder,elbow}=arms[i];
-    shoulder.rotation.x=-.21+Math.sin(beat*.6+i)*.055-wind*.64+strike*(beam?-1.05:-.70);
-    shoulder.rotation.z=side*(.30+wind*.31-strike*.22);
-    elbow.rotation.x=-.17-wind*.58+strike*.37;
-    elbow.rotation.z=side*(.04+(wind-strike)*.37);
-    wheels[i].rotation.z=time*(i?1.25:-.95)+side*(wind-strike)*.42;
-    wheels[i].rotation.x=.11+wind*.46-strike*.12;
+    shoulder.rotation.x=-.21+Math.sin(beat*.6+i)*.055-charge*move.lift[i]+strike*move.thrust+recoil*.41+fall*.54;
+    shoulder.rotation.z=side*(.30+charge*move.spread-strike*.22+landing*.33);
+    elbow.rotation.x=-.17+charge*move.elbow+strike*.37+recoil*.51;
+    elbow.rotation.z=side*(.04+(charge-strike)*.37);
+    wheels[i].rotation.z=time*(i?1.25:-.95)+side*(charge-strike)*1.61;
+    wheels[i].rotation.x=.11+charge*.46-strike*.12;
     wheels[i].rotation.y=side*(.37+.29*settled)*(1-cast*.70);
     const haze=wheels[i].userData.haze;
     haze.rotation.z=time*side*2.4;
     haze.scale.setScalar(1+Math.sin(beat*2+i)*.08+cast*.18);
-    const wheelSize=(i===0&&!trueForm?.66:1.0)*(1+cast*.31);
+    const sparks=wheels[i].userData.sparks;
+    sparks.rotation.z=-time*side*3.7+charge*1.22;
+    sparks.scale.setScalar(.86+cast*.42+landing*.29);
+    sparks.visible=fall<.82;
+    const wheelSize=(i===0?.66+.34*settled:1)*(1+cast*.31)*Math.max(.08,1-fall*.96);
     wheels[i].scale.setScalar(wheelSize);
     boots[i].visible=settled>.10;
     boots[i].scale.y=.64+.36*settled;
-    boots[i].rotation.x=.13+Math.sin(beat*.7+i)*.11-travel*.17;
+    const stride=step+i*Math.PI;
+    boots[i].rotation.x=.10+Math.sin(stride)*gait*.57;
+    boots[i].position.y=-.24+Math.max(0,Math.cos(stride))*gait*.19;
+    mantles[i].rotation.set(-travel*.12+Math.sin(beat+i*.9)*.13,side*(.10+travel*.17+landing*.21),side*(Math.sin(beat+i)*.13+recoil*.20));
   }
 }

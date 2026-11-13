@@ -103,6 +103,8 @@
 }
 .boss-preview-attacks .secondary {padding:5px 4px;font-size:12px;background:#211d2b}
 .boss-preview-attacks [aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
+.pao-preview-motions {grid-template-columns:repeat(4,minmax(0,1fr));border-top:0;padding-top:0}
+.pao-preview-motions .secondary {min-height:44px;color:#c9e2e6;background:#1c2631}
 .weapon-viewer[data-subject=boss] .weapon-viewer-tools {display:flex}
 .weapon-viewer[data-subject=boss] .weapon-viewer-tools button:not([hidden]) {flex:1;min-height:44px}
 .boss-preview-weakness {display:grid;gap:6px;margin:8px 20px 0}

@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-polish-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=forgelight-4';
 import {pictures, stages} from './expedition.mjs?v=forgelight-4';
@@ -17,6 +17,7 @@ import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=sigils-1';
+import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=pao-polish-1';
 
 const PI = Math.PI;
 const color = new T.Color();
@@ -282,7 +283,7 @@ export class Scenery {
   }
 
   sharedPreviewGeometry(geometry) {
-    return geometry===plane||geometry===actorPlane||geometry===this.ring||geometry===this.disc;
+    return geometry===plane||geometry===actorPlane||geometry===this.ring||geometry===this.disc||paoSharedGeometry.includes(geometry);
   }
 
   async load() {
@@ -1311,18 +1312,24 @@ export class Scenery {
     seal.spin=-1.24;
   }
 
+  chargeBoss(unit) {
+    if(unit.visual?.bestiary?.pao)paoCastWindup(this,unit);
+  }
+
   impact(unit,origin,kind,tint) {
     const {x,z}=unit;
     const angle=Math.atan2(z-origin.z,x-origin.x);
     const height=(unit.spec?.height??2.68)*.48;
     const heavy=kind==='heavy';
     const shield=kind==='block'||kind==='break';
+    const pao=unit.visual?.bestiary?.pao;
     const impactColor=shield?0xa7edff:tint;
     const count=kind==='break'?22:kind==='fall'?18:heavy?14:kind==='block'?6:8;
     this.spark(x,height,z,impactColor,this.mobile?Math.ceil(count*.73):count,
       kind==='break'?1.29:heavy?1.40:.89,shield?'ice':'flare',angle);
-    this.elementBurst(x,height*.78,z,shield?impactColor:0xa72b45,shield?'ice':'blood',
+    this.elementBurst(x,height*.78,z,shield?impactColor:pao?0x7ce7e5:0xa72b45,shield||pao?'ice':'blood',
       shield||heavy||kind==='fall'?9:3,heavy?1.14:.82,angle);
+    if(pao&&heavy)this.spark(x,height*1.03,z,0xe7c381,this.mobile?4:8,.95,'gold',angle);
     if (this.motion.accent()) this.motion.impact({x,y:height,z},angle,impactColor,kind);
   }
 
@@ -1345,6 +1352,13 @@ export class Scenery {
 
   bossCue(unit,phase) {
     const {x,z,spec}=unit;
+    const pao=unit.visual?.bestiary?.pao;
+    if(pao){
+      if(phase==='entrance')pao.entranceAt=this.time;
+      paoArrival(this,unit,phase);
+      this.shake=Math.max(this.shake,phase==='phase'?.30:.17);
+      return;
+    }
     const size=phase==='defeat'?7.6:5.9+(this.stage.dread??0)*2.8;
     this.shroud=phase==='entrance'?.72:phase==='defeat'?.36:.61;
     const haze=this.addEffect(plane,{x,y:.063,z},0xffffff,phase==='entrance'?1.3:.86,
@@ -1415,7 +1429,7 @@ export class Scenery {
 
   threatImpact(hazard) {
     const {kind,x,z,radius,tint,width,angle,pattern,effect,owner}=hazard;
-    const pao=owner?.visual?.bestiary?.pao;
+    if(owner?.visual?.bestiary?.pao&&paoStrike(this,hazard))return;
     this.elementBurst(x,.24,z,tint,effect,kind==='cone'?13:9,Math.min(1.2,.74+radius*.08),angle);
     const point={x,y:.08,z};
     if (kind==='cone') {
@@ -1429,15 +1443,8 @@ export class Scenery {
     } else if (kind==='line') {
       if (['lance','pounce','sweep','feathers','barrage','jaws'].includes(pattern)) {
         const dx=Math.cos(angle),dz=Math.sin(angle);
-        if(pao&&pattern==='lance'){
-          const start={x:x-dx*radius*.5,y:.91,z:z-dz*radius*.5};
-          const end={x:x+dx*radius*.5,y:.38,z:z+dz*radius*.5};
-          this.motion.thrust(start,dx,dz,radius,0xacfdf6,true);
-          this.motion.bolt(start,end,tint,1.65);
-        }else{
-          this.motion.thrust({x:x-dx*radius*.5,y:pattern==='pounce'?.30:.55,z:z-dz*radius*.5},
-            dx,dz,radius,tint,pattern==='lance'||pattern==='sweep');
-        }
+        this.motion.thrust({x:x-dx*radius*.5,y:pattern==='pounce'?.30:.55,z:z-dz*radius*.5},
+          dx,dz,radius,tint,pattern==='lance'||pattern==='sweep');
       } else {
         const strip=new T.PlaneGeometry(radius,width*1.42).rotateX(-PI/2);
         this.addEffect(strip,point,tint,.25,{owned:true,angle:-angle,opacity:.32,growth:.07});
@@ -1456,7 +1463,6 @@ export class Scenery {
       }
     } else if (pattern==='prison'||pattern==='eclipse') {
       this.vortex(x,z,radius,tint);
-      if(pao)this.sealFx(x,z,tint,radius*.74,.58);
     } else {
       this.shock(x,z,tint,radius,pattern==='burst'?.92:.63);
     }

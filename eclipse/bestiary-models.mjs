@@ -1,7 +1,8 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
-import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-1';
+import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-polish-1';
+import {paoMaterials} from './pao-materials.mjs?v=pao-polish-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -107,6 +108,7 @@ function relief(){
 }
 
 function buildMaterials(entry){
+  if(paoForms.has(entry.id))return paoMaterials(entry.id==='m026',colors(entry));
   const [dark,body,edge,glow]=colors(entry);
   const ethereal=['priest','shade','serpent','hydra','star'].includes(entry.family);
   const chitin=['turtle','wasp','spider','dragon','beast'].includes(entry.family);
@@ -129,31 +131,6 @@ function buildMaterials(entry){
   });
   if(entry.id==='m150')finishes.copper=surface(0xb7693d,.52,.39,'bronze');
   if(entry.id==='m154')finishes.iron=surface(0x4c4745,.66,.41,'iron');
-  if(paoForms.has(entry.id)){
-    finishes.deep=surface(0x221f2a,.26,.67,'cloth');
-    finishes.body=surface(0x3d5273,.46,.39,'iron');
-    finishes.trim=surface(0xa37a42,.56,.41,'bronze');
-    finishes.edge=surface(0xd4d5cd,.22,.52,'bone');
-    finishes.ivoryShade=surface(0x8a8175,.11,.66,'bone');
-    finishes.bronzeShade=surface(0x75483d,.38,.48,'bronze');
-    finishes.wingEdge=surface(0x58618d,.58,.47,'iron');
-    finishes.webbing=new T.MeshStandardMaterial({
-      color:0xffffff,vertexColors:true,side:T.DoubleSide,metalness:.12,roughness:.77,bumpMap:relief(),bumpScale:.062,
-      emissive:0x9a594b,emissiveIntensity:.07,
-    });
-    finishes.webbing.onBeforeCompile=shader=>{
-      shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
-        if(!gl_FrontFacing) diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.026,.052,.12),.88);
-      `);
-    };
-    finishes.cyan=new T.MeshStandardMaterial({
-      color:0x32acb7,emissive:0x138fa9,emissiveIntensity:.82,metalness:.23,roughness:.35,
-    });
-    finishes.eye=new T.MeshBasicMaterial({color:0xf38342});
-    finishes.mist=new T.MeshBasicMaterial({
-      color:0x65f7ec,transparent:true,opacity:.18,depthWrite:false,blending:T.AdditiveBlending,
-    });
-  }
   if(entry.id==='m133')finishes.mist=new T.MeshStandardMaterial({
     color:0xc5bdbc,emissive:0x726d6a,emissiveIntensity:.36,roughness:1,transparent:true,opacity:.54,depthWrite:false,
   });
@@ -1641,7 +1618,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.spellHood.scale.set(1+wind*.21,1+strike*.17,1+wind*.08);
     model.spellHood.rotation.x=wind*.23-strike*.29;
   }
-  if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall});
+  if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
     for(const [index,shield] of arms.entries()){

@@ -1,12 +1,12 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=pao-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=pao-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=pao-polish-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=pao-polish-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=pao-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=pao-polish-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=pao-1';
+import {Scenery} from './scenery.mjs?v=pao-polish-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
-import {Audio} from './audio.mjs?v=weapon-audit-1';
+import {Audio} from './audio.mjs?v=pao-polish-1';
 import {Input} from './input.mjs?v=bestiary-1';
 import {arms} from './armory.mjs?v=forgelight-4';
 import {ending} from './campaign.mjs?v=clock-1';
@@ -181,7 +181,8 @@ export class Game {
     const describe=entry=>bossDossier(entry,this.difficulty);
     const content=practiceLoadout(this.practiceDraft,{weapons:arms,heads:bossDossiers,icons:this.view.armIcons,
       previewWeapon:weapon=>this.weaponViewer.show(weapon),describe,
-      previewBoss:entry=>this.weaponViewer.showBoss(describe(entry),{...patterns,...bossMoveNames},makeBossPractice),
+      previewBoss:entry=>this.weaponViewer.showBoss(describe(entry),{...patterns,...bossMoveNames},
+        (view,dossier,action,signal)=>makeBossPractice(view,dossier,action,signal,this.audio)),
       chooseWeapon:weapon=>this.setPracticeWeapon(weapon),chooseBoss:entry=>this.setPracticeBoss(entry)});
     this.openModal({kind:'practice-loadout',mark:'◇',kicker:'',title:'練習場',copy:'',content,
       buttons:[makeButton('返回入口',()=>this.showCover()),
@@ -1072,7 +1073,7 @@ export class Game {
     }
     recoil(unit,origin,kind);
     this.view.impact(unit,origin,kind,tint);
-    const material=unit.spec?.guard?'armor':unit.spec?.effect==='stone'?'stone':'hide';
+    const material=unit.spec?.guard||unit.visual?.bestiary?.pao?'armor':unit.spec?.effect==='stone'?'stone':'hide';
     this.audio.impact(kind,material);
     const shake=kind==='break'?.19:kind==='heavy'?.13:kind==='fall'?.12:0;
     this.view.shake=Math.max(this.view.shake,shake);
@@ -1243,6 +1244,7 @@ export class Game {
     const time=spec.time*(1-phase*.12);
     unit.attack={pattern,time,windup:time,dx,dz};
     unit.attack.landing=telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
+    if(boss)this.view.chargeBoss(unit);
     unit.hunt?.signature(unit.attack,!!forcedPattern);
     if(unit.omen?.id==='echo'&&this.hazards.length<13)telegraph(this,'marked',unit,h,{delay:time+.46,damage:spec.hurt*.58,radius:1.27,owner:unit});
     if (boss && phase>=1 && index%3===2) {
@@ -1274,7 +1276,7 @@ export class Game {
     }
     this.view.elementBurst(unit.x,unit.spec.height*.38,unit.z,unit.spec.tint,unit.spec.effect,boss?12:6,
       boss?1.14:.83,Math.atan2(attack.dz,attack.dx));
-    this.audio.release(attack.pattern,boss);
+    this.audio.release(attack.pattern,boss,unit.spec.bestiary?.id);
     if (boss) {
       if(this.bossArena?.boss===unit)this.bossArena.counters.resolveAttack(attack);
       this.view.shake=Math.max(this.view.shake,.13);
@@ -2333,21 +2335,26 @@ function makeWeaponPractice(view,weapon,kind) {
   };
 }
 
-function makeBossPractice(view,dossier,action,signal) {
+function makeBossPractice(view,dossier,action,signal,sound) {
   const {spec,stage:source,layout,weakness}=dossier;
   const practice=Object.create(Game.prototype);
   const drill=action.drill;
   const stage=action.phase?source:{...source,props:[]};
-  const position=action.phase?source.spawn:{x:2.95,z:.82};
+  const demonstration=action.motion;
+  const pao=['m025','m026'].includes(spec.bestiary?.id);
+  const position=action.phase?source.spawn:pao?{x:1.4,z:3.05}:{x:2.95,z:.82};
   const hero=Object.assign(makeHero(),position,{moveSpeed:6.9,damage:25,face:-1});
   const controls={keys:new Set(),point:null,roll:false,interact:false};
   const weapon=arms.find(arm=>arm.id==='tiger');
+  const audio=pao?sound:{play(){},release(){},boss(){},impact(){}};
+  if(pao)audio.start().catch(()=>{});
   Object.assign(practice,{view,stage,hero,weapon,t:0,state:'play',hazards:[],enemies:[],relicWalls:[],wave:0,
-    hitstop:0,branchCombat:{skills:new Set()},audio:{play(){},release(){},boss(){},impact(){}},
+    hitstop:0,branchCombat:{skills:new Set()},audio,
     announce(){},setupMissionPins(){},objective(){}});
-  const unit=practice.spawn('boss',action.phase?0:-2.4,action.phase?-3.2:-.46,null,spec);
+  const unit=practice.spawn('boss',action.phase?0:pao?-2.1:-2.4,action.phase?-3.2:pao?-1.65:-.46,null,spec);
   unit.age=3;
   unit.face=1;
+  if(demonstration&&unit.visual.bestiary)unit.visual.bestiary.heading=.55;
   if(action.phase){
     practice.bossArena=new BossArena(practice,layout,unit,action.seed,drill?drillEncounter(dossier):null);
     view.setBossArena(practice.bossArena);
@@ -2423,13 +2430,14 @@ function makeBossPractice(view,dossier,action,signal) {
   };
   const paint=dt=>{
     advanceReaction(hero,dt);
+    if(demonstration)advanceReaction(unit,dt);
     practice.poseHero(dt);
     for(const actor of practice.enemies)practice.poseEnemy(actor,dt);
   };
   paint(0);
   let fired=!!action.portrait;
   const hold=action.phase ? .85 : .20;
-  const duration=hold+spec.time+2.75;
+  const duration=demonstration?3.05:hold+spec.time+2.75;
   return {
     controls,
     step(dt) {
@@ -2438,7 +2446,20 @@ function makeBossPractice(view,dossier,action,signal) {
       if(drill&&fired&&!done)steer(dt);
       if(!fired&&practice.t>=hold){
         fired=true;
-        if(action.phase){
+        if(demonstration){
+          if(demonstration==='entrance'){
+            view.bossCue(unit,'entrance');
+            audio.boss(spec.effect);
+          }
+          if(demonstration==='hit'){
+            practice.impact(unit,hero,'heavy',spec.tint);
+          }
+          if(demonstration==='defeat'){
+            recoil(unit,hero,'fall');
+            view.bossCue(unit,'defeat');
+            audio.impact('fall','armor');
+          }
+        }else if(action.phase){
           unit.hp=spec.hp*spec.phases[unit.bossPhase];
           practice.advanceBossPhase(unit);
           signal.phase(unit.bossPhase,arena.plan.title);
@@ -2446,6 +2467,12 @@ function makeBossPractice(view,dossier,action,signal) {
           practice.beginEnemyAttack(unit,action.pattern);
         }
       }
+      if(demonstration==='travel'&&fired&&practice.t<2.38){
+        const speed=spec.bestiary.id==='m026'?2.15:2.55;
+        const t=practice.t-hold;
+        practice.moveUnit(unit,dt*speed,Math.sin(t*2.8)*dt*.60,.35);
+        unit.move=1;
+      }else if(demonstration==='travel')unit.move*=Math.exp(-dt*10);
       if(drill&&fired&&!done){
         const hasRift=riftDrill&&practice.hazards.some(hazard=>hazard.residue==='embers');
         exercise.attack=riftDrill&&!hasRift?'cinders':null;

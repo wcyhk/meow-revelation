@@ -30,6 +30,13 @@
 }
 .weapon-viewer-comparison {display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);align-items:stretch}
 .weapon-viewer-comparison:has(.sprite-reference[hidden]) {grid-template-columns:minmax(0,1fr)}
+.pao-viewer .weapon-viewer-stage {
+  background:radial-gradient(ellipse at 53% 32%,#2e3236,#161921 46%,#0c0e14 75%);
+}
+.pao-viewer .weapon-viewer-stage[data-preview=model]::after {
+  left:23%;right:23%;bottom:10%;height:13%;opacity:.91;
+  background:radial-gradient(ellipse,#101014 3%,#050609b5 30%,#1832373d 53%,transparent 72%);
+}
 .sprite-reference {display:grid;grid-template-rows:auto minmax(68px,1fr) auto auto auto auto;gap:4px;min-width:0;padding:8px;
   border-block:1px solid #a07e624f;border-left:1px solid #a07e624f;background:#1b1621;color:#efdfc7}
 .sprite-reference h3 {margin:0;font:800 13px/1.35 var(--serif);color:#f1cd9f}

@@ -2,13 +2,13 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=forgelight-4';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-polish-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-detail-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
-import {lightPaoDisplay} from './pao-materials.mjs?v=pao-polish-1';
-import {paoForms} from './pao-model.mjs?v=pao-polish-1';
+import {lightPaoDisplay} from './pao-materials.mjs?v=pao-detail-1';
+import {paoForms} from './pao-model.mjs?v=pao-detail-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -289,6 +289,7 @@ export class WeaponViewer {
     this.choose.textContent=choice;
     this.choose.hidden=!commit;
     this.dialog.dataset.subject=this.boss?'boss':'weapon';
+    this.dialog.classList.toggle('pao-viewer',paoForms.has(this.boss?.bestiary?.id));
     this.dialog.style.setProperty('--preview-ink',ink);
     this.combo.hidden=this.skill.hidden=!!this.boss;
     this.attacks.hidden=!this.boss;
@@ -326,9 +327,9 @@ export class WeaponViewer {
     const pixelRatio=Math.min(devicePixelRatio,limit);
     if(this.renderer.getPixelRatio()!==pixelRatio)this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width,height,false);
-    fit(inspectCamera,width,height,2.30,2.24);
-    const arena=['phase','drill'].includes(this.mode);
     const pao=paoForms.has(this.boss?.bestiary?.id);
+    fit(inspectCamera,width,height,pao?2.03:2.30,pao?1.98:2.24);
+    const arena=['phase','drill'].includes(this.mode);
     const battleWidth=arena?23:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
     fit(battleCamera,width,height,battleWidth,arena?13:pao?10.3:this.boss?8.4:7.6);
     if(this.mode==='model')this.renderer.render(this.scene,inspectCamera);
@@ -348,7 +349,7 @@ export class WeaponViewer {
     const pao=this.bossRig?.pao;
     this.yaw=pao?(pao.awakened?-.61:-1.02):mounted?-1.18:low?-.71:this.boss?-.53:-.37;
     this.pitch=pao?.15:mounted?.10:low?.35:this.boss?.16:-.09;
-    this.setZoom(1);
+    this.setZoom(pao?1.07:1);
     this.turn(0,0);
   }
 
@@ -402,7 +403,7 @@ export class WeaponViewer {
       item.position.sub(bounds.getCenter(new T.Vector3()));
       pivot.add(item);
     }
-    pivot.scale.setScalar(this.boss?1.95/Math.max(size.x,size.y,size.z):1.68/size.length());
+    pivot.scale.setScalar(this.boss?(pao?2.13:1.95)/Math.max(size.x,size.y,size.z):1.68/size.length());
     this.scene.add(pivot);
     this.item=item;
     this.resetRotation();

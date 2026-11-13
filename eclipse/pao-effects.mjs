@@ -1,7 +1,7 @@
 import * as T from '../three.min.mjs';
 
 const TAU=Math.PI*2;
-const aqua=0x43e8de,white=0xcafbf2,antique=0xdcb66d;
+const aqua=0x51cbb7,white=0xd0f0e4,antique=0xaa8251;
 const wheel=new T.RingGeometry(.92,1,48).rotateX(-Math.PI/2);
 const fissureCore=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2);
 const etched=new T.BufferGeometry();
@@ -43,9 +43,29 @@ function helix(view,x,y,z,radius,rise,turns,color,duration,reverse=false){
     path.push(new T.Vector3(Math.cos(a)*width,t*rise,Math.sin(a)*width));
   }
   const tube=new T.TubeGeometry(new T.CatmullRomCurve3(path),samples,view.mobile?.023:.027,4);
-  const trail=view.addEffect(tube,{x,y,z},color,duration,{owned:true,fade:true,opacity:.93,growth:.18,order:45});
+  const vapor=new T.ShaderMaterial({
+    uniforms:{life:{value:0},opacity:{value:.97},tint:{value:new T.Color(color)}},
+    transparent:true,depthWrite:false,blending:T.AdditiveBlending,
+    vertexShader:`varying vec2 filament;void main(){filament=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`uniform float life,opacity;uniform vec3 tint;varying vec2 filament;
+      void main(){
+        float tail=smoothstep(0.,.29,filament.x)*(1.-smoothstep(.72,1.,filament.x));
+        float bunch=.30+.70*pow(.5+.5*sin(filament.x*42.+life*25.),2.5);
+        gl_FragColor=vec4(tint,tail*bunch*opacity);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const trail=view.addEffect(tube,{x,y,z},color,duration,{material:vapor,owned:true,fade:true,opacity:.83,growth:.18,order:45});
   trail.spin=reverse?-5.3:6.1;
   trail.animate=age=>{trail.mesh.scale.y*=.65+.35*Math.sin(age*Math.PI/2);};
+}
+
+function vapor(view,x,z,size,duration,color){
+  const haze=view.addEffect(fissureCore,{x,y:.11,z},color,duration,
+    {map:view.halo,scale:size,growth:size*.45,fade:true,opacity:.32,order:27});
+  haze.mesh.rotation.x=0;
+  haze.mesh.rotation.order='XYZ';
+  return haze;
 }
 
 function beam(view,hazard){
@@ -65,6 +85,11 @@ function beam(view,hazard){
   }
   const start={x:x-dx*radius*.49,y:.51,z:z-dz*radius*.49};
   const end={x:x+dx*radius*.48,y:.42,z:z+dz*radius*.48};
+  const scorch=view.addEffect(fissureCore,{x,y:.086,z},0x277e73,.59,
+    {angle:-angle,fade:true,opacity:.39,order:42});
+  scorch.mesh.scale.set(radius,1,width*.86);
+  scorch.animate=age=>scorch.mesh.scale.set(radius,1,width*(.78+age*.43));
+  view.motion.flash(start,white,1.52);
   view.motion.bolt(start,end,aqua,1.6);
   for(const offset of [-.38,0,.39]){
     const point={x:x+dx*radius*offset,z:z+dz*radius*offset};
@@ -80,21 +105,25 @@ export function paoStrike(view,hazard){
       return true;
     case 'marked':
       seal(view,x,z,radius*.95,.63);
+      vapor(view,x,z,radius*1.85,.55,aqua);
       view.motion.flash({x,y:.45,z},white,1.07);
       view.motion.bolt({x,y:2.38,z},{x,y:.145,z},aqua,1.13);
       break;
     case 'prison':
       seal(view,x,z,radius*.98,.82);
-      helix(view,x,.13,z,radius*.86,1.56,1.38,aqua,.69);
+      vapor(view,x,z,radius*1.6,.73,0x216c62);
+      helix(view,x,.13,z,radius*.86,1.29,1.23,aqua,.69);
       break;
     case 'ring':{
       seal(view,x,z,radius,.60);
+      vapor(view,x,z,radius*1.90,.71,aqua);
       const crest=view.addEffect(wheel,{x,y:.27,z},aqua,.49,{scale:radius*.95,growth:.54,opacity:.88,fade:true,order:39});
       crest.vertical={from:.27,to:1.08,duration:.49};
       break;
     }
     case 'gravity':
       seal(view,x,z,radius,.96,0x6ca4a9);
+      vapor(view,x,z,radius*2.1,1.13,0x328d7b);
       helix(view,x,.15,z,radius*.81,2.50,2.45,aqua,.99,true);
       if(!view.mobile)helix(view,x,.24,z,radius*.70,2.22,1.8,white,.70);
       break;
@@ -125,6 +154,12 @@ export function paoArrival(view,unit,event){
   const {x,z}=unit;
   const change=event==='phase',fall=event==='defeat';
   const size=change?3.2:fall?2.65:2.95;
+  vapor(view,x,z,size*2,1.41,0x27786e);
+  if(change){
+    const pressure=view.addEffect(wheel,{x,y:.097,z},antique,.77,{scale:.48,growth:4.4,fade:true,opacity:.63,order:28});
+    pressure.spin=-.42;
+    view.spark(x,.16,z,0xc2a884,view.mobile?9:17,1.20,'stone');
+  }
   seal(view,x,z,size,change?1.02:.86);
   helix(view,x,.12,z,size,fall?1.8:3.55,2.10,aqua,change?1.03:.89,change);
   if(!view.mobile)helix(view,x,.37,z,size*.78,fall?1.37:2.90,1.8,white,.80,!change);

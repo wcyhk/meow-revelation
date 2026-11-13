@@ -1,8 +1,8 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
-import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-polish-1';
-import {paoMaterials} from './pao-materials.mjs?v=pao-polish-1';
+import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-detail-1';
+import {paoMaterials} from './pao-materials.mjs?v=pao-detail-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={

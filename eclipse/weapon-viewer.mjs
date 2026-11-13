@@ -1,11 +1,12 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=ledger-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=dojo-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=korean-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=dojo-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
-import {jushangReference,koreanTrialReference} from './jushang-references.mjs?v=korean-1';
+import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=dojo-1';
+import {spriteReferenceView} from './sprite-reference-view.mjs?v=dojo-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -55,6 +56,11 @@ export class WeaponViewer {
     heading.append(this.role,this.title);
     const close=button('返回',()=>this.dialog.close());
     close.autofocus=true;
+    close.addEventListener('pointerup',event=>{
+      if(event.pointerType==='touch'&&document.elementFromPoint(event.clientX,event.clientY)===close){
+        this.dialog.close();
+      }
+    });
     header.append(heading,close);
     this.stage=node('div','weapon-viewer-stage');
     this.image=node('img','weapon-viewer-fallback');
@@ -71,6 +77,9 @@ export class WeaponViewer {
     this.zoomIn.setAttribute('aria-label','放大頭目模型');
     this.zoomTools.append(this.zoomOut,this.zoomIn);
     this.stage.append(this.image,this.canvas,this.hint,this.zoomTools);
+    this.spriteReference=spriteReferenceView();
+    const comparison=node('div','weapon-viewer-comparison');
+    comparison.append(this.stage,this.spriteReference.root);
     this.inspect=button('旋轉睇模型',()=>this.showModel());
     this.combo=button('播放三段普攻',()=>this.play('combo'));
     this.skill=button('播放技能',()=>this.play('skill'));
@@ -108,7 +117,7 @@ export class WeaponViewer {
     const actions=node('div','weapon-viewer-actions');
     actions.append(this.practiceChoice,this.choose);
     footer.append(copy,actions);
-    this.dialog.append(header,this.stage,this.tools,this.weakness,this.attacks,footer);
+    this.dialog.append(header,comparison,this.tools,this.weakness,this.attacks,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
       if(this.dialog.open)return;
@@ -234,7 +243,7 @@ export class WeaponViewer {
       return control;
     });
     this.attacks.replaceChildren(...this.attackControls);
-    this.openViewer({title:entry.name,role:entry.floor?'主線頭目 · 第 '+entry.floor+' 關':'頭目圖鑑',ink:new T.Color(spec.tint).getStyle(),
+    this.openViewer({title:entry.name,role:entry.floor?'主線頭目 · 第 '+entry.floor+' 關':'頭目預覽',ink:new T.Color(spec.tint).getStyle(),
       choice:'挑戰此頭目',description:spec.signature,commit,practice});
   }
 
@@ -248,6 +257,8 @@ export class WeaponViewer {
     this.practiceChoice.hidden=!practice;
     this.description=description;
     const reference=jushangReference(this.weapon,this.boss?this.dossier.entry:null);
+    const entry=this.boss?this.dossier.entry:null;
+    this.spriteReference.setReference(jushangImage(this.weapon,entry),clientSpriteGuide(this.weapon,entry));
     this.reference.hidden=!reference;
     if(reference)this.reference.href=reference;
     else this.reference.removeAttribute('href');
@@ -523,6 +534,7 @@ export class WeaponViewer {
 
   clear(){
     this.clearScene();
+    this.spriteReference.setReference(null);
     this.bossSeed=null;
     this.renderer?.renderLists.dispose();
   }

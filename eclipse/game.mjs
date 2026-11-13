@@ -1,14 +1,14 @@
-import {bossMoveNames,fightCatalogue,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=korean-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=korean-1';
-import {blessingCatalogue,catalogue,practiceLoadout,techniqueCatalogue} from './catalogue.mjs?v=ledger-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=korean-1';
-import {damageReport,PracticeDamage} from './practice-damage.mjs?v=ledger-1';
-import {Scenery} from './scenery.mjs?v=korean-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=dojo-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=dojo-1';
+import {practiceLoadout} from './catalogue.mjs?v=dojo-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=dojo-1';
+import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
+import {Scenery} from './scenery.mjs?v=dojo-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
 import {paintedRooms} from './grove-light.mjs?v=gilded-1';
 import {Audio} from './audio.mjs?v=weapon-audit-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=ledger-1';
+import {arms} from './armory.mjs?v=dojo-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=bestiary-1';
 import {blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ledger-1';
@@ -37,7 +37,7 @@ import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
 import {endingFor} from './endings.mjs?v=last-bell-1';
 import {RelicHunt} from './relic-hunt.mjs?v=heirlooms-1';
 import {relicCounter} from './relic-cast.mjs?v=ledger-1';
-import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
+import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
 const $ = id => document.getElementById(id);
@@ -122,10 +122,9 @@ export class Game {
     this.ui.begin.addEventListener('click',()=>this.prepare());
     this.ui.training.addEventListener('click',()=>this.openTraining());
     this.ui.records.addEventListener('click',()=>this.openRecords());
-    this.ui.bestiary.addEventListener('click',()=>this.openCatalogue());
+    this.ui.bestiary.addEventListener('click',()=>this.openPracticeLoadout());
     this.ui['practice-edit'].addEventListener('click',()=>this.openPracticeLoadout());
-    this.damageControl=$('practice-damage');
-    this.damageControl.addEventListener('click',()=>this.openDamageReport());
+    this.paintDamage=damageHud($('practice-damage'));
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
@@ -161,36 +160,6 @@ export class Game {
       buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 
-  openCatalogue() {
-    if(this.state!=='cover')return;
-    const dossiers=new Map(bossDossiers.map(entry=>[entry,bossDossier(entry,this.difficulty)]));
-    const openBoss=entry=>this.weaponViewer.showBoss(dossiers.get(entry),{...patterns,...bossMoveNames},makeBossPractice,()=>{
-      this.duelMonster=entry;
-      this.prepare();
-    },()=>{
-      this.setPracticeBoss(entry);
-      this.openPracticeLoadout();
-    });
-    const tabs=[
-      ['頭目',()=>fightCatalogue(document,bossDossiers,openBoss,entry=>dossiers.get(entry))],
-      ['神器＋技能',()=>{
-        const page=document.createElement('div');
-        page.append(techniqueCatalogue(),weaponCatalogue(arms,this.view.armIcons,weapon=>this.weaponViewer.show(weapon,chosen=>{
-          this.setPracticeWeapon(chosen);
-          this.openPracticeLoadout();
-        },'加入練習配搭')));
-        return page;
-      }],
-      ['祝福',()=>blessingCatalogue(arms,item=>{
-        if(item.weaponId)this.setPracticeWeapon(arms.find(arm=>arm.id===item.weaponId));
-        this.practiceDraft.ranks.set(item.id,Math.max(1,this.practiceDraft.ranks.get(item.id)??0));
-        this.openPracticeLoadout();
-      })],
-    ];
-    this.openModal({kind:'bestiary',mark:'☽',kicker:'守燈手記',title:'圖鑑',copy:'',
-      content:catalogue(tabs,()=>this.showCover(),()=>this.openPracticeLoadout())});
-  }
-
   setPracticeBoss(entry) {
     const draft=this.practiceDraft;
     if(draft.boss===entry)return;
@@ -206,16 +175,19 @@ export class Game {
 
   openPracticeLoadout() {
     if(this.state!=='cover'&&!this.practiceRun)return;
+    const canResume=this.practiceCanResume=['play','pause'].includes(this.state);
     this.state='practice-loadout';
     this.audio.active=false;
+    const describe=entry=>bossDossier(entry,this.difficulty);
     const content=practiceLoadout(this.practiceDraft,{weapons:arms,heads:bossDossiers,icons:this.view.armIcons,
-      preview:weapon=>this.weaponViewer.show(weapon),describe:entry=>bossDossier(entry,this.difficulty),
+      previewWeapon:weapon=>this.weaponViewer.show(weapon),describe,
+      previewBoss:entry=>this.weaponViewer.showBoss(describe(entry),{...patterns,...bossMoveNames},makeBossPractice),
       chooseWeapon:weapon=>this.setPracticeWeapon(weapon),chooseBoss:entry=>this.setPracticeBoss(entry)});
-    this.openModal({kind:'practice-loadout',mark:'◇',kicker:'圖鑑',title:'配搭及練習',
-      copy:'用自選祝福試招，可以由變身後開始。練習獨立計時。',content,
-      buttons:[makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();}),
+    this.openModal({kind:'practice-loadout',mark:'◇',kicker:'',title:'練習場',copy:'',content,
+      buttons:[makeButton('返回入口',()=>this.showCover()),
+        ...(canResume?[makeButton('繼續本場',()=>this.togglePause())]:[]),
         makeButton('開始練習',()=>this.startPractice(),'primary')]});
-    this.ui.modal.querySelector('.panel').scrollTop=0;
+    this.ui['modal-content'].scrollTop=0;
   }
 
   startPractice() {
@@ -290,8 +262,8 @@ export class Game {
     this.rituals.length=0;
     this.ui.announce.classList.remove('visible');
     this.openModal({kind:'duel-win',mark:'✧',kicker:'頭目試戰',title:'已擊敗 '+this.duelMonster.name,
-      copy:'用時 '+formatTime(this.elapsed),buttons:[makeButton('返回頭目圖鑑',()=>{
-        this.showCover();this.openCatalogue();
+      copy:'用時 '+formatTime(this.elapsed),buttons:[makeButton('返回練習場',()=>{
+        this.showCover();this.openPracticeLoadout();
       },'primary')]});
   }
 
@@ -305,16 +277,7 @@ export class Game {
       title:won?'已擊敗 '+this.duelMonster.name:'練習結束',copy:'用時 '+formatTime(this.elapsed),
       content:damageReport(this.practiceRun.damage),
       buttons:[makeButton('換配搭',()=>this.openPracticeLoadout(),'primary'),makeButton('原配搭再試',()=>this.startPractice()),
-        makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();})]});
-  }
-
-  openDamageReport() {
-    if(this.state!=='play'||!this.practiceRun)return;
-    this.state='practice-damage';
-    this.audio.active=false;
-    this.openModal({kind:'practice-result',mark:'✧',kicker:'頭目練習場',title:'傷害統計',copy:'用時 '+formatTime(this.elapsed),
-      content:damageReport(this.practiceRun.damage),
-      buttons:[makeButton('繼續練習',()=>this.togglePause(),'primary'),makeButton('換配搭',()=>this.openPracticeLoadout())]});
+        makeButton('返回入口',()=>this.showCover())]});
   }
 
   prepare(milestone=false) {
@@ -388,8 +351,8 @@ export class Game {
       title:milestone?'領取頭目遺物':this.duelMonster?'試戰 · '+this.duelMonster.name:'向林火借一件神器',
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
         :'揀難度、勾選入場技能，再帶一件神器出發。',content,
-      buttons:milestone?[]:[makeButton(this.duelMonster?'返回頭目圖鑑':'返回主畫面',()=>{
-        const back=!!this.duelMonster;this.showCover();if(back)this.openCatalogue();
+      buttons:milestone?[]:[makeButton(this.duelMonster?'返回練習場':'返回主畫面',()=>{
+        const back=!!this.duelMonster;this.showCover();if(back)this.openPracticeLoadout();
       })]});
   }
 
@@ -453,8 +416,7 @@ export class Game {
     this.ui.cover.hidden = true;
     this.ui.hud.hidden = false;
     this.ui['practice-edit'].hidden=!this.practiceRun;
-    this.damageControl.hidden=!this.practiceRun;
-    this.damageRevision=-1;
+    this.paintDamage(this.practiceRun?.damage);
     this.closeModal();
     if(this.duelMonster)this.startMonsterDuel();
     else this.enter(0);
@@ -1740,11 +1702,7 @@ export class Game {
   }
 
   renderUI() {
-    const damage=this.practiceRun?.damage;
-    if(damage&&damage.revision!==this.damageRevision){
-      this.damageRevision=damage.revision;
-      this.damageControl.textContent='傷害 '+damage.label();
-    }
+    if(this.practiceRun)this.paintDamage(this.practiceRun.damage);
     const h=this.hero;
     const maw=this.branchCombat.activeMaw;
     const stacks=maw?.stacks??0;
@@ -2153,14 +2111,13 @@ export class Game {
   }
 
   togglePause() {
-    if (['pause','journal','run-blessings','practice-damage'].includes(this.state)) {
+    if (['pause','journal','run-blessings','practice-loadout'].includes(this.state)) {
+      if(this.state==='practice-loadout'&&!this.practiceCanResume)return;
       const fromBlessings=this.state==='run-blessings';
-      const fromDamage=this.state==='practice-damage';
       this.state='play';
       this.audio.active=true;
       this.closeModal();
       if(fromBlessings)this.ui['relic-icons'].focus({preventScroll:true});
-      if(fromDamage)this.damageControl.focus({preventScroll:true});
       return;
     }
     if (this.state!=='play') return;
@@ -2168,7 +2125,7 @@ export class Game {
     this.audio.active=false;
     const buttons=this.practiceRun?[makeButton('繼續練習',()=>this.togglePause(),'primary'),
       makeButton('換配搭',()=>this.openPracticeLoadout()),makeButton('原配搭再試',()=>this.startPractice()),
-      makeButton('返回圖鑑',()=>{this.showCover();this.openCatalogue();})]
+      makeButton('返回入口',()=>this.showCover())]
       :[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))];
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按後向上滑到神器紋章，放手施法。點「調查」可同場景互動。'
@@ -2288,7 +2245,7 @@ export class Game {
     if(this.practiceRun){this.clearThreats();this.clearActors();this.view.setBossArena(null);this.bossArena=null;}
     this.practiceRun=null;
     this.ui['practice-edit'].hidden=true;
-    this.damageControl.hidden=true;
+    this.paintDamage(null);
     this.duelMonster=null;
     this.audio.active=false;
     this.failure=null;

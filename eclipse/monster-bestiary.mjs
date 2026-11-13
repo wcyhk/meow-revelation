@@ -1,5 +1,5 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=korean-1';
+import {bestiaryTint} from './bestiary-models.mjs?v=dojo-1';
 
 const patterns={
   serpent:['lance','roots','gravity','sweep'],hydra:['jaws','prison','summon','cross'],
@@ -67,7 +67,7 @@ export function monsterBattle(entry,floor,mode={}){
   const brute=['turtle','ogre','emperor'].includes(entry.family);
   const quick=['wasp','bird','duelist','spider'].includes(entry.family);
   const ranged=['priest','captain','wasp','star'].includes(entry.family);
-  return {name:entry.name,frame:6,bestiary:entry,secondary:true,tint:bestiaryTint(entry.tone),effect,
+  return {name:entry.name,frame:6,bestiary:entry,secondary:true,tint:bestiaryTint(entry),effect,
     form:'邪相現形',signature:attacks.map(attack=>bossMoveNames[attack]).slice(0,3).join(' · '),
     attacks,finishing,
     hp:Math.round((285+floor*17)*(mode.hp??1)*(brute?1.13:.96)),
@@ -76,56 +76,4 @@ export function monsterBattle(entry,floor,mode={}){
     ranged:ranged?4.1:undefined,reach:ranged?9.4:6.3,radius:brute?2.75:2.2,
     time:(quick?.92:1.16)/Math.sqrt(mode.pace??1),hurt:(12+floor*.28)*(mode.damage??1),
     mass:brute?5.3:3.7,phases:entry.name==='黑影'?[.66,.30]:[.5]};
-}
-
-export function fightCatalogue(document,entries,select,describe){
-  const root=document.createElement('div');
-  root.className='bestiary-list';
-  const query=document.createElement('input');
-  query.type='search';
-  query.placeholder='搜尋頭目';
-  query.setAttribute('aria-label','搜尋頭目');
-  const list=document.createElement('div');
-  list.className='bestiary-results';
-  const status=document.createElement('p');
-  status.className='bestiary-count';
-  status.setAttribute('aria-live','polite');
-  const modes=[['全部',null],['主線',new Set(['story'])],['巨型',new Set(['big'])],['討伐',new Set(['tobel'])]];
-  let selected=modes[0];
-  const filters=document.createElement('div');filters.className='bestiary-filters';
-  const paint=()=>{
-    const name=query.value.trim().toLocaleLowerCase();
-    const matches=entries.filter(monster=>(!selected[1]||selected[1].has(monster.source))
-      &&monster.name.toLocaleLowerCase().includes(name));
-    list.replaceChildren(...matches.map(monster=>{
-      const card=document.createElement('button');
-      card.type='button';card.className='bestiary-fight';
-      card.dataset.monster=monster.id;
-      const heading=document.createElement('strong');
-      heading.textContent=monster.name;
-      const label=document.createElement('small');
-      const {spec,weakness}=describe(monster);
-      label.textContent=(monster.floor?'第 '+monster.floor+' 關 · ':'')+weakness.name;
-      card.style.setProperty('--bestiary-ink','#'+spec.tint.toString(16).padStart(6,'0'));
-      const action=document.createElement('span');
-      action.className='bestiary-preview-label';
-      action.textContent='招式及反制';
-      card.setAttribute('aria-label',monster.name+'，招式及反制');
-      card.append(heading,label,action);
-      card.addEventListener('click',()=>select(monster));
-      return card;
-    }));
-    status.textContent=matches.length?matches.length+' 名頭目':'找不到頭目';
-    for(const [index,control] of [...filters.children].entries())control.setAttribute('aria-pressed',String(modes[index]===selected));
-  };
-  for(const mode of modes){
-    const control=document.createElement('button');
-    control.type='button';control.className='secondary';control.textContent=mode[0];
-    control.addEventListener('click',()=>{selected=mode;paint();});
-    filters.append(control);
-  }
-  query.addEventListener('input',paint);
-  paint();
-  root.append(query,filters,status,list);
-  return root;
 }

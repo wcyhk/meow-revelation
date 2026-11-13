@@ -25,6 +25,33 @@ export class PracticeDamage {
   label(){return number.format(this.total);}
 }
 
+export function damageHud(root){
+  const labels={skill:'技能',blessing:'祝福',counter:'反制'};
+  const cells=[['total','總傷害','neutral'],...damageRows].map(([id,label,tone])=>{
+    const cell=document.createElement('div');
+    cell.dataset.damage=id;
+    cell.dataset.tone=tone;
+    const caption=document.createElement('span');
+    caption.textContent=labels[id]??label;
+    const value=document.createElement('b');
+    cell.append(caption,value);
+    root.append(cell);
+    return {id,cell,value};
+  });
+  let previous,revision;
+  return result=>{
+    root.hidden=!result;
+    if(!result||result===previous&&result.revision===revision)return;
+    previous=result;
+    revision=result.revision;
+    for(const {id,cell,value} of cells){
+      const entry=result.amounts.get(id);
+      cell.hidden=id==='support'&&!entry.hits;
+      value.textContent=number.format(entry?.damage??result.total);
+    }
+  };
+}
+
 export function damageReport(result){
   const report=document.createElement('section');
   report.className='practice-damage-report';

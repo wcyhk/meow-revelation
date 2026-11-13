@@ -1,7 +1,6 @@
 import {blessings,schools} from './blessings.mjs?v=ledger-1';
-import {branches,techniques} from './progression.mjs?v=last-bell-1';
-import {seals} from './relic-gifts.mjs?v=ledger-1';
 import {blessingIcon} from './relic-interface.mjs?v=codex-1';
+import {seals} from './relic-gifts.mjs?v=ledger-1';
 
 function element(tag,style,content){
   const item=document.createElement(tag);
@@ -10,116 +9,10 @@ function element(tag,style,content){
   return item;
 }
 
-export function catalogue(tabs,close,practice){
-  const root=element('div','catalogue');
-  const nav=element('nav','catalogue-nav');
-  nav.setAttribute('aria-label','圖鑑分類');
-  const body=element('div','catalogue-page');
-  const pages=new Map();
-  const buttons=tabs.map(([name,build],index)=>{
-    const button=element('button','secondary',name);
-    button.type='button';
-    button.addEventListener('click',()=>{
-      for(const [i,tab] of buttons.entries())tab.setAttribute('aria-pressed',String(index===i));
-      if(!pages.has(name))pages.set(name,build());
-      body.replaceChildren(pages.get(name));
-      root.closest('.panel')?.scrollTo(0,0);
-    });
-    nav.append(button);
-    return button;
-  });
-  const back=element('button','secondary catalogue-back','返回入口');
-  back.type='button';
-  back.addEventListener('click',close);
-  nav.append(back);
-  const actions=element('div','catalogue-actions');
-  const training=element('button','primary catalogue-practice','配搭及練習');
-  training.type='button';
-  training.addEventListener('click',practice);
-  actions.append(training);
-  root.append(nav,actions,body);
-  buttons[0].click();
-  return root;
-}
-
-export function techniqueCatalogue(){
-  const root=element('div','catalogue-skills');
-  for(const [name,items] of [['戰技',techniques],...branches.map(branch=>[branch.name,branch.skills])]){
-    const group=element('section','catalogue-skill-group');
-    group.append(element('h3',null,name));
-    for(const item of items){
-      const row=element('article','catalogue-entry');
-      row.append(element('strong',null,item.name),element('p',null,item.detail));
-      group.append(row);
-    }
-    root.append(group);
-  }
-  return root;
-}
-
-export function blessingCatalogue(weapons,add){
-  const root=element('div','catalogue-boons');
-  const weaponBoons=weapons.filter(weapon=>weapon.blessing).map(weapon=>({...weapon.blessing,weapon:weapon.name}));
-  const rows=[...blessings,...weaponBoons];
-  const names=new Map(rows.map(item=>[item.id,item.name]));
-  const query=element('input');
-  query.type='search';
-  query.placeholder='搜尋祝福、流派或神器';
-  query.setAttribute('aria-label',query.placeholder);
-  const filters=element('div','bestiary-filters');
-  const list=element('div','catalogue-boon-list');
-  const status=element('p','bestiary-count');
-  status.setAttribute('aria-live','polite');
-  let active='all';
-  const controls=[];
-  const draw=()=>{
-    const text=query.value.trim().toLowerCase();
-    const matches=rows.filter(item=>(active==='all'||(active==='weapon'?!!item.weapon:item.school===active))
-      &&[item.name,schools[item.school]?.name,item.weapon,item.detail].join(' ').toLowerCase().includes(text));
-    const school=schools[active];
-    status.textContent=matches.length?matches.length+' 款祝福':'找不到祝福';
-    list.replaceChildren(...matches.map(item=>{
-      const card=element('article','catalogue-entry catalogue-boon');
-      card.dataset.boon=item.id;
-      const detail=element('div');
-      detail.append(element('small',null,item.weapon??schools[item.school]?.name),element('strong',null,item.name),
-        element('p',null,item.detail));
-      card.append(blessingIcon(item),detail);
-      if(add){
-        const button=element('button','secondary catalogue-add','加入練習配搭');
-        button.type='button';
-        button.addEventListener('click',()=>add(item,button));
-        detail.append(button);
-      }
-      return card;
-    }));
-    if(school)list.prepend(element('p','catalogue-school-note',`集齊 3 款不同${school.name}祝福，解鎖「${school.skill}」。${school.detail}`));
-    if(active==='all'&&!text)for(const seal of seals){
-      const card=element('article','catalogue-entry catalogue-boon');
-      card.append(element('small',null,'祝福合印 · '+seal.needs.map(id=>names.get(id)).join(' ＋ ')),
-        element('strong',null,seal.name),element('p',null,seal.detail));
-      list.append(card);
-    }
-    for(const button of controls)button.setAttribute('aria-pressed',String(button.dataset.school===active));
-  };
-  for(const [id,name] of [['all','全部'],...Object.entries(schools).map(([key,school])=>[key,school.name]),['weapon','神器專屬']]){
-    const button=element('button','secondary',name);
-    button.type='button';
-    button.dataset.school=id;
-    button.addEventListener('click',()=>{active=id;draw();});
-    controls.push(button);
-    filters.append(button);
-  }
-  query.addEventListener('input',draw);
-  root.append(query,filters,status,list);
-  draw();
-  return root;
-}
-
-export function practiceLoadout(draft,{weapons,heads,icons,preview,describe,chooseWeapon,chooseBoss}){
+export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,previewBoss,describe,chooseWeapon,chooseBoss}){
   const root=element('div','practice-loadout');
   const setup=element('div','practice-options');
-  const formSelect=(label,items,value,change)=>{
+  const formSelect=(parent,label,items,value,change)=>{
     const wrap=element('label');
     wrap.append(element('span',null,label));
     const select=element('select');
@@ -131,23 +24,55 @@ export function practiceLoadout(draft,{weapons,heads,icons,preview,describe,choo
     select.value=value;
     select.addEventListener('change',()=>change(select.value));
     wrap.append(select);
-    setup.append(wrap);
+    parent.append(wrap);
     return select;
   };
-  const head=formSelect('頭目',heads.map(entry=>[entry.id,entry.name]),draft.boss.id,id=>{
+  const enemyCard=element('section','practice-pick');
+  const weaponCard=element('section','practice-pick');
+  setup.append(enemyCard,weaponCard);
+  const head=formSelect(enemyCard,'敵人',heads.map(entry=>[entry.id,entry.name]),draft.boss.id,id=>{
     chooseBoss(heads.find(entry=>entry.id===id));
     drawStart();
   });
   head.dataset.practice='boss';
-  const arm=formSelect('神器',weapons.map(weapon=>[weapon.id,weapon.name]),draft.weapon.id,id=>{
+  const quickFind=(card,select,items,placeholder)=>{
+    const find=element('input');
+    find.type='search';
+    find.placeholder=placeholder;
+    find.setAttribute('aria-label',placeholder);
+    const original=[...select.options];
+    const options=(search)=>original.filter((option,index)=>option.value===select.value||
+      (option.textContent+' '+items[index]).toLowerCase().includes(search));
+    find.addEventListener('input',()=>{
+      const value=select.value;
+      select.replaceChildren(...options(find.value.trim().toLowerCase()));
+      select.value=value;
+    });
+    card.prepend(find);
+  };
+  quickFind(enemyCard,head,heads.map(entry=>entry.floor?'主線 第 '+entry.floor+' 關':entry.source),'搜尋敵人');
+  const arm=formSelect(weaponCard,'神器',weapons.map(weapon=>[weapon.id,weapon.name]),draft.weapon.id,id=>{
     chooseWeapon(weapons.find(weapon=>weapon.id===id));
     draw();
   });
   arm.dataset.practice='weapon';
-  const phase=formSelect('起始階段',[],String(draft.phase),value=>{draft.phase=Number(value);});
+  quickFind(weaponCard,arm,weapons.map(weapon=>weapon.skill+' '+weapon.role),'搜尋神器或技能');
+  const enemyDetails=element('div','practice-pick-detail');
+  const weakness=element('p');
+  const bossInspect=element('button','secondary','原圖／3D');
+  bossInspect.type='button';
+  bossInspect.dataset.preview='boss';
+  bossInspect.setAttribute('aria-label','查看敵人原圖同 3D 預覽');
+  bossInspect.addEventListener('click',()=>previewBoss(draft.boss));
+  enemyDetails.append(weakness,bossInspect);
+  enemyCard.append(enemyDetails);
+  const phase=formSelect(root,'起始階段',[],String(draft.phase),value=>{draft.phase=Number(value);});
+  phase.parentElement.className='practice-phase';
   phase.dataset.practice='phase';
   const drawStart=()=>{
-    const {spec}=describe(draft.boss);
+    const dossier=describe(draft.boss);
+    const {spec}=dossier;
+    weakness.textContent='弱點 · '+dossier.weakness.name;
     phase.replaceChildren(...['起手','二段變身','三段變身'].slice(0,spec.phases.length+1).map((name,index)=>{
       const choice=element('option',null,name);
       choice.value=index;
@@ -156,14 +81,17 @@ export function practiceLoadout(draft,{weapons,heads,icons,preview,describe,choo
     draft.phase=Math.min(draft.phase,spec.phases.length);
     phase.value=String(draft.phase);
   };
-  const shown=element('div','practice-arm');
+  const shown=element('div','practice-pick-detail');
   const icon=element('img');
   icon.alt='';
   const details=element('p');
-  const inspect=element('button','secondary','3D 預覽');
+  const inspect=element('button','secondary','原圖／3D');
   inspect.type='button';
-  inspect.addEventListener('click',()=>preview(draft.weapon));
+  inspect.dataset.preview='weapon';
+  inspect.setAttribute('aria-label','查看神器原圖同 3D 預覽');
+  inspect.addEventListener('click',()=>previewWeapon(draft.weapon));
   shown.append(icon,details,inspect);
+  weaponCard.append(shown);
   const count=element('p','practice-summary');
   count.setAttribute('aria-live','polite');
   const summary=element('p','practice-build');
@@ -183,10 +111,12 @@ export function practiceLoadout(draft,{weapons,heads,icons,preview,describe,choo
   filter.addEventListener('click',()=>{picked=!picked;filter.setAttribute('aria-pressed',String(picked));draw();});
   const toolbar=element('div','practice-filter');
   toolbar.append(query,filter,reset);
+  const boonHeading=element('div','practice-boon-heading');
+  boonHeading.append(element('h3',null,'祝福'),count);
   const draw=()=>{
     const {weapon,ranks}=draft;
     icon.src=icons.get(weapon.id);
-    details.textContent=weapon.name+' · '+weapon.skill;
+    details.textContent=weapon.skill;
     const items=weapon.blessing?[weapon.blessing,...blessings]:blessings;
     const text=query.value.trim().toLowerCase();
     const totals=Object.keys(schools).map(key=>blessings.filter(item=>item.school===key)
@@ -195,9 +125,11 @@ export function practiceLoadout(draft,{weapons,heads,icons,preview,describe,choo
     summary.textContent=Object.values(schools).map((school,index)=>school.name+' '+totals[index]).join(' · ');
     const unlocked=Object.entries(schools).filter(([key])=>blessings.filter(item=>item.school===key&&ranks.has(item.id)).length>=3)
       .map(([,school])=>school.skill);
-    fusion.textContent=unlocked.length?'已啟用自動技能 · '+unlocked.join('、'):'';
-    fusion.hidden=!unlocked.length;
-    reset.disabled=ranks.size===0;
+    const activeSeals=seals.filter(seal=>seal.needs.every(id=>ranks.has(id))).map(seal=>seal.name);
+    fusion.textContent=[unlocked.length?'自動技能 · '+unlocked.join('、'):'',
+      activeSeals.length?'合印 · '+activeSeals.join('、'):''].filter(Boolean).join(' ／ ');
+    fusion.hidden=!fusion.textContent;
+    reset.disabled=!items.some(item=>ranks.has(item.id));
     board.replaceChildren(...items.filter(item=>(!picked||ranks.has(item.id))&&[item.name,item.detail,schools[item.school]?.name].join(' ').toLowerCase().includes(text)).map(item=>{
       const rank=ranks.get(item.id)??0;
       const row=element('article','practice-boon');
@@ -231,7 +163,8 @@ export function practiceLoadout(draft,{weapons,heads,icons,preview,describe,choo
     if(!board.children.length)board.append(element('p','practice-empty','搵唔到符合嘅祝福。'));
   };
   query.addEventListener('input',draw);
-  root.append(setup,shown,count,summary,fusion,toolbar,board);
+  root.prepend(setup);
+  root.append(boonHeading,summary,fusion,toolbar,board);
   drawStart();
   draw();
   return root;

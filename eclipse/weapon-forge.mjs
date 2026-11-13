@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {designs} from './weapon-designs.mjs?v=ledger-1';
+import {designs} from './weapon-designs.mjs?v=dojo-1';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -112,10 +112,20 @@ function blade(h,guard,edge,fuller) {
   studs([[-1.63,-2.38],[1.63,-2.38],[-.98,-2.85],[.98,-2.85]],.14,.75,'edge');
   gem([0,-8.12,0],guard==='nether'?1.04:.68,'trim',[1,.77,.83]);
   if(guard==='ribbon'){
+    inlay([[0,-1.7],[0,7.96]],.40,.13,'dark',false);
+    for(const y of [-.62,1.4,3.42,5.44,7.46]){
+      for(const side of [-1,1])gem([0,y,side*.55],.24,'edge',[.88,1.46,.44]);
+    }
     line([[-.2,-7.55,.18],[-1.8,-8.7,.25],[-4.1,-8.48,.44],[-5.04,-9.5,.57]],.19,'core');
     line([[.1,-7.6,-.18],[-1.1,-8.82,-.37],[-3.13,-9.65,-.21]],.12,'body');
   }
   if(guard==='fire-guard'){
+    for(let tooth=0;tooth<7;tooth++){
+      const angle=(tooth-3)*.60;
+      const thorn=plate([0,0,-.42,1.26,.07,2.17,.54,1.19,.38,.28],
+        'edge',.48,[Math.sin(angle)*2.42,-2.42+Math.cos(angle)*2.38,0],.075);
+      thorn.rotation.z=-angle;
+    }
     for(const side of [-1,1]){
       for(const [x,direction] of [[-2.32,-1],[-.61,-1],[1.05,1],[2.47,1]]){
         line([[x*.61,-3.5,.76*side],[x,-1.93,1.0*side],[x+direction*.76,-.85,.91*side],
@@ -164,7 +174,13 @@ function pole(h,style,outline) {
   loop([0,socket-.63],.60,.13,'edge','xz',12);
   gem([0,socket+.58,.63],style==='nether'?1.04:.69,'core',[1,1.16,.58],1);
   gem([0,-10.83],.68,'edge',[1,1.67,1]);
-  if(style==='ribbon'||style==='nether'||style==='wing'){
+  if(style==='nether'){
+    const returnHook=plate([-.06,-10.62,-1.76,-10.88,-2.81,-10.04,-3.01,-8.54,-2.49,-7.84,
+      -1.96,-8.70,-2.17,-9.64,-1.46,-10.21,.11,-9.92],'trim',.50,[0,0,0],.11);
+    returnHook.rotation.y=.09;
+    inlay([[0,3.29],[-.31,4.37],[.11,6.40],[.24,9.9]],.44,.13,'core',false);
+  }
+  if(style==='ribbon'||style==='wing'){
     const spread=style==='wing'?2.7:1.7;
     for(const side of [-1,1]){
       const tassel=plate([0,0,-.79,-1.1,-.58,-2.86,.08,-4.7,.6,-3.59,.61,-1.5],
@@ -177,7 +193,14 @@ function pole(h,style,outline) {
     inlay(crest,.59,.13,'core',false);
     studs([[0,-6.65],[0,-6.1],[0,-5.55]],.14,.44);
   }
-  if(style==='vritra'||style==='shiva')for(const side of [-1,1]){
+  if(style==='vritra'){
+    const wrap=Array.from({length:15},(_,i)=>[Math.cos(i*1.94)*.58,-9.7+i*.83,Math.sin(i*1.94)*.58]);
+    line(wrap,.123,'trim');
+    for(const side of [-1,1]){
+      inlay([[side*1.15,4.39],[side*2.72,5.31],[side*3.51,7.19]],.25,.13,'dark');
+    }
+  }
+  if(style==='shiva')for(const side of [-1,1]){
     line([[side*.24,3.57,.54],[side*1.25,4.38,.6],[side*2.92,4.9,.59],[side*3.48,6.55,.55]],.14,'core');
     gem([side*2.82,4.87,.71],.27,'trim');
   }
@@ -712,7 +735,7 @@ function lute(h) {
   const outline=[0,-8.15,-2.82,-7.52,-4.01,-5.38,-3.57,-3.1,-2.11,-1.63,-.98,.52,-.68,5.44,-1.04,7.29,-.40,9.83,.97,9.65,1.39,8.6,.65,6.91,.82,4.66,1.22,-.01,2.22,-1.62,3.62,-3.21,4.09,-5.42,2.94,-7.36];
   plate(outline,'dark',2.08,[0,0,0],.23);
   plate(outline.map((n,i)=>i%2?n*.95:n*.9),'trim',.87,[0,0,.89],.11);
-  const inlay=loop([0,-4.92,1.42],2.35,.16,'edge');
+  const inlay=loop([0,-4.92,1.42],2.15,.16,'edge');
   inlay.scale.y=1.15;
   for(const x of [-.58,-.18,.18,.59]){
     segment([x,-6.39,1.61],[x*.51,8.14,.79],.049,'edge');
@@ -725,7 +748,11 @@ function lute(h) {
     gem([x*1.57,y,.3],.39,'core');
   }
   box([0,-6.12,1.29],[2.69,.40,.72],'body');
-  for(const side of [-1,1])line([[side*1.46,-7.05,1.35],[side*2.41,-5.81,1.4],[side*2.10,-4.55,1.41]],.14,'core');
+  for(const side of [-1,1]){
+    line([[side*1.19,-7.12,1.35],[side*2.49,-6.51,1.39],[side*2.58,-5.0,1.41],
+      [side*1.94,-4.63,1.41],[side*1.49,-5.34,1.41],[side*1.89,-5.82,1.41]],.105,'body');
+    for(const y of [-6.3,-3.61,-2.94])gem([side*1.92,y,1.38],.21,'edge',[.83,1.1,.44]);
+  }
 }
 
 function bell(h) {

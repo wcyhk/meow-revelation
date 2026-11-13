@@ -166,14 +166,16 @@ const koreanImages={
 };
 
 const clientWeapons={
-  flameblade:3,frostlute:51,'sam-in':71,'nether-halberd':74,
+  flameblade:3,windhalberd:6,frostlute:8,'seven-blade':10,'sniper-crossbow':17,'lion-crossbow':18,
+  'earth-beads':25,'fox-doll':27,'true-seven':29,airavata:30,cannon:58,'nether-box':66,
+  'nether-bow':67,'sam-in':71,'nether-sword':73,'nether-halberd':74,stormbow:94,
 };
 const clientBosses={
   'trial-jing-light':'gyeongmun_f_l','trial-jing-dark':'gyeongmun_f_d',
   'trial-shang-light':'sangmun_w_l','trial-shang-dark':'sangmun_w_d',
   'trial-kai-light':'gaemun_a_l','trial-kai-dark':'gaemun_a_d',
   m093:'samun_t_l',m094:'samun_t_d',
-  m106:'madragon',m124:'tiamat',m125:'britra',
+  m014:'honma',m015:'redjujak',m022:'whitehyunmu',m106:'madragon',m124:'tiamat',m125:'britra',
 };
 
 export function clientSpriteGuide(weapon,entry){

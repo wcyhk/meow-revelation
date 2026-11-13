@@ -1,11 +1,11 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=dojo-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=dojo-2';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=weapon-audit-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=dojo-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=dojo-2';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {monument} from './map-art.mjs?v=forge-1';
-import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=dojo-1';
+import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=dojo-2';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=dojo-1';
 
 function node(tag,kind,text){

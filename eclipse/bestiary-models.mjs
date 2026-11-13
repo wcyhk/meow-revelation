@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {paintedFinish} from './painted-finish.mjs?v=nightforge-1';
+import {paintedFinish} from './painted-finish.mjs?v=penumbra-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=chiaroscuro-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
@@ -10,11 +10,12 @@ import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
-import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=carved-1';
-import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=chiaroscuro-1';
-import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=chiaroscuro-1';
-import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=chiaroscuro-1';
-import {buildCampaignSculpt,disposeCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=world-3d-1';
+import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=penumbra-1';
+import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=penumbra-1';
+import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=penumbra-1';
+import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=penumbra-1';
+import {buildCampaignSculpt,disposeCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=penumbra-1';
+import {finishSpecialBoss} from './special-boss-finish.mjs?v=penumbra-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -129,12 +130,12 @@ function buildMaterials(entry){
   const finish=entry.finish==='wood'?'hide':entry.finish;
   function surface(color,metalness,roughness,finish){
     const conduct=metalness>.23;
-    const scan=scannedSurface(conduct?'hammered':'leather',conduct?.49:.38);
+    const scan=scannedSurface(conduct?'hammered':'leather',conduct?.55:.40);
     const bump=scan.normalMap?{}:{bumpMap:relief(),bumpScale:chitin?.062:.043};
     return paintedFinish(new T.MeshStandardMaterial({
       color,metalness,roughness,...bump,...scan,vertexColors:true,emissive:color,emissiveIntensity:.03,
       envMap:conduct?forgeEnvironment():null,envMapIntensity:metal?.81:.48,
-    }),finish);
+    }),finish,true);
   }
   const pigment=color=>new T.Color(color).lerp(new T.Color(0x5d5049),.20);
   const trim=new T.Color(edge).lerp(new T.Color(0xb48556),.52);
@@ -1720,6 +1721,7 @@ export function mountBestiary(scene,entry,height,mobile=false){
     case 'spider':parts=spider(k,entry.id==='m121');break;
     default:parts=humanoid(k,entry);break;
   }
+  finishSpecialBoss(k,parts,entry.id,mobile);
   const dedicatedSilhouette=['m114','m115','m122','m133','m150','m154'].includes(entry.id);
   const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));

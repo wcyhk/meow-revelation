@@ -1,12 +1,13 @@
 import * as T from '../three.min.mjs';
 
 const finishes={iron:[.38,.39],bronze:[.44,.52],bone:[.29,.20],cloth:[.29,.08],hide:[.39,.13],stone:[.32,.21],gem:[.16,.45]};
+const surfaceKinds=Object.keys(finishes);
 
-export function paintedFinish(material,kind){
+export function paintedFinish(material,kind,sculpted=false){
   const [pigment,shine]=finishes[kind];
   const before=material.onBeforeCompile;
   const program=material.customProgramCacheKey();
-  material.customProgramCacheKey=()=>program+'|painted-finish';
+  material.customProgramCacheKey=()=>program+'|painted-finish'+(sculpted?'|sculpted-'+kind:'');
   material.onBeforeCompile=shader=>{
     before.call(material,shader);
     shader.uniforms.paintPigment={value:pigment};
@@ -49,8 +50,36 @@ export function paintedFinish(material,kind){
       diffuseColor.rgb=mix(diffuseColor.rgb,base*.55+paintShadow*.19,paintPigment*(1.0-smoothstep(-1.0,.35,upper)));
       diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.57+paintShadow*.10,patina*(.21+paintPigment*.31));
       diffuseColor.rgb+=paintHighlight*paintShine*(ridge*.12+scratches*.19+flecks*.032);
+      ${sculpted ? `
+        const int surfaceKind=${surfaceKinds.indexOf(kind)};
+        float pits=paintGrain(q*vec3(29.4,39.4,32.2));
+        float fine=(pits-.5)*.30;
+        float relief=.0;
+        if(surfaceKind<=1){
+          float rubbed=smoothstep(.38,.72,mottles);
+          float oxide=(1.-rubbed)*smoothstep(.41,.77,pits);
+          relief=oxide*.23-scratches*.35;
+          vec3 copper=surfaceKind==1?vec3(.035,.078,.062):vec3(.053,.068,.087);
+          diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.49+copper*.67,oxide*.43);
+          diffuseColor.rgb+=rubbed*scratches*paintHighlight*.077;
+        }else if(surfaceKind==2){
+          float lamina=pow(.5+.5*sin(q.y*89.+q.z*14.+wash*4.3),7.);
+          relief=.08*lamina-pits*.028;
+          diffuseColor.rgb*=.93+fine-lamina*.092;
+        }else if(surfaceKind==3){
+          float yarn=sin(q.x*148.+q.z*70.)*sin(q.y*137.-q.z*31.+wash);
+          relief=.095*patina;
+          diffuseColor.rgb*=.97+fine+yarn*.063;
+        }else if(surfaceKind==4 || surfaceKind==5){
+          relief=.13*patina-fine;
+          diffuseColor.rgb*=.98+fine;
+        }else{
+          relief=-.15*ridge+.12*patina;
+          diffuseColor.rgb+=pow(ridge,3.)*paintHighlight*.027;
+        }
+      ` : ''}
     `).replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
-      roughnessFactor=clamp(roughnessFactor+wash*paintPigment*.19+patina*.24-scratches*paintShine*.29-flecks*paintShine*.22,.2,1.0);`);
+      roughnessFactor=clamp(roughnessFactor+wash*paintPigment*.19+patina*.24-scratches*paintShine*.29-flecks*paintShine*.22${sculpted?'+relief':''},.2,1.0);`);
   };
   return material;
 }

@@ -943,9 +943,29 @@ function guardian(k,type){
     if(type==='hangman'||type==='crown'||type==='clock'||type==='goat'||type==='boar')
       hookedBlade(k,hands[1],{length:type==='hangman'?1.62:type==='clock'?1.33:1.14,breadth:type==='goat'?.32:.24});
     if(type==='crown'||type==='hangman'){
-      const train=Array.from({length:9},(_,i)=>[(i-4)*.104,-.28-Math.abs(i-4)*.007,.13+Math.abs(i-4)*.017,
-        1.56+Math.cos(i)*.23,-.43-Math.abs(i-4)*.067]);
-      cloak(k,body,train,flaps,['deep','body','body','edge']);
+      if(type==='crown'){
+        const train=Array.from({length:9},(_,i)=>[(i-4)*.104,-.28-Math.abs(i-4)*.007,.13+Math.abs(i-4)*.017,
+          1.56+Math.cos(i)*.23,-.43-Math.abs(i-4)*.067]);
+        cloak(k,body,train,flaps,['deep','body','body','edge']);
+      }else{
+        for(const side of [-1,1]){
+          const hooks=k.bone(body,side*.264,.586,-.353);
+          const f=p=>opposite(side,p);
+          const crooked=[[.01,-.02,.021,.076],[.17,.287,-.102,.069],[.27,.481,-.22,.057],
+            [.35,.575,-.275,.046],[.47,.462,-.32,.033],[.42,.331,-.36,.005]];
+          shape(k,hooks,'trim',f(crooked),{sides:11,rings:19,section:2.14,ridge:.23});
+          seam(k,hooks,'glow',f(crooked.map(([x,y,z,r])=>[x,y,z+.031,r*.23])),.016);
+          for(let ring=0;ring<4;ring++){
+            const y=.31-ring*.133,z=-.27+ring*.021;
+            k.mesh(hooks,'chain',ring%2?'edge':'deep',side*.43,y,z,.092,.12,.66,0,ring*1.04,side*.18);
+          }
+          const shroud=k.bone(body,side*.29,.41,-.325);
+          fabric(k,shroud,'deep',f([[0,0,0,.209,.08],[.11,-.32,-.32,.265,.066],[.251,-.64,-.46,.21,.04],
+            [.31,-.956,-.531,.16,.036],[.28,-1.43,-.63,.006,.004]]),9);
+          flaps.push({joint:shroud,axis:'x',amp:.18,bias:.09,seed:3+side});
+          flaps.push({joint:hooks,axis:'z',amp:.09,bias:0,seed:7+side});
+        }
+      }
     }
   }});
 }
@@ -1151,12 +1171,112 @@ function finishCampaign(k,entry){
   }
 }
 
+function jointCuirass(k,model,entry,mobile){
+  const {body,head,arms=[]}=model;
+  const broad=entry.proportions[0]*.39;
+  const layers=mobile?2:3;
+  const rough=['hide','wood','stone','bone'].includes(entry.finish);
+  const ridge=rough?'edge':'trim';
+  const jointed=['ogre','duelist','emperor','captain','priest'].includes(entry.family)&&!!model.back;
+  if(jointed){
+    const spine=k.bone(body,0,.288,-broad*.74);
+    for(let i=0;i<layers;i++){
+      const y=.16-i*.121,x=broad*(.85-i*.068);
+      for(const side of [-1,1]){
+        const path=opposite(side,[[.037,y+.089,-.102],[x*.51,y+.097,-.078],[x*.88,y+.039,.043],
+          [x*.88,y-.057,.071],[x*.46,y-.104,-.018],[.043,y-.084,-.11]]);
+        plate(k,spine,i%2?'deep':'body',path,.028);
+        seam(k,spine,ridge,path.slice(0,4),.013);
+        if(!mobile)studs(k,spine,[path[2],path[4]],.019);
+      }
+      const centerY=y-.037;
+      jewel(k,spine,i===0?'glow':'trim',0,centerY,-.145,.029,.038,.018);
+    }
+    for(const [index,arm] of arms.entries()){
+      const side=index?1:-1, path=opposite(side,[[.062,.133,-.09,.032],[.159,.096,-.112,.038],
+        [.208,-.073,-.084,.026],[.082,-.158,-.062,.011]]);
+      k.sculpt.sweep(arm,rough?'edge':'body',path,{sides:6,steps:8,ridge:.21});
+    }
+  }else if(['beast','turtle','spider'].includes(entry.family)){
+    const len=entry.family==='spider'?1.12:.89;
+    for(let i=0;i<layers+1;i++)for(const side of [-1,1]){
+      const z=-len+i*.243,x=broad*(.54+Math.sin(i*.6)*.25);
+      const y=(entry.family==='turtle'?.61:.36)+Math.cos(i)*.049;
+      const path=opposite(side,[[x*.73,y+.069,z-.12,.023],[x*.97,y+.019,z+.017,.037],
+        [x*1.27,y-.087,z+.069,.032],[x*1.31,y-.161,z+.135,.006]]);
+      k.sculpt.sweep(body,ridge,path,{sides:7,steps:9,ridge:.18});
+    }
+  }else if(['star','eggs','shade'].includes(entry.family)){
+    for(let i=0;i<layers+3;i++){
+      const a=i*TAU/(layers+3),X=Math.sin(a),Z=Math.cos(a);
+      const rim=k.bone(body,X*.28,.167+(i%2)*.073,Z*.21);
+      rim.rotation.y=a;
+      plate(k,rim,'deep',[[0,.18,.055],[.077,.07,.031],[.11,-.18,.064],[0,-.34,.16],
+        [-.092,-.159,.055],[-.082,.048,.047]],.023);
+      seam(k,rim,i%2?ridge:'glow',[[.018,.124,.07],[.044,-.043,.071],[.021,-.197,.119]],.012);
+      model.campaign.flaps.push({joint:rim,axis:'x',amp:.13,bias:0,seed:a});
+    }
+  }else if(head&&model.flight){
+    for(const {root:wing,side,membranous} of model.flight){
+      const tail=membranous?-.24:-.18;
+      const profile=opposite(side,[[0,.01,-.071],[.19,.13,-.091],[.38,.22,tail],[.50,.24,tail-.055]]);
+      seam(k,wing,ridge,profile,.022);
+      seam(k,wing,'deep',profile.map(([x,y,z])=>[x,y-.033,z-.041]),.020);
+    }
+  }
+}
+
+const guardianBacks=[
+  null,'prayer','prayer','rivets',null,null,'sundial',null,null,'oath','rivets','ferry','oath',null,null,'sundial',
+  'sundial',null,null,'oath',
+];
+
+function guardianKeepsake(k,model,id,mobile){
+  const feature=guardianBacks[Number(id.slice(7))];
+  if(!feature)return;
+  const offering=k.bone(model.body,0,.48,model.back?-.38:-.22);
+  if(feature==='prayer'||feature==='oath'){
+    const w=feature==='oath'?.24:.166,h=feature==='oath'?.46:.31;
+    const outline=[[-w,.335,.039],[0,.42,-.037],[w,.321,.021],[w*.91,-h*.55,-.081],
+      [.08,-h,-.17],[0,-h*1.14,-.177],[-.078,-h,-.14],[-w*.91,-h*.5,-.05]];
+    plate(k,offering,'deep',outline,.054);
+    seam(k,offering,'trim',outline.map(([x,y,z])=>[x,y,z-.041]),.019);
+    for(let i=0;i<(mobile?4:6);i++){
+      const y=.212-i*.073;
+      seam(k,offering,i%2?'edge':'glow',[[-w*.47,y,-.109],[0,y+.041,-.136],
+        [w*.45,y+.006,-.118]],.009+i*.001);
+    }
+  }else if(feature==='rivets'){
+    for(let i=0;i<4;i++){
+      const y=.38-i*.173,z=-.04-i*.018;
+      for(const side of [-1,1]){
+        const p=opposite(side,[[.105,y+.07,z],[.25,y+.09,z+.037],[.31,y-.017,z+.021],
+          [.19,y-.098,z],[.07,y-.04,z-.036]]);
+        plate(k,offering,i%2?'trim':'body',p,.041);
+        jewel(k,offering,'glow',side*.172,y-.032,z-.050,.026,.027,.018);
+      }
+    }
+  }else{
+    const ring=k.bone(offering,0,.105,-.049);
+    torque(k,ring,feature==='ferry'?.247:.295,'trim',mobile?8:13);
+    jewel(k,ring,'deep',0,0,-.056,.176,.176,.028);
+    const hands=k.bone(ring,0,0,-.089);
+    seam(k,hands,'edge',[[-.095,-.122,0],[0,0,-.006],[.058,.177,.01]],.023);
+    seam(k,hands,'glow',[[0,-.023,.027],[.048,.077,.017],[.13,.10,.023]],.014);
+    model.campaign.flaps.push({joint:hands,axis:'z',amp:.34,bias:.49,seed:4});
+    if(feature==='ferry')for(const side of [-1,1])lantern(k,ring,side*.301,-.254,-.042,.32);
+  }
+  model.campaign.flaps.push({joint:offering,axis:'x',amp:.097,bias:-.032,seed:5.7});
+}
+
 export function buildCampaignSculpt(k,entry,mobile=false){
   if(!entry.palette)return null;
   const id=entry.artId??entry.id,build=campaignModels[id];
   if(!build)return null;
   finishCampaign(k,entry);
   const model=build(k,mobile);
+  jointCuirass(k,model,entry,mobile);
+  if(id.startsWith('forest-'))guardianKeepsake(k,model,id,mobile);
   if(!entry.field)model.campaign.aura=breathAura(model,entry.palette,signatureMotes[id]??[.73,1.21,.53,0],mobile);
   return model;
 }

@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
+import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,membraneRelief,serpentRelief} from './catalogue-c-detail.mjs?v=penumbra-1';
 
 const sides=[-1,1];
 const tau=Math.PI*2;
@@ -40,6 +41,13 @@ function mouth(k,head,{width,length,brow,eyes,jaw,fangs=3,crest='rind',hide='hid
     }
   }
   k.mesh(head,'round','deep',0,-.087,length*.93,width*.48,.053,.082);
+  for(const side of sides){
+    const x=width*side;
+    curvedPlate(k,head,crest,[[x*.91,-.048,-.26,.032,.037],[x*1.01,-.059,-.07,.037,.052],
+      [x*.94,-.058,.099,.039,.041],[x*.72,-.082,muzzle*.87,.008,.014]]);
+    horn(k,head,'deep',[[x*.96,-.094,-.17,.006],[x*.99,-.099,.013,.011],
+      [x*.94,-.101,.18,.009],[x*.62,-.11,muzzle*1.04,.002]]);
+  }
   return mandible;
 }
 
@@ -145,6 +153,7 @@ function serpent(k,entry,mobile){
   const head=k.bone(neck,...spec.skull);
   const jaw=mouth(k,head,{...spec,brow:'rind',jaw:spec.style==='greed'?'rind':'edge',fangs:spec.style==='greed'?7:4});
   horns(k,head,spec.antlers);
+  serpentRelief(k,neck,head,line,entry.id,mobile);
   const flourishes=[];
   if(spec.style==='hood'){
     for(const side of sides){
@@ -203,6 +212,16 @@ function wolfSpider(k,entry,mobile){
   skin(k,head,'rind',[[0,.04,-.18,.28,.19],[0,.004,-.04,.36,.23],[0,-.038,.16,.35,.20],
     [0,-.171,.39,.20,.12],[0,-.24,.52,.09,.038]],{rings:16,sides:15,section:2.65});
   const limbs=[];
+  for(let i=0;i<(mobile?6:9);i++){
+    const t=i/(mobile?6:9),zr=-.40-t*.61,yr=.48+t*.22;
+    for(const side of sides){
+      curvedPlate(k,body,i%4===1?'edge':'patina',[[side*.022,yr+.061,zr,.084,.041],
+        [side*(.19+t*.032),yr+.037,zr+.017,.092,.058],[side*(.43+t*.040),yr-.032,zr+.043,.078,.041],
+        [side*(.53+t*.027),yr-.15,zr-.016,.009,.005]]);
+      horn(k,body,'deep',[[side*.032,yr+.106,zr-.057,.013],
+        [side*.28,yr+.065,zr-.041,.023],[side*.49,yr-.062,zr-.041,.003]]);
+    }
+  }
   for(const side of sides){
     for(const [i,[x,y,z,spread,angle]] of [[.27,-.02,.59,.52,.22],[.37,.04,.34,.71,.08],
       [.43,.08,.01,.82,-.13],[.43,.14,-.28,.71,-.34]].entries()){
@@ -293,6 +312,7 @@ function wyvern(k,entry,mobile){
     const shoulder=k.bone(body,x*side,y,z);
     const vertices=spec.wing.map(([x,y,z])=>[x*side,y,z]);
     plate(k,shoulder,'membrane',vertices,.045);
+    membraneRelief(k,shoulder,vertices,entry,mobile);
     const tip=vertices[3],joint=vertices[2];
     const strut=(target,index)=>horn(k,shoulder,index%2===0?'rind':'trim',[[0,0,.012,.092],
       [joint[0]*.66,joint[1]*.79,joint[2]*.79,.081],[joint[0],joint[1],joint[2],.065],
@@ -368,6 +388,7 @@ function vermilionBird(k,entry,mobile){
   const primaries=[],train=[];
   for(const side of sides){
     const wing=k.bone(body,side*.25,.47,-.03);
+    backFeathers(k,body,wing,side,mobile);
     skin(k,wing,'hide',[[0,0,0,.14,.19],[side*.27,.14,0,.18,.23],
       [side*.55,.20,-.05,.17,.22],[side*.82,.26,-.10,.122,.161]]);
     const count=mobile?7:11;
@@ -432,6 +453,14 @@ function iceTurtle(k,entry,mobile){
     [-.39,.41,-.18,.23,.72,.37],[.39,.41,-.18,.23,.66,.40],[-.58,.21,.24,.18,.58,.39],[.58,.19,.19,.18,.56,.36],
     [-.43,.28,-.64,.18,.61,.31],[.42,.27,-.60,.18,.59,.32],[-.52,.04,-.81,.15,.45,.33],[.52,.04,-.81,.15,.45,.33]])crystal(x,y,z,w,h,t);
   for(const side of sides){
+    for(let i=0;i<7;i++){
+      const z=.61-i*.21,y=.58-i*.025,x=side*(.53+Math.sin(i*.55)*.16);
+      curvedPlate(k,body,i%3?'patina':'edge',[[x*.51,y+.034,z+.17,.071,.040],
+        [x*.80,y+.014,z+.09,.095,.037],[x,y-.095,z+.005,.068,.046],
+        [x*1.05,y-.24,z-.103,.008,.006]]);
+      horn(k,body,'rind',[[x*.65,y+.014,z+.131,.025],[x*.83,y-.015,z+.09,.033],
+        [x*1.09,y-.22,z-.038,.004]]);
+    }
     for(let i=0;i<7;i++){
       const a=.14+i*.43,x=.72*Math.sin(a)*side,z=.76*Math.cos(a)-.13;
       plate(k,body,i%3?'deep':'edge',[[x,-.14,z],[x+side*.146,-.070,z+.019],[x+side*.181,.097,z-.165],
@@ -851,6 +880,7 @@ function jointedChampion(k,entry,mobile){
       streamers.push(plume);
     }
   }
+  championRelief(k,body,head,shoulders,fabric,entry.id,mobile);
   return {body,head,pattern:spec.frames==='hover'?'hover':spec.frames==='ogre'?'slam':'duel',
     crest:blank(k,body),catalogueSculpt:entry.id,
     cataloguePose({beat,headtime:t,wind,strike,travel,fall,step,stage}){
@@ -1014,6 +1044,7 @@ function quadruped(k,entry,mobile){
     pelt(k,rider,.89,.77,-.18,.70,mobile?8:12,'silk',.42);
   }
   if(spec.mode==='chaos')eye(k,head,0,.191,.255,.062,'ember');
+  beastRelief(k,body,head,joints,spec,entry.id,mobile);
   return {body,head,pattern:spec.mode==='rider'?'gallop':'crawl',crest:blank(k,body),
     catalogueSculpt:entry.id,cataloguePose({beat,headtime:t,wind,strike,travel,fall,step,stage}){
       head.rotation.x=wind*.16-strike*.35+Math.sin(t*2.1)*.056;
@@ -1086,6 +1117,12 @@ export const finishesC={
     membrane:[0x8e6035,.16,.61,'hide']},
   'raid-flame':four(0x47302a,0x422f2a,0xcb7e58,0x6f3c31,0xe27432),
 };
+for(const [id,spec] of Object.entries(designsC)){
+  finishesC[id].patina=[spec.streak,.58,.49,['ash','regent','fiend'].includes(spec.face)?'bronze':'iron'];
+}
+for(const [id,color] of Object.entries(creaturePatinas))finishesC[id].patina=[color,.38,.56,'iron'];
+finishesC.m132.cinder=[0xc55f3c,.22,.47,'stone'];
+finishesC.m144.cinder=[0xe86220,.19,.47,'stone'];
 
 const sculptors={m116:serpent,m121:wolfSpider,m126:serpent,m127:wyvern,m128:wyvern,m131:wyvern,
   m134:iceTurtle,m136:vermilionBird,m138:serpent,m152:serpent,'raid-wyvern':wyvern};

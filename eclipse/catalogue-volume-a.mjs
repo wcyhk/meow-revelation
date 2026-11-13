@@ -11,6 +11,72 @@ function rim(k,j,m,r,t,z=0){
   const g=new T.TorusGeometry(r,t,6,28);g.translate(0,0,z);k.geometry(j,m,g);
 }
 
+function hideScales(k,bone,sections,a,b,density,profile){
+  const center=new T.CatmullRomCurve3(sections.map(([x,y,z])=>new T.Vector3(x,y,z)));
+  const radius=new T.CatmullRomCurve3(sections.map(([, , ,w,h])=>new T.Vector3(w,h,0)));
+  const out=new T.Vector3(),cross=new T.Vector3(),up=new T.Vector3(0,1,0);
+  const count=profile.rows;
+  for(let row=0;row<count;row++){
+    const t=a+(b-a)*(row+.43)/count;
+    const origin=center.getPointAt(t),direction=center.getTangentAt(t).normalize();
+    const parameters=radius.getPoint(center.getUtoTmapping(t));
+    cross.crossVectors(direction,up).normalize();
+    if(cross.lengthSq()<.001)cross.set(1,0,0);
+    const spine=new T.Vector3().crossVectors(cross,direction).normalize();
+    for(let i=0;i<density;i++){
+      const angle=TAU*(i+.5*(row%2))/density;
+      const s=Math.sin(angle),c=Math.cos(angle);
+      const target=origin.clone().addScaledVector(spine,c*parameters.y*.97).addScaledVector(cross,s*parameters.x*.95);
+      out.copy(spine).multiplyScalar(c).addScaledVector(cross,s).normalize();
+      const scale=k.bone(bone,target.x,target.y,target.z);
+      scale.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(
+        new T.Vector3().crossVectors(direction,out).normalize(),direction,out));
+      const h=profile.length*(.81+.24*Math.cos(i*1.83+row*.77)),w=profile.width*(.86+Math.abs(c)*.18);
+      const gloss=Math.abs(c)>.78&&(row+i)%3===0;
+      plate(k,scale,gloss?profile.ridge:profile.hide,[
+        [0,-h*.79,.018],[w*.52,-h*.68,.007],[w*.86,-h*.14,.019],[w*.68,h*.44,.005],
+        [0,h*.62,.026],[-w*.62,h*.47,.004],[-w*.86,-h*.095,.013],[-w*.59,-h*.58,.006],
+      ],.025,.009);
+      if(gloss)sweep(k,scale,profile.ridge,[[0,-h*.60,.034,.010],[w*.15,-h*.045,.043,.012],
+        [0,h*.48,.038,.002]],6,5);
+    }
+  }
+}
+
+function batSail(k,bone,side,border,finish,mobile){
+  const ray=border.map(row=>new T.CatmullRomCurve3(row.map(p=>new T.Vector3(...p))));
+  const p=[],uv=[],color=[],tri=[],rows=mobile?10:16,columns=mobile?6:10;
+  for(let i=0;i<ray.length-1;i++)for(const face of flanks){
+    const offset=p.length/3;
+    for(let r=0;r<=rows;r++){
+      const t=r/rows,edgeA=ray[i].getPoint(t),edgeB=ray[i+1].getPoint(t);
+      for(let j=0;j<columns;j++){
+        const u=j/(columns-1),d=Math.sin(PI*u);
+        const point=edgeA.clone().lerp(edgeB,u);
+        point.x-=side*d*(.065+t*.12)*t**6;
+        point.y-=d*(.09+t*.16)*t**6;
+        point.z-=d*(.027+.074*Math.sin(PI*t))+face*.005;
+        p.push(...point.toArray());
+        uv.push(u,t);
+        const vein=Math.exp(-Math.abs(u-.53-Math.sin(t*14+i)*.073)*26);
+        const tendon=.62+.19*Math.abs(Math.cos(u*PI))+.21*vein+.055*Math.cos(t*28-u*4+i);
+        color.push(tendon,tendon,tendon);
+        if(r<rows&&j<columns-1){
+          const a=offset+r*columns+j,b=a+columns;
+          if(face*side>0)tri.push(a,a+1,b,a+1,b+1,b);
+          else tri.push(a,b,a+1,a+1,b,b+1);
+        }
+      }
+    }
+  }
+  const geometry=new T.BufferGeometry();
+  geometry.setAttribute('position',new T.Float32BufferAttribute(p,3));
+  geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+  geometry.setAttribute('color',new T.Float32BufferAttribute(color,3));geometry.setIndex(tri);
+  geometry.computeVertexNormals();
+  k.geometry(bone,finish,geometry);
+}
+
 function sourcePose(entry,body,head,extras,pattern){
   return {body,head,crest:new T.Group(),catalogueSculpt:entry.id,cataloguePose:extras,pattern};
 }
@@ -23,23 +89,117 @@ const metals={
   cobalt:[0x34475f,.44,.48,'iron'],ochre:[0x785747,.30,.62,'bronze'],
   teal:[0x315b60,.16,.65,'hide'],lilac:[0x8c7b98,.11,.68,'cloth'],
   clay:[0x9a3f20,.28,.62,'hide'],moss:[0x465638,.25,.64,'hide'],
+  lining:[0x1a2028,.11,.82,'cloth'],rivet:[0x453c34,.69,.44,'bronze'],
+  linen:[0xaaa087,.07,.79,'cloth'],ironRim:[0x596370,.77,.37,'iron'],
+  wingHide:[0x47504b,.10,.72,'hide'],wingBlood:[0x482922,.10,.77,'hide'],
 };
+
+function garmentPanel(k,j,finish,rows,seed,columns=7){
+  const spine=new T.CatmullRomCurve3(rows.map(([x,y,z])=>new T.Vector3(x,y,z)));
+  const profile=new T.CatmullRomCurve3(rows.map(([, , ,w,fold])=>new T.Vector3(w,fold,0)));
+  const p=[],uv=[],color=[],tri=[],loops=12,layer=(loops+1)*columns;
+  for(const side of flanks)for(let row=0;row<=loops;row++){
+    const t=row/loops,center=spine.getPoint(t),{x:width,y:fold}=profile.getPoint(t);
+    for(let col=0;col<columns;col++){
+      const u=col/(columns-1)*2-1;
+      const wave=Math.cos(u*PI*1.74-seed+t*2.8)*.74+Math.cos(u*PI*3.15+seed*.7-t*5.2)*.26;
+      const fray=t**7*Math.cos(col*2.4+seed)*.028;
+      p.push(center.x+width*u,center.y+fray,center.z+fold*(wave-u*u*.59)+side*.010);
+      uv.push((u+1)*.5,t);
+      const shade=.80+wave*.115+Math.abs(u)*.11-(side<0?.16:0);
+      color.push(shade,shade,shade);
+      if(row<loops&&col<columns-1){
+        const a=(side<0?0:layer)+row*columns+col,b=a+columns;
+        if(side<0)tri.push(a,a+1,b,a+1,b+1,b);
+        else tri.push(a,b,a+1,a+1,b,b+1);
+      }
+    }
+  }
+  for(let row=0;row<loops;row++)for(const col of [0,columns-1]){
+    const a=row*columns+col,b=a+columns;
+    if(col===0)tri.push(a,a+layer,b,b,a+layer,b+layer);
+    else tri.push(a,b,a+layer,b,b+layer,a+layer);
+  }
+  for(const row of [0,loops])for(let col=0;col<columns-1;col++){
+    const a=row*columns+col;
+    if(row===0)tri.push(a,a+layer,a+1,a+1,a+layer,a+layer+1);
+    else tri.push(a,a+1,a+layer,a+1,a+layer+1,a+layer);
+  }
+  const geometry=new T.BufferGeometry();
+  geometry.setAttribute('position',new T.Float32BufferAttribute(p,3));
+  geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+  geometry.setAttribute('color',new T.Float32BufferAttribute(color,3));
+  geometry.setIndex(tri);
+  geometry.computeVertexNormals();
+  k.geometry(j,finish,geometry);
+}
+
+function garmentFasteners(k,body,neck,torso,waist,finish,kind){
+  if(kind==='skin')return;
+  const chest=neck*.71,z=torso[3],wide=torso[2];
+  for(const side of flanks){
+    const x=t=>side*t;
+    if(kind==='armour'){
+      const w=wide*.67;
+      const facets=[
+        [x(.022),chest-.032,z+.043],[x(w*.62),chest+.083,z*.94],[x(w*1.13),chest+.013,z*.65],
+        [x(w*1.40),chest-.139,z*.38],[x(w*.88),chest-.251,z*.73],[x(.055),chest-.22,z+.046],
+      ];
+      plate(k,body,finish,facets,.056,.019);
+      sweep(k,body,'ironRim',[[x(.048),chest-.022,z+.086,.019],[x(w*.68),chest+.064,z*.95+.037,.022],
+        [x(w*1.13),chest+.008,z*.66+.045,.019],[x(w*1.39),chest-.15,z*.39+.015,.004]],10,7);
+      for(let i=0;i<2;i++){
+        const y=.02+i*.109;
+        plate(k,body,finish,[[x(.015),y+.092,z*.84],[x(w*.64),y+.086,z*.88],[x(w*1.13),y+.058,z*.53],
+          [x(w),y-.048,z*.52],[x(w*.65),y-.066,z*.82],[x(.037),y-.037,z*.96]],.036,.011);
+      }
+      const back=[[x(.03),chest+.068,-z*.85],[x(w*.72),chest+.092,-z*.91],
+        [x(w*1.34),chest+.021,-z*.6],[x(w*1.02),chest-.178,-z*.73],
+        [x(.06),chest-.255,-z*.98],[x(.019),chest-.113,-z*1.02]];
+      plate(k,body,finish,back,.05,.015);
+      sweep(k,body,'ironRim',[[x(.04),chest-.253,-z-.037,.021],[x(w*.57),chest-.21,-z-.028,.014],
+        [x(w*1.08),chest-.147,-z*.73-.026,.017],[x(w*1.28),chest-.017,-z*.61,.003]],11,6);
+    }else{
+      const neckline=kind==='ritual'?finish:'linen',crossover=kind==='rustic'?.37:.54;
+      sweep(k,body,neckline,[[x(wide*.32),neck*.84,z*.64,.046],[x(wide*.64),neck*.75,z*.98,.042],
+        [x(wide*.23),neck*.56,z*1.12,.034],[-x(wide*crossover),neck*.35,z*1.17,.026],
+        [-x(waist*.73),.031,z*.95,.010]],14,7);
+      for(let i=0;i<3;i++)sweep(k,body,finish,[[x(wide*(.57+i*.109)),neck*.70-i*.036,z*.68,.021],
+        [x(wide*(.63+i*.092)),neck*.61-i*.039,z*.82,.017],[x(wide*(.78+i*.083)),neck*.35-i*.038,z*.75,.002]],9,6);
+      sweep(k,body,'lining',[[x(wide*.43),neck*.84,-z*.62,.034],[x(wide*.75),neck*.63,-z*.89,.039],
+        [x(wide*.49),neck*.29,-z*.96,.029],[x(.045),-.038,-z*.81,.019]],12,7);
+    }
+  }
+  const belt=k.bone(body,0,-.055,-.01);
+  belt.rotation.x=PI/2;belt.scale.y=z/waist*.92;
+  rim(k,belt,'lining',waist*.992,.036);rim(k,belt,finish,waist*1.02,.018,.024);
+  const buckle=k.bone(body,.017,-.064,z*.982+.025);
+  const hw=kind==='armour'?.082:.064, h=.053;
+  plate(k,buckle,finish,[[-hw,-h,0],[hw,-h,0],[hw,h,0],[-hw,h,0]],.028,.012);
+  plate(k,buckle,'lining',[[-hw*.67,-h*.57,.024],[hw*.67,-h*.57,.024],[hw*.67,h*.57,.024],
+    [-hw*.67,h*.57,.024]],.013,.004);
+  sweep(k,buckle,'rivet',[[-hw*.68,.003,.036,.013],[0,.005,.042,.013],[hw*.63,.005,.036,.009]],6,5);
+}
 
 function humanoid(k,descriptor){
   const {torso,waist,neck,skin='skin',shell='body',skirt='deep',facing=.14,boot='black',width=.34,mask='ivory',
-    height=1.17,edge='brass',dress=0,robe=0,teeth=false,hair='black',rear='deep',collar=0}=descriptor;
+    height=1.17,edge='brass',dress=0,robe=0,teeth=false,hair='black',rear='deep',collar=0,
+    cut=teeth?'skin':shell==='black'||shell==='cobalt'?'armour':robe>.9?'ritual':'rustic'}=descriptor;
   const body=k.bone(k.root,0,height,0),head=k.bone(body,0,neck,facing);
   volume(k,body,shell,[
     [0,-.44,-.048,waist*.86,waist*.67],[0,-.23,-.025,waist,.24],[0,.023,.012,torso[0],torso[3]*.92],
     [0,neck*.31,-.012,torso[1],torso[3]],[0,neck*.72,-.056,torso[2],torso[3]*.78],
     [0,neck*.91,-.048,torso[0]*.53,torso[3]*.65],
   ],23,2.32,.19);
-  volume(k,head,skin,[[0,-.159,.015,width*.36,.081],[0,-.060,.01,width*.485,.127],
-    [0,.09,-.014,width*.545,.149],[0,.189,-.044,width*.478,.126],[0,.235,-.062,width*.36,.09]],19,2.62,.18);
+  volume(k,head,skin,[[0,-.159,.039,width*.27,.069],[0,-.060,.018,width*.465,.127],
+    [0,.017,.004,width*.553,.142],[0,.101,-.016,width*.505,.139],[0,.189,-.045,width*.427,.123],
+    [0,.234,-.064,width*.329,.085]],21,2.45,.14);
   volume(k,head,hair,[[0,-.102,-.102,width*.43,.096],[0,.056,-.137,width*.58,.103],
     [0,.186,-.094,width*.53,.135],[0,.282,-.065,width*.40,.112]],16,2.25,.27,true);
   const jaw=k.bone(head,0,-.12,.088);
   volume(k,jaw,skin,[[0,-.039,.023,width*.30,.039],[0,.012,.040,width*.36,.051],[0,.049,.023,width*.42,.053]],12,2.84);
+  volume(k,head,skin,[[0,-.031,.137,width*.12,.017],[0,-.006,.160,width*.12,.031],
+    [0,.025,.157,width*.073,.024],[0,.073,.139,width*.059,.015],[0,.109,.116,width*.053,.009]],12,2.15,.06);
   if(teeth)for(let i=-3;i<=3;i++)sweep(k,jaw,mask,[[i*.028,.022,.080,.010],[i*.028,.056,.087,.010],
     [i*.031,.075+.015*(Math.abs(i)/3),.074,.001]],6,5);
   const limbs=[],skirts=[];
@@ -49,11 +209,12 @@ function humanoid(k,descriptor){
       const angle=PI+i*.27,tip=robe*(.82+.19*Math.cos(i*.61));
       const flap=k.bone(cloak,Math.sin(angle)*.29,.01,.033+Math.cos(angle)*.054);
       flap.rotation.y=i*.15;
-      plate(k,flap,i%3?rear:skirt,[[-.083,.033,.002],[.106,.07,-.007],
-        [.163,-.29,-.124],[.135,-tip*.68,-.30],[.089,-tip,-.314],[.022,-tip*.9,-.326],[-.09,-tip*.98,-.32],
-        [-.159,-tip*.74,-.294],[-.146,-.34,-.158]],.045,.010);
-      sweep(k,flap,i%2?edge:shell,[[.035,.061,-.02,.019],[.06,-.38,-.189,.012],
-        [.057,-tip*.81,-.339,.012],[.038,-tip,-.34,.003]],11,6);
+      const width=.122+Math.cos(i*.7)*.041;
+      garmentPanel(k,flap,i%3?rear:skirt,[[0,.071,.006,width*.74,.018],
+        [.008,-tip*.28,-.127,width*.98,.036],[.018,-tip*.68,-.249,width*1.13,.039],
+        [.039,-tip*.96,-.32,width*.81,.050]],i*.92);
+      sweep(k,flap,cut==='armour'?edge:'linen',[[width*.61,.063,-.019,.015],[width*.94,-tip*.28,-.157,.012],
+        [width,-tip*.70,-.286,.012],[width*.78,-tip*.925,-.36,.004]],10,6);
       skirts.push(flap);
     }
   }
@@ -63,9 +224,12 @@ function humanoid(k,descriptor){
       flap.rotation.y=TAU*i/10;
       const length=dress*(.86+.14*Math.cos(i*2.32));
       const r=waist+.051;
-      plate(k,flap,i%3===1?rear:skirt,[[-.10,.065,r],[.125,.067,r],[.173,-.36,r+.049],
-        [.181,-length*.91,r+.135],[.098,-length*.88,r+.139],[.027,-length,r+.155],
-        [-.145,-length*.93,r+.131],[-.18,-.48,r+.068]],.055,.010);
+      if(cut==='armour'&&dress<.8){
+        plate(k,flap,i%3===1?rear:skirt,[[-.10,.065,r],[.125,.067,r],[.148,-length*.42,r+.068],
+          [.143,-length*.82,r+.13],[.093,-length*.96,r+.147],
+          [-.091,-length*.98,r+.143],[-.141,-length*.79,r+.111],[-.158,-length*.43,r+.073]],.054,.013);
+      }else garmentPanel(k,flap,i%3===1?rear:skirt,[[0,.059,r,.115,.021],[.017,-length*.33,r+.042,.146,.035],
+        [-.009,-length*.68,r+.137,.164,.047],[(i%3-1)*.034,-length,r+.174,.134,.048]],i*1.23);
       sweep(k,flap,i%2?edge:shell,[[.094,.031,r+.041,.015],[.142,-.312,r+.072,.016],
         [.154,-length*.76,r+.149,.010],[.087,-length*.923,r+.172,.003]],10,6);
       skirts.push(flap);
@@ -95,11 +259,27 @@ function humanoid(k,descriptor){
     for(let i=0;i<3;i++){
       const b=k.bone(elbow,f(.027),-.166-i*.067,.034);
       b.rotation.x=PI/2;
-      rim(k,b,i===1?shell:edge,.119-i*.009,.016);
-      plate(k,shoulder,i===0?edge:shell,[[f(.028),.142-i*.078,-.108],
+      rim(k,b,i===1?shell:edge,.119-i*.009,cut==='armour'?.020:.013);
+      if(cut==='armour')plate(k,shoulder,i===0?edge:shell,[[f(.028),.142-i*.078,-.108],
         [f(.186+i*.017),.147-i*.075,-.074],[f(.231+i*.016),.017-i*.068,.056],
         [f(.12),-.048-i*.073,.148],[f(.002),-.015-i*.074,.105]],.045,.012);
+      else if(cut!=='skin')sweep(k,shoulder,i===1?edge:shell,[[f(.04),.10-i*.075,-.09,.037],
+        [f(.162),.104-i*.072,-.078,.033],[f(.205),.009-i*.073,.038,.022],[f(.101),-.04-i*.073,.141,.004]],10,7);
     }
+    if(cut==='armour'){
+      plate(k,elbow,edge,[[f(.02),.016,.091],[f(.109),.019,.098],[f(.164),-.214,.104],
+        [f(.121),-.303,.12],[f(.038),-.237,.129],[f(-.034),-.097,.141]],.048,.013);
+      plate(k,knee,edge,[[f(.027),.021,.098],[f(.101),-.066,.106],[f(.098),-.17,.125],
+        [f(.029),-.236,.141],[f(-.055),-.154,.124],[f(-.068),-.048,.106]],.04,.013);
+      sweep(k,shoulder,'ironRim',[[f(.02),.105,-.132,.023],[f(.161),.102,-.153,.025],
+        [f(.246),.017,-.069,.021],[f(.244),-.079,.056,.009]],10,7);
+    }
+    sweep(k,head,skin,[[f(width*.45),.069,.053,.042],[f(width*.52),.043,.025,.043],
+      [f(width*.48),-.028,.019,.025],[f(width*.38),-.054,.049,.007]],10,7);
+    sweep(k,head,skin,[[f(.052),.011,.149,.027],[f(.113),.001,.13,.032],
+      [f(.157),-.025,.074,.022],[f(.151),-.065,.038,.004]],9,6);
+    if(!teeth)for(let i=0;i<3;i++)vane(k,head,hair,[f(.046+i*.039),.253,-.052],
+      [f(.071+i*.05),.184,-.158],[f(.074+i*.053),.019-i*.037,-.222],.039,13+i);
     sweep(k,head,hair,[[f(.073),.103,.161,.018],[f(.104),.123,.154,.023],
       [f(.158),.125,.083,.016],[f(.165),.098,.049,.005]],11,6);
     k.mesh(head,'gem','deep',f(.091),.051,.144,.050,.038,.028,0,f(.31),-f(.22));
@@ -112,6 +292,7 @@ function humanoid(k,descriptor){
     }
     limbs.push({shoulder,elbow,wrist,leg,knee,side});
   }
+  garmentFasteners(k,body,neck,torso,waist,edge,cut);
   return {body,head,jaw,limbs,skirts,cloak};
 }
 
@@ -416,6 +597,23 @@ function qinRider(k,entry,mobile){
   const tail=[],legs=[];
   volume(k,mount,tiger?'black':general?'cobalt':'ivory',[[0,.177,-.82,.158,.14],[0,.126,-.59,.291,.25],
     [0,.032,-.20,.353,.319],[0,.05,.31,.316,.327],[0,.083,.63,.224,.239]],22,2.18,.22);
+  for(const side of flanks){
+    const f=x=>side*x;
+    const hide=tiger?'moss':'cobalt',bridle=tiger?'ochre':'brass';
+    const bard=k.bone(mount,0,0,0);
+    garmentPanel(k,bard,hide,[[f(.297),.322,-.08,.103,.019],[f(.352),.19,-.112,.131,.028],
+      [f(.367),-.09,-.186,.126,.055],[f(.409),-.339,-.238,.089,.050]],side*1.43);
+    for(let i=0;i<2;i++){
+      const chest=k.bone(mount,0,-i*.092,.413-i*.14);
+      sweep(k,chest,'lining',[[f(.093),.288,.116,.039],[f(.273),.141,.125,.037],
+        [f(.366),-.082,-.06,.033],[f(.346),-.132,-.348,.026]],13,7);
+      sweep(k,chest,bridle,[[f(.093),.276,.148,.017],[f(.281),.131,.153,.019],
+        [f(.381),-.083,-.018,.014],[f(.358),-.131,-.318,.009]],10,6);
+    }
+    const clasp=k.bone(mount,f(.377),.043,-.44);
+    clasp.rotation.y=side*.9;
+    rim(k,clasp,bridle,.092,.022);rim(k,clasp,'lining',.057,.013,.018);
+  }
   const neck=k.bone(mount,0,.32,.386);
   volume(k,neck,'cobalt',[[0,-.173,.16,.27,.197],[0,.141,.15,.252,.218],
     [0,.455,.27,.194,.175],[0,.69,.413,.113,.103]],20,2.16,.19);
@@ -427,6 +625,10 @@ function qinRider(k,entry,mobile){
     const f=x=>x*side;
     sweep(k,muzzle,'cobalt',[[f(.084),.167,.015,.054],[f(.094),.261,-.042,.051],[f(.118),.329,-.119,.005]],11,7);
     k.mesh(muzzle,'gem','glow',f(.131),.100,.129,.036,.028,.017,0,f(.4));
+    sweep(k,muzzle,'lining',[[f(.056),-.08,.391,.027],[f(.128),-.036,.28,.034],
+      [f(.156),.039,.151,.035],[f(.128),.13,.033,.029],[f(.123),.181,-.11,.016]],13,8);
+    sweep(k,muzzle,'brass',[[f(.063),-.078,.392,.013],[f(.139),-.031,.28,.016],
+      [f(.171),.043,.15,.017],[f(.145),.132,.036,.012],[f(.136),.185,-.091,.003]],11,7);
     for(let i=0;i<7;i++)vane(k,neck,i%2?'steel':'cobalt',[f(.014),.645-i*.081,.294-i*.066],
       [f(.157),.51-i*.073,.142-i*.057],[f(.201+i*.014),.344-i*.064,-.071-i*.055],.081,33+i);
     for(let i=0;i<4;i++)plate(k,mount,i%2?'steel':'cobalt',[[f(.127),.302-i*.08,-.53],
@@ -501,6 +703,7 @@ function ghostHydra(k,entry){
     [.688,.51,-.50,.141,.123],[.235,.58,-.71,.136,.112],[-.40,.58,-.41,.128,.105],
   ];
   volume(k,coils,'steel',first,39,2.18,.23);
+  hideScales(k,coils,first,.07,.96,7,{hide:'cobalt',ridge:'steel',rows:14,width:.054,length:.132});
   const neck=k.bone(coils,-.39,.54,-.36),wyrm=k.bone(neck,.16,1.03,.226);
   volume(k,neck,'cobalt',[[0,0,0,.14,.11],[-.24,.27,-.21,.172,.123],
     [-.23,.62,-.24,.152,.132],[.018,.90,.032,.139,.122],[.15,1.029,.235,.131,.105]],24,2.28,.20);
@@ -585,8 +788,12 @@ function iceTortoise(k,entry,mobile){
       const rock=[[0,-.12,-.019,.074*size,.085*size],[0,-.008,.016,.181*size,.145*size],
         [0,.101,.037,.152*size,.138*size],[0,.135,.045,.102*size,.095*size]];
       volume(k,pad,'black',rock,mobile?9:11,4.1,.19);
+      plate(k,pad,'ironRim',[[0,.132,.083],[.107*size,.129,.073],[.142*size,.075,.099],
+        [.097*size,-.013,.127],[0,-.038,.122],[-.093*size,.017,.126],[-.105*size,.085,.081]],.028,.009);
       const joint=k.bone(pad,0,.073,.035);
       joint.rotation.x=PI/2;rim(k,joint,i%3?'steel':'ivory',.128*size,.019);
+      sweep(k,pad,i%2?'steel':'black',[[.065*size,.107,.126,.011],[-.02*size,.056,.137,.011],
+        [.006*size,.032,.136,.010],[-.061*size,-.001,.124,.003]],7,5);
       sweep(k,pad,i%2?'steel':'ivory',[[0,.068,.052,.063*size],[0,.168+t*.017,.051,.061*size],
         [0,.295+t*.034,.018,.039*size],[0,.406+t*.035,-.029,.002]],10,6);
     }
@@ -600,6 +807,8 @@ function iceTortoise(k,entry,mobile){
   const legs=[];
   for(const side of flanks){
     k.mesh(head,'gem','glow',side*.117,.076,.130,.041,.027,.018,0,side*.32);
+    plate(k,head,'ochre',[[side*.041,.044,.266],[side*.151,.044,.21],[side*.192,.090,.092],
+      [side*.123,.139,-.046],[side*.067,.118,.067],[side*.064,.068,.221]],.033,.012);
     for(let i=0;i<2;i++)sweep(k,head,'ivory',[[side*(.115+i*.033),.103,-.01,.040],
       [side*(.153+i*.033),.177,-.054,.041],[side*(.176+i*.032),.237,-.12,.003]],9,7);
     for(const front of [false,true]){
@@ -647,10 +856,14 @@ function regionalDragon(k,entry,mobile){
   const body=k.bone(k.root,0,poison?1.33:.92,0),neck=k.bone(body,0,.08,.32);
   const head=k.bone(neck,0,.49,.662),jaw=k.bone(head,0,-.151,.13);
   const deep=poison?'moss':'clay',accent=poison?'ochre':'red';
-  volume(k,body,deep,[[0,-.20,-.66,.169,.188],[0,-.118,-.395,.277,.239],[0,-.051,-.061,.348,.299],
-    [0,.13,.339,.278,.243],[0,.193,.53,.169,.152]],21,2.25,.17);
-  volume(k,neck,deep,[[0,-.019,-.013,.18,.16],[0,.12,.152,.197,.167],[0,.317,.456,.15,.14],
-    [0,.489,.652,.131,.111]],21,2.25,.20);
+  const abdomen=[[0,-.20,-.66,.169,.188],[0,-.118,-.395,.277,.239],[0,-.051,-.061,.348,.299],
+    [0,.13,.339,.278,.243],[0,.193,.53,.169,.152]];
+  const throat=[[0,-.019,-.013,.18,.16],[0,.12,.152,.197,.167],[0,.317,.456,.15,.14],[0,.489,.652,.131,.111]];
+  volume(k,body,deep,abdomen,24,2.25,.15);
+  volume(k,neck,deep,throat,21,2.25,.17);
+  const scales={hide:poison?'moss':'clay',ridge:poison?'ochre':'brass',width:.064,length:.112,rows:mobile?5:7};
+  hideScales(k,body,abdomen,.12,.91,mobile?7:9,scales);
+  hideScales(k,neck,throat,.16,.88,mobile?5:7,{...scales,width:.053,length:.071,rows:4});
   volume(k,head,deep,[[0,.048,-.236,.13,.096],[0,.042,-.086,.214,.167],[0,.01,.135,.199,.108],
     [0,-.044,.281,.15,.078],[0,-.078,.417,.109,.048]],19,2.8,.22);
   volume(k,jaw,accent,[[0,-.033,-.115,.132,.08],[0,-.041,.068,.149,.053],
@@ -673,12 +886,18 @@ function regionalDragon(k,entry,mobile){
       const wing=k.bone(shoulder,f(.925),.301,-.12);
       sweep(k,shoulder,'ivory',[[0,0,0,.120],[f(.291),.194,.078,.106],[f(.537),.316,.017,.069],
         [f(.928),.30,-.12,.072]],18,9);
-      for(let i=0;i<5;i++){
-        const a=[f(.04),.008,.015],d=[f(.48+i*.193),.024-i*.053,-.36-i*.108];
-        const b=[f(.264+i*.104),.117-i*.032,-.16-i*.067];
-        vane(k,wing,i%2?'cobalt':'black',a,b,d,.32-i*.038,76+i);
-        sweep(k,wing,'brass',[[...a,.037],[...b,.028],[...d,.003]],14,7);
-      }
+      const ribs=[
+        [[0,.008,.015],[f(.43),.074,-.038],[f(1.04),.045,-.19],[f(1.47),-.07,-.39]],
+        [[0,.004,.006],[f(.37),.023,-.15],[f(.81),-.045,-.41],[f(1.16),-.25,-.82]],
+        [[0,.004,0],[f(.234),-.012,-.22],[f(.52),-.155,-.62],[f(.72),-.316,-1.04]],
+        [[0,0,-.009],[f(.11),-.035,-.31],[f(.28),-.205,-.65],[f(.286),-.29,-.946]],
+        [[0,-.019,-.022],[f(-.079),-.052,-.25],[f(-.247),-.148,-.60],[f(-.53),-.28,-.74]],
+      ];
+      batSail(k,wing,side,ribs,'wingHide',mobile);
+      for(const [i,row] of ribs.entries())sweep(k,wing,i===0?'ochre':'moss',
+        row.map((point,index)=>[...point,[.048,.039,.027,.004][index]]),13,7);
+      for(let i=0;i<4;i++)sweep(k,shoulder,'moss',[[f(.09+i*.11),.135+i*.051,.03,.032],
+        [f(.16+i*.12),.234+i*.024,-.047,.03],[f(.202+i*.13),.23+i*.035,-.19,.003]],9,6);
       wings.push({shoulder,wing,side});
     }else for(let i=0;i<8;i++)vane(k,body,i%3?'clay':'brass',[f(.14),.167,.374-i*.134],
       [f(.23),.48,.344-i*.143],[f(.29+i*.016),.599-i*.012,.236-i*.168],.079,45+i);
@@ -778,6 +997,13 @@ function vixen(k,entry,mobile){
     for(let j=0;j<(mobile?3:5);j++)vane(k,tail,white?'ivory':'brass',
       [Math.sin(a)*.60+(j-2)*.044,.095,-.073],[Math.sin(a)*.981+(j-2)*.054,.359,-.32],
       [Math.sin(a)*r*1.41+(j-2)*.044,.58+(j-1)*.037,-.47],.069,j+i*7);
+    for(let j=0;j<2;j++){
+      const t=(j+.55)/2,spread=Math.sin(a);
+      k.geometry(tail,white?'linen':'skin',featherVane([spread*(.66+t*.30),t*.24-.008,-.144-t*.08],
+        [spread*(.83+t*.525),.29+t*.21,-.202-t*.16],
+        [spread*(1.05+t*r*.72),.42+t*.225,-.32-t*.176],
+        .052,j+31+i*5,mobile?5:7));
+    }
     tails.push({root,tail,a});
   }
   for(const side of flanks){
@@ -873,14 +1099,24 @@ function shadowBat(k,entry,mobile){
     const wrist=k.bone(wing,f(.642),.41,-.011);
     sweep(k,wing,'clay',[[0,0,0,.13],[f(.269),.141,.06,.161],[f(.485),.323,.039,.11],
       [f(.652),.415,-.007,.072]],15,9);
-    for(let i=0;i<5;i++){
-      const a=[0,.036,-.04],b=[f(.28+i*.055),.23-i*.104,-.18-i*.113],
-        c=[f(.77-i*.083),.37-i*.245,-.37-i*.16];
-      vane(k,wrist,i%3?'red':'black',a,b,c,.244,77+i);
-      sweep(k,wrist,'clay',[[...a,.044],[...b,.041],[...c,.004]],12,7);
-    }
-    for(let i=0;i<(mobile?4:7);i++)vane(k,wing,i%2?'clay':'red',[0,0,0],
-      [f(.28+i*.065),.1-i*.04,-.16],[f(.63-i*.052),-.13-i*.08,-.385-i*.067],.12,96+i);
+    const ribs=[
+      [[0,.036,-.04],[f(.31),.227,-.023],[f(.63),.365,-.124],[f(.858),.47,-.302]],
+      [[0,.036,-.04],[f(.287),.151,-.138],[f(.50),.176,-.293],[f(.727),.073,-.597]],
+      [[0,.032,-.04],[f(.245),.05,-.223],[f(.425),-.023,-.424],[f(.465),-.252,-.809]],
+      [[0,.03,-.04],[f(.123),-.046,-.221],[f(.196),-.209,-.417],[f(.231),-.459,-.749]],
+      [[0,.018,-.041],[f(-.081),-.044,-.203],[f(-.27),-.111,-.324],[f(-.46),-.332,-.541]],
+    ];
+    batSail(k,wrist,side,ribs,'wingBlood',mobile);
+    for(const [i,row] of ribs.entries())sweep(k,wrist,i%2?'clay':'black',
+      row.map((point,index)=>[...point,[.044,.041,.026,.004][index]]),12,7);
+    const extension=[
+      [[0,-.027,-.03],[f(.19),.099,-.08],[f(.44),.271,-.083],[f(.642),.412,-.011]],
+      [[0,-.037,-.035],[f(.13),-.006,-.146],[f(.32),.043,-.298],[f(.465),-.159,-.562]],
+      [[0,-.044,-.046],[f(.057),-.084,-.147],[f(.099),-.167,-.257],[f(.125),-.326,-.379]],
+    ];
+    batSail(k,wing,side,extension,'wingBlood',mobile);
+    sweep(k,wrist,'ivory',[[0,.038,-.025,.030],[f(.092),.092,.076,.038],[f(.191),.107,.10,.026],
+      [f(.258),.022,.081,.004]],12,7);
     wings.push({wing,wrist,side});
     const leg=k.bone(body,f(.181),-.295,-.171);
     sweep(k,leg,'black',[[0,.067,-.029,.091],[f(.06),-.168,.044,.097],
@@ -1339,6 +1575,12 @@ function tombGuardian(k,entry,mobile){
     sweep(k,horns,'glow',[[f(.064),height*.116,.068,.029],[f(.149),height*.381,.088,.031],
       [f(.20*wide),height*.65,-.026,.024],[f(.17*wide),height*.949,-.121,.003]],14,7);
     k.mesh(head,'gem','glow',f(.129),-.024,.189,.051,.024,.03,0,f(.5),-f(.23));
+    const cheek=crawler?'ivory':'ironRim';
+    plate(k,head,cheek,[[f(.052),.079,.192],[f(.154),.13,.06],[f(.209),.031,.107],[f(.208),-.083,.12],
+      [f(.168),-.227,.254],[f(.086),-.239,.324],[f(.126),-.118,.272],[f(.083),-.008,.247]],.049,.013);
+    const cheekbone=k.bone(head,0,-.029,-.033);
+    sweep(k,cheekbone,crawler?'steel':a.back,[[f(.159),.069,.181,.034],[f(.218),-.029,.134,.046],
+      [f(.271),-.11,.009,.031],[f(.285),-.184,-.149,.003]],13,7);
     for(let i=0;i<4;i++)sweep(k,jaw,'ivory',[[f(.034+i*.022),.02,.235-i*.048,.019],
       [f(.052+i*.021),.078,.222-i*.045,.018],[f(.054+i*.022),.115-i*.012,.2-i*.042,.004]],7,6);
     for(let i=0;i<(mobile?5:8);i++){
@@ -1350,7 +1592,18 @@ function tombGuardian(k,entry,mobile){
         [f(x),slope+.2,-.11],[f(x*.94),slope+.06,fall],[f(x*.54),-.035,fall*.49],[f(.04),-.05,.043]],.057,.016);
       sweep(k,mount,'glow',[[f(.036),-.008,.103,.019],[f(x*.64),slope+.116,.038,.021],
         [f(x*.92),slope+.138,-.116,.016],[f(x*.88),slope+.06,fall,.003]],10,6);
+      if(!crawler)sweep(k,mount,i%2?'ironRim':'ochre',[[f(.019),-.046,.11,.022],
+        [f(x*.25),-.082,.033,.035],[f(x*.69),-.042,fall*.62,.033],
+        [f(x*.82),slope*.49,fall*.99,.004]],10,7);
       blades.push({mount,i,side});
+    }
+    for(let i=0;i<(mobile?4:6);i++){
+      const z=.37-i*.19;
+      const start=k.bone(body,f(.205),.224,z);
+      if(crawler)for(let j=0;j<2;j++)vane(k,start,j%2?'steel':'ivory',
+        [0,0,0],[f(.08+j*.028),.145,.023],[f(.145+j*.054),.236+j*.044,-.123],.075,71+i+j*5);
+      else sweep(k,start,'brass',[[f(-.19),.029,0,.036],[f(.035),.025,.015,.044],
+        [f(.145),-.061,-.031,.036],[f(.211),-.195,-.061,.004]],11,7);
     }
     for(const front of [false,true]){
       const leg=k.bone(body,f(front?.262:.241),-.067,front?.379:-.482);
@@ -1360,6 +1613,8 @@ function tombGuardian(k,entry,mobile){
         [f(.088),-.239,front?.027:-.11,.124,.107],[f(.092),-.32,front?.026:-.161,.086,.079]],15,2.48,.19);
       volume(k,knee,a.coat,[[0,.042,.017,.091,.094],[f(.047),-.105,.013,.104,.086],
         [f(.039),-.239,front?.011:.082,.082,.081],[f(.029),-.338,front?.08:.12,.077,.057]],14,2.41,.23);
+      plate(k,knee,crawler?'ivory':a.back,[[f(.03),.063,.084],[f(.098),.009,.122],
+        [f(.146),-.131,.148],[f(.098),-.272,.147],[f(.023),-.286,.115],[f(-.014),-.138,.12]],.036,.011);
       for(let i=0;i<3;i++)sweep(k,paw,i%2?'brass':'ivory',[[.039*(i-1),0,.035,.043],[.05*(i-1),-.065,.137,.040],
         [.052*(i-1),-.086,.217,.003]],8,7);
       legs.push({leg,knee,paw,front,side});
@@ -1393,10 +1648,14 @@ function tombGuardian(k,entry,mobile){
 function ancientKnowledge(k,entry,mobile){
   const body=k.bone(k.root,0,1.11,.03),neck=k.bone(body,0,.21,.612);
   const head=k.bone(neck,-.041,.67,.501),jaw=k.bone(head,0,-.159,.17);
-  volume(k,body,'jade',[[0,-.097,-.617,.163,.145],[0,.016,-.406,.294,.221],[0,.042,-.057,.341,.316],
-    [0,.094,.354,.299,.239],[0,.207,.66,.186,.144]],23,2.20,.25);
-  volume(k,neck,'jade',[[0,-.071,-.089,.176,.146],[-.042,.134,.129,.213,.177],
-    [-.074,.348,.307,.172,.149],[-.068,.567,.462,.154,.137],[-.045,.672,.498,.139,.115]],22,2.29,.23);
+  const haunch=[[0,-.097,-.617,.163,.145],[0,.016,-.406,.294,.221],[0,.042,-.057,.341,.316],
+    [0,.094,.354,.299,.239],[0,.207,.66,.186,.144]];
+  const column=[[0,-.071,-.089,.176,.146],[-.042,.134,.129,.213,.177],
+    [-.074,.348,.307,.172,.149],[-.068,.567,.462,.154,.137],[-.045,.672,.498,.139,.115]];
+  volume(k,body,'jade',haunch,23,2.20,.25);
+  volume(k,neck,'jade',column,22,2.29,.23);
+  hideScales(k,body,haunch,.09,.94,mobile?6:8,{hide:'jade',ridge:'steel',rows:mobile?5:7,width:.066,length:.117});
+  hideScales(k,neck,column,.07,.94,mobile?6:7,{hide:'teal',ridge:'ivory',rows:4,width:.052,length:.083});
   volume(k,head,'jade',[[0,.084,-.27,.18,.138],[0,.057,-.075,.242,.174],[0,.011,.181,.175,.137],
     [0,-.035,.375,.13,.071],[0,-.053,.482,.113,.052]],21,2.41,.25);
   volume(k,jaw,'ivory',[[0,-.044,-.049,.165,.055],[0,-.066,.121,.156,.069],[0,-.052,.31,.089,.039]],15,2.25,.21);
@@ -1408,6 +1667,10 @@ function ancientKnowledge(k,entry,mobile){
       [f(.35),.268,.220,.023],[f(.502),.434,.106,.005],[f(.697),.568,-.053,.001]],19,6);
     moustaches.push(whisker);
     k.mesh(head,'gem','glow',f(.16),.019,.232,.044,.024,.024,0,f(.43));
+    sweep(k,head,'teal',[[f(.057),.075,.362,.048],[f(.177),.104,.251,.055],
+      [f(.239),.14,.12,.056],[f(.275),.149,-.123,.022],[f(.312),.05,-.241,.005]],14,8);
+    plate(k,head,'jade',[[f(.07),-.108,.412],[f(.162),-.069,.326],[f(.222),-.062,.184],
+      [f(.229),.004,.014],[f(.176),-.12,.047],[f(.092),-.18,.336]],.033,.012);
     for(let i=0;i<6;i++){
       sweep(k,head,i%2?'clay':'brass',[[f(.082+i*.028),.121,-.036-i*.024,.047],
         [f(.158+i*.045),.194+i*.041,-.108-i*.051,.044],

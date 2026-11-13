@@ -18,6 +18,49 @@ const colors={
   crimson:[0xcc90e1,0xff735d,0xad3655,.79,2.1],
 };
 
+function lowMist(root,color,mobile){
+  const geometry=leafPlane.clone();
+  const count=mobile?3:6;
+  const seeds=new Float32Array(count);
+  for(let i=0;i<count;i++)seeds[i]=i*.83;
+  geometry.setAttribute('layer',new T.InstancedBufferAttribute(seeds,1));
+  const material=new T.ShaderMaterial({
+    transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
+    uniforms:{ink:{value:new T.Color(color)},clock:{value:0},power:{value:1}},
+    vertexShader:`
+      attribute float layer;
+      varying vec2 v;varying float heightLayer;
+      void main(){
+        v=uv;heightLayer=layer;
+        gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.);
+      }`,
+    fragmentShader:`
+      varying vec2 v;varying float heightLayer;
+      uniform vec3 ink;uniform float clock,power;
+      void main(){
+        vec2 p=v*2.-1.;
+        float swell=sin(p.x*5.+.31*clock+heightLayer*1.4);
+        float drift=sin(p.x*7.5-p.y*1.13-.21*clock+heightLayer)*.22;
+        float belly=exp(-pow((p.y+swell*.15+drift)*1.84,2.0));
+        float edge=1.-smoothstep(.51,.97,dot(p,p*vec2(.67,.44)));
+        float sections=.52+.48*sin(p.x*4.+p.y*.9+.23*clock+heightLayer);
+        gl_FragColor=vec4(ink,edge*belly*sections*power*.21);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const mist=new T.InstancedMesh(geometry,material,count);
+  const scale=new T.Matrix4(),translation=new T.Matrix4();
+  for(let i=0;i<count;i++){
+    const x=(i%2===0?-1:1)*(i<2?6.1:3.1);
+    scale.makeScale(20-i*.68,2.09+i*.28,1);
+    translation.makeTranslation(x,.68+i*.22,-10.1-i*2.30);
+    mist.setMatrixAt(i,translation.multiply(scale));
+  }
+  mist.renderOrder=4;
+  root.add(mist);
+  return material;
+}
+
 function shaft(view,group,from,to,width,color,index){
   const axis=new T.Vector3().fromArray(to).sub(new T.Vector3().fromArray(from));
   const material=new T.ShaderMaterial({
@@ -30,12 +73,13 @@ function shaft(view,group,from,to,width,color,index){
       uniform float density,clock,seed;
       void main(){
         float x=v.x*2.-1.;
-        float spread=mix(.25,1.,v.y);
-        float fade=smoothstep(0.,.12,v.y)*(1.-smoothstep(.70,1.,v.y));
+        float spread=mix(.21,1.,v.y);
+        float fade=smoothstep(0.,.11,v.y)*(1.-smoothstep(.63,1.,v.y));
         float veil=exp(-pow(x/spread*2.65,2.));
         float bars=pow(.5+.5*sin(x*15./spread+v.y*2.5+seed),3.);
         float dust=.91+sin(v.y*46.+x*13.+clock*.83+seed*4.)*.087;
-        gl_FragColor=vec4(color,veil*fade*(.46+bars*.35)*density*dust);
+        float core=exp(-pow(x/spread*6.3,2.))*fade*.14;
+        gl_FragColor=vec4(color,(veil*fade*(.41+bars*.35)+core)*density*dust);
         #include <colorspace_fragment>
       }`,
   });
@@ -126,14 +170,23 @@ function motes(group,mobile,color,wind){
   return material;
 }
 
+function localKey(color,x,y,z,tx,tz,power){
+  const light=new T.SpotLight(color,power,23,.72,.85,1.42);
+  light.position.set(x,y,z);
+  light.target.position.set(tx,.37,tz);
+  return light;
+}
+
 export class RoomLighting {
   constructor(view){
     this.view=view;
     this.key=new T.DirectionalLight(0xadbaff,0);
-    this.fill=new T.DirectionalLight(0xffce9c,0);
-    this.fill.position.set(9,6,8);
+    this.fill=new T.SpotLight(0xffce9c,0,27,.66,.75,1.3);
+    this.fill.position.set(8,7,-1);
     this.volume=new T.Group();
-    view.scene.add(this.key,this.fill,this.volume);
+    view.scene.add(this.key,this.key.target,this.fill,this.fill.target,this.volume);
+    this.rim=localKey(0x94baff,-7,6.5,-12,-6.5,-7,0);
+    view.scene.add(this.rim,this.rim.target);
     // Only the main battlefield casts a cached shadow map. Multiple previews can
     // open on the same GPU, so each one keeps its cheaper floor contact shadows.
     if(view.lanternArt){
@@ -169,10 +222,14 @@ export class RoomLighting {
     this.glass=['cathedral','desecrated','throne','crimson'].includes(type);
     this.key.color.setHex(key);
     this.fill.color.setHex(accent);
+    this.rim.color.setHex(key);
     const direction=stage.room%3===2?-1:1;
-    this.key.position.set(-direction*12,15,-9.5);
+    this.key.position.set(-direction*13,15,-11);
     this.key.target.position.set(direction*2,0,3);
-    this.view.scene.add(this.key.target);
+    this.fill.position.set(direction*6.8,7.1,-3.7);
+    this.fill.target.position.set(direction*3.9,.1,-5.3);
+    this.rim.position.set(-direction*6.45,7.75,-11.6);
+    this.rim.target.position.set(-direction*8.8,.4,-6.5);
     if(this.key.castShadow)this.view.renderer.shadowMap.needsUpdate=true;
     this.beams=[];
     for(let index=0;index<(this.view.mobile?3:5);index++){
@@ -185,15 +242,18 @@ export class RoomLighting {
     const slots=lamps.map(({x,z})=>[x,z,3.25,3.09,1]);
     slots.push([-5.1,-3.3,9.0,11.2,0],[5.2,-2.8,10.7,11.9,0],[0,6.3,8.8,9.5,0]);
     this.pools=radiance(this.volume,slots,key,accent);
+    this.mist=lowMist(this.volume,new T.Color(air).multiplyScalar(.69),this.view.mobile);
     this.embers=motes(this.volume,this.view.mobile,air,['dunes','forge'].includes(type)?2.1:.3);
   }
 
   light(darkness){
     this.key.intensity=this.level*(1-.74*darkness);
-    this.fill.intensity=.72*(1-.63*darkness);
-    const strength=this.glass?.47:.39;
+    this.fill.intensity=(this.glass?19:13)*(1-.77*darkness);
+    this.rim.intensity=(this.glass?35:24)*(1-.75*darkness);
+    const strength=this.glass?.49:.40;
     for(const beam of this.beams)beam.uniforms.density.value=this.density*(1-darkness*.89)*strength;
     this.pools.uniforms.strength.value=1-darkness*.83;
+    this.mist.uniforms.power.value=.72+this.density*.26-darkness*.25;
     this.embers.uniforms.gain.value=1-darkness*.58;
   }
 
@@ -201,6 +261,7 @@ export class RoomLighting {
     const clock=time%720;
     for(const beam of this.beams)beam.uniforms.clock.value=clock;
     this.pools.uniforms.clock.value=clock;
+    this.mist.uniforms.clock.value=clock;
     this.embers.uniforms.clock.value=clock;
   }
 }

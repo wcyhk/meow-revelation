@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=chiaroscuro-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=penumbra-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
 import {stages} from './expedition.mjs?v=world-3d-1';
@@ -9,8 +9,8 @@ import {MotionArt} from './motion-art.mjs?v=nightforge-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=chiaroscuro-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=chiaroscuro-1';
-import {loadRoomSurfaces} from './room-surfaces.mjs?v=chiaroscuro-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=penumbra-1';
+import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
 import {GroveLight} from './grove-light.mjs?v=gilded-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
@@ -86,7 +86,7 @@ const beamColumn=new T.CylinderGeometry(.08,.24,1,8);
 const handPalm=new T.SphereGeometry(.58,8,6);
 const handFinger=new T.CapsuleGeometry(.13,.39,3,5);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
-const sceneAngle = new T.Vector3(0, 15.8, 22.4).normalize();
+const sceneAngle = new T.Vector3(0, 13.65, 23.5).normalize();
 const wristMask=(value)=>1-T.MathUtils.smoothstep(value,.07,.25);
 
 function texture(canvas) {

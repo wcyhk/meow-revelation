@@ -135,6 +135,88 @@ function crown(k,j,design){
   stone(k,j,'bInlay',0,.260,.218,.065,.108,.054);
 }
 
+function armorLap(k,body,mode,height,width,mobile){
+  const narrow=mode==='vest', rows=mobile?3:4;
+  for(const side of signs){
+    const fan=p=>reflect(side,p);
+    // Each side is a closed saddle of plates, wrapping the upper ribcage into
+    // the back rather than copying flat chest pieces onto the far side.
+    const rear=fan([[.038,height+.158,-.306],[width*.79,height+.131,-.293],
+      [width*1.07,height-.034,-.167],[width*.94,height-.247,-.117],
+      [width*.53,height-.369,-.24],[.043,height-.318,-.346]]);
+    relief(k,body,'bOxide',rear,.063);
+    line(k,body,'bTrim',rear.map(([x,y,z])=>[x,y,z-.041]),.016);
+    for(let i=0;i<rows;i++){
+      const t=i/(rows-1),y=height-.06-t*.308,span=width*(1.08-t*.23);
+      const plate=fan([[span*.52,y+.046,-.25],[span*.94,y+.045,-.148],[span,y+.014,.041],
+        [span*.79,y-.065,.165],[span*.59,y-.10,.159],[span*.64,y-.074,-.182]]);
+      relief(k,body,narrow?'bCloth':i%2?'bOxide':'bMetal',plate,.025);
+      line(k,body,'bTrim',plate.slice(1,5),.012);
+      stone(k,body,'bInlay',side*span*.944,y-.031,-.04,.023,.029,.024);
+    }
+    const strap=fan([[width*.19,height+.195,-.251,.027],[width*.58,height+.026,-.333,.036],
+      [width*.40,height-.198,-.367,.026],[width*.206,height-.36,-.302,.015]]);
+    line(k,body,'bWood',strap);
+    line(k,body,'bTrim',strap.map(([x,y,z,r])=>[x+side*.028,y,z-.008,r*.37]));
+  }
+}
+
+function tailoredCoat(k,body,s,mobile){
+  const rear=k.bone(body,0,s.length*.64,-.237);
+  const rows=mobile?3:5;
+  const w=s.chest;
+  if(s.back==='sash'){
+    for(let i=0;i<rows;i++){
+      const y=.24-i*.103,z=-.19+Math.sin(i*.7)*.041;
+      line(k,rear,i%2?'bTrim':'bCloth',[[-w*.77,y+.054,z+.04],[-w*.24,y-.035,z-.029],
+        [w*.30,y-.069,z-.039],[w*.78,y-.05,z+.043]],.022);
+    }
+    const knot=k.bone(rear,-w*.18,-.267,-.12);
+    const strips=signs.map(side=>{
+      const cord=k.bone(knot,.068*side,0,0);
+      mass(k,cord,'bInlay',reflect(side,[[0,0,0,.076,.042],[.134,-.11,-.034,.063,.031],
+        [.202,-.346,-.111,.039,.022],[.17,-.489,-.204,.004,.005]]),12,9,2.88,.15);
+      return {joint:cord,type:'wing',side};
+    });
+    return strips;
+  }
+  if(s.back==='jade'||s.back==='epaulettes'||s.back==='prayer'){
+    const prayer=s.back==='prayer', jade=s.back==='jade';
+    const rim=jade?.212:prayer?.181:.15;
+    hoop(k,rear,'bTrim',rim,.024,22,0,-.049,-.101);
+    hoop(k,rear,'bOxide',rim*.69,.018,19,0,-.044,-.129);
+    stone(k,rear,prayer?'bBone':'bInlay',0,-.048,-.13,rim*.53,rim*.57,.036,PI*.25);
+    for(let i=0;i<(jade?6:4);i++){
+      const angle=i*TAU/(jade?6:4),x=Math.sin(angle),y=Math.cos(angle);
+      line(k,rear,'bTrim',[[x*rim*.63,y*rim*.63-.048,-.137],[x*rim,y*rim-.048,-.128],
+        [x*(rim+.086),y*(rim+.086)-.048,-.109]],.013);
+    }
+    for(const side of signs){
+      const fan=p=>reflect(side,p);
+      line(k,rear,prayer?'bBone':'bCloth',fan([[.035,.226,-.024,.023],[w*.51,.109,-.059,.042],
+        [w*.67,-.092,-.036,.038],[w*.72,-.33,.017,.009]]));
+      if(prayer)for(let i=0;i<rows;i++){
+        const y=-.136-i*.049;
+        relief(k,rear,'bBone',fan([[.021,y+.027,-.10],[w*.26,y+.03,-.097],
+          [w*.25,y-.019,-.112],[.031,y-.023,-.117]]),.016);
+      }
+    }
+  }
+  if(s.back==='broken'||s.back==='sabre'){
+    for(const side of signs){
+      const f=p=>reflect(side,p);
+      for(let i=0;i<rows;i++){
+        const y=.228-i*.093,x=w*(.23+i*.085);
+        const path=f([[x,y+.046,-.106],[x+.121,y+.079,-.062],[x+.198,y+.018,.001],
+          [x+.122,y-.107,-.051],[x+.037,y-.058,-.105]]);
+        relief(k,rear,s.back==='broken'?'bOxide':'bMetal',path,.036);
+        line(k,rear,'bTrim',path.slice(0,4).map(([a,b,c])=>[a,b,c-.028]),.012);
+      }
+    }
+  }
+  return [];
+}
+
 function breastplate(k,body,s,y,w){
   for(const side of signs){
     const mid=.39,round=s==='lamellar'||s==='imperial';
@@ -249,6 +331,19 @@ function weapon(k,hand,type,side=1){
     joint.userData.cord=cord;
     return joint;
   }
+  if(type==='mace'){
+    mass(k,joint,'bWood',[[0,-.42,0,.038],[0,.12,0,.048],[.025,.729,.045,.043],[.037,1.26,.064,.039]],17,9);
+    const cage=k.bone(joint,.037,1.27,.067);
+    stone(k,cage,'bInlay',0,.150,0,.124,.166,.118);
+    for(let ray=0;ray<6;ray++){
+      const a=ray*TAU/6,x=Math.sin(a),z=Math.cos(a);
+      mass(k,cage,'bTrim',[[x*.19,-.018,z*.18,.034],[x*.23,.12,z*.21,.041],
+        [x*.146,.26,z*.14,.028],[x*.026,.389,z*.026,.005]],11,8,2.35,.16);
+    }
+    hoop(k,cage,'bMetal',.201,.026,18,0,.12,0);
+    joint.userData.cage=cage;
+    return joint;
+  }
   const isAxe=['axe','crescent'].includes(type),staff=['branch','hook','sceptre','trident','flame','staff'].includes(type);
   const length=isAxe?1.37:staff?1.28:type==='spear'?1.62:type==='dagger'?.47:.92;
   mass(k,joint,'bWood',[[0,staff?-.72:-.265,0,.038,.042],[0,.138,0,.046,.049],[.012,length*.85,.017,.043,.043],
@@ -342,6 +437,20 @@ function attach(k,body,head,s,arms,mobile){
     line(k,limb,'bInlay',f([[.05,.068,.033],[.27,.249,-.098],[radius,.39,-.184],[radius+.22,.142,-.229]]),.018);
     pieces.push({joint:limb,type:'wing',side});
   }
+  if(s.extra==='swords'){
+    for(let i=0;i<4;i++){
+      const a=i*TAU/4+PI*.25,rad=.78+i%2*.16;
+      const joint=k.bone(cast,Math.sin(a)*rad,.30,Math.cos(a)*rad);
+      const length=.42+i%2*.16;
+      const blade=[[0,-.18,0],[.055,-.11,.022],[.064,length*.54,.016],[0,length+.063,0],
+        [-.049,length*.52,.019],[-.046,-.121,.015]];
+      relief(k,joint,'bInlay',blade,.026);
+      for(const side of signs)line(k,joint,'glow',[[0,-.104,side*.027],
+        [.007,length*.54,side*.024],[0,length-.026,side*.021]],.011);
+      line(k,joint,'bTrim',[[-.106,-.158,.007],[0,-.127,.035],[.105,-.157,.005]],.021);
+      pieces.push({joint,type:'orbit',a,rad,i});
+    }
+  }
   if(s.extra==='leaves')for(let i=0;i<7;i++){
     const a=i*2.4,rad=.66+(i%3)*.12;
     const leaf=k.bone(cast,Math.sin(a)*rad,.11+(i%4)*.25,Math.cos(a)*rad);
@@ -425,6 +534,7 @@ function humanoid(k,entry,s,mobile,mount){
     line(k,body,mark,reflect(side,[[.067,y*.93,.24],[.176,y*.75,.275],[.29,y*.65,.252],[.31,y*.50,.241]]),.026);
     line(k,body,mark,reflect(side,[[.073,y*.84,.254],[.205,y*.70,.29],[.25,y*.54,.266]]),.009);
   }
+  if(s.armor!=='bare'&&(!mount||barding[entry.id]))armorLap(k,body,s.armor,y*.74,chest,mobile);
   const sash=k.bone(body,0,.07,0);
   mass(k,sash,'bWood',[[0,-.154,0,waist*1.12,waist*.96],[0,-.092,.021,waist*1.14,waist*.98],[0,-.034,.034,waist*1.13,waist*.96]],
     9,18,2.53,.09);
@@ -445,8 +555,19 @@ function humanoid(k,entry,s,mobile,mount){
     return arm(k,body,scaled,side);
   });
   const [left,right]=arms.map((item,i)=>weapon(k,item.hand,s.weapons[i]??'fist',item.side));
+  const alternateArms=[];
+  if(entry.id==='m081'){
+    for(const side of signs){
+      const limb=arm(k,body,{...s,chest:s.chest*.67,sleeve:s.sleeve*.73,arm:s.arm*.67},side);
+      limb.root.position.set(side*s.chest*.62,.333,.049);
+      const crescent=weapon(k,limb.hand,'crescent',side);
+      crescent.scale.setScalar(.68);
+      alternateArms.push({...limb,crescent});
+    }
+  }
   const tail=drapery(k,body,s.flow??'mantle',mobile);
   const {cast,pieces}=attach(k,body,head,s,arms,mobile);
+  if(!mount)pieces.push(...tailoredCoat(k,body,s,mobile));
   const aim=s.weapons.includes('bow')||s.weapons.includes('spear');
   return {body:mount?.body??body,head,crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,
     pattern:mount?'gallop':s.float?'hover':aim?'aim':s.armor==='bare'?'slam':'duel',
@@ -469,9 +590,16 @@ function humanoid(k,entry,s,mobile,mount){
         elbow.rotation.y=side*(wind*.14+strike*.16);
         hand.rotation.z=side*(wind*.23-strike*.26);
       }
+      for(const {root,elbow,crescent,side} of alternateArms){
+        root.rotation.set(-.67-back*.21+wind*.43-strike*.94,side*(.28+wind*.49),side*(.69+wind*.31-strike*.51));
+        elbow.rotation.x=-.29+wind*.66-strike*.57;
+        crescent.rotation.x=.45-wind*.35+strike*.48;
+        crescent.rotation.z=side*(.30-wind*.51+strike*.27);
+      }
       left.rotation.set(-.19-strike*.50,wind*.35,.40+wind*.25);
       right.rotation.set(aim?-.22+wind*.37:-.52+wind*.51-strike*.17,wind*.23,-.29+strike*.42*read);
       for(const tool of [left,right])if(tool.userData.cord)tool.userData.cord.scale.x=1+wind*2.34;
+      if(right.userData.cage)right.userData.cage.rotation.y=headtime*(.65+wind*.22)+strike*.49;
       for(const {hip,knee,boot,side} of legs){
         const gait=Math.sin(step+side*PI*.5)*travel;
         hip.rotation.x=mount?-.23+gait*.25:gait*.58+wind*.15-strike*.13;
@@ -552,6 +680,16 @@ const robes={
     chest:.353,waist:.232,bell:.37,skirt:.74,sleeve:.145,leg:.99,left:1.40,right:.38,move:-1,snap:.192},
   m089:{face:'oni',hair:'mane',crown:'flame',armor:'imperial',weapons:['shield','flame'],extra:'shield',
     chest:.395,waist:.242,bell:.44,skirt:.65,sleeve:.20,length:.66,leg:.71,left:.49,right:1.35},
+  m090:{face:'helm',hair:'mane',crown:'stag',armor:'imperial',weapons:['curved','curved'],extra:'swords',
+    chest:.395,waist:.243,bell:.43,skirt:.65,sleeve:.183,length:.68,leg:.715,left:1.32,right:1.40,orbit:.85},
+  m091:{face:'oni',hair:'beard',crown:'branches',armor:'imperial',weapons:['fist','mace'],extra:'none',
+    chest:.389,waist:.240,bell:.49,skirt:.70,sleeve:.19,length:.64,leg:.715,left:.42,right:1.52,flow:'wings'},
+  m092:{face:'helm',hair:'beard',crown:'sun',armor:'imperial',weapons:['fist','spear'],extra:'none',
+    chest:.424,waist:.249,bell:.44,skirt:.66,sleeve:.19,length:.72,leg:.762,left:.41,right:1.71,snap:.29},
+  m093:{face:'skull',hair:'long',crown:'sun',armor:'imperial',weapons:['fist','curved'],extra:'shards',
+    chest:.415,waist:.251,bell:.45,skirt:.68,sleeve:.18,length:.71,leg:.76,left:.27,right:1.51,orbit:.34},
+  m094:{face:'oni',hair:'mane',crown:'flame',armor:'imperial',weapons:['fist','curved'],extra:'none',
+    chest:.435,waist:.26,bell:.45,skirt:.68,sleeve:.179,length:.73,leg:.745,left:.36,right:1.64,lean:.23},
   m099:{face:'oni',hair:'mane',crown:'stag',armor:'imperial',weapons:['crescent','crescent'],extra:'shards',
     chest:.664,waist:.385,bell:.58,skirt:.94,sleeve:.30,length:.82,leg:.89,left:1.24,right:1.33,panels:9,asymmetric:1.14,snap:.315},
   m102:{face:'oni',hair:'mane',crown:'stag',armor:'bare',weapons:['crescent','axe'],extra:'none',
@@ -567,6 +705,12 @@ const robes={
 };
 
 const neutral={length:.71,arm:.76,leg:.93,lean:.18,snap:.24,thrust:1.12,spread:.19,panels:8,hem:1};
+const coatStyles={
+  m060:'broken',m061:'prayer',m062:'sash',m063:'epaulettes',m064:'sabre',m065:'jade',m066:'prayer',m067:'sash',
+  m068:'sabre',m069:'jade',m070:'sash',m071:'sabre',m072:'sash',m073:'prayer',m075:'broken',m076:'sabre',
+  m077:'sash',m078:'jade',m079:'broken',m080:'epaulettes',m081:'sabre',m082:'broken',m083:'sabre',
+  m084:'sash',m099:'epaulettes',m102:'broken',m104:'broken',m105:'prayer',m110:'epaulettes',m112:'sash',
+};
 
 // The base, cloth, plated, patinated and inlaid colors are kept separate on the rig
 // so runes, embroidery and edges retain their own relief under grazing light.
@@ -597,6 +741,11 @@ const pigments={
   m083:[0x162524,0x233e2f,0x375247,0x36a64b,0x8ace94],
   m084:[0x241f22,0x302d29,0x4f4732,0xbb941d,0xd7c08d],
   m089:[0x201419,0x7d2c20,0x804624,0xde4d16,0xefb068],
+  m090:[0x15182a,0x202b62,0x28629a,0x24a3ed,0xd1aa6b],
+  m091:[0x1a2019,0x3c5934,0x578153,0x35bd67,0xd5b378],
+  m092:[0x2d201b,0x694d2a,0x876a32,0xcc980e,0xeed386],
+  m093:[0x30363c,0xa6a8aa,0xa3a298,0xdddbc3,0xeae9df],
+  m094:[0x101318,0x23242b,0x414548,0x746036,0xa6a09a],
   m095:[0x272341,0x743184,0x643b71,0xc34256,0xb2e2e3],
   m096:[0x48281e,0xb97429,0xa76029,0xe75123,0xf5d27c],
   m099:[0x21242a,0x805249,0x437280,0x61bbc3,0xb2c9cb],
@@ -631,6 +780,49 @@ function finishing(id,[shadow,fabric,metal,inlay,bone]){
 }
 
 export const finishesB=Object.fromEntries(Object.entries(pigments).map(([id,palette])=>[id,finishing(id,palette)]));
+
+function finishRelief(k,id){
+  const [shadow,,metal,inlay,bone]=pigments[id];
+  const oxidized=new T.Color(shadow).lerp(new T.Color(metal),.23);
+  const bevel=new T.Color(bone).lerp(new T.Color(inlay),.20);
+  const treatments={bMetal:0,bTrim:0,bOxide:2,bWood:2,bBone:2,bCloth:1,bShadow:1,bInlay:3,bHair:2,bFur:2};
+  for(const [name,category] of Object.entries(treatments)){
+    const material=k.materials[name];
+    const original=material.onBeforeCompile,key=material.customProgramCacheKey();
+    material.customProgramCacheKey=()=>key+'|cast-relief';
+    material.onBeforeCompile=shader=>{
+      original.call(material,shader);
+      Object.assign(shader.uniforms,{
+        ledgerOxide:{value:oxidized},ledgerEdge:{value:bevel},ledgerFinish:{value:category},
+        ledgerGrain:{value:(Number(id.slice(1))%13)*.315},
+      });
+      shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
+        uniform vec3 ledgerOxide,ledgerEdge;
+        uniform float ledgerFinish,ledgerGrain;
+      `).replace('#include <color_fragment>',`#include <color_fragment>
+        vec3 metalAt=vPaintPoint+vec3(ledgerGrain,ledgerGrain*.73,ledgerGrain*.137);
+        float erosion=paintGrain(metalAt*vec3(19.4,25.3,14.5));
+        float laid=(.54+.46*sin((metalAt.y+erosion*.135)*131.))*cos(metalAt.z*109.+metalAt.x*97.);
+        float reading=1.-smoothstep(.15,.67,fwidth(laid));
+        float wear=smoothstep(.49,.79,erosion);
+        float ridgeBright=pow(max(0.,dot(normalize(vPaintNormal),normalize(vec3(.41,.79,-.45)))),2.);
+        if(ledgerFinish<.5){
+          diffuseColor.rgb=mix(ledgerOxide*.65+diffuseColor.rgb*.46,diffuseColor.rgb,wear*.81);
+          diffuseColor.rgb+=ledgerEdge*(wear*.065+ridgeBright*.071+max(0.,laid)*wear*reading*.048);
+        }else if(ledgerFinish<1.5){
+          diffuseColor.rgb*=.79+erosion*.29+laid*reading*.083;
+        }else if(ledgerFinish<2.5){
+          diffuseColor.rgb*=.78+erosion*.34+wear*ridgeBright*.127;
+        }else{
+          diffuseColor.rgb*=.72+erosion*.36;
+          diffuseColor.rgb+=ledgerEdge*reading*wear*(.027+laid*.031);
+        }
+      `).replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
+        roughnessFactor=clamp(roughnessFactor+(1.-wear)*.113-wear*ridgeBright*.075,.25,.99);
+      `);
+    };
+  }
+}
 
 function clawedFoot(k,j,x,finish='bBone',amount=3){
   for(let i=0;i<amount;i++){
@@ -752,6 +944,109 @@ function mountTiger(k,entry,mobile){
         const p=step+(side<0?PI:0)+(front?PI*.79:0),g=Math.sin(p)*travel;
         base.rotation.x=g*.61+wind*(front?-.22:.092)+strike*(front?.32:-.29);
         knee.rotation.x=Math.max(0,Math.cos(p))*travel*.74*Math.sign(g||1)+strike*.12;
+      }
+    },
+  };
+}
+
+const barding={
+  m090:{head:.96,neck:.56,flank:.39,fauld:.83,crests:2,tail:.94,lash:true},
+  m091:{head:1.13,neck:.61,flank:.42,fauld:1.15,crests:3,tail:.77,lash:false},
+  m092:{head:1.06,neck:.65,flank:.46,fauld:.98,crests:3,tail:.86,lash:true},
+  m093:{head:.89,neck:.67,flank:.41,fauld:.96,crests:2,tail:1.17,lash:false},
+  m094:{head:1.19,neck:.58,flank:.48,fauld:1.28,crests:4,tail:1.04,lash:true},
+};
+
+function bardedHorse(k,entry,mobile){
+  const s=barding[entry.id], w=s.flank, ivory=entry.id==='m093', dark=entry.id==='m094';
+  const body=k.bone(k.root,0,.877,0), neck=k.bone(body,0,.20,.58), head=k.bone(neck,0,s.neck,.34);
+  const lowerJaw=k.bone(head,0,-.12,.144), tail=k.bone(body,0,.14,-.96),legs=[];
+  mass(k,body,'bWood',[[0,-.09,-1.12,w*.40,w*.54],
+    [0,.01,-.867,w*.99,.367],[0,-.071,-.508,w*1.04,.369],[0,-.063,.054,w,.321],
+    [0,.052,.56,w*.90,.350],[0,.102,.786,w*.58,.255]],mobile?16:21,mobile?14:17,2.34,.13);
+  mass(k,neck,'bShadow',[[0,-.18,-.19,w*.66,.268],[0,.049,-.064,.273,.273],
+    [0,.31,.038,.217,.227],[0,s.neck*.81,.173,.17,.166],[0,s.neck+.016,.30,.123,.127]],16,13,2.48,.19);
+  mass(k,head,'bWood',[[0,.095,-.148,.198*s.head,.19],[0,.008,.017,.213*s.head,.161],
+    [0,-.122,.181,.153*s.head,.122],[0,-.299,.336,.132*s.head,.099],[0,-.339,.39,.108*s.head,.067]],16,12,2.14,.15);
+  mass(k,lowerJaw,'bShadow',[[0,.035,-.073,.151,.093],[0,-.055,.018,.119,.090],
+    [0,-.168,.189,.106,.068],[0,-.205,.245,.095,.056]],11,10,2.34,.17);
+  const seat=k.bone(body,0,.216,-.18);
+  mass(k,seat,'bCloth',[[0,-.181,-.51,.245,.069],[0,-.029,-.435,w*.94,.128],
+    [0,.046,.226,w*.81,.106],[0,.111,.414,w*.54,.079]],14,12,2.59,.13);
+  const mane=k.bone(neck,0,.23,-.19),ruff=k.bone(tail,0,0,0);
+  const hairCount=mobile?6:10;
+  for(let i=0;i<hairCount;i++){
+    const t=i/(hairCount-1),side=i%2?-1:1;
+    k.geometry(mane,ivory&&i%2?'bBone':'bHair',featherVane([side*.054,t*.41,-t*.062],
+      [side*(.11+t*.067),.08+t*.43,-.17-t*.135],[side*(.16+t*.18),.033+t*.34,-.28-t*.19],.062,i+8,7));
+    k.geometry(ruff,dark||i%3?'bHair':'bInlay',featherVane([side*.026,.133,.004],
+      [side*(.103+t*.045),.043,-s.tail*.38-t*.11],[side*(.20+t*.073),-.28+s.tail*t*.17,-s.tail*.72-t*.14],.087,i+54,8));
+  }
+  for(const side of signs){
+    const fan=p=>reflect(side,p);
+    const tack=fan([[.037,.046,-.088],[.176*s.head,.017,.052],[.187*s.head,-.139,.165],
+      [.152*s.head,-.298,.325],[.091,-.366,.416],[.038,-.29,.362]]);
+    relief(k,head,'bMetal',tack,.043);
+    line(k,head,'bTrim',tack.map(([x,y,z])=>[x,y,z+.036]),.014);
+    stone(k,head,'glow',side*.151*s.head,-.061,.111,.036,.023,.018);
+    const cheek=fan([[.164*s.head,.014,.111,.032],[.187*s.head,-.153,.236,.035],
+      [.134,-.236,.352,.031],[.098,-.323,.429,.015]]);
+    line(k,head,'bWood',cheek);
+    line(k,head,'bInlay',cheek.map(([x,y,z,r])=>[x-.014*side,y-.023,z+.022,r*.34]));
+    for(let i=0;i<s.crests;i++){
+      const y=i*.027;
+      mass(k,head,i%2?'bMetal':'bTrim',fan([[.089+y,.085+y,-.11,.049],[.123+y,.167+y,-.127,.049],
+        [.19+y,.23+y*.9,-.13-y,.044],[.26+y,.275+y,-.173-y*.4,.006]]),9,8,2.28,.15);
+    }
+    const bridge=fan([[w*.54,.057,.51],[w,.141,.39],[w*1.28,-.034,.283],[w*1.36,-.317,.220],
+      [w*.78,-.41,.331],[w*.52,-.25,.48]]);
+    relief(k,body,'bOxide',bridge,.081);
+    line(k,body,'bTrim',bridge,.025);
+    for(let i=0;i<3;i++){
+      const z=-.55+i*.28;
+      const path=fan([[w*.33,.193,z+.120],[w*.91,.108,z+.138],[w*1.19,-.043,z+.128],
+        [w*1.23,-.221*s.fauld,z+.058],[w,-.251*s.fauld,z-.123],[w*.60,-.036,z-.167]]);
+      relief(k,seat,i%2?'bOxide':'bMetal',path,.045);
+      line(k,seat,'bTrim',path.map(([x,y,z])=>[x*1.05,y,z]),.017);
+      stone(k,seat,'bInlay',side*w*1.22,-.145*s.fauld,z,.049,.053,.035,.31);
+    }
+    const carrier=k.bone(body,side*w*.61,.244,-.806);
+    mass(k,carrier,'bWood',fan([[0,.106,.07,.097,.134],[.025,-.004,.033,.133,.146],
+      [.066,-.145,-.055,.088,.113],[.051,-.24,-.079,.048,.059]]),12,11,2.48,.17);
+    line(k,carrier,'bTrim',fan([[-.052,.067,-.041],[.042,.121,-.081],[.119,.013,-.108],[.092,-.154,-.125]]),.019);
+    for(const front of [true,false]){
+      const hip=k.bone(body,side*(front?w*.69:w*.76),front?.034:.078,front?.513:-.717);
+      const knee=k.bone(hip,side*.018,-.383,front?.08:-.157);
+      const foot=k.bone(knee,0,-.352,front?.033:.112);
+      mass(k,hip,'bWood',[[0,.095,-.036,.145,.173],[0,-.022,-.015,.171,.148],
+        [0,-.187,front?.041:-.072,.104,.096],[side*.018,-.373,front?.073:-.141,.07,.072]],13,11,2.32,.14);
+      mass(k,knee,'bMetal',[[0,.035,0,.088,.087],[0,-.073,-.052,.103,.074],[0,-.225,-.003,.063,.064],
+        [0,-.357,.063,.056,.066]],13,9,2.76,.13);
+      const greave=[[-.092,.039,.065],[.062,.06,.086],[.098,-.072,.07],[.061,-.214,.129],
+        [0,-.319,.143],[-.064,-.192,.094],[-.088,-.049,.065]];
+      relief(k,knee,front?'bMetal':'bOxide',greave,.025);
+      line(k,knee,'bInlay',greave.slice(2,6),.012);
+      mass(k,foot,'bShadow',[[0,-.083,.069,.082,.095],[0,-.036,.046,.091,.110],[0,.044,.016,.068,.088]],9,11,3.13,.11);
+      line(k,foot,'bTrim',[[-.070,-.060,.104],[0,-.049,.142],[.069,-.06,.103]],.016);
+      legs.push({hip,knee,foot,side,front});
+    }
+  }
+  return {body,saddle:seat,width:w*.87,offset:.53,
+    pose({beat,wind,strike,travel,step,stage}){
+      body.rotation.x=travel*Math.sin(step)*.068+wind*.215-strike*.32;
+      body.rotation.z=travel*Math.sin(step*.51)*.076;
+      neck.rotation.x=-wind*.24+strike*.341+travel*Math.cos(step)*.184;
+      neck.rotation.z=Math.sin(beat*.61)*(.04+travel*.079);
+      head.rotation.x=-neck.rotation.x*.41+wind*.11-strike*.151;
+      lowerJaw.rotation.x=wind*.26+strike*.39;
+      mane.rotation.x=Math.sin(beat*.72)*.091+travel*.23+wind*.11;
+      tail.rotation.x=wind*.190-strike*.26;tail.rotation.y=Math.sin(beat*.61)*(.24+travel*.26)+stage*.056;
+      ruff.rotation.z=Math.sin(beat*.72)*.077;
+      for(const {hip,knee,foot,side,front} of legs){
+        const p=step+(side<0?PI:0)+(front?0:PI*.76),g=Math.sin(p)*travel;
+        hip.rotation.x=g*.59+wind*(front?-.31:.079)+strike*(front?.34:-.29);
+        knee.rotation.x=-.19+Math.max(0,Math.cos(p))*travel*.53+strike*.14;
+        foot.rotation.x=-Math.min(0,g)*.224+wind*.12;
       }
     },
   };
@@ -1024,9 +1319,11 @@ const specialized={m095:starfish,m096:starfish,m100:iceShade,m103:hydra,m108:old
 
 export function sculptB(k,entry,mobile=false){
   const specializedShape=specialized[entry.id];
+  if(specializedShape||robes[entry.id])finishRelief(k,entry.id);
   if(specializedShape)return specializedShape(k,entry,mobile);
   const design=robes[entry.id];
   if(!design)return null;
-  const mounted=entry.id==='m074'||entry.id==='m089';
-  return humanoid(k,entry,{...neutral,...design},mobile,mounted?mountTiger(k,entry,mobile):null);
+  const mount=barding[entry.id]?bardedHorse(k,entry,mobile):
+    ['m074','m089'].includes(entry.id)?mountTiger(k,entry,mobile):null;
+  return humanoid(k,entry,{...neutral,...design,back:coatStyles[entry.id]},mobile,mount);
 }

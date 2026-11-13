@@ -1,7 +1,7 @@
 import * as T from '../three.min.mjs';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
-import {roomSurface} from './room-surfaces.mjs?v=chiaroscuro-1';
+import {roomSurface} from './room-surfaces.mjs?v=penumbra-1';
 
 const box=new T.BoxGeometry(1,1,1);
 const pole=new T.CylinderGeometry(.89,1,1,9);

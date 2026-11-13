@@ -68,6 +68,44 @@ export function finishForRoom(type){
   return {floor,masonry,ornament,repeat,tint,metalness,roughness};
 }
 
+export function weatherMasonry(material,kind){
+  const metal=kind==='metal', ice=kind==='ice', wood=kind==='wood';
+  material.customProgramCacheKey=()=>`patina:${kind}`;
+  material.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <common>',`
+      #include <common>
+      varying vec3 roomStone;
+    `).replace('#include <begin_vertex>',`
+      #include <begin_vertex>
+      vec4 weatheredPosition=vec4(position,1.);
+      #ifdef USE_INSTANCING
+        weatheredPosition=instanceMatrix*weatheredPosition;
+      #endif
+      roomStone=(modelMatrix*weatheredPosition).xyz;
+    `);
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`
+      #include <common>
+      varying vec3 roomStone;
+    `).replace('#include <color_fragment>',`
+      #include <color_fragment>
+      vec3 grainCoordinates=roomStone;
+      float deposit=sin(grainCoordinates.x*2.39+grainCoordinates.y*.85+grainCoordinates.z*1.7)
+        *cos(grainCoordinates.z*3.68-grainCoordinates.y*2.89);
+      float scores=pow(.5+.5*sin(dot(grainCoordinates,vec3(47.1,7.1,81.4))+deposit*2.5),14.);
+      float footing=1.-smoothstep(.10,1.6,grainCoordinates.y);
+      float stain=.5+deposit*.5;
+      diffuseColor.rgb*=.87+.26*stain-footing*.13;
+      ${metal ? 'diffuseColor.rgb*=mix(vec3(.66,.76,.80),vec3(1.14,.97,.81),smoothstep(.32,.73,stain)); diffuseColor.rgb+=scores*vec3(.10,.073,.039);' : ''}
+      ${ice ? 'diffuseColor.rgb+=scores*stain*vec3(.04,.065,.11);' : ''}
+      ${wood ? 'diffuseColor.rgb*=.85+.27*pow(.5+.5*sin(grainCoordinates.x*32.+grainCoordinates.z*29.+deposit),3.);' : ''}
+    `).replace('#include <roughnessmap_fragment>',`
+      #include <roughnessmap_fragment>
+      roughnessFactor=clamp(roughnessFactor+stain*.14+footing*.09-scores*${metal ? '.26' : '.09'},.17,1.);
+    `);
+  };
+  return material;
+}
+
 // Layer wet seams, soot and mineral veins over the scanned floor in world coordinates.
 export function weatherFloor(material,type){
   const kind=Object.keys(roomFinishes).indexOf(type);

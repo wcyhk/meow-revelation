@@ -2,10 +2,10 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=chiaroscuro-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=penumbra-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=chiaroscuro-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=penumbra-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
@@ -84,11 +84,11 @@ export class WeaponViewer {
     this.viewAngles=node('div','model-view-angles');
     this.viewAngles.setAttribute('aria-label','模型角度');
     this.viewAngles.setAttribute('role','group');
-    for(const [key,label,angle] of [['front','正面',-.47],['side','側面',1.10],['back','背面',2.68]]){
+    for(const [key,label,angle] of [['front','正面',0],['side','側面',Math.PI/2],['back','背面',Math.PI]]){
       const control=button(label,()=>{
         if(this.mode!=='model')return;
-        this.yaw=angle;
-        this.pitch=.12;
+        this.yaw=angle-(this.bossRig?.heading??.47);
+        this.pitch=this.bossRig?.095:.12;
         this.turn(0,0);
       });
       control.dataset.viewAngle=key;
@@ -399,7 +399,7 @@ export class WeaponViewer {
     this.detail.textContent=this.description;
     this.scene=new T.Scene();
     const pao=paoForms.has(this.boss?.bestiary?.id);
-    if(pao)lightPaoDisplay(this.scene);
+    if(this.boss)lightPaoDisplay(this.scene);
     else armLighting(this.scene);
     const pivot=new T.Group();
     this.model=pivot;
@@ -424,7 +424,7 @@ export class WeaponViewer {
     }
     const wings=this.bossRig?.flight||this.bossRig?.signature?.type==='phoenix';
     this.wideModel=Boolean(wings);
-    const displaySize=this.boss?(pao?2.13:wings?2.63:1.99):1.87;
+    const displaySize=this.boss?(pao?2.13:wings?2.63:2.11):1.87;
     const diameter=this.boss?Math.max(size.x,size.y,size.z):size.length();
     pivot.scale.setScalar(displaySize/diameter);
     this.scene.add(pivot);
@@ -433,10 +433,14 @@ export class WeaponViewer {
     this.resize();
     if(this.displayActor&&!reducedMotion.matches){
       const start=performance.now();
+      let frame=start;
       const update=now=>{
         if(!this.open||this.mode!=='model'||!this.displayActor||reducedMotion.matches)return;
-        poseBestiary(this.bossRig,this.displayActor,{phase:0},(now-start)/1000,0,0);
-        this.renderer.render(this.scene,inspectCamera);
+        if(!this.main.mobile||now-frame>=27){
+          frame=now;
+          poseBestiary(this.bossRig,this.displayActor,{phase:0},(now-start)/1000,0,0);
+          this.renderer.render(this.scene,inspectCamera);
+        }
         this.raf=requestAnimationFrame(update);
       };
       this.raf=requestAnimationFrame(update);

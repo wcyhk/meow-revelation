@@ -1,8 +1,9 @@
 import * as T from '../three.min.mjs';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
-import {finishForRoom,roomSurface,weatherFloor} from './room-surfaces.mjs?v=chiaroscuro-1';
-import {RoomLighting} from './room-lighting.mjs?v=chiaroscuro-1';
+import {finishForRoom,roomSurface,weatherFloor,weatherMasonry} from './room-surfaces.mjs?v=penumbra-1';
+import {RoomLighting} from './room-lighting.mjs?v=penumbra-1';
+import {depthGeometry,sculptRoomDepth} from './room-depth.mjs?v=penumbra-1';
 
 const PI=Math.PI,TAU=PI*2;
 const groundPlane=new T.PlaneGeometry(64,61).rotateX(-PI/2);
@@ -34,7 +35,7 @@ const torus=new T.TorusGeometry(1,.024,4,50).rotateX(-PI/2);
 const strand=new T.CylinderGeometry(.38,1,1,7);
 const stems=new T.LatheGeometry([[0,-.22],[.43,-.23],[.76,-.11],[1,0],[.91,.20],[.66,.37],[.33,.47],[0,.49]]
   .map(([x,y])=>new T.Vector2(x,y)),18);
-const sharedGeometry=new Set([groundPlane,poolShape,box,rock,stone,bead,canopy,column,cylinder,rib,post,shard,sheet,vertical,arcade,chiseled,beveledBase,torus,strand,stems]);
+const sharedGeometry=new Set([groundPlane,poolShape,box,rock,stone,bead,canopy,column,cylinder,rib,post,shard,sheet,vertical,arcade,chiseled,beveledBase,torus,strand,stems,...depthGeometry]);
 
 const palettes={
   'grove.jpg':['grove',0x141b24,0x36373b,0x626557,0x98764e,0x3b282b,0x964d47,0x8b75ae,0xec9362],
@@ -53,10 +54,10 @@ const palettes={
 };
 export const landscapePictures=Object.keys(palettes);
 
-const wet=new Set(['canal','lotus','fungus']);
 const inlaid=new Set(['vault','cathedral','desecrated','throne','crimson']);
 const glassy=new Set(['cathedral','desecrated','throne','crimson']);
 const ancient=new Set(['grove','grave','frost','dunes','fungus']);
+const wet=new Set(['canal','lotus','fungus']);
 const tiles=new Map();
 let glass;
 
@@ -197,11 +198,11 @@ function soilType(type){
 function setMaterials(view,type,base,edge,trim,body,accent,glimmer,warm,cutaway){
   const env=forgeEnvironment();
   const finish=finishForRoom(type);
-  const standard=(color,metalness,roughness,kind,useEnv)=>new T.MeshStandardMaterial({
-    color,metalness,roughness,...roomSurface(kind,1,kind==='metal'?.42:.67),envMap:useEnv?env:null,
-    envMapIntensity:useEnv?.64:0,
-    emissive:color,emissiveIntensity:.025,
-  });
+  const standard=(color,metalness,roughness,kind,useEnv)=>weatherMasonry(new T.MeshStandardMaterial({
+    color,metalness,roughness,...roomSurface(kind,1,kind==='metal'?.51:.72),envMap:useEnv?env:null,
+    envMapIntensity:useEnv?.68:0,
+    emissive:color,emissiveIntensity:.033,
+  }),kind);
   const material={
     basal:standard(new T.Color(base).multiplyScalar(1.7),.12,.86,finish.masonry,false),
     ridge:standard(new T.Color(edge).multiplyScalar(1.28),.23,.68,finish.masonry,true),
@@ -255,7 +256,7 @@ function batch(root,mobile){
       if(mat.transparent)group.renderOrder=mat.blending===T.AdditiveBlending?7:3;
       else{
         group.receiveShadow=true;
-        group.castShadow=geo!==sheet&&geo!==shard&&geo!==bead;
+        group.castShadow=geo!==sheet&&geo!==shard&&geo!==bead&&(!mobile||geo!==canopy);
       }
       root.add(group);
     }
@@ -727,7 +728,7 @@ export class RoomLandscape {
     this.type=type;
     this.root.name='3D: '+type;
     this.view.scene.background=new T.Color(sky);
-    this.view.scene.fog=new T.FogExp2(sky,inlaid.has(type)?.019:.026);
+    this.view.scene.fog=new T.FogExp2(sky,inlaid.has(type)?.017:.023);
     const draw=rng((stage.floor??1)*48109+type.length*91311);
     const finish=finishForRoom(type);
     const scan=roomSurface(finish.floor,finish.repeat,type==='frost'?.61:.83);
@@ -749,6 +750,7 @@ export class RoomLandscape {
     landmarks(ctx,stage,type);
     chambers(ctx,stage,type);
     roomCenter(ctx,stage,type);
+    sculptRoomDepth(ctx,stage,type);
     insignia(this.root,type,stage,m);
     this.lamps=lanterns(ctx,stage);
     this.roomLighting.set(type,stage,this.lamps);

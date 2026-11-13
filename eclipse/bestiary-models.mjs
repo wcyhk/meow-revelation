@@ -1,8 +1,8 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=practice-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
-import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-detail-1';
-import {paoMaterials} from './pao-materials.mjs?v=pao-detail-1';
+import {buildPao,paoForms,posePao} from './pao-model.mjs?v=pao-geometry-1';
+import {paoMaterials} from './pao-materials.mjs?v=pao-geometry-1';
 
 const PI=Math.PI,TAU=PI*2;
 const shapes={
@@ -1506,12 +1506,12 @@ function forestDetails(k,entry,parts){
   return mark;
 }
 
-export function mountBestiary(scene,entry,height){
+export function mountBestiary(scene,entry,height,mobile=false){
   if(entry.source==='kuanglu15')entry={...entry,family:'rider'};
   const root=new T.Group(),materials=buildMaterials(entry);
   const k=kit(root,materials);
   let parts;
-  if(paoForms.has(entry.id))parts=buildPao(k,entry);
+  if(paoForms.has(entry.id))parts=buildPao(k,entry,mobile);
   else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
   else if(entry.id==='m114')parts=shahRoyalPair(k);
   else if(entry.id==='m115')parts=yamaTwins(k);
@@ -1657,6 +1657,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
 const white=new T.Color(0xfff4e0);
 export function removeBestiary(scene,model){
   scene.remove(model.root);
+  model.pao?.energy.dispose();
   model.root.traverse(part=>{if(part.isMesh)part.geometry.dispose();});
   for(const material of Object.values(model.materials))material.dispose();
 }

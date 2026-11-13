@@ -1,6 +1,6 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=pao-detail-1';
-import {paoForms} from './pao-model.mjs?v=pao-detail-1';
+import {bestiaryTint} from './bestiary-models.mjs?v=pao-geometry-1';
+import {paoForms} from './pao-model.mjs?v=pao-geometry-1';
 
 const patterns={
   serpent:['lance','roots','gravity','sweep'],hydra:['jaws','prison','summon','cross'],

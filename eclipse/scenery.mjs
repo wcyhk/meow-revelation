@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-detail-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=pao-geometry-1';
 import * as T from '../three.min.mjs';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=forgelight-4';
 import {pictures, stages} from './expedition.mjs?v=forgelight-4';
@@ -525,7 +525,7 @@ export class Scenery {
   prepareBoss(visual,spec) {
     const model=spec.bestiary??spec.model;
     if(model){
-      visual.bestiary=mountBestiary(this.scene,model,spec.height);
+      visual.bestiary=mountBestiary(this.scene,model,spec.height,this.mobile);
       visual.art.visible=false;
     }else{
       visual.form=nightmareForm(spec);

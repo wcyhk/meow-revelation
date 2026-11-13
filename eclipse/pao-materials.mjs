@@ -64,8 +64,8 @@ export function paoMaterials(awakened,palette){
       float stain=sin(p.x*15.0-p.y*11.0)*sin(p.y*32.0+p.x*13.0);
       float vein=pow(.5+.5*sin(p.x*84.0+p.y*29.0+sin(p.y*68.0)*1.7),15.0);
       diffuseColor.rgb*=.71+grain*.11+stain*.22;
-      if(gl_FrontFacing) diffuseColor.rgb*=1.0-vein*.35;
-      else diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.011,.019,.037),.74)*(1.0-vein*.22);
+      if(gl_FrontFacing) diffuseColor.rgb*=1.0-vein*.26;
+      else diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.017,.027,.043),.62)*(1.0-vein*.27);
     `);
     shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
       float sideRim=pow(1.0-abs(normalize(vViewPosition).z),2.0);
@@ -73,10 +73,12 @@ export function paoMaterials(awakened,palette){
     `);
   };
   return {
-    deep:textile(0x221c23,.95,0x3d322f),
+    deep:textile(0x221d23,.95,0x333036),
+    clothSeam:textile(0x40373b,.90,0x554745),
     body:metal(awakened?0x3f4d69:0x48566b,.76,.45,0x1c283c),
     trim:metal(0xa4844e,.80,.43,0x42442d),
     edge:textile(0xcfc8b6,.65,0x675b50),
+    oldBone:textile(0xd7ceba,.66,0x827467),
     ivoryShade:textile(0x7e6957,.81,0x4b3630),
     bronzeShade:metal(0x724c3d,.63,.55,0x322421),
     wingEdge:metal(0x515f81,.72,.45,0x26324a),
@@ -86,6 +88,7 @@ export function paoMaterials(awakened,palette){
     }),
     glow:new T.MeshBasicMaterial({color:new T.Color(palette[3]).multiplyScalar(.58)}),
     eye:new T.MeshBasicMaterial({color:0xfda64b,toneMapped:false}),
+    eyeCore:new T.MeshBasicMaterial({color:0xffe4a5,toneMapped:false}),
     mist:new T.MeshBasicMaterial({
       color:0x2df4db,transparent:true,opacity:.20,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false,
     }),
@@ -140,7 +143,7 @@ function weather(material,patina,metal){
       float pitting=smoothstep(.48,.83,scoring);
       diffuseColor.rgb=mix(diffuseColor.rgb*(.72+wear*.42),patinaColor,
         (1.0-exposed)*(.29+ironWear*.24));
-      diffuseColor.rgb+=pitting*exposed*mix(vec3(.036,.025,.018),vec3(.105,.098,.083),ironWear);
+      diffuseColor.rgb+=pitting*exposed*mix(vec3(.029,.028,.024),vec3(.105,.098,.083),ironWear);
     `).replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
       roughnessFactor=clamp(roughnessFactor+.22*(1.0-exposed)-pitting*ironWear*.17,.26,.96);
     `);
@@ -151,9 +154,11 @@ function weather(material,patina,metal){
 export function lightPaoDisplay(scene){
   const key=new T.DirectionalLight(0xffe1c2,2.62);
   const fill=new T.DirectionalLight(0xa7c2cd,.52);
-  const rim=new T.DirectionalLight(0x7197ca,3.6);
+  const rim=new T.DirectionalLight(0x7197ca,3.2);
+  const back=new T.DirectionalLight(0xa5bfca,1.62);
   key.position.set(-3.5,3.6,4.1);
   fill.position.set(3.8,.25,4.3);
   rim.position.set(2.6,1.9,-4.3);
-  scene.add(new T.HemisphereLight(0x9babb4,0x51433c,.62),key,fill,rim);
+  back.position.set(-3.1,2.1,-3.9);
+  scene.add(new T.HemisphereLight(0x9babb4,0x51433c,.62),key,fill,rim,back);
 }

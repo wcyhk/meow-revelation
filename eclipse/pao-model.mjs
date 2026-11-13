@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
-import {paoVisage} from './pao-relief.mjs?v=pao-detail-1';
+import {beardLocks,bracer,cuirass,rivenCloth,sculptPao,skull,wingJoint} from './pao-sculpt.mjs?v=pao-geometry-1';
+import {paoEnergy} from './pao-energy.mjs?v=pao-geometry-1';
 
 export const paoForms=new Set(['m025','m026']);
 
@@ -10,7 +11,6 @@ const knuckle=[.71,1.29,-.16];
 const fingerJoint=[1.18,1.18,-.19];
 const tips=[[1.26,1.17,-.22],[2.13,-.32,-.36],[1.69,-.53,-.26],[1.24,-.60,-.18],[.49,-.45,-.01]];
 const bays=[[1.72,.74,-.22],[1.87,-.01,-.23],[1.44,-.28,-.19],[.91,-.28,-.12]];
-const hook=[[.60,1.51,-.17],[.39,1.58,-.17],[.26,1.46,-.10]];
 
 function membrane(wing,material,side,reach){
   const scaled=point=>[side*point[0]*reach,point[1],point[2]];
@@ -18,11 +18,12 @@ function membrane(wing,material,side,reach){
   const front=path([wingBase,elbow,knuckle,fingerJoint,tips[0]]);
   const outline=path(tips.flatMap((tip,index)=>index<bays.length?[tip,bays[index]]:[tip]));
   const vertices=[],pigments=[],uvs=[];
-  const dark=new T.Color(0x291b21),russet=new T.Color(0x785344),silk=new T.Color(0xb98160);
+  const dark=new T.Color(0x35252b),russet=new T.Color(0x7c5146),silk=new T.Color(0xbc927b);
   const hem=path([tips.at(-1),[.21,-.33,0],wingBase]);
   const ragged=outline.getPoints(48).slice(0,-1);
   for(const [index,point] of ragged.entries()){
-    point.y+=Math.sin(index*2.83)*.033*Math.sin(index*Math.PI/ragged.length);
+    const notch=Math.max(0,Math.cos(index*1.7+Math.sin(index*.6)))**5;
+    point.y+=Math.sin(index*2.83)*.026+notch*.12*Math.sin(index*Math.PI/ragged.length);
     point.z+=Math.cos(index*4.12)*.015;
   }
   const edge=[...front.getPoints(16).slice(0,-1),...ragged,...hem.getPoints(8).slice(0,-1)];
@@ -31,11 +32,14 @@ function membrane(wing,material,side,reach){
   function push(point){
     const u=point.x*side/2.16,v=(point.y+.65)/2.3;
     const stretch=Math.sin(v*Math.PI);
-    const fold=Math.sin(u*29+v*11.8);
+    const fold=Math.sin(u*21+v*12.5+Math.sin(v*13)*.72);
     const shade=dark.clone().lerp(russet,.47+stretch*.39+fold*.09);
     const thread=Math.max(0,fold)**6*.18*stretch;
-    shade.lerp(silk,thread);
-    vertices.push(point.x,point.y,point.z+fold*stretch*.036);
+    const distanceFromTear=ragged.reduce((best,p)=>Math.min(best,(p.x-point.x)**2+(p.y-point.y)**2),1);
+    const fray=Math.exp(-distanceFromTear*128)*(.44+.20*Math.sin(u*77+v*57));
+    shade.lerp(silk,thread+fray);
+    const camber=Math.sin(u*Math.PI*.9)*stretch*.105;
+    vertices.push(point.x,point.y,point.z+fold*stretch*.026-camber);
     pigments.push(shade.r,shade.g,shade.b);
     uvs.push(u,v);
   }
@@ -47,7 +51,7 @@ function membrane(wing,material,side,reach){
   }
   for(const [a,b,c] of triangles){
     const normal=(edge[b].x-edge[a].x)*(edge[c].y-edge[a].y)-(edge[b].y-edge[a].y)*(edge[c].x-edge[a].x);
-    patch(edge[a],edge[normal>0?b:c],edge[normal>0?c:b],2);
+    patch(edge[a],edge[normal>0?b:c],edge[normal>0?c:b],1);
   }
   const geometry=new T.BufferGeometry();
   geometry.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
@@ -73,22 +77,20 @@ function membrane(wing,material,side,reach){
   return scaled;
 }
 
-function buildWing(k,hinge,side,awakened){
-  const {mesh,rod,materials}=k;
+function buildWing(k,sculpt,hinge,side,awakened){
+  const {rod,materials}=k;
   const reach=awakened?1.07:1;
   const project=membrane(hinge,materials.webbing,side,reach);
   const rib=(finish,from,to,width,shape)=>rod(hinge,finish,project(from),project(to),width,shape);
-  const leading=[wingBase,elbow,knuckle,fingerJoint,tips[0],bays[0],tips[1]];
+  const leading=[knuckle,fingerJoint,tips[0],bays[0],tips[1]];
   const tube=(points,size,segments,finish)=>{
     const line=new T.CatmullRomCurve3(points.map(point=>new T.Vector3(...project(point))));
     const geometry=new T.TubeGeometry(line,segments,size,7,false);
     hinge.add(new T.Mesh(geometry,materials[finish]));
   };
-  tube(leading,.075,24,'body');
-  tube(leading.map(([x,y,z])=>[x,y+.04,z+.056]),.025,24,'wingEdge');
-  tube([knuckle,...hook],.068,12,'body');
-  rib('deep',hook[1],hook[2],.084,'horn');
-  mesh(hinge,'gem','body',...project(knuckle),.13,.18,.105);
+  tube(leading,.062,21,'body');
+  const layered=[...leading].map(([x,y,z])=>[x,y+.046,z+.047,.020]);
+  sculpt.sweep(hinge,'wingEdge',layered.map(([x,y,z,r])=>[...project([x,y,z]),r,r*.63]),{sides:7,steps:21});
   for(const [index,tip] of tips.entries()){
     if(index===0)continue;
     const start=index<3?fingerJoint:knuckle;
@@ -99,10 +101,17 @@ function buildWing(k,hinge,side,awakened){
     const end=[tip[0],tip[1]+.025,tip[2]+.06];
     tube([[start[0],start[1],start[2]+.07],ridge,end],.043-index*.004,11,'body');
     rib('wingEdge',ridge,[end[0],end[1]+.009,end[2]+.028],.016,'horn');
+    const rear=[[start[0]-.031,start[1]+.019,start[2]-.039,.013],
+      [bend[0]+.03,bend[1]-.013,bend[2]-.082,.027],[tip[0]+.01,tip[1]+.046,tip[2]-.05,.004]];
+    sculpt.sweep(hinge,'wingEdge',rear.map(([x,y,z,r])=>[...project([x,y,z]),r,r*.68]),{sides:6,steps:10});
     rib('deep',tips[index-1],bays[index-1],.032);
     rib('deep',bays[index-1],tip,.033,'horn');
-    rib('body',tip,[tip[0]+.036,tip[1]-.17,tip[2]+.068],.072,'horn');
+    const talon=[[tip[0]-.053,tip[1]+.14,tip[2]+.023,.044],[...tip,.057],
+      [tip[0]+.034,tip[1]-.11,tip[2]+.027,.040],[tip[0]+.006,tip[1]-.23,tip[2]+.077,.001]];
+    sculpt.sweep(hinge,index%2?'deep':'body',talon.map(([x,y,z,r])=>[...project([x,y,z]),r,r*.79]),
+      {sides:8,steps:14,ridge:.16});
   }
+  return wingJoint(k,sculpt,hinge,project);
 }
 
 function ring(k,hand,awakened){
@@ -177,51 +186,24 @@ function tapered(k,joint,finish,points,width,aspect=.69){
   joint.add(new T.Mesh(geometry,k.materials[finish]));
 }
 
-export function buildPao(k,entry){
+export function buildPao(k,entry,mobile){
   const {root,bone,mesh,rod}=k;
   const awakened=entry.id==='m026';
   const body=bone(root,0,1.26,0);
-  mesh(body,'pearl','deep',0,.30,-.04,.48,.66,.26);
-  mesh(body,'pearl','body',0,.55,0,.48,.40,.28);
-  mesh(body,'scale','body',0,.47,.22,.77,.84,.57,.13,0,Math.PI);
-  mesh(body,'scale','trim',0,.43,.28,.63,.63,.42,.13,0,Math.PI);
-  mesh(body,'scale','deep',0,.43,.345,.51,.53,.70,.13,0,Math.PI);
-  mesh(body,'gem','cyan',0,.65,.393,.112,.13,.067);
-  mesh(body,'scale','trim',0,.15,-.309,.53,.63,.49,0,Math.PI);
-  mesh(body,'scale','deep',0,.15,-.362,.44,.52,.39,0,Math.PI);
-  mesh(body,'gem','edge',0,-.032,-.401,.14,.16,.044);
+  const sculpt=sculptPao(k);
+  const back=cuirass(k,sculpt,body,awakened);
+  mesh(body,'gem','cyan',0,.625,.298,.051,.074,.047);
   const skirt=bone(body,0,-.09,.06);
-  const boots=[],arms=[],wings=[],wheels=[],mantles=[];
+  const mantles=rivenCloth(k,sculpt,skirt);
+  const boots=[],arms=[],wings=[],wheels=[],wingEnergy=[];
   for(const side of [-1,1]){
-    const mantle=bone(skirt,side*.12,.04,-.15);
-    mantles.push(mantle);
-    mesh(mantle,'mantle','deep',side*.18,.09,-.06,side*.68,1.34,1.48,.15,-side*.36,0);
-    mesh(mantle,'mantle','body',side*.24,.02,-.07,side*.48,1.29,.68,.12,-side*.25,0);
-    mesh(mantle,'mantle','deep',side*.12,.05,.15,side*.42,1.09,.92,-.11,-side*.23,0);
-    for(let strip=0;strip<4;strip++){
-      const x=side*(.09+strip*.089),y=-.28-strip*.17,z=.09-strip*.045;
-      mesh(mantle,'mantle',strip%3?'deep':'ivoryShade',x,y,z,side*(.20+strip*.029),
-        .57-strip*.041,.55,-.21+strip*.09,-side*.44,side*.10);
-    }
-    rod(mantle,'trim',[side*.12,.07,.20],[side*.37,-.92,.27],.023,'horn');
-    mesh(body,'scale','edge',side*.29,.22,.23,.49,.68,.66,.14,-side*.27,side*.37);
-    mesh(body,'scale','body',side*.30,.20,.30,.39,.59,.53,.14,-side*.27,side*.37);
-    for(let shard=0;shard<2;shard++)rod(body,'trim',
-      [side*(.17+shard*.18),.42-shard*.059,.35],[side*(.38+shard*.12),.12-shard*.068,.41],.025,'horn');
-    rod(body,'trim',[side*.09,.26,.29],[side*.38,.35,.29],.036);
-    for(let rib=0;rib<4;rib++){
-      const y=.76-rib*.114;
-      const x=.19+rib*.052;
-      rod(body,'edge',[side*.12,y+.021,.29],[side*(x+.11),y-.057,.319],.027);
-      mesh(body,'gem','bronzeShade',side*(x+.115),y-.046,.317,.043,.034,.025);
-    }
-    const seam=[[side*.05,.43,.415],[side*.34,.51,.40],[side*.46,.76,.29]];
-    rod(body,'cyan',seam[0],seam[1],.021);
-    rod(body,'wingEdge',seam[1],seam[2],.030);
     const leg=bone(body,side*.20,-.24,.02);
     mesh(leg,'pearl','deep',0,-.42,-.03,.17,.59,.19,.06);
-    mesh(leg,'scale','body',0,-.50,.13,.29,.54,.49,-.13);
-    rod(leg,'body',[0,-.60,.052],[side*.075,-.94,.35],.105);
+    for(let row=0;row<4;row++){
+      const y=-.41-row*.129;
+      mesh(leg,'scale',row===0?'body':'deep',0,y,.148+row*.027,.25-row*.021,.21,.51,-.25,0,side*.07);
+    }
+    rod(leg,'deep',[0,-.60,.052],[side*.075,-.94,.35],.105);
     for(let toe=0;toe<3;toe++){
       const x=side*.079+(toe-1)*.080;
       mesh(leg,'pearl','body',x,-.96,.315,.072,.063,.136,-.14);
@@ -229,79 +211,26 @@ export function buildPao(k,entry){
     }
     boots.push(leg);
     const hinge=bone(body,side*.32,.71,-.26);
-    buildWing(k,hinge,side,awakened);
+    wingEnergy.push(buildWing(k,sculpt,hinge,side,awakened));
     wings.push(hinge);
     const arm=bone(body,side*.46,.67,.03);
-    mesh(arm,'scale','trim',side*.046,0,.015,.43,.42,.69,.34,-side*.47,side*.76);
-    mesh(arm,'scale','body',side*.048,.05,.065,.34,.35,.68,.34,-side*.47,side*.77);
-    rod(arm,'edge',[side*.033,.12,.095],[side*.33,.17,.11],.079,'horn');
-    rod(arm,'wingEdge',[side*.04,.085,.19],[side*.245,-.113,.207],.028);
-    for(let stud=0;stud<3;stud++)mesh(arm,'gem','trim',side*(.08+stud*.057),.068-stud*.089,.215,.032,.036,.025);
     const elbow=bone(arm,side*.17,-.42,.035);
     rod(arm,'deep',[0,-.02,0],elbow.position.toArray(),.117);
-    rod(elbow,'body',[0,0,0],[side*.074,-.26,.15],.101);
-    mesh(elbow,'scale','edge',side*.083,-.13,.145,.26,.39,.59,.35,-side*.16,side*.23);
-    mesh(elbow,'scale','body',side*.085,-.14,.19,.20,.31,.46,.35,-side*.16,side*.23);
-    rod(elbow,'trim',[side*.083,-.046,.195],[side*.164,-.281,.275],.038,'horn');
     const palm=bone(elbow,side*.088,-.25,.16);
-    mesh(palm,'pearl','body',0,-.025,.05,.109,.12,.082);
-    mesh(palm,'scale','cyan',0,.01,.126,.103,.126,.28,.27);
-    for(let finger=0;finger<4;finger++){
-      const x=(finger-1.5)*.055;
-      rod(palm,'body',[x,-.044,.047],[x*1.18,-.134,.111-finger*.012],.027);
-      tapered(k,palm,'bronzeShade',[[x*1.18,-.133,.111-finger*.012],
-        [x*1.16,-.161,.131-finger*.011],[x*1.09,-.209+finger*.007,.116-finger*.012]],.024,.89);
-    }
+    mesh(palm,'pearl','body',0,-.025,.05,.102,.105,.072);
+    bracer(k,sculpt,arm,elbow,palm,side);
     const wheel=ring(k,palm,awakened);
     if(side===-1&&!awakened)wheel.scale.setScalar(.65);
     arms.push({shoulder:arm,elbow});
     wheels.push(wheel);
   }
   const head=bone(body,0,.92,.064);
-  mesh(head,'pearl','deep',0,.098,.04,.243,.30,.208,-.16);
-  mesh(head,'scale','body',0,.16,.215,.31,.49,.78,-.16);
-  mesh(head,'scale','ivoryShade',0,.25,.282,.27,.32,.52,-.11);
-  for(let point=-2;point<=2;point++){
-    const x=point*.049;
-    tapered(k,head,point%2?'ivoryShade':'edge',[[x,.19,.315],[x*1.55,.37,.293],[x*2.15,.51-Math.abs(point)*.038,.202]],.046);
-  }
-  mesh(head,'scale','deep',0,.038,.322,.36,.21,.54,.12,0,Math.PI);
-  mesh(head,'gem','cyan',0,.19,.414,.031,.095,.023);
-  rod(head,'deep',[0,.098,.37],[0,-.082,.431],.066,'horn');
-  const beard=bone(head,0,-.080,.437);
-  mesh(beard,'scale','ivoryShade',0,-.32,.027,.28,.70,.55,0,0,Math.PI);
-  tapered(k,beard,'edge',[[0,.022,.051],[-.024,-.26,.097],[.016,-.61,.096],[-.021,-.965,.116]],.061);
-  for(const side of [-1,1]){
-    const brow=[[side*.018,.18,.402],[side*.17,.24,.371],[side*.31,.51,.19]];
-    rod(head,'edge',brow[0],brow[1],.064);
-    rod(head,'edge',brow[1],brow[2],.091,'horn');
-    rod(head,'trim',[side*.21,.04,.113],[side*.37,.36,.009],.099,'horn');
-    rod(head,'deep',[side*.225,.17,-.003],[side*.57,.51,-.135],.078,'horn');
-    mesh(head,'gem','deep',side*.10,.105,.402,.079,.046,.030,0,0,-side*.34);
-    mesh(head,'gem','eye',side*.100,.102,.438,.050,.024,.018,0,0,-side*.33);
-    rod(head,'edge',[side*.18,.144,.319],[side*.158,-.10,.412],.041);
-    rod(head,'edge',[side*.16,-.082,.411],[side*.11,-.255,.439],.043,'horn');
-    for(let collar=0;collar<3;collar++){
-      rod(head,'trim',[side*.25,.094-collar*.077,.068],[side*.32,.098-collar*.079,.21],.038);
-    }
-    const tusk=[[side*.20,.005,.111],[side*.36,.18,-.011],[side*.51,.35,-.056],[side*.62,.55,-.176],[side*.62,.68,-.224]];
-    const crownHook=[[side*.21,.03,.104],[side*.38,.17,-.01],[side*.56,.40,-.084],[side*.66,.63,-.17],[side*.60,.85,-.21],[side*.52,.88,-.20]];
-    tapered(k,head,'body',crownHook,.11,1.04);
-    for(let i=1;i<tusk.length;i++){
-      const [x,y,z]=tusk[i];
-      if(i<4)mesh(head,'pearl','bronzeShade',x,y,z+.023,.102-i*.011,.071,.102,.18,0,-side*.48);
-      if(i<4)mesh(head,'gem','trim',x-side*.020,y+.027,z+.081,.049,.027,.032,0,0,-side*.40);
-    }
-    for(let strand=0;strand<6;strand++){
-      const x=side*(.027+strand*.027),length=.92-strand*.069;
-      tapered(k,beard,strand%3?'edge':'ivoryShade',
-        [[x,.024,-strand*.009],[x*1.04,-.23,.062+strand*.004],[x*.77,-length*.74,.105-strand*.015],
-          [x*.18+side*.067,-length,.119-strand*.019]],.038-strand*.003);
-    }
-  }
+  const jaw=skull(k,sculpt,head);
+  const {beard,locks}=beardLocks(k,sculpt,head);
+  sculpt.finish();
   const crest=bone(body,0,0,0);
-  paoVisage(k,head,beard,body,arms);
-  return {body,head,crest,pao:{awakened,beard,skirt,boots,arms,wings,wheels,mantles}};
+  const energy=paoEnergy(root,[...wheels,...wingEnergy],mobile);
+  return {body,head,crest,pao:{awakened,beard,locks,jaw,back,energy,skirt,boots,arms,wings,wheels,mantles}};
 }
 
 // Wind-up and release weight separate body, wing, shoulder and elbow movement.
@@ -315,7 +244,7 @@ const casting={
 };
 
 export function posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash}){
-  const {awakened,beard,skirt,boots,arms,wings,wheels,mantles}=model.pao;
+  const {awakened,beard,locks,jaw,back,skirt,boots,arms,wings,wheels,mantles}=model.pao;
   const trueForm=awakened||stage>0;
   const transform=model.pao;
   if(transform.awakening===undefined)transform.awakening=trueForm?1:0;
@@ -344,7 +273,14 @@ export function posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flas
   skirt.rotation.x=-travel*.24+Math.sin(beat+.6)*.09-strike*.20+landing*.23;
   skirt.scale.y=.62+.42*settled;
   beard.rotation.x=Math.sin(beat-.57)*.082+travel*.24+charge*.09-strike*.26+recoil*.30;
-  beard.scale.y=.84+.29*settled;
+  beard.scale.y=.86+.26*settled;
+  for(const [index,lock] of locks.entries()){
+    const lag=index*.54;
+    lock.rotation.x=Math.sin(beat-lag)*(.042+travel*.075)+extension*.14-recoil*.11;
+    lock.rotation.z=Math.sin(beat*.73+lag)*(.048+travel*.035)+(index%2?1:-1)*cast*.071;
+  }
+  jaw.rotation.x=charge*.13+extension*.27+fall*.33;
+  back.rotation.x=-travel*.06+landing*.07;
   model.head.rotation.y=Math.sin(beat*.52)*.09*(1-cast)+(impact?.dx??0)*recoil*.29;
   model.materials.cyan.emissiveIntensity=.74+cast*2.25+landing*.87+flash*.45+entrance*.76;
   model.materials.mist.opacity=(.14+cast*.29+landing*.19)*(1-fall*.91);
@@ -383,6 +319,11 @@ export function posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flas
     boots[i].rotation.x=.10+Math.sin(stride)*gait*.65+plant*.19;
     boots[i].position.y=-.24+Math.max(0,Math.cos(stride))*gait*.21;
     boots[i].position.z=.02+Math.sin(stride)*gait*.22;
-    mantles[i].rotation.set(-travel*.12+Math.sin(beat+i*.9)*.13,side*(.10+travel*.17+landing*.21),side*(Math.sin(beat+i)*.13+recoil*.20));
   }
+  for(const [index,cloth] of mantles.entries()){
+    const angle=(index+.55)*Math.PI*2/mantles.length;
+    cloth.rotation.set(Math.sin(beat+index*.71)*.117-travel*.21+Math.cos(angle)*landing*.19,angle,
+      Math.cos(beat*.91+index*.93)*.11+Math.sin(angle)*recoil*.24);
+  }
+  transform.energy.update(time,cast,travel,fall,landing);
 }

@@ -5,7 +5,7 @@ import {buildPao,paoForms,posePao} from './pao-model.mjs?v=chiaroscuro-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
 import {enemyEnergy} from './enemy-energy.mjs?v=turnaround-1';
-import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=turnaround-2';
+import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=jade-rig-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=sculpted-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
@@ -209,13 +209,16 @@ function buildMaterials(entry){
     finishes.glow.color.setHex(0xc583e3);
   }
   if(entry.id==='m133'){
-    finishes.royal=surface(0xb98637,.78,.40,'bronze');
-    finishes.redEnamel=surface(0x9f301e,.44,.47,'iron');
-    finishes.blueSteel=surface(0x282b34,.63,.48,'iron');
-    finishes.polished=surface(0xb4b9b3,.82,.35,'iron');
-    finishes.darkBraid=surface(0x211e2a,.06,.93,'cloth');
-    finishes.cloudShade=surface(0x3b4a60,.04,.91,'hide');
-    finishes.cloudRim=surface(0x8f9aa5,.06,.85,'hide');
+    finishes.royal=surface(0xa26e30,.82,.44,'bronze');
+    finishes.goldWear=surface(0xd4ab5a,.79,.36,'bronze');
+    finishes.redEnamel=surface(0xa82e24,.50,.45,'iron');
+    finishes.blueSteel=surface(0x303d50,.64,.47,'iron');
+    finishes.polished=surface(0xc2cdca,.81,.30,'iron');
+    finishes.jadeMask=surface(0x40484e,.62,.48,'iron');
+    finishes.darkBraid=surface(0x25282b,.05,.85,'cloth');
+    finishes.silverHair=surface(0x7d7971,.07,.80,'cloth');
+    finishes.jadeSilk=surface(0xa96c61,.04,.88,'cloth');
+    finishes.jadeSilk.side=T.DoubleSide;
   }
   if(entry.id==='m155'){
     finishes.shellIvory=surface(0xc19463,.10,.65,'bone');
@@ -1735,6 +1738,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
       arms[0].rotation.x+=wind*.17;
     }
   }
+  model.finishPose?.({beat,wind,strike,stage,stagger,thrust,sweep,crush,fall});
   model.aura?.update(time,stage,wind,strike,fall,stagger);
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
@@ -1777,6 +1781,7 @@ export function removeBestiary(scene,model){
   scene.remove(model.root);
   model.pao?.energy.dispose();
   model.aura?.dispose();
+  model.disposeRig?.();
   model.signature?.lume?.dispose();
   model.root.traverse(part=>{if(part.isMesh)part.geometry.dispose();});
   for(const material of Object.values(model.materials))material.dispose();

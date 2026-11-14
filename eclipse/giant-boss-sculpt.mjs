@@ -1,5 +1,7 @@
 import * as T from '../three.min.mjs';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {bindJadeSilks} from './jade-garments.mjs?v=jade-rig-1';
+import {jadeEffects} from './jade-effects.mjs?v=jade-rig-1';
 
 const tau=Math.PI*2, sides=[-1,1];
 const mirror=(s,path)=>path.map(([x,...point])=>[x*s,...point]);
@@ -63,40 +65,46 @@ function royalBlade(k,hand){
     const blade=mirror(s,[[0,.17,.071],[.16,.28,.016],[.194,.89,.009],[.155,1.41,.006],
       [.158,1.86,.004],[.220,2.28,0],[0,2.16,.046]]);
     plate(k,hand,'polished',blade,.029);
-    sweep(k,hand,'blueSteel',[[s*.032,.26,.086,.014],[s*.034,.91,.091,.019],
-      [s*.05,1.61,.077,.013],[s*.15,2.16,.053,.003]],5,13);
+    for(const face of sides){
+      sweep(k,hand,'blueSteel',[[s*.032,.32,face*.077,.022],[s*.036,.91,face*.077,.022],
+        [s*.05,1.61,face*.068,.014],[s*.15,2.16,face*.053,.003]],6,15);
+      for(let i=0;i<4;i++){
+        const y=.42+i*.152,z=face*.101;
+        sweep(k,hand,i===0?'glow':'goldWear',[[s*.043,y-.039,z,.006],[s*.091,y+.013,z,.009],
+          [s*.064,y+.059,z,.004]],5,6);
+      }
+    }
+    sweep(k,hand,'blueSteel',mirror(s,[[.16,.115,.042,.048],[.27,.128,.052,.067],
+      [.367,.187,.032,.048],[.413,.307,-.011,.010]]));
   }
   k.mesh(hand,'gem','glow',0,.228,.093,.092,.137,.051);
-}
-
-function cloud(k,parent){
-  const group=k.bone(parent,0,-.58,0),curls=[];
-  for(let ring=0;ring<2;ring++)for(let i=0;i<6;i++){
-    const a=i*tau/6+ring*.51,x=Math.sin(a),z=Math.cos(a);
-    const curl=k.bone(group,x*(.46+ring*.13),-.16+ring*.19,z*(.38+ring*.11));
-    curl.rotation.y=a;
-    sweep(k,curl,ring?'cloudRim':'cloudShade',[[0,-.123,0,.123,.15],[.17,-.08,.19,.16,.12],
-      [.40,.03,.14,.17,.13],[.44,.18,-.036,.15,.11],[.264,.31,-.185,.083,.078],
-      [.13,.285,-.19,.019,.028]],11,21);
-    sweep(k,curl,'cloudRim',[[.04,-.07,.144,.025],[.266,.003,.267,.034],
-      [.439,.13,.19,.023],[.447,.21,.05,.008]],6,13);
-    curls.push(curl);
-  }
-  return {group,curls};
+  k.mesh(hand,'gem','royal',0,-.622,0,.104,.119,.074);
+  k.mesh(hand,'gem','redEnamel',0,-.642,.063,.059,.073,.031);
 }
 
 export function carveJadeEmperor(k,mobile){
   const body=k.bone(k.root,0,1.13,0);
   const head=k.bone(body,0,1.09,.015);
-  const {group:clouds,curls}=cloud(k,body);
+  const clouds=k.bone(body,0,-.66,0);
+  const silks=bindJadeSilks(body,k.materials.jadeSilk,mobile);
   carve(k,body,'deep',[[0,-.47,-.111,.31,.28],[0,-.20,-.074,.39,.30],[0,.12,-.035,.43,.34],
     [0,.45,-.017,.48,.34],[0,.69,-.029,.49,.30],[0,.89,-.097,.35,.23],[0,1.03,-.104,.19,.14]],23,16);
   carve(k,head,'deep',[[0,-.24,.115,.12,.103],[0,-.17,.041,.168,.15],
     [0,-.005,.005,.20,.163],[0,.17,-.046,.201,.15],[0,.295,-.12,.134,.17],
     [0,.473,-.18,.039,.069]],20,16);
-  const skull=[[-.19,.036,.18],[-.202,.194,.14],[-.132,.306,.109],[0,.382,.10],
+  const skull=[[-.19,.036,.18],[-.202,.194,.14],[-.132,.306,.109],[0,.382,.13],
     [.132,.306,.109],[.202,.194,.14],[.19,.036,.18],[.116,.087,.222],[0,.147,.248],[-.116,.087,.222]];
   ridgePanel(k,head,'royal',skull,.069,'trim');
+  sweep(k,head,'goldWear',[[0,.138,.267,.029],[0,.263,.245,.049],[0,.372,.171,.071],
+    [0,.486,.014,.039],[0,.457,-.126,.018],[0,.331,-.261,.007]],8,17);
+  k.mesh(head,'gem','glow',0,.237,.307,.033,.057,.021);
+  carve(k,head,'jadeMask',[[0,-.217,.148,.086,.055],[0,-.156,.182,.136,.100],
+    [0,-.072,.169,.172,.104],[0,.018,.145,.182,.091],[0,.095,.135,.153,.086]],
+    mobile?14:22,mobile?13:17,2.08);
+  sweep(k,head,'jadeMask',[[0,.112,.263,.021],[0,.020,.284,.025],[0,-.056,.318,.038],
+    [0,-.097,.29,.022]],8,10);
+  sweep(k,head,'deep',[[-.069,-.125,.250,.007],[0,-.143,.297,.013],[.067,-.125,.252,.007]],6,10);
+  sweep(k,head,'jadeMask',[[-.049,-.156,.271,.008],[0,-.173,.281,.021],[.05,-.157,.270,.008]],7,10);
   for(const s of sides){
     const p=path=>mirror(s,path);
     for(let i=0;i<3;i++){
@@ -106,40 +114,74 @@ export function carveJadeEmperor(k,mobile){
     }
     plate(k,head,'deep',p([[.029,.116,.25],[.154,.129,.24],[.186,.067,.199],
       [.130,.026,.241],[.039,.044,.259]]),.022);
-    sweep(k,head,'glow',p([[.037,.077,.272,.007],[.106,.078,.273,.015],[.153,.096,.246,.005]]),6,7);
+    sweep(k,head,'jadeMask',p([[.022,.115,.281,.015],[.074,.106,.293,.035],
+      [.132,.118,.264,.034],[.167,.128,.235,.007]]),7,11);
+    sweep(k,head,'glow',p([[.037,.076,.282,.005],[.093,.066,.289,.012],[.143,.087,.263,.004]]),6,9);
+    sweep(k,head,'jadeMask',p([[.050,.024,.271,.010],[.109,.009,.276,.027],
+      [.162,-.013,.238,.039],[.134,-.123,.256,.021],[.085,-.165,.242,.009]]),8,13);
+    sweep(k,head,'goldWear',p([[.131,.296,.163,.017],[.182,.31,.055,.020],
+      [.207,.275,-.122,.018],[.165,.217,-.251,.017],[.096,.119,-.303,.007]]),7,15);
+    for(let i=0;i<3;i++){
+      const h=.200-i*.103;
+      const neckGuard=p([[.016,h+.047,-.247],[.124,h+.079,-.270],[.206,h+.034,-.207],
+        [.208,h-.054,-.191],[.124,h-.098,-.282],[.012,h-.056,-.264]]);
+      plate(k,head,i%2?'blueSteel':'redEnamel',neckGuard,.027);
+      sweep(k,head,'goldWear',neckGuard.slice(2,6).map(([x,y,z])=>[x,y,z-.017,.013]),6,11);
+      rivet(k,head,'trim',s*.140,h+.019,-.288,.023);
+    }
     sweep(k,head,'royal',p([[.133,.251,-.068,.063],[.224,.271,-.164,.076],
       [.340,.210,-.23,.068],[.408,.083,-.263,.047],[.364,-.075,-.296,.009]]));
     sweep(k,head,'redEnamel',p([[.107,-.13,.211,.025],[.161,-.151,.181,.034],
       [.208,-.244,.108,.023],[.20,-.369,.078,.006]]));
   }
-  for(let i=0;i<4;i++){
-    const x=(i-1.5)*.047;
-    sweep(k,head,i%2?'darkBraid':'deep',[[x,-.120,.217,.030],[x*1.28,-.215,.225,.041],
-      [x*1.52,-.369,.248,.028],[x*.88,-.473,.223,.003]]);
+  const beard=k.bone(head,0,-.140,.234);
+  for(let i=0;i<(mobile?7:11);i++){
+    const x=(i/(mobile?6:10)-.5)*.189;
+    const taper=1-Math.abs(x)*4.4;
+    const fiber=[[x,.022,-.010,.018],[x*1.25,-.077,.043,.026],
+      [x*1.39,-.199,.061,.020],[x*1.18+.014,-.22-taper*.157,.109,.004]];
+    sweep(k,beard,i%3?'darkBraid':'silverHair',fiber,7,mobile?9:13);
+    sweep(k,beard,'silverHair',fiber.map(([x,y,z,r])=>[x-.008,y,z+r*.88,r*.18]),5,9);
   }
-  const arms=[],limbs=[],skirts=[];
+  for(const s of sides){
+    sweep(k,beard,'darkBraid',mirror(s,[[.012,.022,.048,.020],[.068,.018,.064,.025],
+      [.122,.049,.042,.020],[.160,.094,.018,.004]]),8,13);
+  }
+  const arms=[],limbs=[],skirts=[],pauldrons=[];
+  let sword;
   for(const s of sides){
     const p=path=>mirror(s,path);
     const shell=p([[.026,.792,.326],[.230,.866,.279],[.472,.695,.213],[.456,.388,.246],
       [.320,.185,.347],[.119,.089,.397],[.024,.235,.407]]);
     ridgePanel(k,body,'blueSteel',shell,.064,'trim');
-    for(let i=0;i<4;i++){
-      const y=.677-i*.092;
-      sweep(k,body,i%3?'royal':'glow',p([[.064,y+.059,.351,.016],[.213,y+.013,.355,.025],
-        [.347,y-.032,.300,.023],[.427,y-.064,.262,.004]]),6,9);
+    for(let i=0;i<3;i++){
+      const y=.735-i*.142;
+      const breast=p([[.026,y+.018,.386],[.183,y+.065,.359],[.366,y+.099,.269],
+        [.405,y+.011,.274],[.254,y-.084,.364],[.074,y-.099,.427]]);
+      ridgePanel(k,body,i===0?'redEnamel':'blueSteel',breast,.039,'goldWear');
+      sweep(k,body,'royal',p([[.079,y-.048,.450,.016],[.177,y-.013,.425,.023],
+        [.284,y+.010,.374,.017],[.371,y+.047,.315,.006]]),7,10);
+      rivet(k,body,'trim',s*.279,y-.043,.369,.020);
     }
     const arm=k.bone(body,s*.46,.68,.012);
+    const pauldron=k.bone(body,s*.46,.77,-.016);
     const elbow=k.bone(arm,s*.082,-.284,.021);
     arms.push(arm);limbs.push({forearm:elbow,side:s});
+    pauldrons.push({part:pauldron,arm,side:s});
     carve(k,arm,'deep',p([[.02,.189,-.069,.118,.13],[.053,.089,-.053,.205,.171],
       [.076,-.065,.015,.192,.166],[.082,-.284,.029,.104,.106]]),13,12);
-    const mask=k.bone(arm,s*.20,.205,.133);mask.rotation.y=s*.62;mask.rotation.z=s*-.21;mask.scale.setScalar(.72);
-    beastMask(k,mask,{width:.27,length:.26,height:.35,skin:'royal',armor:'royal',bite:'trim',diadem:true});
+    const mask=k.bone(pauldron,s*.202,.142,.169);
+    mask.rotation.y=s*.58;mask.rotation.z=s*-.26;mask.scale.setScalar(.78);
+    const jaw=beastMask(k,mask,{width:.27,length:.26,height:.35,skin:'royal',armor:'royal',bite:'goldWear',diadem:true});
+    pauldrons.at(-1).jaw=jaw;
     for(let i=0;i<3;i++){
-      const y=.16-i*.126;
-      ridgePanel(k,arm,i%2?'blueSteel':'royal',p([[.034,y+.024,-.126],[.251,y+.076,-.184],
-        [.383,y-.014,-.143],[.339,y-.159,-.072],[.228,y-.196,.026],[.036,y-.112,.017]]),.039);
-      rivet(k,arm,'polished',s*.271,y-.091,-.175,.038);
+      const y=.11-i*.116,x=i*.039;
+      const bracket=p([[.019,y+.028,-.108],[.209-x,y+.111,-.254],[.386-x,y+.074,-.163],
+        [.407-x,y-.027,.019],[.333-x,y-.109,.171],[.181,y-.118,.192],[.044,y-.075,.081]]);
+      plate(k,pauldron,i===1?'redEnamel':'royal',bracket,.053);
+      sweep(k,pauldron,'goldWear',bracket.slice(1,6).map(([x,y,z])=>[x+s*.019,y-.013,z,.018]),7,17);
+      rivet(k,pauldron,'blueSteel',s*(.222-x),y+.035,-.254,.045);
+      rivet(k,pauldron,'polished',s*(.223-x),y+.036,-.285,.020);
     }
     carve(k,elbow,'blueSteel',p([[0,.069,.006,.106,.111],[.012,-.043,.043,.166,.144],
       [.036,-.206,.067,.157,.132],[.042,-.330,.117,.098,.097]]),13,12);
@@ -150,8 +192,8 @@ export function carveJadeEmperor(k,mobile){
       sweep(k,elbow,'darkBraid',p([[x,-.269,.13,.035],[x,-.341,.232,.039],[x-.014,-.417,.249,.026],[x-.043,-.429,.199,.013]]),6,8);
     }
     if(s===1){
-      const hand=k.bone(elbow,.018,-.357,.205);hand.rotation.set(.64,.18,-.83);
-      royalBlade(k,hand);
+      sword=k.bone(elbow,.018,-.357,.205);sword.rotation.set(.64,.18,-.83);
+      royalBlade(k,sword);
     }else{
       const bracelet=k.bone(elbow,-.025,-.28,.199);
       k.mesh(bracelet,'ring','royal',0,0,.007,.22,.22,.50,.78,.31);
@@ -167,10 +209,17 @@ export function carveJadeEmperor(k,mobile){
       ridgePanel(k,hip,i%2?'blueSteel':'royal',front,.059);
       sweep(k,hip,'redEnamel',p([[.015,.117-offset,.289,.029],[.224,.008-offset,.248,.038],
         [.371,-.168-offset,.211,.041],[.292,-.399-offset,.262,.026]]),7,11);
+      const seam=p([[.142,-.107-offset,.316,.012],[.237,-.161-offset,.293,.016],
+        [.278,-.252-offset,.270,.025],[.216,-.388-offset,.31,.013],[.103,-.475-offset,.349,.006]]);
+      sweep(k,hip,'goldWear',seam,6,11);
+      for(let j=0;j<3;j++)rivet(k,hip,j===1?'redEnamel':'goldWear',s*(.136+j*.055),
+        -.285-offset-Math.abs(j-1)*.024,.325-j*.014,.023);
       const rear=p([[-.104,.158-offset,-.044],[.15,.218-offset,-.078],[.416,.091-offset,-.115],
         [.476,-.128-offset,-.139],[.362,-.408-offset,-.228],[.110,-.574-offset,-.257],[-.116,-.47-offset,-.207]]);
       plate(k,back,i%2?'blueSteel':'deep',rear,.061);
       sweep(k,back,'royal',rear.map(([x,y,z])=>[x,y,z-.046,.025]),7,16);
+      sweep(k,back,'redEnamel',p([[.227,.081-offset,-.166,.020],[.319,-.073-offset,-.184,.030],
+        [.292,-.225-offset,-.229,.025],[.205,-.332-offset,-.262,.010]]),7,13);
       rivet(k,back,'trim',s*.265,.044-offset,-.164,.036);
     }
     for(let i=0;i<(mobile?3:5);i++){
@@ -181,6 +230,10 @@ export function carveJadeEmperor(k,mobile){
       sweep(k,body,i%2?'trim':'royal',backArmor.slice(1,5).map(([x,y,z])=>[x,y,z-.032,.023]),6,9);
     }
   }
+  sweep(k,body,'royal',[[0,.15,.459,.045],[0,.338,.447,.048],[0,.575,.426,.061],
+    [0,.724,.373,.067],[0,.814,.298,.051]],8,16);
+  for(let i=0;i<3;i++)k.mesh(body,'gem',i===1?'glow':'goldWear',0,.443+i*.099,.445-i*.016,
+    .059,.093,.054,0,0,Math.PI*.25);
   const crown=k.bone(body,0,.52,-.432);
   const shape=[[0,.397,-.02],[.26,.27,-.031],[.31,-.027,-.09],[.19,-.264,-.103],
     [0,-.393,-.155],[-.19,-.264,-.103],[-.31,-.027,-.09],[-.26,.27,-.031]];
@@ -188,17 +241,55 @@ export function carveJadeEmperor(k,mobile){
   plate(k,crown,'redEnamel',shape.map(([x,y,z])=>[x*.79,y*.77,z-.060]),.041);
   k.mesh(crown,'ring','trim',0,.029,-.126,.162,.169,.50);
   k.mesh(crown,'gem','glow',0,.029,-.143,.071,.100,.036);
-  const cataloguePose=({beat,wind,strike,stage,fall})=>{
+  const energy=jadeEffects(clouds,sword,mobile);
+  const aimDirection=new T.Vector3(),bladeDirection=new T.Vector3(),rootToWrist=new T.Quaternion(),alignment=new T.Quaternion();
+  const bladeAxis=new T.Vector3(0,1,0);
+  const cataloguePose=({beat,headtime,wind,strike,stage,fall,travel})=>{
     for(const {hip,back,s} of skirts){
       hip.rotation.y=s*(.067*Math.sin(beat*.62)+wind*.12-strike*.16);
       hip.rotation.x=-wind*.14+strike*.24;
       back.rotation.x=.06*Math.cos(beat*.89+s)+strike*.21+stage*.14;
     }
     clouds.rotation.y=beat*.17;
-    for(const [i,curl] of curls.entries())curl.scale.setScalar(1+Math.sin(beat*.59+i*.8)*.08+wind*.14);
     crown.rotation.x=-Math.sin(beat*.62)*.07+fall*.10;
+    beard.rotation.set(-.07*Math.sin(beat*.95)-wind*.13+strike*.16,.05*Math.cos(beat*.64),
+      Math.sin(beat*.81)*.054+strike*.13);
+    silks.pose(beat,wind,strike,travel,stage,fall,body.rotation.y);
+    energy.pose(headtime,wind,strike,stage);
   };
-  return {body,head,arms,limbs,clouds,cataloguePose,catalogueSculpt:'jade-emperor',pattern:'hover'};
+  const finishPose=({beat,wind,strike,stage,stagger,thrust,sweep,crush,fall})=>{
+    const armed=arms[1],guard=arms[0],elbow=limbs[1].forearm;
+    if(thrust){
+      armed.rotation.x=-.31+wind*.77-strike*1.04;
+      armed.rotation.y=-wind*.26+strike*.30;
+      elbow.rotation.x=-.21-wind*.46+strike*.22;
+    }else{
+      armed.rotation.x=-wind*(sweep?1.25:1.66)+strike*(crush?1.24:.71)+fall*.72;
+      armed.rotation.y=wind*(sweep?.86:.29)-strike*(sweep?.67:.23);
+    }
+    armed.rotation.z+=wind*.19-strike*(thrust?.25:.39)+stagger*.25;
+    guard.rotation.y=.10+wind*.42-strike*.18;
+    sword.rotation.set(.64+wind*.45-strike*(thrust?1.06:.56),.18-wind*.56+strike*.28,
+      -.83-wind*(sweep?.63:.27)+strike*(sweep?1.02:.65));
+    if(strike>.001&&(thrust||sweep||crush)){
+      aimDirection.set(thrust?.035:sweep?.42-strike*1.21:.12,thrust?.019:sweep?-.17:-.65,1).normalize();
+      rootToWrist.copy(armed.quaternion).multiply(elbow.quaternion).invert();
+      aimDirection.applyQuaternion(rootToWrist);
+      bladeDirection.copy(bladeAxis).applyQuaternion(sword.quaternion);
+      aimDirection.lerp(bladeDirection,1-T.MathUtils.smoothstep(strike,.035,.72)).normalize();
+      alignment.setFromUnitVectors(bladeDirection,aimDirection);
+      sword.quaternion.premultiply(alignment);
+    }
+    for(const {part,arm,side,jaw} of pauldrons){
+      part.position.x=side*(.46+wind*.043+strike*.021);
+      part.position.y=.77+Math.abs(arm.rotation.x)*.033;
+      part.rotation.set(arm.rotation.x*.31,arm.rotation.y*.47,arm.rotation.z*.56+side*.043);
+      jaw.rotation.x=.035*Math.sin(beat*1.4+side)+stage*.129+strike*.099;
+    }
+  };
+  const disposeRig=()=>{silks.dispose();energy.dispose();};
+  return {body,head,arms,limbs,clouds,cataloguePose,finishPose,disposeRig,
+    catalogueSculpt:'jade-emperor',pattern:'hover'};
 }
 
 export function carveImperialTurtle(k,mobile){

@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=turnaround-2';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jade-rig-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
@@ -1497,7 +1497,18 @@ export class Scenery {
       this.sealFx(x,z,tint,radius*.82,.54);
       this.spark(x,.78,z,0xe4f5e6,this.mobile?7:12,.86,'ice');
     }
-    if (effect==='ice'||effect==='root'||effect==='fire') {
+    const jade=owner?.visual?.bestiary?.entry.id==='m133';
+    if(jade&&effect==='fire'){
+      const samples=this.mobile?3:5;
+      for(let i=0;i<samples;i++){
+        const t=i/(samples-1)-.5;
+        const theta=line?bearing:kind==='cone'?bearing+t*width*1.7:i*PI*2/samples;
+        const spread=line?t*radius*.77:radius*(.47+.32*(i%2));
+        const cx=x+Math.cos(theta)*spread,cz=z+Math.sin(theta)*spread;
+        this.spark(cx,.42,cz,tint,this.mobile?5:8,.93,'water',theta);
+        this.spark(cx,.21,cz,0xc0854a,this.mobile?3:5,.60,'fire',theta);
+      }
+    }else if (effect==='ice'||effect==='root'||effect==='fire') {
       const count=kind==='line'?3:this.mobile?4:6;
       for (let index=0;index<count;index++) {
         const theta=index*PI*2/count;

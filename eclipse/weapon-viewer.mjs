@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=turnaround-2';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jade-rig-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
@@ -418,7 +418,9 @@ export class WeaponViewer {
     fit(inspectCamera,width,height,pao?2.03:this.wideModel?2.82:2.30,pao?1.98:2.24);
     const arena=['phase','drill'].includes(this.mode);
     const battleWidth=arena?23:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
-    fit(battleCamera,width,height,battleWidth,arena?13:pao?10.3:this.boss?8.4:7.6);
+    const jade=this.boss?.bestiary?.id==='m133';
+    const battleHeight=arena?13:pao?10.3:jade?9.9:this.boss?8.4:7.6;
+    fit(battleCamera,width,height,battleWidth,battleHeight);
     if(this.mode==='model')this.renderModel();
     else if(this.practice)this.renderer.render(this.scene,battleCamera);
   }

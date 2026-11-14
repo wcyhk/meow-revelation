@@ -2,8 +2,10 @@ import * as T from '../three.min.mjs';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {finishForRoom,roomSurface,weatherFloor,weatherMasonry} from './room-surfaces.mjs?v=penumbra-1';
-import {RoomLighting} from './room-lighting.mjs?v=penumbra-1';
+import {RoomLighting} from './room-lighting.mjs?v=afterglow-1';
 import {depthGeometry,sculptRoomDepth} from './room-depth.mjs?v=penumbra-1';
+import {LanternShadow} from './lantern-shadow.mjs?v=afterglow-1';
+import {windGeometries,windInRoom} from './room-wind.mjs?v=afterglow-1';
 
 const PI=Math.PI,TAU=PI*2;
 const groundPlane=new T.PlaneGeometry(64,61).rotateX(-PI/2);
@@ -35,7 +37,7 @@ const torus=new T.TorusGeometry(1,.024,4,50).rotateX(-PI/2);
 const strand=new T.CylinderGeometry(.38,1,1,7);
 const stems=new T.LatheGeometry([[0,-.22],[.43,-.23],[.76,-.11],[1,0],[.91,.20],[.66,.37],[.33,.47],[0,.49]]
   .map(([x,y])=>new T.Vector2(x,y)),18);
-const sharedGeometry=new Set([groundPlane,poolShape,box,rock,stone,bead,canopy,column,cylinder,rib,post,shard,sheet,vertical,arcade,chiseled,beveledBase,torus,strand,stems,...depthGeometry]);
+const sharedGeometry=new Set([groundPlane,poolShape,box,rock,stone,bead,canopy,column,cylinder,rib,post,shard,sheet,vertical,arcade,chiseled,beveledBase,torus,strand,stems,...depthGeometry,...windGeometries]);
 
 const palettes={
   'grove.jpg':['grove',0x141b24,0x36373b,0x626557,0x98764e,0x3b282b,0x964d47,0x8b75ae,0xec9362],
@@ -554,7 +556,7 @@ function landmarks(ctx,stage,type){
     const z=-7.5+(side===1?1.5:-1.7)+(room%4)*.48;
     if(type==='grove'||type==='grave'){
       deadTree(ctx,x,z,4.65+draw()*.92,draw()*TAU,type==='grove');
-      solid.push({x,z,radius:.48});
+      solid.push({x,z,radius:.48,height:4.6});
       for(let i=0;i<5;i++){
         const a=i*TAU/5;
         put(stone,i%2?m.basal:m.ridge,x+Math.sin(a)*1.12,.18,z+Math.cos(a)*1.14,.39,.42+draw()*.31,.29,a);
@@ -574,9 +576,9 @@ function landmarks(ctx,stage,type){
     }else if(type==='fungus'){
       mushroom(ctx,x,z,2.48+draw(),draw()*TAU);
       mushroom(ctx,x+side*1.35,z+1.30,1.27,draw()*TAU);
-      solid.push({x,z,radius:.47});
+      solid.push({x,z,radius:.47,height:2.4});
     }else if(type==='frost'){
-      solid.push({x,z,radius:.68});
+      solid.push({x,z,radius:.68,height:2.2});
       for(let i=0;i<7;i++){
         const a=i*TAU/7;
         const h=1.05+Math.pow(draw(),.78)*2.7;
@@ -585,12 +587,12 @@ function landmarks(ctx,stage,type){
       put(sheet,m.soft,x,.016,z,4.41,1,4.19);
     }else if(type==='dunes'){
       cliff(ctx,x,z,draw()*TAU,1.96);
-      solid.push({x,z,radius:1.03});
+      solid.push({x,z,radius:1.03,height:1.96});
       put(box,m.gilt,x,.93,z+.65,.11,.68,.03,.37,.08,.24);
     }else if(type==='forge'){
       const columnZ=z-.85;
       architecture(ctx,x,columnZ,3.12,type,.22*side);
-      solid.push({x,z:columnZ,radius:.73});
+      solid.push({x,z:columnZ,radius:.73,height:3.12});
       put(poolShape,m.water,x,.031,z+1.34,1.79,1,1.29);
       for(let i=0;i<4;i++){
         const y=.88+i*.37;
@@ -600,7 +602,7 @@ function landmarks(ctx,stage,type){
     }else{
       const rear=architecture(ctx,x,z,3.66+draw()*.78,type,side*.18);
       const far=architecture(ctx,x+side*2.33,z-.62,3.99,type,side*.31);
-      solid.push({x,z,radius:.73},{x:far.x,z:far.z,radius:.73});
+      solid.push({x,z,radius:.73,height:rear.y},{x:far.x,z:far.z,radius:.73,height:far.y});
       rod(box,m.ridge,.22,[rear.x,rear.y,z],[far.x,far.y,z-.62],1.44);
       for(let i=0;i<3;i++){
         const q=(i+1)/4;
@@ -645,7 +647,7 @@ function roomCenter(ctx,stage,type){
       const x=side*5.45;
       const y=2.88+(room%2)*.34;
       architecture(ctx,x,z,y,type,side*.28);
-      solid.push({x,z,radius:.80});
+      solid.push({x,z,radius:.80,height:y});
       for(let j=0;j<3;j++){
         const postZ=z-.82-j*.21;
         const cap=3.11+y*.42-j*.29;
@@ -681,7 +683,7 @@ function roomCenter(ctx,stage,type){
         put(shard,m.gilt,x+dx*.26,1.03,mz+dz*.26,.063,.18,.064,a);
       }
       put(sheet,m.soft,x,.023,mz,4.23,1,3.9);
-      solid.push({x,z:mz,radius:.55});
+      solid.push({x,z:mz,radius:.55,height:1.66});
     }
   }
 
@@ -702,9 +704,11 @@ export class RoomLandscape {
     this.view=view;
     this.cutaway=cutaway;
     this.root=new T.Group();
-    this.heroWarm=new T.PointLight(0xffc079,0,12,2);
+    this.lanternShadows=view.lanternArt?new LanternShadow():null;
+    this.heroWarm=view.lanternArt?null:new T.PointLight(0xffc079,0,12,2);
     this.roomLighting=new RoomLighting(view);
-    view.scene.add(this.root,this.heroWarm);
+    view.scene.add(this.root);
+    if(this.heroWarm)view.scene.add(this.heroWarm);
   }
 
   clear(){
@@ -729,6 +733,10 @@ export class RoomLandscape {
     this.root.name='3D: '+type;
     this.view.scene.background=new T.Color(sky);
     this.view.scene.fog=new T.FogExp2(sky,inlaid.has(type)?.017:.023);
+    this.skyBase=new T.Color(sky);
+    this.skyDusk=this.skyBase.clone().lerp(new T.Color(0x493041),.28);
+    this.skyNight=this.skyBase.clone().lerp(new T.Color(0x0a1533),.36);
+    this.floorProgress=0;
     const draw=rng((stage.floor??1)*48109+type.length*91311);
     const finish=finishForRoom(type);
     const scan=roomSurface(finish.floor,finish.repeat,type==='frost'?.61:.83);
@@ -738,6 +746,10 @@ export class RoomLandscape {
       envMap:forgeEnvironment(),envMapIntensity:inlaid.has(type)?.98:.46,
       metalness:finish.metalness,roughness:finish.roughness,
     }),type);
+    this.lanternShadows?.apply(floor);
+    for(const material of Object.values(m)){
+      if(material.isMeshStandardMaterial)this.lanternShadows?.apply(material);
+    }
     const mesh=new T.Mesh(groundPlane,floor);
     mesh.position.set(0,-.071,-.91);
     mesh.receiveShadow=true;
@@ -751,6 +763,9 @@ export class RoomLandscape {
     chambers(ctx,stage,type);
     roomCenter(ctx,stage,type);
     sculptRoomDepth(ctx,stage,type);
+    this.wind=windInRoom(this.root,this.view.mobile,type,accent,draw);
+    this.lanternShadows?.apply(this.wind.material);
+    this.lanternShadows?.setObstacles(this.solid,stage.props);
     insignia(this.root,type,stage,m);
     this.lamps=lanterns(ctx,stage);
     this.roomLighting.set(type,stage,this.lamps);
@@ -783,12 +798,22 @@ export class RoomLandscape {
     for(const mat of this.projections)mat.uniforms.energy.value=.88*(1-darkness*.86);
   }
 
-  tick(time,hero,darkness) {
-    this.roomLighting.tick(time);
+  tick(time,hero,darkness,dt=0) {
+    const still=this.view.feedback?.subdued;
+    this.floorProgress+=dt;
+    const shift=still?0:Math.min(1,this.floorProgress/105);
+    const dusk=T.MathUtils.smoothstep(shift,0,.46);
+    const night=T.MathUtils.smoothstep(shift,.33,1);
+    const sky=this.view.scene.background;
+    sky.copy(this.skyBase).lerp(this.skyDusk,dusk).lerp(this.skyNight,night);
+    this.view.scene.fog.color.copy(sky);
+    this.roomLighting.tick(time,dusk,night);
+    this.wind.clock.value=still?0:time;
     this.m.water.uniforms.clock.value=time%3600;
-    this.heroWarm.position.set(hero.x,1.55,hero.z);
-    this.heroWarm.intensity=hero.lanternOut>0?0:8.3*(1-darkness*.23);
-    if(this.view.lanternArt)this.heroWarm.color.copy(this.view.lanternArt.light.color);
+    if(this.heroWarm){
+      this.heroWarm.position.set(hero.x,1.55,hero.z);
+      this.heroWarm.intensity=hero.lanternOut>0?0:8.3*(1-darkness*.23);
+    }
     const p=this.pose;
     for(const [i,{x,y,z,phase}] of this.lamps.entries()){
       const glow=Math.sin(time*9.6+phase*13)*.17+Math.sin(time*13+phase)*.10;

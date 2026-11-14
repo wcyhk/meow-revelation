@@ -95,7 +95,15 @@ export function launchUltimate(game,link,wind,rite) {
   };
   const seal=(p,r,life)=>ultimateSeal(view,rite,p,r,life);
   const bloom=(p,r,effect)=>view.threatImpact({x:p.x,z:p.z,kind:'circle',radius:r,tint,effect,pattern:effect==='ice'?'icicles':'burst'});
-  const sound=(index=0)=>game.audio.ultimate(rite.skin,index);
+  const sound=(index=0)=>{
+    if(index===0){
+      const element=rite.weapon==='flameblade'||rite.weapon==='phoenix'?'fire':
+        rite.weapon==='turtle'||rite.weapon==='frostlute'?'ice':
+        ['dragon','stormbow','chakra'].includes(rite.weapon)?'lightning':'light';
+      view.feedback.surge(element,h,1);
+    }
+    game.audio.ultimate(rite.skin,index);
+  };
   const focus=()=>valid(game,mark.unit)&&distance(mark,mark.unit)<4?position(mark.unit):position(mark);
 
   switch (rite.weapon) {

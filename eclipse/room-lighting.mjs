@@ -133,7 +133,7 @@ function radiance(root,slots,accent,hot){
 }
 
 function motes(group,mobile,color,wind){
-  const n=mobile?56:125;
+  const n=mobile?50:112;
   const positions=new Float32Array(n*3);
   const seeds=new Float32Array(n);
   for(let i=0;i<n;i++){
@@ -145,24 +145,28 @@ function motes(group,mobile,color,wind){
   const geometry=new T.BufferGeometry().setAttribute('position',new T.BufferAttribute(positions,3))
     .setAttribute('seed',new T.BufferAttribute(seeds,1));
   const material=new T.ShaderMaterial({
-    uniforms:{ink:{value:new T.Color(color)},clock:{value:0},gain:{value:1},wind:{value:wind}},
+    uniforms:{ink:{value:new T.Color(color)},clock:{value:0},gain:{value:1},wind:{value:wind},pixel:{value:mobile?1.25:1.55}},
     transparent:true,depthWrite:false,blending:T.AdditiveBlending,
     vertexShader:`
-      uniform float clock,wind;attribute float seed;varying float twinkle;
+      uniform float clock,wind,pixel;attribute float seed;varying float twinkle,layer;
       void main(){
-        vec3 p=position;p.x+=sin(clock*.23+seed*19.)*.95+wind*sin(clock*.31+p.z*.23);
-        p.y=.30+mod(p.y+clock*(.19+seed*.25),6.8);
-        p.z+=cos(clock*.55+seed*7.)*.80;
+        layer=step(.64,seed);
+        vec3 p=position;p.x+=sin(clock*.23+seed*19.)*.95+wind*sin(clock*.31+p.z*.23)*(1.+layer*.8);
+        p.y=.18+mod(p.y+clock*(.13+seed*.27+layer*.49),6.8);
+        p.z+=cos(clock*.55+seed*7.)*.80+layer*5.1;
         gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
-        twinkle=pow(.5+.5*sin(seed*84.+clock*1.7),2.)*smoothstep(.3,1.,p.y);
-        gl_PointSize=mix(1.9,4.7,seed);
+        twinkle=(.24+pow(.5+.5*sin(seed*84.+clock*1.7),2.)*.76)*smoothstep(.2,1.,p.y)
+          *(1.-smoothstep(6.2,6.96,p.y));
+        gl_PointSize=mix(1.6,3.2,seed)*pixel*(1.+layer*.65);
       }`,
     fragmentShader:`
-      uniform vec3 ink;uniform float gain;varying float twinkle;
+      uniform vec3 ink;uniform float gain;varying float twinkle,layer;
       void main(){
         float d=length(gl_PointCoord-.5)*2.;
-        float glow=(1.-smoothstep(.14,1.,d))*(.43+exp(-d*d*8.)*.57);
-        gl_FragColor=vec4(ink,glow*gain*twinkle*.41);
+        float falloff=1.-smoothstep(.09,1.,d);
+        float core=exp(-d*d*9.);
+        vec3 tone=mix(ink,vec3(.95,.46,.18),layer*.57);
+        gl_FragColor=vec4(mix(tone,vec3(.99,.89,.68),core*.50),falloff*(.17+core*.83)*gain*twinkle*.54);
         #include <colorspace_fragment>
       }`,
   });
@@ -218,6 +222,10 @@ export class RoomLighting {
     this.clear();
     const [key,accent,air,density,intensity]=colors[type];
     this.level=intensity;
+    this.keyBase=new T.Color(key);
+    this.fillBase=new T.Color(accent);
+    this.duskTone=this.fillBase.clone().lerp(new T.Color(0xff995d),.56);
+    this.nightTone=this.keyBase.clone().lerp(new T.Color(0x6386ec),.50);
     this.density=density;
     this.glass=['cathedral','desecrated','throne','crimson'].includes(type);
     this.key.color.setHex(key);
@@ -247,7 +255,7 @@ export class RoomLighting {
   }
 
   light(darkness){
-    this.key.intensity=this.level*(1-.74*darkness);
+    this.darkness=darkness;
     this.fill.intensity=(this.glass?19:13)*(1-.77*darkness);
     this.rim.intensity=(this.glass?35:24)*(1-.75*darkness);
     const strength=this.glass?.49:.40;
@@ -257,8 +265,12 @@ export class RoomLighting {
     this.embers.uniforms.gain.value=1-darkness*.58;
   }
 
-  tick(time){
+  tick(time,dusk=0,night=0){
     const clock=time%720;
+    this.key.color.copy(this.keyBase).lerp(this.duskTone,dusk*.35).lerp(this.nightTone,night*.76);
+    this.rim.color.copy(this.key.color);
+    this.fill.color.copy(this.fillBase).lerp(this.duskTone,dusk*.37).lerp(this.nightTone,night*.35);
+    this.key.intensity=this.level*(1-.74*this.darkness)*(1-night*.26);
     for(const beam of this.beams)beam.uniforms.clock.value=clock;
     this.pools.uniforms.clock.value=clock;
     this.mist.uniforms.clock.value=clock;

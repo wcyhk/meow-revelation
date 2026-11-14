@@ -1,12 +1,13 @@
 import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=maskwork-1';
 import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=maskwork-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=maskwork-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=afterglow-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=maskwork-1';
+import {Scenery} from './scenery.mjs?v=afterglow-1';
+import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {LanternNave} from './lantern-nave.mjs?v=world-3d-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
-import {Audio} from './audio.mjs?v=pao-polish-1';
+import {Audio} from './audio.mjs?v=afterglow-1';
 import {Input} from './input.mjs?v=bestiary-1';
 import {arms} from './armory.mjs?v=relic-sculpts-1';
 import {ending} from './campaign.mjs?v=clock-1';
@@ -23,7 +24,7 @@ import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weap
 import {linkResonances, linkTier, resonanceMarks, resonancePreview, resonanceText} from './link-blessings.mjs?v=resonance-1';
 import {fusionChoices, pickFusion} from './link-fusions.mjs?v=nightfall-1';
 import {ultimateProgress, ultimateRank} from './ultimate-recipes.mjs?v=nightfall-1';
-import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=nightforge-1';
+import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat.mjs?v=afterglow-1';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
@@ -112,6 +113,10 @@ export class Game {
     this.kills = 0;
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
     this.previousTime = performance.now();
+    this.storyDepth=new StoryDepth(view.canvas);
+    this.syncEffects=()=>view.canvas.parentElement.classList.toggle('subdued-effects',view.feedback.subdued);
+    this.syncEffects();
+    matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',this.syncEffects);
     this.ui = Object.fromEntries(['cover','hud','modal','begin','pause','mute','objective','boss-hud','boss-fill','hp-fill','hp-number',
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
@@ -609,6 +614,7 @@ export class Game {
       this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':this.mission?.plan.hint??'前方的封印正在鬆動');
       this.startDelay=1.07;
     });
+    this.storyDepth.setActive(this.level===0&&!final);
     return true;
   }
 
@@ -966,8 +972,8 @@ export class Game {
     const link=strike.link;
     const confirm=hits=>{
       if (!hits||this.state!=='play') return;
-      this.hitstop = Math.max(this.hitstop,final?.061:.026);
-      this.view.shake = Math.max(this.view.shake,final?.177:.074);
+      this.hitstop=Math.max(this.hitstop,final?.071:.029);
+      this.view.feedback.kick(final?.159:.043,final?.235:.16,Math.atan2(dz,dx));
       if (final&&!strike.confirmed) invokeSchool(this,'wind');
       strike.confirmed=true;
     };
@@ -1045,7 +1051,6 @@ export class Game {
       this.audio.arm(this.weapon.id);
     }
     invokeSchool(this,'fire');
-    this.view.shake = Math.max(this.view.shake,.12);
   }
 
   schedule(delay, fire) {
@@ -1069,12 +1074,10 @@ export class Game {
       unit.motion=null;
     }
     recoil(unit,origin,kind);
-    this.view.impact(unit,origin,kind,tint);
+    this.view.impact(unit,origin,kind,tint,unit===this.hero?this.heroVisual:unit.visual);
     const material=unit.spec?.guard||unit.visual?.bestiary?.pao?'armor':unit.spec?.effect==='stone'?'stone':'hide';
     this.audio.impact(kind,material);
-    const shake=kind==='break'?.19:kind==='heavy'?.13:kind==='fall'?.12:0;
-    this.view.shake=Math.max(this.view.shake,shake);
-    if (kind==='break') this.hitstop=Math.max(this.hitstop,.066);
+    if (kind==='break') this.hitstop=Math.max(this.hitstop,.083);
   }
 
   hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report,source) {
@@ -1276,7 +1279,7 @@ export class Game {
     this.audio.release(attack.pattern,boss,unit.spec.bestiary?.id);
     if (boss) {
       if(this.bossArena?.boss===unit)this.bossArena.counters.resolveAttack(attack);
-      this.view.shake=Math.max(this.view.shake,.13);
+      this.view.feedback.kick(.11,.21,Math.atan2(attack.dz,attack.dx));
     }
   }
 
@@ -1805,6 +1808,7 @@ export class Game {
       return;
     }
     if(!this.hero)return;
+    if(this.storyDepth.render(this.view.renderer,dt,this.view.feedback.subdued))return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
     if (this.state==='play'||this.state==='falling') {
@@ -1844,6 +1848,7 @@ export class Game {
   }
 
   closeModal() {
+    this.storyDepth.setActive(false);
     this.ui.modal.hidden=true;
     this.ui.hud.inert=false;
     this.ui.cover.inert=false;
@@ -2132,10 +2137,25 @@ export class Game {
       makeButton('換配搭',()=>this.openPracticeLoadout()),makeButton('原配搭再試',()=>this.startPractice()),
       makeButton('返回入口',()=>this.showCover())]
       :[makeButton('繼續旅程',()=>this.togglePause(),'primary'),makeButton('結束本次挑戰',()=>this.finish(false,'leave'))];
+    const content=this.fusionMenu();
+    const feedback=this.view.feedback;
+    const setting=document.createElement('label');
+    setting.className='reduced-effects';
+    const checkbox=document.createElement('input');
+    checkbox.type='checkbox';
+    checkbox.checked=feedback.subdued;
+    checkbox.addEventListener('change',()=>{
+      feedback.setSubdued(checkbox.checked);
+      this.syncEffects();
+    });
+    setting.append(checkbox,'減少閃光與震動');
+    const pauseContent=document.createElement('div');
+    if(content)pauseContent.append(content);
+    pauseContent.append(setting);
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按後向上滑到神器紋章，放手施法。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',
-      content:this.fusionMenu(),
+      content:pauseContent,
       buttons});
   }
 
@@ -2386,7 +2406,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
     const weight=amount>19?'heavy':'light';
     recoil(hero,{x,z},weight);
     hero.invulnerable=.28;
-    view.impact({...hero,spec:{height:2.36}},{x,z},weight,spec.tint);
+    view.impact({...hero,spec:{height:2.36}},{x,z},weight,spec.tint,practice.heroVisual);
     return true;
   };
   practice.hit=(boss,amount,origin,knock,tint)=>{

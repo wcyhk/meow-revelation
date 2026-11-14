@@ -23,13 +23,13 @@ export function roomLights(picture,fallback) {
 }
 
 export class GroveLight {
-  constructor(scene) {
+  constructor(scene,occlusion) {
     const geometry=new T.PlaneGeometry(59,59).rotateX(-Math.PI/2);
     this.material=new T.ShaderMaterial({
-      transparent:true,depthWrite:false,depthTest:false,
+      transparent:true,depthWrite:false,
       uniforms:{
         bearer:{value:new T.Vector2()},time:{value:0},glow:{value:new T.Color()},
-        zone:{value:new T.Color()},radius:{value:8},on:{value:0},
+        zone:{value:new T.Color()},radius:{value:8},on:{value:0},...occlusion.uniforms,
       },
       vertexShader:`
         varying vec2 ground;
@@ -39,6 +39,7 @@ export class GroveLight {
         }
       `,
       fragmentShader:`
+        ${occlusion.ground()}
         varying vec2 ground;
         uniform vec2 bearer;
         uniform vec3 glow,zone;
@@ -54,7 +55,8 @@ export class GroveLight {
           float haze=falloff*(.65+.35*sweep)*.084;
           float bloom=exp(-d*d*.49)*.14;
           vec3 tone=mix(glow,zone,.17+.18*sweep);
-          gl_FragColor=vec4(mix(tone,vec3(1.,.88,.67),glints*.33),on*(haze+bloom+glints*falloff*.10));
+          float visibility=lanternVisibility(vec3(ground.x,.02,ground.y));
+          gl_FragColor=vec4(mix(tone,vec3(1.,.88,.67),glints*.33),on*(haze+bloom+glints*falloff*.10)*visibility);
           #include <colorspace_fragment>
         }
       `,
@@ -68,11 +70,11 @@ export class GroveLight {
 
   update(hero,lantern,accent,time) {
     const {uniforms}=this.material;
-    uniforms.bearer.value.set(hero.x,hero.z);
+    uniforms.bearer.value.set(lantern.light.position.x,lantern.light.position.z);
     uniforms.glow.value.copy(lantern.light.color);
     uniforms.zone.value.setHex(accent);
     uniforms.time.value=time%360;
     uniforms.radius.value=lantern.light.distance*.8;
-    uniforms.on.value=hero.lanternOut>0?0:1;
+    uniforms.on.value=lantern.gain;
   }
 }

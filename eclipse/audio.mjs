@@ -175,6 +175,7 @@ export class Audio {
       this.rasp(now,.062,.19,plated?1890:stone?1090:750);
       this.note(plated?302:118,plated?139:64,now,.095,.15,'triangle',.004);
     } else if (kind==='heavy') {
+      this.note(76,25,now,.29,.19,'sine',.008);
       this.note(105,31,now,.255,.31,'triangle',.007);
       this.rasp(now,.122,.25,plated?1430:565);
       this.rasp(now+.031,.158,.13,410);

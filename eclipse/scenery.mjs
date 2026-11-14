@@ -1,5 +1,6 @@
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=maskwork-1';
 import * as T from '../three.min.mjs';
+import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
 import {stages} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
@@ -7,12 +8,12 @@ import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
-import {LanternArt} from './lantern-art.mjs?v=chiaroscuro-1';
+import {LanternArt} from './lantern-art.mjs?v=afterglow-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=penumbra-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
 import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
-import {GroveLight} from './grove-light.mjs?v=gilded-1';
+import {GroveLight} from './grove-light.mjs?v=afterglow-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
 import {summonModel,summonMuzzle} from './relic-summons.mjs?v=relic-sculpts-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
@@ -231,6 +232,7 @@ export class Scenery {
     this.camera.lookAt(unit);
     this.focus = new T.Vector3(0, 0, 1);
     this.cameraUp = new T.Vector3(0, sceneAngle.z, -sceneAngle.y);
+    this.feedback=new CombatFeedback(this,document.getElementById('elemental-surge'));
     this.halo = radialTexture([[0,'#ffffe7ff'],[.19,'#fff4ceb0'],[.44,'#ffd89e47'],[1,'#ffe1bd00']]);
     this.smoke = radialTexture([[0,'#fffffff0'],[.3,'#ffffff80'],[.65,'#ffffff24'],[1,'#ffffff00']]);
     this.shadow = radialTexture([[0,'#12120ce8'],[.47,'#12110ca2'],[.72,'#15120b4b'],[1,'#00000000']]);
@@ -241,7 +243,7 @@ export class Scenery {
     this.landscape=new RoomLandscape(this,this.cutaway);
     this.sigilTextures=new Map();
     this.makeSkillSeals();
-    this.groveLight=new GroveLight(this.scene);
+    this.groveLight=new GroveLight(this.scene,this.landscape.lanternShadows);
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
@@ -311,6 +313,7 @@ export class Scenery {
 
   setStage(stage) {
     this.stage = stage;
+    this.feedback.clear();
     this.sigilPreview.visible=this.sigilBurst.visible=false;
     this.sigilPreview.material.opacity=0;
     this.sigilTime=0;
@@ -427,8 +430,9 @@ export class Scenery {
   }
 
   createActor(frame, height) {
+    const hitFlash={value:0};
     const spriteMaterial = new T.ShaderMaterial({
-      uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
+      uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},hitFlash,fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
         stride:{value:0},footLift:{value:0},lag:{value:0},paw:{value:new T.Vector2()},wrist:{value:new T.Vector2()},
         guard:{value:0},ink:{value:new T.Color(0xffffff)},rim:{value:new T.Color()},texel:{value:new T.Vector2()},
         rimLight:{value:0}},
@@ -454,7 +458,7 @@ export class Scenery {
       `,
       fragmentShader:`
         uniform sampler2D picture;
-        uniform float flash;
+        uniform float flash,hitFlash;
         uniform float fade;
         uniform float warm;
         uniform float guard;
@@ -474,6 +478,7 @@ export class Scenery {
           paint=mix(paint,vec3(1.,.35,.10),warm*.24);
           paint=mix(paint,mix(vec3(1.,.78,.53),vec3(.71,.97,1.),guard),flash);
           paint=mix(paint,rim*.75+vec3(.085),outline);
+          paint=mix(paint*(1.+hitFlash*.38),vec3(1.65,1.57,1.48),hitFlash*.89);
           gl_FragColor=vec4(paint,max(art.a,outline*.58)*fade);
           #include <colorspace_fragment>
         }
@@ -485,13 +490,14 @@ export class Scenery {
     const rim = this.ground(this.halo, 0xff8d52, .19, height * 1.6, height * 1.06);
     rim.material.blending = T.AdditiveBlending;
     this.scene.add(art, shade, rim);
-    return {art, shade, rim, height,footPhase:null};
+    return {art,shade,rim,height,hitFlash,footPhase:null};
   }
 
   prepareBoss(visual,spec) {
     const model=spec.bestiary??spec.model;
     if(model){
       visual.bestiary=mountBestiary(this.scene,model,spec.height,this.mobile);
+      for(const material of Object.values(visual.bestiary.materials))addHitSurface(material,visual.hitFlash);
       visual.art.visible=false;
     }else{
       visual.form=nightmareForm(spec);
@@ -796,7 +802,8 @@ export class Scenery {
     const breath = spec.bob || 0;
     const direction = spec.face || 1;
     art.material.uniforms.picture.value = atlas;
-    art.material.uniforms.flash.value = spec.flash || 0;
+    const flash=this.feedback.subdued?0:spec.flash??0;
+    art.material.uniforms.flash.value=flash;
     art.material.uniforms.fade.value = spec.fade ?? 1;
     art.material.uniforms.warm.value = spec.warm || 0;
     art.material.uniforms.bend.value = (spec.bend??0)*direction;
@@ -818,7 +825,7 @@ export class Scenery {
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
     poseEffigy(visual,spec,this.time,x,z);
-    if(visual.bestiary)poseBestiary(visual.bestiary,unit,spec,this.time,x,z);
+    if(visual.bestiary)poseBestiary(visual.bestiary,unit,flash===spec.flash?spec:{...spec,flash},this.time,x,z);
     const foot=spec.feet??null;
     if(foot!==null&&visual.footPhase!==null&&foot!==visual.footPhase&&!unit.spec?.float){
       const hue=unit.spec?.tint??0xc6a88f;
@@ -941,9 +948,12 @@ export class Scenery {
 
   prepareEffigy(visual,kind) {
     mountEffigy(this.scene,visual,kind);
+    for(const mesh of visual.effigy.children)addHitSurface(mesh.material,visual.hitFlash);
   }
 
-  removeActor({art, shade, rim, form,effigy,relicCrest,relicCrown,bestiary}) {
+  removeActor(visual) {
+    const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary}=visual;
+    this.feedback.forget(visual);
     this.scene.remove(art, shade, rim);
     if(relicCrest){
       this.scene.remove(relicCrest,relicCrown);
@@ -1150,6 +1160,24 @@ export class Scenery {
     }
   }
 
+  surgeParticles({x,z},element){
+    const style=elementStyle(element);
+    const watercolor=element==='water'||element==='ice';
+    const count=this.mobile?17:31;
+    for(let i=0;i<count;i++){
+      const spread=(Math.random()-.5)*8.4;
+      const tint=i%3===0?(watercolor?0xe5fdff:0xffdc9e):
+        watercolor?0x70c7ee:element==='fire'?0xff8c50:this.accent;
+      const lifetime=.61+Math.random()*.51;
+      const point=this.motes.items[this.motes.cursor++%this.motes.items.length];
+      color.setHex(tint);
+      Object.assign(point,{x:x+spread,y:.06+Math.random()*.43,z:z+2+Math.random()*4,
+        dx:spread*.12,dz:-.49-Math.random(),dy:2.1+Math.random()*3.7,
+        life:lifetime,ttl:lifetime,r:color.r,g:color.g,b:color.b,
+        size:4+Math.random()*8,gravity:watercolor?5.1:1.3,shape:style.shape});
+    }
+  }
+
   elementBurst(x,y,z,tint,element,count,power=1,bearing) {
     const limit=this.mobile?22:42;
     const remaining=Math.min(limit-this.elementBudget,this.mobile?Math.ceil(count*.68):count);
@@ -1180,6 +1208,7 @@ export class Scenery {
     this.elementBurst(hero.x,.20,hero.z,weapon.tone,element,18,1.18);
     this.spellAccent(hero,{action:weapon.spell?.action??baseCastLooks[weapon.id],element,tint:weapon.tone,
       radius:weapon.spell?.action==='minion'?1.64:2.06,angle,seed:weapon.sigil??spellIndex(weapon.id),power:.67});
+    if(element==='water'||element==='fire')this.feedback.surge(element,hero,.64);
   }
 
   addEffect(geometry, position, tint, duration, settings = {}) {
@@ -1297,13 +1326,14 @@ export class Scenery {
     if(unit.visual?.bestiary?.pao)paoCastWindup(this,unit);
   }
 
-  impact(unit,origin,kind,tint) {
+  impact(unit,origin,kind,tint,visual=unit.visual) {
     const {x,z}=unit;
     const angle=Math.atan2(z-origin.z,x-origin.x);
     const height=(unit.spec?.height??2.68)*.48;
     const heavy=kind==='heavy';
     const shield=kind==='block'||kind==='break';
     const pao=unit.visual?.bestiary?.pao;
+    this.feedback.impact(visual,kind,angle);
     const impactColor=shield?0xa7edff:tint;
     if(kind==='break'||kind==='fall')this.spellAccent(unit,{
       action:kind==='break'?'spikes':'ring',element:shield?'ice':'stone',tint:impactColor,
@@ -1337,6 +1367,8 @@ export class Scenery {
 
   bossCue(unit,phase) {
     const {x,z,spec}=unit;
+    this.feedback.kick(phase==='phase'?.26:.15,.28,Math.PI*.63);
+    if(phase==='phase')this.feedback.surge(spec.effect,unit,1);
     const pao=unit.visual?.bestiary?.pao;
     if(pao){
       if(phase==='entrance')pao.entranceAt=this.time;
@@ -1416,6 +1448,10 @@ export class Scenery {
 
   threatImpact(hazard) {
     const {kind,x,z,radius,tint,width,angle,pattern,effect,owner}=hazard;
+    if((kind==='circle'||kind==='ring')&&radius>=2.45&&['fire','water','ice'].includes(effect)&&
+       Math.hypot(x-this.focus?.x,z-this.focus?.z)<radius+3.8){
+      this.feedback.surge(effect,hazard,Math.min(.93,radius*.18));
+    }
     if(owner?.visual?.bestiary?.pao&&paoStrike(this,hazard))return;
     const line=kind==='line',bearing=angle??0;
     const mark=line?{x:x-Math.cos(bearing)*radius*.5,z:z-Math.sin(bearing)*radius*.5}:{x,z};
@@ -1542,6 +1578,7 @@ export class Scenery {
 
   render(dt, hero, paused=false, freezeWarnings=false) {
     if (!paused) this.time += dt;
+    this.feedback.update(dt);
     const time = this.time;
     const darkness=this.arenaArt.arena?.darkness??0;
     if (Math.abs(darkness-this.arenaDarkness)>.006) {
@@ -1556,16 +1593,21 @@ export class Scenery {
     if (hero) {
       this.focus.set(hero.x,1.04,hero.z);
       this.shake *= Math.exp(-dt * 12);
-      const zoom=1+this.shake*.076;
-      if(Math.abs(zoom-this.camera.zoom)>.0004){
+      const zoom=this.feedback.subdued?1:1+this.shake*.055;
+      if(Math.abs(zoom-this.camera.zoom)>.0004||zoom===1&&this.camera.zoom!==1){
         this.camera.zoom=zoom;
         this.camera.updateProjectionMatrix();
       }
       this.camera.position.copy(sceneAngle).multiplyScalar(28).add(this.focus);
+      const {x,y}=this.feedback.offset;
+      this.camera.position.x+=x;
+      this.camera.position.addScaledVector(this.cameraUp,y);
       this.camera.updateMatrixWorld();
       this.cutaway.place(hero.x,hero.z,sceneAngle);
-      this.landscape.tick(time,hero,darkness);
+      this.landscape.tick(time,hero,darkness,paused?0:dt);
       this.lanternArt.tick(hero,time,this.stage,dt);
+      this.landscape.lanternShadows.update(this.lanternArt.light,this.arenaArt.arena?.pillars,
+        this.lanternArt.route?.barricades);
       this.groveLight.update(hero,this.lanternArt,this.accent,time);
     }
     for (const [index, cloud] of this.mist.entries()) {
@@ -1579,8 +1621,8 @@ export class Scenery {
       if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
     }
     this.updateEffects(dt,paused,freezeWarnings);
-    this.renderParticles(paused ? 0 : dt);
-    if (this.leaves.mesh.visible) this.renderLeaves(time);
+    this.renderParticles(paused?0:dt,!this.feedback.subdued);
+    if(this.leaves.mesh.visible)this.renderLeaves(this.feedback.subdued?0:time);
     this.renderMission();
     this.arenaArt.render(time);
     this.renderer.render(this.scene,this.camera);
@@ -1640,10 +1682,12 @@ export class Scenery {
       const x = (Math.random() - .5) * 28;
       const z = (Math.random() - .5) * 24;
       const point = items[this.motes.cursor++ % items.length];
-      color.setHex(this.accent);
       const air=this.air;
-      Object.assign(point,{x,y:Math.random()*4+.35,z,dx:air.dx,dz:.14,dy:air.dy+Math.random()*.23,life:4,ttl:4,
-        r:color.r,g:color.g,b:color.b,size:(2.5+Math.random()*5)*air.scale,gravity:0,shape:0});
+      const close=Math.random()<.33;
+      color.setHex(close?0xffb076:this.accent);
+      Object.assign(point,{x,y:Math.random()*4+.35,z,dx:air.dx*(close?1.37:1),dz:.14,
+        dy:air.dy+Math.random()*.30,life:4,ttl:4,r:color.r,g:color.g,b:color.b,
+        size:(close?3.8+Math.random()*3.4:1.9+Math.random()*2.7)*air.scale,gravity:0,shape:0});
     }
     for (let i=0;i<items.length;i++) {
       const p = items[i];

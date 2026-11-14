@@ -5,7 +5,8 @@ import {MotionArt} from './motion-art.mjs?v=nightforge-1';
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=maskwork-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=penumbra-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
+import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
@@ -592,6 +593,8 @@ export class WeaponViewer {
       projectileShape:source.projectileShape,coinShape:source.coinShape,shardShape:source.shardShape,
       elementBudget:0,elementSeed:857302,stage:room??{dread:this.boss ? .45 : 0}});
     view.motes=view.createParticleSystem(view.mobile?125:220);
+    view.feedback=new CombatFeedback(view);
+    view.feedback.reduced=()=>source.feedback.subdued;
     view.motion=new MotionArt(view);
     view.makeSkillSeals();
     view.ward=view.makeWard();
@@ -681,6 +684,7 @@ export class WeaponViewer {
     const active=dt>0&&this.practice.step(dt);
     const {view}=this;
     view.time+=dt;
+    view.feedback.update(dt);
     view.updateEffects(dt);
     view.renderParticles(dt,false);
     if(view.arenaArt){
@@ -691,7 +695,7 @@ export class WeaponViewer {
       view.sight.set(0,0,1).applyQuaternion(battleCamera.quaternion);
       view.cutaway.place(hero.x,hero.z,view.sight);
       view.landscape.light(darkness);
-      view.landscape.tick(view.time,hero,darkness);
+      view.landscape.tick(view.time,hero,darkness,dt);
     }
     this.renderer.render(this.scene,battleCamera);
     view.motion.budget=0;

@@ -97,6 +97,7 @@ export class LanternArt {
     const glow=new T.Sprite(new T.SpriteMaterial({map:view.halo,color:0xffa253,transparent:true,opacity:.72,depthWrite:false,blending:T.AdditiveBlending}));
     glow.scale.set(.95,.95,1);glow.position.y=.01;this.lamp.add(glow);
     this.light=new T.PointLight(0xffa65f,0,10,1.8);
+    this.gain=1;
     this.glow=glow;
     view.scene.add(this.root,this.lamp,this.light,this.threshold);
   }
@@ -168,9 +169,10 @@ export class LanternArt {
     this.lamp.visible=!extinguished;
     this.lamp.position.set(hero.x-(hero.face??1)*.40,.69+Math.sin(time*7)*.054,hero.z+.22);
     this.lamp.rotation.z=Math.sin(time*7)*.13;
-    this.light.position.set(hero.x,1.22,hero.z);
+    this.gain=T.MathUtils.damp(this.gain,extinguished?0:1,extinguished?22:6.5,dt);
+    this.light.position.set(this.lamp.position.x,this.lamp.position.y+.48,this.lamp.position.z);
     this.light.distance=beam*1.25;
-    this.light.intensity=extinguished?0:24+flicker*70;
+    this.light.intensity=extinguished?0:(27+flicker*72)*this.gain;
     this.glow.material.opacity=.72+flicker*5;
     if(this.route){
       const open=this.route.ready&&this.route.barricades.every(item=>!item.gate||item.hp<=0);

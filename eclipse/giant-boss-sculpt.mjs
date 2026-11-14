@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 
 const tau=Math.PI*2, sides=[-1,1];
 const mirror=(s,path)=>path.map(([x,...point])=>[x*s,...point]);
@@ -439,4 +439,125 @@ export function carveVaruna(k,mobile){
     }
   };
   return {body,head,tail,arms,limbs,cataloguePose,catalogueSculpt:'varuna',pattern:'hover'};
+}
+
+export function carveRoyalPair(k,mobile,awakened){
+  const body=k.bone(k.root,0,awakened?1.07:.815,0);
+  const heads=[],dancers=[];
+  for(const side of sides){
+    const emperor=side===-1;
+    const actor=k.bone(body,side*(awakened?.483:.409),emperor?0:.094,emperor?.064:-.092);
+    const turn=path=>mirror(side,path);
+    const width=emperor?.277:.226;
+    const silk=emperor?'royalCrimson':'royalIvory';
+    const ribs=emperor?'bronzeRib':'royalCyan';
+    const head=k.bone(actor,0,.833,.095);
+    heads.push(head);
+    carve(k,actor,'deep',[[0,-.321,-.058,width*.64,.137],[0,-.116,-.079,width*.87,.203],
+      [0,.192,-.047,width*.94,.214],[0,.435,-.025,width,.201],[0,.599,-.043,width*.94,.165],
+      [0,.765,-.028,width*.41,.08]],19,15,2.54);
+    const faceSkin=emperor?'royalPale':'royalIvory';
+    const jaw=awakened?beastMask(k,head,{width:emperor?.189:.159,length:.224,height:.265,
+      skin:faceSkin,armor:'deep',bite:'trim'}):null;
+    if(!awakened){
+      carve(k,head,faceSkin,[[0,-.185,.064,.066,.054],[0,-.119,.064,.105,.076],
+        [0,-.043,.04,.145,.119],[0,.106,.009,.151,.111],[0,.189,-.029,.14,.11]],17,14);
+      for(const s of sides){
+        const brow=mirror(s,[[.028,.081,.153,.007],[.061,.106,.149,.024],
+          [.111,.091,.131,.018],[.132,.059,.083,.006]]);
+        sweep(k,head,'deep',brow,6,8);
+        rivet(k,head,'glow',s*.065,.075,.172,.016);
+        sweep(k,head,emperor?'deep':silk,mirror(s,[[.11,.131,.082,.035],[.151,.016,.049,.038],
+          [.13,-.123,.096,.022],[.079,-.197,.134,.004]]),7,11);
+      }
+      sweep(k,head,faceSkin,[[0,.091,.144,.019],[0,-.043,.197,.024],[0,-.076,.179,.008]],6,9);
+      sweep(k,head,'deep',[[-.058,-.107,.146,.008],[0,-.127,.162,.014],[.057,-.112,.147,.004]],6,9);
+      if(emperor)for(let i=0;i<4;i++){
+        const x=(i-1.5)*.035;
+        sweep(k,head,'deep',[[x,-.099,.142,.025],[x*1.5,-.152,.173,.022],
+          [x*1.32,-.243,.181,.013],[x*.53,-.291,.14,.004]],6,9);
+      }
+    }
+    const tiara=k.bone(head,0,.124,-.021);
+    for(let i=0;i<(awakened?9:7);i++){
+      const count=awakened?9:7,a=i*tau/count;
+      const x=Math.sin(a)*.159,z=Math.cos(a)*.123;
+      sweep(k,tiara,i%3?'trim':'bronzeRib',[[x,.013,z,.040],[x*1.21,.095,z*.99,.037],
+        [x*1.11,.204+(emperor?.046:.014),z*.45,.026],
+        [x*(awakened?1.61:.66),.259+(i%3)*.051,z*.19-.038,.005]],7,10);
+      if(i%2===0)rivet(k,tiara,awakened?'royalCrimson':'royalCyan',x*1.24,.072,z*1.13,.026);
+    }
+    const arms=[],forearms=[];
+    for(const s of sides){
+      const p=path=>mirror(s,path);
+      const shoulder=k.bone(actor,s*width*.92,.564,.06);
+      const elbow=k.bone(shoulder,s*.089,-.25,.031);
+      arms.push(shoulder);forearms.push(elbow);
+      carve(k,shoulder,emperor?'royalCrimson':'royalPale',p([[.017,.119,-.052,.098,.10],
+        [.065,.011,-.017,.126,.123],[.102,-.132,.052,.119,.086],[.089,-.252,.044,.062,.069]]),13,11);
+      ridgePanel(k,shoulder,'trim',p([[.015,.112,.021],[.133,.158,-.06],[.253,.048,-.102],[.254,-.075,-.037],
+        [.162,-.143,.091],[.097,-.078,.102],[.012,-.055,.091]]),.045,'bronzeRib');
+      carve(k,elbow,'deep',p([[0,.038,.025,.069,.079],[.023,-.09,.042,.086,.078],
+        [.051,-.229,.131,.068,.062],[.050,-.276,.181,.049,.048]]),13,10);
+      plate(k,elbow,'bronzeRib',p([[-.034,-.051,.108],[.095,-.048,.10],[.147,-.192,.133],[.103,-.237,.193],
+        [.016,-.225,.199],[-.034,-.151,.151]]),.040);
+      if(s===side){
+        const weapon=k.bone(elbow,s*.039,-.233,.158);
+        weapon.rotation.set(.48,-s*.21,s*.67);
+        sweep(k,weapon,'trim',[[0,-.31,0,.029],[0,.139,.004,.036],[0,.472,.013,.039],[0,.717,.079,.026]],8,16);
+        for(const q of sides)sweep(k,weapon,'bronzeRib',mirror(q,[[0,.52,0,.035],[.122,.639,.025,.043],
+          [.163,.781,.079,.026],[.061,.867,.132,.004]]),7,12);
+        rivet(k,weapon,'glow',0,.728,.088,.078);
+      }
+      const front=p([[.009,.60,.234],[width*.70,.66,.194],[width*1.08,.52,.136],
+        [width*.89,.284,.229],[width*.57,.16,.271],[.015,.23,.25]]);
+      plate(k,actor,emperor?'royalCrimson':awakened?'royalPale':'deep',front,.052);
+      for(let i=0;i<4;i++){
+        const Y=.49-i*.09;
+        sweep(k,actor,ribs,p([[.021,Y+.037,.266,.020],[.158,Y+.017,.261,.022],
+          [width*.93,Y-.041,.21,.014],[width*1.03,Y-.063,.173,.005]]),6,9);
+      }
+      const skirt=k.bone(actor,s*width*.60,.15,.02);
+      for(let tier=0;tier<3;tier++){
+        const y=.10-tier*.158,w=width*(1+tier*.19);
+        const scales=p([[-.044,y+.098,.18],[.107,y+.087,.196],[w,y-.022,.15],[w*.95,y-.176,.147],
+          [w*.42,y-.264,.206],[.0,y-.152,.219]]);
+        ridgePanel(k,skirt,tier%2?'deep':silk,scales,.035,'trim');
+      }
+      const train=k.bone(actor,s*.15,.364,-.179);
+      carve(k,train,silk,p([[0,.051,.018,.106,.042],[.09,-.131,-.075,.184,.049],
+        [.126,-.469,-.159,.171,.057],[.118,-.811,-.158,.154,.044],[.076,-1.013,-.169,.015,.009]]),20,11,3.7);
+      for(let stripe=0;stripe<4;stripe++){
+        const x=.045*stripe;
+        sweep(k,train,stripe%2?ribs:'trim',p([[x,-.128,-.113,.013],[x+.064,-.424,-.221,.019],
+          [x+.059,-.78,-.207,.014],[x+.041,-.975,-.188,.004]]),6,13);
+      }
+      const wing=k.bone(actor,s*.17,.493,-.207);
+      if(awakened){
+        for(let i=0;i<(mobile?6:10);i++){
+          const t=i/(mobile?5:9),x=.337+t*.659,y=.31+(1-t)*.52;
+          const base=[s*.041,.04-i*.022,-.004],pivot=[s*x*.57,y*.52,-.136-t*.12],tip=[s*x,y,-.19-t*.23];
+          k.geometry(wing,i%3?'trim':'bronzeRib',featherVane(base,pivot,tip,.14-t*.054,i+side,mobile?8:11));
+          sweep(k,wing,'trim',[[...base,.021],[...pivot,.019],[...tip,.003]],6,9);
+        }
+      }else{
+        sweep(k,wing,'royalIvory',p([[0,0,0,.037],[.232,.231,-.112,.058],[.357,.546,-.259,.049],
+          [.243,.693,-.356,.038],[.055,.679,-.451,.014]]),9,17);
+      }
+      dancers.push({side:s,actor,arm:shoulder,elbow,wing,train,jaw,emperor});
+    }
+  }
+  const cataloguePose=({beat,wind,strike,stage,fall})=>{
+    for(const {side,actor,arm,elbow,wing,train,jaw,emperor} of dancers){
+      actor.rotation.y=(emperor?-1:1)*(.08+wind*.20-strike*.18);
+      actor.rotation.x=-wind*.13+strike*.22+Math.sin(beat*.49)*.027;
+      arm.rotation.x=-wind*(side>0?.94:.45)+strike*(side>0?1.19:.58);
+      elbow.rotation.z=side*(.14+strike*.48-wind*.12);
+      wing.rotation.z=side*(Math.sin(beat*.91)*.14+stage*.17+wind*.19);
+      wing.rotation.x=Math.sin(beat*.8-.61)*.12+strike*.15+fall*.35;
+      train.rotation.x=Math.sin(beat*.68+side)*.057+strike*.16;
+      if(jaw)jaw.rotation.x=wind*.22+strike*.34;
+    }
+  };
+  return {body,heads,head:heads[0],cataloguePose,catalogueSculpt:awakened?'yama-twins':'shah-royal-pair',pattern:awakened?'hover':'duel'};
 }

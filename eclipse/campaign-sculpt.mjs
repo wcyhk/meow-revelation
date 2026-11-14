@@ -1,7 +1,7 @@
 import * as T from '../three.min.mjs';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {fitGuardianCollar,sculptGuardianHead} from './campaign-guardian-armour.mjs?v=maskwork-1';
-import {detailBossVariant,detailForestGuardian} from './enemy-sculpt.mjs?v=turnaround-1';
+import {detailBossVariant,detailForestGuardian} from './enemy-sculpt.mjs?v=turnaround-2';
 
 const TAU=Math.PI*2;
 const opposite=(side,points)=>points.map(([x,...rest])=>[x*side,...rest]);
@@ -900,9 +900,9 @@ function guardian(k,type,mobile){
         shape(k,head,'edge',fan(curl),{sides:12,rings:18,section:2.19,ridge:.24});
         for(let i=0;i<2;i++)seam(k,head,'trim',fan(curl.slice(0,-1).map(([x,y,z,w])=>[x,y+w*(i?.6:-.58),z+w*.46])),.014);
       }
-    }else if(type==='crown'||type==='bank'||type==='frost'){
-      for(let i=0;i<(type==='crown'?7:5);i++){
-        const x=(i-(type==='crown'?3:2))*.085,y=.218+Math.cos(i*1.27)*.025;
+    }else if(type==='bank'||type==='frost'){
+      for(let i=0;i<5;i++){
+        const x=(i-2)*.085,y=.218+Math.cos(i*1.27)*.025;
         shape(k,head,i%3?'trim':'edge',[[x,y,.085],[x*1.26,y+.19,-.039,.080],[x*1.59,y+.35,-.14,.059],
           [x*1.73,y+.44-(i%3)*.05,-.218,.006]].map(p=>p.length===3?[...p,.089]:p));
       }
@@ -925,7 +925,7 @@ function guardian(k,type,mobile){
         jewel(k,bloom,'glow',0,.117,0,.098,.11,.084);
         flaps.push({joint:bloom,axis:'x',amp:.17,bias:side*.22,seed:4+side});
       }
-    }else vest(k,body,broad,1.15,flaps);
+    }else if(type!=='crown')vest(k,body,broad,1.15,flaps);
     if(type==='boar'){
       for(let i=0;i<7;i++){
         const x=(i-3)*.111;

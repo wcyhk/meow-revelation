@@ -28,23 +28,6 @@ function relief(k,parent,style,span,base){
   }
 }
 
-function pair(k,parts,court){
-  const {bone,mesh,sculpt}=k;
-  for(const [index,hand] of parts.arms.entries()){
-    const actor=hand.parent;
-    const back=bone(actor,0,.05,-.046);
-    relief(k,back,court?'court':'shroud',court?.28:.36,.26);
-    const clasp=bone(actor,index?.097:-.09,.31,-.26);
-    if(court){
-      mesh(clasp,'ring','trim',0,0,0,.126,.147,.82,.12,.075,.19);
-      mesh(clasp,'gem','edge',0,0,-.032,.049,.071,.039);
-    }else{
-      sculpt.sweep(clasp,'edge',[[0,.036,.03,.055],[.13,-.062,-.04,.047],[.18,-.24,-.068,.038],[.067,-.32,-.089,.006]],
-        {sides:8,steps:12,ridge:.19});
-    }
-  }
-}
-
 function helmet(k,head,style){
   const {mesh,sculpt}=k;
   const crown=style==='emperor', spiral=style==='serpent';
@@ -135,19 +118,7 @@ export function finishSpecialBoss(k,parts,id,mobile){
   if(id==='m027'){
     features(k,head,{width:.20,height:.214,lip:.65,jaw:1.04,brow:.83,z:.35,skin:'rust',frame:'trim',visor:'demon'},mobile);
   }
-  if(id==='m114'||id==='m115'){
-    pair(k,parts,id==='m114');
-    const court=id==='m114';
-    for(const [i,head] of parts.heads.entries()){
-      features(k,head,court?
-        {width:i?.111:.13,height:i?.171:.149,lip:.45,jaw:i?.64:.98,brow:i?.17:.49,z:.126}:
-        {width:i?.125:.136,height:.165,lip:.45,jaw:i?.74:.93,brow:.61,z:.124,visor:'demon'},mobile);
-      if(court&&i){
-        for(const side of sides)sculpt.sweep(head,'trim',[[side*.049,.12,.04,.023],[side*.124,.151,-.058,.026],
-          [side*.163,.077,-.154,.021],[side*.141,-.12,-.177,.006]],{steps:8,sides:6,ridge:.14});
-      }else helmet(k,head,court?'emperor':'guardian');
-    }
-  }else if(id==='m117'||id==='m124'||id==='m125'){
+  if(id==='m117'||id==='m124'||id==='m125'){
     relief(k,body,id==='m117'?'demon':'shroud',.49,.68);
     if(head)helmet(k,head,id==='m124'||id==='m125'?'serpent':'guardian');
     if(tail)for(let index=0;index<(mobile?5:9);index++){

@@ -86,6 +86,45 @@ function fittings(k,body,w,y,z){
   }
 }
 
+function kingHarness(k,model,mobile){
+  const {body,head,arms}=model;
+  for(const s of sides){
+    const p=path=>mirror(s,path);
+    const mask=p([[.027,.115,.283],[.116,.207,.234],[.214,.163,.185],[.224,.035,.111],
+      [.191,-.151,.153],[.124,-.22,.243],[.047,-.121,.296]]);
+    plate(k,head,'deep',mask,.044);
+    sweep(k,head,'trim',p([[.049,.191,.247,.014],[.136,.197,.236,.027],[.219,.081,.173,.019],
+      [.194,-.131,.185,.013],[.125,-.221,.272,.004]]));
+    sweep(k,head,'glow',p([[.042,.078,.321,.009],[.109,.086,.301,.014],[.167,.096,.264,.005]]),6,8);
+    for(let i=0;i<(mobile?3:5);i++){
+      const x=.086+i*.057,z=.033-i*.056;
+      sweep(k,head,i%2?'trim':'edge',p([[x,.22,z,.032],[x+.057,.36,z-.075,.037],
+        [x+.116,.46-i*.023,z-.17,.029],[x+.135,.522-i*.035,z-.248,.005]]),7,12);
+    }
+    const arm=arms[s<0?0:1];
+    for(let i=0;i<4;i++){
+      const y=.19-i*.103;
+      const pauldron=p([[.027,y+.063,.024],[.198,y+.092,-.074],[.356,y+.029,-.152],
+        [.303,y-.161,-.106],[.257,y-.173,.129],[.089,y-.094,.16]]);
+      plate(k,arm,i? 'deep':'body',pauldron,.043);
+      sweep(k,arm,'trim',pauldron.slice(1,5).map(([x,Y,Z])=>[x+s*.019,Y,Z-.023,.020]),6,9);
+    }
+    for(let i=0;i<4;i++){
+      const y=.44-i*.14;
+      const path=p([[.019,y+.089,.382],[.228,y+.148,.349],[.415,y+.059,.223],
+        [.405,y-.104,.236],[.265,y-.154,.347],[.074,y-.115,.413]]);
+      plate(k,body,i%2?'deep':'body',path,.047);
+      sweep(k,body,i===2?'glow':'trim',path.slice(0,5).map(([x,Y,Z])=>[x,Y,Z+.031,.017]),6,9);
+    }
+  }
+  for(let i=0;i<5;i++){
+    const y=.055-i*.115;
+    shingle(k,body,0,y,-.399-i*.039,.113+i*.01,.19,'deep');
+  }
+  straps(k,body,{y:.755,z:-.39,w:.45,h:.82,material:'trim'});
+  fittings(k,body,.41,.47,-.49);
+}
+
 // The original campaign bosses keep the silhouettes of their existing key art.
 const guardianDetails=[
   (k,m)=>{wingside(k,m,.31,.16);gills(k,m.body,{x:.18,y:.39,z:.01,w:.23,h:.28,n:4});},
@@ -97,7 +136,7 @@ const guardianDetails=[
   (k,m)=>{relicCase(k,m.campaign.neck??m.body,{y:.46,z:-.18,w:.20,h:.37,mark:'edge'});gills(k,m.head,{x:.126,y:.17,z:.011,w:.143,h:.23,n:3});},
   (k,m)=>{for(let i=0;i<5;i++)crooked(k,m.body,i%3?'body':'edge',Math.sin(i)*.14,.40,-.55+i*.229,.67,i%2?1:-1);},
   (k,m)=>{wingside(k,m,.29,.25);relicCase(k,m.body,{y:.13,z:-.36,w:.275,h:.39,body:'body'});},
-  (k,m)=>{straps(k,m.body,{y:.755,z:-.39,w:.45,h:.82});fittings(k,m.body,.41,.47,-.49);},
+  (k,m,v)=>kingHarness(k,m,v),
   (k,m)=>{gills(k,m.body,{x:.37,y:.43,z:.23,w:.20,h:.30,n:5});fittings(k,m.body,.35,.34,-.42);},
   (k,m)=>{gills(k,m.head,{x:.139,y:.145,z:.15,w:.12,h:.182,n:4,glass:true});fittings(k,m.campaign.neck??m.body,.209,.35,-.377);},
   (k,m,v)=>{shell(k,m.body,{y:.55,z:-.473,w:.47,h:.62,mobile:v});fittings(k,m.body,.44,.23,-.326);},

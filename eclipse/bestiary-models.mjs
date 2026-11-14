@@ -5,7 +5,7 @@ import {buildPao,paoForms,posePao} from './pao-model.mjs?v=chiaroscuro-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
 import {enemyEnergy} from './enemy-energy.mjs?v=turnaround-1';
-import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveVaruna} from './giant-boss-sculpt.mjs?v=turnaround-1';
+import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=turnaround-2';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=sculpted-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
@@ -16,8 +16,8 @@ import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=maskwo
 import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=turnaround-1';
 import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=maskwork-1';
 import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=maskwork-1';
-import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=turnaround-1';
-import {finishSpecialBoss} from './special-boss-finish.mjs?v=maskwork-1';
+import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=turnaround-2';
+import {finishSpecialBoss} from './special-boss-finish.mjs?v=turnaround-2';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -227,6 +227,14 @@ function buildMaterials(entry){
     finishes.varunaRed=surface(0x843936,.30,.57,'iron');
     finishes.varunaBlue=surface(0x25586d,.56,.43,'bronze');
     finishes.trim.color.setHex(0x9e753e);
+  }
+  if(['m114','m115'].includes(entry.id)){
+    finishes.royalCrimson=surface(0x6b2926,.37,.58,'iron');
+    finishes.royalPale=surface(0xb8b2a7,.10,.68,'bone');
+    finishes.royalIvory=surface(0xc8b08a,.07,.77,'cloth');
+    finishes.royalCyan=surface(0x28576a,.49,.55,'bronze');
+    finishes.bronzeRib=surface(0x805429,.68,.46,'bronze');
+    finishes.trim.color.setHex(0xa88043);
   }
   if(entry.id==='m154')finishes.iron=surface(0x4c4745,.66,.41,'iron');
   if(entry.id==='m106')finishes.mist=new T.MeshStandardMaterial({
@@ -1388,62 +1396,6 @@ function nabataMage(k,element){
     }};
 }
 
-function yamaTwins(k){
-  const {root,bone,mesh,rod}=k;
-  const body=bone(root,0,1.21,0);
-  const arms=[],heads=[];
-  for(const side of [-1,1]){
-    const twin=bone(body,side*.39,side*.37,side*.31);
-    mesh(twin,'scale','deep',0,-.34,.04,.63,.91,.70);
-    mesh(twin,'scale','trim',0,.04,.18,.54,.72,.62);
-    const head=bone(twin,0,.46,.10);
-    heads.push(head);
-    const crown=side===-1?'edge':'trim';
-    mesh(head,'round','body',0,0,0,.18,.19,.18);
-    mesh(head,'scale',crown,0,.12,.09,.37,.32,.46);
-    mesh(head,'gem','glow',0,-.028,.17,.10,.042,.04);
-    for(let feather=0;feather<6;feather++){
-      const a=feather*.155;
-      rod(twin,feather%3?crown:'trim',[side*.13,-.34+a,-.20],
-        [side*(.38+a*.57),.27+a*.68,-.48-a*.57],.088,'horn');
-      rod(twin,'trim',[side*.16,-.59+a*.44,0],[side*(.34+a*.48),-.81+a*.39,.21],.055,'horn');
-    }
-    const arm=bone(twin,side*.27,.07,.11);
-    rod(arm,'trim',[0,0,0],[side*.48,-.16,.29],.081);
-    rod(arm,'body',[side*.44,-.12,.16],[side*.68,.28,.4],.045);
-    mesh(arm,'gem','glow',side*.69,.32,.42,.116,.13,.115);
-    arms.push(arm);
-  }
-  return {body,arms,heads};
-}
-
-function shahRoyalPair(k){
-  const {root,bone,mesh,rod}=k;
-  const body=bone(root,0,.96,0);
-  const wings=[],arms=[],heads=[];
-  for(const side of [-1,1]){
-    const court=bone(body,side*.41,side*.13,side*.14);
-    mesh(court,'bar',side>0?'edge':'body',0,-.25,.04,.34,.73,.31);
-    mesh(court,'scale','trim',0,.28,.13,.54,.63,.56,.22);
-    const head=bone(court,0,.64,0);
-    heads.push(head);
-    mesh(head,'round','edge',0,0,0,.16,.21,.16);
-    mesh(head,'bar','trim',0,.18,0,.21,.092,.20);
-    rod(head,'trim',[0,.17,0],[0,.39,-.02],.109,'horn');
-    mesh(court,'mantle','edge',-.09,.26,-.16,.56,.94,.78,.26,.96,.14);
-    const sceptre=bone(court,side*.26,.29,.16);
-    rod(sceptre,'edge',[0,-.29,-.24],[side*.27,.32,.37],.051);
-    mesh(sceptre,'gem','glow',side*.29,.35,.41,.119,.11,.10);
-    arms.push(sceptre);
-    const silk=bone(court,side*.17,.64,-.12);
-    const curve=[[0,-.05,0],[side*.26,.29,-.16],[side*.38,.55,-.23],[side*.18,.67,-.41],[side*.01,.74,-.45]];
-    for(let i=1;i<curve.length;i++)rod(silk,i===curve.length-1?'glow':'edge',curve[i-1],curve[i],.05-i*.006);
-    wings.push(silk);
-  }
-  body.userData.silks=wings;
-  return {body,arms,heads};
-}
-
 function asuraDisciple(k,entry){
   const {mesh,bone,rod}=k;
   const parts=humanoid(k,{...entry,crest:'sunwheel'});
@@ -1629,8 +1581,7 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   if(authored)parts=authored;
   else if(paoForms.has(entry.id))parts=buildPao(k,entry,mobile);
   else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
-  else if(entry.id==='m114')parts=shahRoyalPair(k);
-  else if(entry.id==='m115')parts=yamaTwins(k);
+  else if(entry.id==='m114'||entry.id==='m115')parts=carveRoyalPair(k,mobile,entry.id==='m115');
   else if(entry.id==='m117')parts=asuraDisciple(k,entry);
   else if(entry.id==='m122')parts=carveVaruna(k,mobile);
   else if(entry.id==='m133')parts=carveJadeEmperor(k,mobile);

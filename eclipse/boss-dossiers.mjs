@@ -1,4 +1,4 @@
-import {monsterBattle,monsterCatalogue} from './monster-bestiary.mjs?v=jade-rig-1';
+import {monsterBattle,monsterCatalogue} from './monster-bestiary.mjs?v=jointwork-1';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {bossWeaknesses} from './boss-weaknesses.mjs?v=counter-1';
 import {enemySpec,stages} from './expedition.mjs?v=world-3d-1';

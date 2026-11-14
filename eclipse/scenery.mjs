@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jade-rig-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jointwork-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';

@@ -15,9 +15,15 @@ import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
 import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=maskwork-1';
 import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=turnaround-1';
 import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=maskwork-1';
-import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=maskwork-1';
+import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=jointwork-1';
 import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=turnaround-2';
 import {finishSpecialBoss} from './special-boss-finish.mjs?v=turnaround-2';
+import {bossSkin} from './boss-skin.mjs?v=jointwork-1';
+import {refineBossA} from './boss-refinements-a.mjs?v=jointwork-1';
+import {refineBossB} from './boss-refinements-b.mjs?v=jointwork-1';
+import {refineBossC} from './boss-refinements-c.mjs?v=jointwork-1';
+import {refineGuardian} from './guardian-refinements.mjs?v=jointwork-1';
+import {refineCreature} from './creature-refinements.mjs?v=jointwork-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -1612,6 +1618,10 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));
   const detail=parts.pao||parts.catalogueSculpt||parts.campaign?null:detailCreature(k,entry,parts,mobile);
+  const skin=bossSkin(k,mobile,tools=>entry.field?refineCreature(k,parts,entry,mobile,tools):
+    refineBossA(k,parts,entry,mobile,tools)||refineBossB(k,parts,entry,mobile,tools)
+    ||refineBossC(k,parts,entry,mobile,tools)||refineGuardian(k,parts,entry,mobile,tools)
+    ||refineCreature(k,parts,entry,mobile,tools));
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
@@ -1625,7 +1635,7 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   const pattern=parts.pao?'hover':parts.mount?'gallop':entry.id==='m005'?'slam':entry.crest==='scarab'||entry.id==='m154'?'crawl':
     entry.id==='m106'?'coil':entry.id==='m124'?'duel':['m114','m115','m133','m155'].includes(entry.id)?'hover':poses[entry.family];
   return {root,materials,entry,crest,dimensions,palette:colors(entry),bounce:reference?Math.min(.39,reference[3])*.13:0,
-    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,...parts};
+    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,skin,...parts};
 }
 
 export function poseBestiary(model,unit,spec,time,x,z){
@@ -1767,6 +1777,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     legs[1].rotation.x-=lift;
     legs[3].rotation.x-=lift;
   }
+  model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall});
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);
   const glow=model.palette[3];
@@ -1781,6 +1792,7 @@ export function removeBestiary(scene,model){
   scene.remove(model.root);
   model.pao?.energy.dispose();
   model.aura?.dispose();
+  model.skin?.dispose();
   model.disposeRig?.();
   model.signature?.lume?.dispose();
   model.root.traverse(part=>{if(part.isMesh)part.geometry.dispose();});

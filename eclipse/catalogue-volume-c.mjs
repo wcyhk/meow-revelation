@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
-import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,membraneRelief,serpentRelief} from './catalogue-c-detail.mjs?v=maskwork-1';
+import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,serpentRelief} from './catalogue-c-detail.mjs?v=maskwork-1';
 import {fittedChampionArmor,identityFinishes,sculptChampionFace} from './catalogue-human-c.mjs?v=maskwork-1';
 
 const sides=[-1,1];
@@ -307,24 +307,18 @@ function wyvern(k,entry,mobile){
   const jaw=mouth(k,head,{...spec,brow:'rind',jaw:'hide',fangs:6});
   horns(k,head,spec.antlers);
   const waist=spec.core[2][1];
-  const shoulders=[],legs=[],tethers=[];
+  const shoulders=[],legs=[],tethers=[],webs=[];
   for(const side of sides){
     const [x,y,z]=spec.shoulders;
     const shoulder=k.bone(body,x*side,y,z);
     const vertices=spec.wing.map(([x,y,z])=>[x*side,y,z]);
-    plate(k,shoulder,'membrane',vertices,.045);
-    membraneRelief(k,shoulder,vertices,entry,mobile);
     const tip=vertices[3],joint=vertices[2];
+    webs.push({shoulder,vertices,side});
     const strut=(target,index)=>horn(k,shoulder,index%2===0?'rind':'trim',[[0,0,.012,.092],
       [joint[0]*.66,joint[1]*.79,joint[2]*.79,.081],[joint[0],joint[1],joint[2],.065],
       [target[0]*.81,target[1]*.74+joint[1]*.23,target[2]*.65,.043],[...target,.005]]);
     strut(tip,0);
-    for(const [index,v] of [4,6,8].entries())strut(vertices[v],index+1);
-    for(let i=0;i<vertices.length-2;i++){
-      const a=vertices[i],b=vertices[i+1],inside=i>2&&i%2===0?.073:.035;
-      horn(k,shoulder,'rind',[[...a,.035],[a[0]*.52+b[0]*.48,(a[1]+b[1])*.50+.034,(a[2]+b[2])*.50,.028],
-        [b[0],b[1],b[2],inside]]);
-    }
+    for(const [index,v] of [5,7,9].entries())strut(vertices[v],index+1);
     for(let i=0;i<(mobile?5:9);i++){
       const t=i/(mobile?7:11);
       const point=[side*(.44+t*.80),.42+t*.34,-.08-t*.14];
@@ -352,7 +346,7 @@ function wyvern(k,entry,mobile){
       [p.x+.02,p.y+.179,p.z-.09,.071],[p.x+.051,p.y+.31,p.z-.24,.004]]);
   }
   const tail=makeTail(k,body,spec.tail);
-  return {body,head,pattern:'wing',crest:blank(k,body),catalogueSculpt:entry.id,
+  return {body,head,webs,pattern:'wing',crest:blank(k,body),catalogueSculpt:entry.id,
     cataloguePose({beat,headtime,wind,strike,travel,fall,stage}){
       body.rotation.x=-wind*.24+strike*.37+Math.sin(headtime*2.3)*.04;
       head.rotation.y=Math.sin(headtime*2.8)*.08+strike*.15;

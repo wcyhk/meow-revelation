@@ -1,9 +1,9 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=jade-rig-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=jade-rig-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=jointwork-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=jointwork-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=boss-fit-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=jointwork-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=jade-rig-1';
+import {Scenery} from './scenery.mjs?v=jointwork-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {LanternNave} from './lantern-nave.mjs?v=world-3d-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
@@ -2564,12 +2564,6 @@ try {
   $('bestiary').disabled=false;
   requestAnimationFrame(game.loop);
   const review=new URLSearchParams(location.search).get('review');
-  if(review==='jade'){
-    const jade=bossDossiers.find(entry=>entry.id==='m133');
-    game.setPracticeBoss(jade);
-    game.openPracticeLoadout();
-    game.previewPracticeBoss(jade);
-  }
   try {
     const canvas=$('nave-scene');
     game.nave=new LanternNave(world,canvas);
@@ -2578,6 +2572,12 @@ try {
     game.nave.resize();
   } catch (error) {
     console.warn('Could not render the lantern nave',error);
+  }
+  const reviewBoss=review&&bossDossiers.find(entry=>entry.id===(review==='jade'?'m133':review));
+  if(reviewBoss){
+    game.setPracticeBoss(reviewBoss);
+    game.openPracticeLoadout();
+    game.previewPracticeBoss(reviewBoss);
   }
 } catch (error) {
   console.error('Could not initialize the Eclipse Grove',error);

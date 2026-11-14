@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jade-rig-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jointwork-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
@@ -481,7 +481,7 @@ export class WeaponViewer {
     renderer.setScissorTest(true);
     try {
       for(const [subject,model,x,width] of [[this.scene,this.bossRig,0,left],[scene,rig,left,size.x-left]]){
-        const focus=model.mount?.helm??model.head??model.heads?.[0]??model.body;
+        const focus=model.mount?.helm??model.head??model.heads?.[0]??model.body.userData.dragonHead??model.body;
         if(closeUp){
           focus.getWorldPosition(previewFocus);
           camera.position.set(previewFocus.x,previewFocus.y+.045,8);

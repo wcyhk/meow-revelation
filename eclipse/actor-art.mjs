@@ -1,6 +1,8 @@
 import * as T from '../three.min.mjs';
 
 export const heroFrames={idle:0,run:1,attack:2,recoil:40};
+// Eye centers on the cropped hero tiles, in pixels from their top left.
+const heroEyes=[[[256,147],[310,149]],[[381,161],[439,160]],[[286,109],[347,127]]];
 const enemyFrames=[3,4,5,6,18,19,20,21,22,23,24,25,26,27,28,29];
 
 async function tiles(path,columns,rows,limit,padding,removeMatte=false) {
@@ -38,6 +40,11 @@ async function tiles(path,columns,rows,limit,padding,removeMatte=false) {
     paint.imageSmoothingQuality='high';
     paint.drawImage(source,minX,minY,w,h,padding,padding,w*scale,h*scale);
     const art=new T.CanvasTexture(canvas);
+    if(heroEyes[i]&&path.endsWith('lantern-keeper.webp')){
+      art.userData.eyes=heroEyes[i].flatMap(([x,y])=>[
+        (padding+x*scale)/canvas.width,1-(padding+y*scale)/canvas.height,
+      ]);
+    }
     art.colorSpace=T.SRGBColorSpace;
     art.anisotropy=2;
     frames.push(art);

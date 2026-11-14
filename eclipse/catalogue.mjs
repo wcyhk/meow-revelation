@@ -1,4 +1,4 @@
-import {blessings,schools} from './blessings.mjs?v=ledger-1';
+import {blessingRankCap,blessings,schools} from './blessings.mjs?v=ascendant-1';
 import {blessingIcon} from './relic-interface.mjs?v=codex-1';
 import {seals} from './relic-gifts.mjs?v=ledger-1';
 
@@ -135,7 +135,7 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
       const info=element('div');
       info.append(element('strong',null,item.name),element('small',null,item.detail));
       const stepper=element('div','practice-stepper');
-      const cap=item.weaponId?3:6;
+      const cap=blessingRankCap(item);
       for(const [symbol,delta,label] of [['−',-1,'減少'],['＋',1,'增加']]){
         const button=element('button','secondary',symbol);
         button.type='button';button.dataset.rank=String(delta);

@@ -24,6 +24,11 @@ import {refineBossB} from './boss-refinements-b.mjs?v=jointwork-1';
 import {refineBossC} from './boss-refinements-c.mjs?v=jointwork-1';
 import {refineGuardian} from './guardian-refinements.mjs?v=jointwork-1';
 import {refineCreature} from './creature-refinements.mjs?v=jointwork-1';
+import {polishBossA} from './boss-polish-a.mjs?v=ascendant-1';
+import {polishBossB} from './boss-polish-b.mjs?v=ascendant-1';
+import {polishBossC} from './boss-polish-c.mjs?v=ascendant-1';
+import {polishGuardian} from './guardian-polish.mjs?v=ascendant-1';
+import {shapeAura} from './boss-aura.mjs?v=ascendant-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -1622,11 +1627,14 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     refineBossA(k,parts,entry,mobile,tools)||refineBossB(k,parts,entry,mobile,tools)
     ||refineBossC(k,parts,entry,mobile,tools)||refineGuardian(k,parts,entry,mobile,tools)
     ||refineCreature(k,parts,entry,mobile,tools));
+  if(!entry.field)polishBossA(k,parts,entry,mobile)||polishBossB(k,parts,entry,mobile)
+    ||polishBossC(k,parts,entry,mobile)||polishGuardian(k,parts,entry,mobile);
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
-  const aura=entry.field||parts.pao||parts.signature?.lume?null:enemyEnergy(root,box,
-    {...entry,effect:spec.effect},colors(entry)[3],mobile);
+  const aura=parts.polishEnergy?shapeAura(root,parts.polishEnergy,mobile):
+    entry.field||parts.pao||parts.signature?.lume?null:enemyEnergy(root,box,
+      {...entry,effect:spec.effect},colors(entry)[3],mobile);
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
   const width=ratio?T.MathUtils.clamp(Math.sqrt(ratio/.91),.80,1.20):1;

@@ -22,10 +22,11 @@ export class BranchCombat {
     this.activeMaw=null;
   }
 
-  start(profile) {
+  start(profile,allSkills=false) {
     this.end();
     this.branch=branches.find(entry=>entry.id===profile.branch)??null;
-    this.skills=new Set(loadoutSkills(profile).map(skill=>skill.id));
+    const skills=allSkills?branches.flatMap(branch=>branch.skills):loadoutSkills(profile);
+    this.skills=new Set(skills.map(skill=>skill.id));
     if(this.skills.has('robot-squad')) this.squad??=new RobotSquad(this.view);
     if(this.skills.has('cthun-hand')) this.tendrils??=new CthunHand(this.view);
     if(this.skills.has('black-goat-eye')) this.eye??=new BlackGoatEye(this.view);

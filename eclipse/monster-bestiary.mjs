@@ -1,5 +1,5 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=jointwork-1';
+import {bestiaryTint} from './bestiary-models.mjs?v=ascendant-1';
 import {paoForms} from './pao-model.mjs?v=chiaroscuro-1';
 
 const patterns={

@@ -1,4 +1,5 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jointwork-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=ascendant-1';
+import {shapeAura} from './boss-aura.mjs?v=ascendant-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
@@ -12,7 +13,7 @@ import {LanternArt} from './lantern-art.mjs?v=afterglow-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
-import {loadPaintedActors} from './actor-art.mjs?v=gilded-1';
+import {loadPaintedActors} from './actor-art.mjs?v=ascendant-1';
 import {GroveLight} from './grove-light.mjs?v=afterglow-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
 import {summonModel,summonMuzzle} from './relic-summons.mjs?v=relic-sculpts-1';
@@ -435,7 +436,7 @@ export class Scenery {
       uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},hitFlash,fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
         stride:{value:0},footLift:{value:0},lag:{value:0},paw:{value:new T.Vector2()},wrist:{value:new T.Vector2()},
         guard:{value:0},ink:{value:new T.Color(0xffffff)},rim:{value:new T.Color()},texel:{value:new T.Vector2()},
-        rimLight:{value:0}},
+        rimLight:{value:0},goldEyes:{value:0},eyeTime:{value:0},eyeCenters:{value:new T.Vector4()}},
       vertexShader:`
         varying vec2 artUV;
         uniform float bend,sway,compression,stride,footLift,lag;
@@ -463,6 +464,8 @@ export class Scenery {
         uniform float warm;
         uniform float guard;
         uniform float rimLight;
+        uniform float goldEyes,eyeTime;
+        uniform vec4 eyeCenters;
         uniform vec3 ink;
         uniform vec3 rim;
         uniform vec2 texel;
@@ -479,6 +482,14 @@ export class Scenery {
           paint=mix(paint,mix(vec3(1.,.78,.53),vec3(.71,.97,1.),guard),flash);
           paint=mix(paint,rim*.75+vec3(.085),outline);
           paint=mix(paint*(1.+hitFlash*.38),vec3(1.65,1.57,1.48),hitFlash*.89);
+          if(goldEyes>0.){
+            vec2 a=(artUV-eyeCenters.xy)/vec2(.021,.016),b=(artUV-eyeCenters.zw)/vec2(.014,.015);
+            float bloom=exp(-dot(a,a)*.38)+exp(-dot(b,b)*.40);
+            float wick=exp(-dot(a,a)*2.8)+exp(-dot(b,b)*2.8);
+            float pulse=.86+.14*sin(eyeTime*5.2);
+            paint+=vec3(.94,.38,.021)*bloom*goldEyes*pulse;
+            paint+=vec3(1.38,.94,.23)*wick*goldEyes;
+          }
           gl_FragColor=vec4(paint,max(art.a,outline*.58)*fade);
           #include <colorspace_fragment>
         }
@@ -802,6 +813,12 @@ export class Scenery {
     const breath = spec.bob || 0;
     const direction = spec.face || 1;
     art.material.uniforms.picture.value = atlas;
+    const eyes=unit.ascendant&&atlas.userData.eyes;
+    art.material.uniforms.goldEyes.value=eyes?1:0;
+    if(eyes){
+      art.material.uniforms.eyeCenters.value.set(...eyes);
+      art.material.uniforms.eyeTime.value=this.feedback.subdued?0:this.time;
+    }
     const flash=this.feedback.subdued?0:spec.flash??0;
     art.material.uniforms.flash.value=flash;
     art.material.uniforms.fade.value = spec.fade ?? 1;
@@ -824,6 +841,12 @@ export class Scenery {
     art.material.uniforms.rimLight.value=.41+(spec.aura??.1)*.5;
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
+    if(unit.ascendant){
+      visual.ascendantAura??=this.awakenActor();
+      const {root,energy}=visual.ascendantAura;
+      root.position.set(x,0,z);
+      energy.update(this.feedback.subdued?0:this.time,1.0,unit.rolling>0?.75:.36,unit.atk>0?.76:.32,0,0);
+    }
     poseEffigy(visual,spec,this.time,x,z);
     if(visual.bestiary)poseBestiary(visual.bestiary,unit,flash===spec.flash?spec:{...spec,flash},this.time,x,z);
     const foot=spec.feet??null;
@@ -951,10 +974,22 @@ export class Scenery {
     for(const mesh of visual.effigy.children)addHitSurface(mesh.material,visual.hitFlash);
   }
 
+  awakenActor() {
+    const root=new T.Group();
+    root.name='守燈貓 · 無敵光環';
+    this.scene.add(root);
+    const energy=shapeAura(root,{tint:0xffc36b,shape:'ribbons',offset:[0,1.17,0],span:[1.02,2.22,.82]},this.mobile);
+    return {root,energy};
+  }
+
   removeActor(visual) {
     const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary}=visual;
     this.feedback.forget(visual);
     this.scene.remove(art, shade, rim);
+    if(visual.ascendantAura){
+      visual.ascendantAura.energy.dispose();
+      visual.ascendantAura.root.removeFromParent();
+    }
     if(relicCrest){
       this.scene.remove(relicCrest,relicCrown);
       relicCrest.material.dispose();

@@ -15,7 +15,8 @@
   <link rel="stylesheet" href="./weapon-viewer.css?v=maskwork-1">
   <link rel="stylesheet" href="./lantern-nave.css?v=world-3d-1">
   <link rel="stylesheet" href="./afterglow.css?v=afterglow-1">
-  <script type="module" src="./game.mjs?v=jointwork-1"></script>
+  <link rel="stylesheet" href="./ascendant.css?v=ascendant-1">
+  <script type="module" src="./game.mjs?v=ascendant-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -33,7 +34,8 @@
       <div class="cover-brand"><span class="brand-mark">☽</span> MEOW REVELATION</div>
       <div class="cover-content">
         <div class="title-rule">緋月之森 · 無月夜祭</div>
-        <h1>貓貓啟示錄</h1>
+        <h1><button id="cover-title" type="button" aria-label="貓貓啟示錄。連續按三下切換無敵測試模式" aria-pressed="false">貓貓啟示錄</button></h1>
+        <span id="test-mode-status" role="status" class="test-mode-status" hidden></span>
         <p>王座吞下了妹妹的名字。提燈闖過百層，在時間再次碎裂之前，把小燈帶回家。</p>
         <button class="primary" id="begin" disabled><span>進入緋月之森</span><span class="arrow">↗</span></button>
         <div class="cover-entry"><button class="secondary" id="training" disabled>訓練所</button><button class="secondary" id="records" disabled>個人紀錄</button><button class="secondary" id="bestiary" disabled>練習場</button><span id="entry-gold">金幣 0</span></div>

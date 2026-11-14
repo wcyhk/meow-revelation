@@ -86,7 +86,7 @@ export class RoomObjective {
   }
 
   hurtLantern(amount) {
-    if (!this.started||this.light<=0||this.game.state!=='play') return false;
+    if (this.game.testRun||!this.started||this.light<=0||this.game.state!=='play') return false;
     this.light=Math.max(0,this.light-amount*.69);
     const {x,z}=this.plan.altar;
     this.game.view.spark(x,.64,z,0xff8b60,12,.73);

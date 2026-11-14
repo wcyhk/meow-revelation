@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=jointwork-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=ascendant-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
@@ -542,6 +542,7 @@ export class WeaponViewer {
       this.setZoom(1);
       this.turn(0,0);
       this.resize();
+      this.animateModel();
       return;
     }
     const bounds=this.boss?studioBounds(item):new T.Box3().setFromObject(item);
@@ -564,14 +565,21 @@ export class WeaponViewer {
     this.item=item;
     this.resetRotation();
     this.resize();
+    this.animateModel();
+  }
+
+  animateModel(){
     if(this.displayActor&&!reducedMotion.matches){
       const start=performance.now();
       let frame=start;
       const update=now=>{
         if(!this.open||this.mode!=='model'||!this.displayActor||reducedMotion.matches)return;
-        if(!this.main.mobile||now-frame>=27){
+        if(!this.main.mobile||now-frame>=(this.paoStudio?61:27)){
           frame=now;
           poseBestiary(this.bossRig,this.displayActor,{phase:0},(now-start)/1000,0,0);
+          if(this.paoStudio){
+            poseBestiary(this.paoStudio.rig,this.displayActor,{phase:0},(now-start)/1000,0,0);
+          }
           this.renderModel();
         }
         this.raf=requestAnimationFrame(update);

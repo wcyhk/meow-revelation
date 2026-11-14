@@ -19,6 +19,8 @@ export const blessings = [
   ...nightBlessings,
 ];
 
+export const blessingRankCap=blessing=>blessing.weaponId?3:6;
+
 export const schools={
   wind:{name:'疾風',mark:'≋',ink:'#dcf1d4',skill:'雙刃追風',detail:'第三次普通攻擊命中時，自動追加兩道貫穿風刃。',cooldown:2.8},
   thunder:{name:'奔雷',mark:'ϟ',ink:'#abdfff',skill:'巡雷',detail:'附近有敵人時，定時自動落雷，跳擊另一個目標。',cooldown:5.2},

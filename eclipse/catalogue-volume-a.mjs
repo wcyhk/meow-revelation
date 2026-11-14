@@ -1161,6 +1161,18 @@ function shadowBat(k,entry,mobile){
   const wings=[],feet=[];
   for(const side of flanks){
     const f=x=>side*x;
+    plate(k,head,'black',[[f(.016),.108,.171],[f(.111),.113,.207],[f(.212),.09,.147],
+      [f(.184),-.008,.153],[f(.080),-.024,.195]],.023,.009);
+    sweep(k,head,'brass',[[f(.025),.115,.202,.022],[f(.111),.153,.203,.047],
+      [f(.192),.133,.166,.036],[f(.265),.092,.094,.005]],10,8);
+    for(let i=0;i<(mobile?3:5);i++){
+      const y=.30-i*.119,z=-.26-i*.014;
+      const ridge=[[f(.015),y+.045,z+.012],[f(.17+i*.012),y+.057,z-.029],
+        [f(.333-i*.021),y-.056,z-.063],[f(.22),y-.161,z-.039],[f(.06),y-.101,z-.073]];
+      plate(k,body,i%2?'black':'clay',ridge,.051,.016);
+      sweep(k,body,i%2?'red':'brass',ridge.slice(1,4).map(([x,Y,Z])=>[x,Y,Z-.034,.020]),9,6);
+      if(i<3)k.mesh(body,'gem','glow',f(.113+i*.018),y-.039,z-.091,.028,.046,.024,0,0,f(-.31));
+    }
     sweep(k,head,'red',[[f(.131),.076,.031,.077],[f(.22),.302,-.06,.087],
       [f(.287),.484,-.166,.040],[f(.276),.546,-.206,.004]],14,8);
     k.mesh(head,'gem','glow',f(.144),.047,.169,.048,.022,.027,0,f(.37),f(.22));
@@ -1180,6 +1192,12 @@ function shadowBat(k,entry,mobile){
     batSail(k,wrist,side,ribs,'wingBlood',mobile);
     for(const [i,row] of ribs.entries())sweep(k,wrist,i%2?'clay':'black',
       row.map((point,index)=>[...point,[.044,.041,.026,.004][index]]),12,7);
+    for(const [i,row] of ribs.entries()){
+      const [a,b,c,d]=row;
+      sweep(k,wrist,i%2?'black':'red',[[a[0],a[1],a[2]-.042,.032],
+        [b[0]*.91,b[1]-.038,b[2]-.063,.034],[c[0]*1.05,c[1]-.056,c[2]-.030,.018],
+        [d[0],d[1]+.018,d[2]-.006,.004]],mobile?10:15,7);
+    }
     const extension=[
       [[0,-.027,-.03],[f(.19),.099,-.08],[f(.44),.271,-.083],[f(.642),.412,-.011]],
       [[0,-.037,-.035],[f(.13),-.006,-.146],[f(.32),.043,-.298],[f(.465),-.159,-.562]],

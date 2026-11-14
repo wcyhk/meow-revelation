@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=nightforge-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=maskwork-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=turnaround-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
@@ -511,7 +511,7 @@ export class WeaponViewer {
     this.model=pivot;
     let item;
     if(this.boss){
-      this.bossRig=mountBestiary(this.scene,model,this.boss.height,this.main.mobile);
+      this.bossRig=mountBestiary(this.scene,model,this.boss.height,this.main.mobile,this.boss);
       const actor={phase:0,move:0,face:1,spec:this.boss};
       poseBestiary(this.bossRig,actor,{phase:0},0,0,0);
       item=this.bossRig.root;

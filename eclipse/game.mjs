@@ -1,9 +1,9 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=maskwork-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=maskwork-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=turnaround-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=turnaround-1';
 import {practiceLoadout} from './catalogue.mjs?v=forgelight-4';
-import {WeaponViewer} from './weapon-viewer.mjs?v=afterglow-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=turnaround-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=afterglow-1';
+import {Scenery} from './scenery.mjs?v=turnaround-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {LanternNave} from './lantern-nave.mjs?v=world-3d-1';
 import {heroFrames} from './actor-art.mjs?v=gilded-1';
@@ -1621,7 +1621,7 @@ export class Game {
       aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
       rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
       phase:unit.bossPhase,
-      gaitPhase:gait.phase,stepWeight:gait.weight,heading:gait.heading,
+      gaitPhase:gait.phase,stepWeight:gait.weight,heading:gait.heading,dt,
     };
     this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
   }

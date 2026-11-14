@@ -107,18 +107,16 @@ function features(k,head,{width,height,lip,jaw,brow,z,skin='edge',frame='trim',v
 
 const masks={
   m117:{width:.206,height:.252,lip:.46,jaw:1.07,brow:.77,z:.239,visor:'demon',skin:'body'},
-  m122:{width:.129,height:.184,lip:.43,jaw:.72,brow:.31,z:.087},
   m124:{width:.239,height:.237,lip:.64,jaw:.81,brow:.73,z:.233,visor:'serpent'},
   m125:{width:.243,height:.265,lip:.57,jaw:.86,brow:.65,z:.224,visor:'serpent',skin:'body'},
-  m133:{width:.184,height:.214,lip:.46,jaw:.78,brow:.59,z:.096,skin:'body'},
   m154:{width:.203,height:.244,lip:.62,jaw:.88,brow:.77,z:.315,visor:'demon',skin:'body',frame:'iron'},
 };
 
 function lordArms(k,parts,id){
-  const dark=id==='m124'||id==='m125',parade=id==='m133';
+  const dark=id==='m124'||id==='m125';
   const {sculpt,mesh}=k;
   for(const [i,arm] of parts.arms.entries()){
-    const side=i%2===0?-1:1, tier=parade?3:2;
+    const side=i%2===0?-1:1, tier=2;
     for(let n=0;n<tier;n++){
       const y=.142-n*.117, w=(.224-n*.033)*(dark?1.1:1);
       sculpt.plate(arm,'body',[[side*.04,y+.10,-.09],[side*w*.70,y+.12,-.123],
@@ -149,24 +147,14 @@ export function finishSpecialBoss(k,parts,id,mobile){
           [side*.163,.077,-.154,.021],[side*.141,-.12,-.177,.006]],{steps:8,sides:6,ridge:.14});
       }else helmet(k,head,court?'emperor':'guardian');
     }
-  }else if(id==='m117'||id==='m122'||id==='m124'||id==='m125'||id==='m133'){
-    const style=id==='m133'?'mantle':id==='m117'?'demon':'shroud';
-    relief(k,body,style,id==='m133'?.72:id==='m122'?.33:.49,id==='m122'?.38:.68);
-    if(head)helmet(k,head,id==='m133'?'emperor':id==='m124'||id==='m125'?'serpent':'guardian');
+  }else if(id==='m117'||id==='m124'||id==='m125'){
+    relief(k,body,id==='m117'?'demon':'shroud',.49,.68);
+    if(head)helmet(k,head,id==='m124'||id==='m125'?'serpent':'guardian');
     if(tail)for(let index=0;index<(mobile?5:9);index++){
       const t=index/(mobile?5:9);
-      const z=id==='m122'?-index*.157:-.36-t*.83;
-      const x=id==='m122'?Math.sin(index*.71)*.20:.14+t*1.57;
+      const z=-.36-t*.83;
+      const x=.14+t*1.57;
       mesh(tail,'scale',index%3?'body':'edge',x,.28-t*.17,z,.17-t*.089,.14,.47,.38,Math.sin(t*PI)*.69,.24);
-    }
-  }else if(id==='m150'){
-    for(const side of sides)for(let i=0;i<(mobile?5:8);i++){
-      const z=.66-i*.25, x=side*(.76-Math.abs(z)*.152);
-      const y=.33+Math.sin(i*.42)*.14;
-      sculpt.plate(body,i%3?'copper':'edge',
-        [[x*.87,y+.25,z+.13],[x*1.10,y+.15,z+.164],[x*1.15,y-.13,z+.095],
-          [x*1.12,y-.14,z-.142],[x*.96,y+.19,z-.127]],.035,.014);
-      mesh(body,'gem','trim',x*1.155,y-.055,z+.025,.045,.055,.050,.14,side*.37);
     }
   }else if(id==='m154'){
     relief(k,body,'demon',.56,.47);
@@ -178,13 +166,6 @@ export function finishSpecialBoss(k,parts,id,mobile){
           [side*(.16+p*.04),Math.cos(a)*.25,-.11-p*.073,.040],
           [side*.42,Math.cos(a)*.42,-.30-p*.08,.009]],{steps:8,sides:7,ridge:.23});
       }
-    }
-  }else if(id==='m155'){
-    const ring=bone(body,0,-.17,-.26);
-    for(let i=0;i<(mobile?5:8);i++){
-      const a=i*TAU/(mobile?5:8),s=Math.sin(a),c=Math.cos(a);
-      rod(ring,i%2?'body':'trim',[s*.30,c*.35,.053],[s*.51,c*.48,-.12],.042,'horn');
-      mesh(ring,'scale','edge',s*.44,c*.416,-.10,.117,.095,.33,.17,0,-a);
     }
   }else if(id==='m005'){
     for(const side of sides)for(let i=0;i<5;i++){

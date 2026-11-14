@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {fitGuardianCollar,sculptGuardianHead} from './campaign-guardian-armour.mjs?v=maskwork-1';
+import {detailBossVariant,detailForestGuardian} from './enemy-sculpt.mjs?v=turnaround-1';
 
 const TAU=Math.PI*2;
 const opposite=(side,points)=>points.map(([x,...rest])=>[x*side,...rest]);
@@ -1030,96 +1031,6 @@ function stalker(k){
   return parts;
 }
 
-const signatureMotes={
-  'forest-0':[1.63,.97,1.19,2],
-  'forest-1':[.62,1.22,.53,3],
-  'forest-2':[.76,1.27,.71,1],
-  'forest-3':[.88,1.22,.72,0],
-  'forest-4':[.87,1.18,.45,2],
-  'forest-5':[.82,1.15,.51,3],
-  'forest-6':[.87,1.52,.51,3],
-  'forest-7':[.87,1.45,.55,3],
-  'forest-8':[1.59,1.26,.94,2],
-  'forest-9':[.67,1.35,.73,0],
-  'forest-10':[.86,1.10,.70,0],
-  'forest-11':[.72,1.13,.55,1],
-  'forest-12':[.77,1.28,.58,1],
-  'forest-13':[.68,.98,.71,0],
-  'forest-14':[1.37,1.25,.86,2],
-  'forest-15':[.72,1.18,.74,3],
-  'forest-16':[.63,1.28,.76,3],
-  'forest-17':[1.34,1.18,.70,3],
-  'forest-18':[1.65,1.29,.66,1],
-  'forest-19':[.76,1.41,.67,0],
-};
-
-function breathAura(model,palette,profile,mobile){
-  const count=mobile?16:32;
-  const positions=new Float32Array(count*3),phase=new Float32Array(count);
-  for(let i=0;i<count;i++){
-    const s=i*2.39996,r=.457+(i%5)*.112;
-    positions.set([Math.cos(s)*r,-.65+((i*31)%67)/58,Math.sin(s)*r],i*3);
-    phase[i]=((i*47)%97)/97;
-  }
-  const [wide,tall,depth,style]=profile;
-  const geometry=new T.BufferGeometry().setAttribute('position',new T.BufferAttribute(positions,3))
-    .setAttribute('phase',new T.BufferAttribute(phase,1));
-  const material=new T.ShaderMaterial({
-    transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-    uniforms:{
-      tint:{value:new T.Color(palette[3])},second:{value:new T.Color(palette[2])},
-      extent:{value:new T.Vector3(wide,tall,depth)},style:{value:style},
-      time:{value:0},power:{value:0},alpha:{value:1},
-    },
-    vertexShader:`
-      attribute float phase;
-      uniform vec3 extent;
-      uniform float time,power,style;
-      varying float fade,heat,kind;
-      void main(){
-        float rhythm=(style<.5?.57:style<1.5?.37:style<2.5?.21:.14);
-        float step=time*rhythm+phase*3.17;
-        vec3 p=position;
-        p.y=mod(p.y+step,1.57)-.56;
-        float bend=time*(1.18+phase*.49)+p.y*.92+phase*7.1;
-        p.x+=sin(bend)*(.18+power*.12);
-        p.z+=cos(bend*.86)*(.16+power*.13);
-        p.xz*=1.+power*.21+p.y*.20;
-        p*=extent;
-        fade=smoothstep(-.57,-.25,p.y)*(1.-smoothstep(.22,1.12,p.y));
-        heat=.37+.54*pow(.5+.5*cos(time*4.3+phase*31.),2.);
-        kind=phase;
-        vec4 eye=modelViewMatrix*vec4(p,1.);
-        gl_Position=projectionMatrix*eye;
-        gl_PointSize=clamp(92.*(.52+power*.20+phase*.28)*heat/max(1.,-eye.z),1.8,13.1);
-      }`,
-    fragmentShader:`
-      uniform vec3 tint,second;
-      uniform float style,alpha,power;
-      varying float fade,heat,kind;
-      void main(){
-        vec2 p=gl_PointCoord*2.-1.;
-        float a=kind*12.78;
-        p=mat2(cos(a),-sin(a),sin(a),cos(a))*p;
-        float d=style<1.5?abs(p.x)*1.2+abs(p.y)*.54:length(p*vec2(1.8,.79));
-        float core=exp(-d*5.5),veil=exp(-d*3.)*(1.-smoothstep(.66,1.,d));
-        vec3 rgb=mix(tint,second,kind*.35)+vec3(.31)*core;
-        gl_FragColor=vec4(rgb,(core+veil*.57)*fade*alpha*(.54+power*.11));
-        #include <colorspace_fragment>
-      }`,
-  });
-  const dust=new T.Points(geometry,material);dust.frustumCulled=false;
-  dust.position.y=.30;model.body.add(dust);
-  return {
-    animation(time,stage,wind,strike,fall){
-      material.uniforms.time.value=time;
-      material.uniforms.power.value=wind*.84+strike*.73+stage*.57;
-      material.uniforms.alpha.value=1-fall;
-    },
-    dispose(){geometry.dispose();material.dispose();},
-  };
-}
-
 function finishCampaign(k,entry){
   const forged=entry.finish==='iron'||entry.finish==='bronze';
   const organic=['hide','wood','stone'].includes(entry.finish);
@@ -1272,22 +1183,24 @@ function guardianKeepsake(k,model,id,mobile){
   model.campaign.flaps.push({joint:offering,axis:'x',amp:.097,bias:-.032,seed:5.7});
 }
 
-export function buildCampaignSculpt(k,entry,mobile=false){
+export function buildCampaignSculpt(k,entry,mobile=false,weapon){
   if(!entry.palette)return null;
   const id=entry.artId??entry.id,build=campaignModels[id];
   if(!build)return null;
   finishCampaign(k,entry);
   const model=build(k,mobile);
   jointCuirass(k,model,entry,mobile);
-  if(id.startsWith('forest-'))guardianKeepsake(k,model,id,mobile);
-  if(!entry.field)model.campaign.aura=breathAura(model,entry.palette,signatureMotes[id]??[.73,1.21,.53,0],mobile);
+  if(id.startsWith('forest-')){
+    guardianKeepsake(k,model,id,mobile);
+    detailForestGuardian(k,model,id,mobile);
+  }
+  if(!entry.field)detailBossVariant(k,model,entry,weapon,mobile);
   return model;
 }
 
 export function poseCampaignSculpt(model,time,{stage,wind,strike,travel,fall,step,beat}){
   const {campaign,body}=model;
   const {flaps,joints,jaw,baseJaw=0,lean=0,neck}=campaign;
-  campaign.aura?.animation(time,stage,wind,strike,fall);
   for(const {joint,side,leg,step:offset=0} of joints){
     const phase=step+(side>0?Math.PI:0)+offset*1.86;
     if(leg){
@@ -1309,8 +1222,4 @@ export function poseCampaignSculpt(model,time,{stage,wind,strike,travel,fall,ste
   }
   if(jaw)jaw.rotation.x=baseJaw+wind*.29+strike*.42-fall*.03;
   body.rotation.x+=lean+travel*.075;
-}
-
-export function disposeCampaignSculpt(model){
-  model.campaign?.aura?.dispose();
 }

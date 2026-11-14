@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=maskwork-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=turnaround-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
@@ -496,7 +496,7 @@ export class Scenery {
   prepareBoss(visual,spec) {
     const model=spec.bestiary??spec.model;
     if(model){
-      visual.bestiary=mountBestiary(this.scene,model,spec.height,this.mobile);
+      visual.bestiary=mountBestiary(this.scene,model,spec.height,this.mobile,spec);
       for(const material of Object.values(visual.bestiary.materials))addHitSurface(material,visual.hitFlash);
       visual.art.visible=false;
     }else{

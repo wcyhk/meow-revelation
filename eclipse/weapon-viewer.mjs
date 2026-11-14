@@ -41,16 +41,20 @@ const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const bronzePao=monsterCatalogue.find(entry=>entry.id==='m025');
 const previewSize=new T.Vector2(),previewFocus=new T.Vector3();
 
-function studioRig(scene,rig){
+function studioBounds(root){
   const bounds=new T.Box3();
-  rig.root.updateMatrixWorld(true);
-  rig.root.traverse(part=>{
+  root.updateMatrixWorld(true);
+  root.traverseVisible(part=>{
     if(!part.isMesh||!part.visible||part.material.transparent) return;
     const {geometry}=part;
     if(!geometry.boundingBox)geometry.computeBoundingBox();
     bounds.union(geometry.boundingBox.clone().applyMatrix4(part.matrixWorld));
   });
-  if(bounds.isEmpty())bounds.setFromObject(rig.root);
+  return bounds.isEmpty()?new T.Box3().setFromObject(root):bounds;
+}
+
+function studioRig(scene,rig){
+  const bounds=studioBounds(rig.root);
   const size=bounds.getSize(new T.Vector3());
   const centered=new T.Group();
   centered.position.copy(bounds.getCenter(new T.Vector3())).negate();
@@ -540,7 +544,7 @@ export class WeaponViewer {
       this.resize();
       return;
     }
-    const bounds=new T.Box3().setFromObject(item);
+    const bounds=this.boss?studioBounds(item):new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
     if(this.boss){
       const origin=new T.Group();

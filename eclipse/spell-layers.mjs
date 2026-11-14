@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {spellVolume,spellVolumeGeometry} from './spell-volume.mjs?v=golden-veil-1';
 
 const TAU=Math.PI*2;
 const elements={
@@ -57,7 +58,7 @@ function veil(layout) {
 }
 
 const surfaces=Object.fromEntries([...new Set(Object.values(scripts))].map(layout=>[layout,veil(layout)]));
-export const spellGeometry=new Set(Object.values(surfaces));
+export const spellGeometry=new Set([...Object.values(surfaces),...spellVolumeGeometry]);
 
 const vertex=`
   varying vec2 coords; uniform float life, flavor;
@@ -122,7 +123,8 @@ const fragment=`
   }
 `;
 
-export function ornamentSpell(view,point,{action,element,tint,radius,angle=0,seed=0,power=1}) {
+export function ornamentSpell(view,point,spec) {
+  const {action,element,tint,radius,angle=0,seed=0,power=1}=spec;
   const layout=scripts[action]??'spiral';
   if(!view.motion.accent())return;
   const color=new T.Color(tint);
@@ -144,5 +146,6 @@ export function ornamentSpell(view,point,{action,element,tint,radius,angle=0,see
   fx.stretchY=extended?Math.min(1,1.9/span):Math.min(1,2.1/span);
   if(layout==='line')fx.stretchZ=Math.min(1,1.8/span);
   if(layout==='spiral'||layout==='gate')fx.spin=(seed%2?1:-1)*1.17;
+  if(power>=.55)spellVolume(view,point,spec,layout);
   return fx;
 }

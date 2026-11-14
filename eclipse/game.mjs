@@ -1,11 +1,11 @@
 import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=ascendant-1';
 import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=ascendant-1';
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=ascendant-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=golden-veil-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=ascendant-1';
+import {Scenery} from './scenery.mjs?v=golden-veil-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
-import {LanternNave} from './lantern-nave.mjs?v=world-3d-1';
+import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
 import {Audio} from './audio.mjs?v=afterglow-1';
 import {Input} from './input.mjs?v=bestiary-1';
@@ -134,6 +134,7 @@ export class Game {
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>{if(!this.weaponViewer.open)(action==='journal'?this.showJournal():this.togglePause());},()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
+    this.flashTitle=titleFlare($('title-flare'));
     this.ui['cover-title'].addEventListener('click',event=>this.tapTitle(event.timeStamp));
     this.ui.training.addEventListener('click',()=>this.openTraining());
     this.ui.records.addEventListener('click',()=>this.openRecords());
@@ -159,6 +160,7 @@ export class Game {
     this.titleTaps.length=0;
     this.testMode=!this.testMode;
     this.ui.cover.toggleAttribute('data-ascendant',this.testMode);
+    this.flashTitle(this.view.feedback.subdued);
     this.ui['cover-title'].setAttribute('aria-pressed',String(this.testMode));
     const status=this.ui['test-mode-status'];
     status.textContent=this.testMode?'無敵測試模式 · 已開啟':'無敵測試模式 · 已關閉';
@@ -1867,10 +1869,7 @@ export class Game {
     const dt=clamp((now-this.previousTime)/1000,0,.045);
     this.previousTime=now;
     if(document.hidden||this.weaponViewer.open)return;
-    if(!this.ui.cover.hidden){
-      if(this.ui.modal.hidden&&!this.testMode)this.nave?.render(now,dt);
-      return;
-    }
+    if(!this.ui.cover.hidden)return;
     if(!this.hero)return;
     if(this.storyDepth.render(this.view.renderer,dt,this.view.feedback.subdued))return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
@@ -2639,15 +2638,6 @@ try {
   $('bestiary').disabled=false;
   requestAnimationFrame(game.loop);
   const review=new URLSearchParams(location.search).get('review');
-  try {
-    const canvas=$('nave-scene');
-    game.nave=new LanternNave(world,canvas);
-    canvas.hidden=$('nave-guide').hidden=false;
-    $('cover').classList.add('has-nave');
-    game.nave.resize();
-  } catch (error) {
-    console.warn('Could not render the lantern nave',error);
-  }
   const reviewBoss=review&&bossDossiers.find(entry=>entry.id===(review==='jade'?'m133':review));
   if(reviewBoss){
     game.setPracticeBoss(reviewBoss);

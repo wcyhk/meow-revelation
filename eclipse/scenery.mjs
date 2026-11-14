@@ -7,7 +7,7 @@ import {stages} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=nightforge-1';
+import {MotionArt} from './motion-art.mjs?v=golden-veil-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=afterglow-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
@@ -22,7 +22,7 @@ import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=nightforge-1';
 import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=pao-detail-1';
-import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=nightforge-1';
+import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=golden-veil-1';
 import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 
 const PI = Math.PI;
@@ -1241,8 +1241,9 @@ export class Scenery {
     const element=weapon.element??weaponElements[weapon.id]??weapon.effect;
     const angle=Math.atan2(dz,dx);
     this.elementBurst(hero.x,.20,hero.z,weapon.tone,element,18,1.18);
-    this.spellAccent(hero,{action:weapon.spell?.action??baseCastLooks[weapon.id],element,tint:weapon.tone,
-      radius:weapon.spell?.action==='minion'?1.64:2.06,angle,seed:weapon.sigil??spellIndex(weapon.id),power:.67});
+    this.spellAccent({x:hero.x,y:.15,z:hero.z},{action:weapon.spell?.action??baseCastLooks[weapon.id],element,
+      tint:weapon.tone,radius:weapon.spell?.action==='minion'?1.64:2.06,angle,
+      seed:weapon.sigil??spellIndex(weapon.id),power:.87});
     if(element==='water'||element==='fire')this.feedback.surge(element,hero,.64);
   }
 
@@ -1279,12 +1280,18 @@ export class Scenery {
   bolt(from,to,tint,intensity=1) {
     this.motion.bolt(from,to,tint,intensity);
     this.spark(to.x,to.y,to.z,tint,intensity>1?13:5,.72,'flare');
+    if(intensity>=1.9&&from.y-to.y>2.1){
+      this.spellAccent(to,{action:'spikes',element:'lightning',tint,radius:1.86,
+        seed:Math.round(Math.abs(to.x*29+to.z*11)),power:.88});
+    }
   }
 
   wave(x,z,dx,dz,reach,tint,strong=false,style) {
     const point={x:x+dx*reach*.46,y:.66,z:z+dz*reach*.46};
     this.motion.wave(point,dx,dz,tint,strong,style);
     this.spark(point.x,.50,point.z,tint,strong?19:7,strong?1.28:.77,style??'feather',Math.atan2(dz,dx));
+    if(strong)this.spellAccent({x:x+dx*reach*.22,y:.18,z:z+dz*reach*.22},
+      {action:'wave',element:style??'wind',tint,radius:reach*.77,angle:Math.atan2(dz,dx),power:.76});
   }
 
   thrust(x,z,dx,dz,reach,tint,heavy) {
@@ -1543,15 +1550,21 @@ export class Scenery {
         this.spark(cx,.42,cz,tint,this.mobile?5:8,.93,'water',theta);
         this.spark(cx,.21,cz,0xc0854a,this.mobile?3:5,.60,'fire',theta);
       }
-    }else if (effect==='ice'||effect==='root'||effect==='fire') {
+    }else if(effect==='fire'&&line&&radius>4){
+      for(const side of [-1,1]){
+        const offset=radius*.24*side;
+        const point={x:x+Math.cos(bearing)*offset,z:z+Math.sin(bearing)*offset};
+        this.spellAccent(point,{action:'spikes',element:'fire',tint,
+          radius:Math.min(2.2,radius*.64),seed:spellIndex(pattern??kind),power:.91});
+      }
+    }else if (effect==='ice'||effect==='root') {
       const count=kind==='line'?3:this.mobile?4:6;
       for (let index=0;index<count;index++) {
         const theta=index*PI*2/count;
         const offset=kind==='line'?(index-1)*radius*.30:radius*.54;
         const cx=x+Math.cos(kind==='line'?angle:theta)*offset;
         const cz=z+Math.sin(kind==='line'?angle:theta)*offset;
-        const plume=effect==='fire'?this.motion.flame:this.shardShape;
-        const spike=this.addEffect(plume,{x:cx,y:.43+(index%3)*.19,z:cz},tint,.38+index*.024,
+        const spike=this.addEffect(this.shardShape,{x:cx,y:.43+(index%3)*.19,z:cz},tint,.38+index*.024,
           {scale:.44+radius*.115,growth:.31,opacity:.75,angle:theta,fade:true,order:70});
         spike.mesh.rotation.z=Math.sin(theta)*.27;
       }

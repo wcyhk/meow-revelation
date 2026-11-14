@@ -13,10 +13,10 @@
   <link rel="stylesheet" href="./touch.css?v=sigils-1">
   <link rel="stylesheet" href="./relic-interface.css?v=armory-art-1">
   <link rel="stylesheet" href="./weapon-viewer.css?v=maskwork-1">
-  <link rel="stylesheet" href="./lantern-nave.css?v=world-3d-1">
   <link rel="stylesheet" href="./afterglow.css?v=afterglow-1">
-  <link rel="stylesheet" href="./ascendant.css?v=ascendant-1">
-  <script type="module" src="./game.mjs?v=ascendant-1"></script>
+  <link rel="stylesheet" href="./ascendant.css?v=golden-veil-1">
+  <link rel="stylesheet" href="./title-menu.css?v=golden-veil-1">
+  <script type="module" src="./game.mjs?v=golden-veil-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -28,24 +28,30 @@
     <div id="eye-marks" aria-hidden="true" hidden></div>
     <div id="damage-vignette" aria-hidden="true"></div>
     <section id="cover" aria-label="遊戲主畫面">
-      <canvas id="nave-scene" aria-label="守燈祭殿，點按地面移動" hidden></canvas>
-      <div class="cover-grain"></div>
-      <div class="cover-frame"></div>
-      <div class="cover-brand"><span class="brand-mark">☽</span> MEOW REVELATION</div>
-      <div class="cover-content">
-        <div class="title-rule">緋月之森 · 無月夜祭</div>
-        <h1><button id="cover-title" type="button" aria-label="貓貓啟示錄。連續按三下切換無敵測試模式" aria-pressed="false">貓貓啟示錄</button></h1>
-        <span id="test-mode-status" role="status" class="test-mode-status" hidden></span>
-        <p>王座吞下了妹妹的名字。提燈闖過百層，在時間再次碎裂之前，把小燈帶回家。</p>
-        <button class="primary" id="begin" disabled><span>進入緋月之森</span><span class="arrow">↗</span></button>
-        <div class="cover-entry"><button class="secondary" id="training" disabled>訓練所</button><button class="secondary" id="records" disabled>個人紀錄</button><button class="secondary" id="bestiary" disabled>練習場</button><span id="entry-gold">金幣 0</span></div>
+      <div class="title-posters" aria-hidden="true">
+        <img src="./art/moon-gate.webp" alt="" fetchpriority="high">
+        <img class="awakened-poster" src="./art/lantern-ascendant.webp" alt="">
+      </div>
+      <div class="cover-frame" aria-hidden="true"></div>
+      <div class="title-menu">
+        <header class="title-group">
+          <span class="title-subtitle">緋月之森</span>
+          <h1><button id="cover-title" type="button" aria-label="貓貓啟示錄。連續按三下切換無敵測試模式" aria-pressed="false">貓貓啟示錄</button></h1>
+          <p>王座吞下了妹妹的名字。提燈闖過百層，在時間再次碎裂之前，把小燈帶回家。</p>
+        </header>
+        <nav class="title-actions" aria-label="遊戲選單">
+          <button class="primary" id="begin" disabled><span class="title-icon" aria-hidden="true">✦</span><span>進入緋月之森</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="secondary" id="bestiary" disabled><span class="title-icon" aria-hidden="true">◇</span><span>練習場</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="secondary" id="training" disabled><span class="title-icon" aria-hidden="true">✧</span><span>訓練所</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="secondary" id="records" disabled><span class="title-icon" aria-hidden="true">☽</span><span>個人紀錄</span><span class="title-chevron" aria-hidden="true">›</span></button>
+        </nav>
         <div id="load-note" role="status">正在點亮森林的燭火⋯⋯</div>
       </div>
       <div class="cover-footer">
-        <span>百關動作冒險<span class="dot"> · </span>鍵盤／手機觸控</span>
-        <span class="cover-latin">THE ECLIPSE GROVE</span>
+        <span id="entry-gold">金幣 0</span>
+        <span id="test-mode-status" role="status" class="test-mode-status" hidden></span>
       </div>
-      <p id="nave-guide" hidden>點按地面移動</p>
+      <div id="title-flare" aria-hidden="true"><i></i><b></b></div>
     </section>
     <section id="hud" hidden aria-label="戰鬥資訊">
       <div class="health-hud"><div class="portrait"></div><div class="health-info">

@@ -1,7 +1,9 @@
 import * as T from '../three.min.mjs';
+import {arms,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
 
 const PI=Math.PI;
 const TAU=PI*2;
+const flameblade=arms.find(weapon=>weapon.id==='flameblade');
 
 function ribbon(sections,sample) {
   const positions=[],uvs=[],indices=[];
@@ -209,17 +211,6 @@ const impactFragment=`
   }
 `;
 
-function flameGeometry() {
-  const shape=new T.Shape();
-  shape.moveTo(-.29,-.40);
-  shape.bezierCurveTo(-.68,-.22,-.49,.24,-.38,.39);
-  shape.bezierCurveTo(-.32,.13,-.23,.06,-.16,.15);
-  shape.bezierCurveTo(.01,.29,-.05,.75,.29,.99);
-  shape.bezierCurveTo(.14,.61,.67,.23,.47,-.18);
-  shape.bezierCurveTo(.33,-.48,-.05,-.50,-.29,-.40);
-  return new T.ShapeGeometry(shape,12);
-}
-
 function serratedDisk() {
   const shape=new T.Shape();
   for (let i=0;i<64;i++) {
@@ -247,7 +238,6 @@ export class MotionArt {
     this.blade=shardGeometry();
     this.disk=serratedDisk();
     this.star=flashGeometry();
-    this.flame=flameGeometry();
     this.shards=shieldFragments();
     this.cleaves=new Map();
     this.lastEnemyTrail=new WeakMap();
@@ -434,20 +424,22 @@ export class MotionArt {
 
   bladefall(x,z,tint,wait,index) {
     const duration=wait+.075;
+    const sword=forge(flameblade);
     const fx=this.view.addEffect(this.blade,{x,y:5.3,z},tint,duration,
-      {angle:index*2.4+.6,scale:1.11,opacity:.91,order:89,fade:true,
-        material:new T.MeshStandardMaterial({
-          color:tint,metalness:.41,roughness:.33,emissive:tint,emissiveIntensity:.79,transparent:true,depthWrite:false,
-        })});
-    fx.drop=5.0;
-    fx.spin=1.6;
+      {angle:index*2.4+.6,scale:1.17,opacity:0,order:89});
+    fx.mesh.material.colorWrite=false;
+    sword.rotation.z=Math.PI;
+    fx.mesh.add(sword);
+    fx.cleanup=()=>disposeForge(sword);
+    fx.vertical={from:5.3,to:.52,duration:Math.max(.075,wait)};
+    fx.spin=1.05;
     fx.combatClock=true;
     if(this.accent()){
       const heat=this.ribbon(this.jet,{x,y:5.3,z},tint,duration,{
         kind:2,scale:2.30,angle:0,opacity:.71,order:84,
       });
       heat.mesh.rotation.z=Math.PI*.50;
-      heat.drop=5.0;
+      heat.vertical=fx.vertical;
       heat.combatClock=true;
     }
   }

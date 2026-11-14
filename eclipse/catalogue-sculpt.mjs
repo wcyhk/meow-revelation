@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
-import {legacyCDetail,legacyCFinishes} from './catalogue-c-legacy.mjs?v=penumbra-1';
+import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
+import {legacyCDetail,legacyCFinishes} from './catalogue-c-legacy.mjs?v=maskwork-1';
 
 const PI=Math.PI,TAU=PI*2;
 const sides=[-1,1];
@@ -267,7 +268,11 @@ function royalMedium(k,entry,mobile){
   shape(k,body,'body',[[0,.07,0,.257,.185],[0,.29,.02,.229,.187],[0,.48,.014,.28,.193],
     [0,.71,-.015,.336,.187],[0,.89,-.028,.23,.139],[0,.986,-.021,.11,.083]],22,15,2.53,.14);
   shape(k,body,'edge',[[0,.29,.19,.291,.089],[0,.405,.194,.292,.096],[0,.47,.166,.237,.074]],9,14,2.65,.15);
-  face(k,head,{hair:reaper?'crest':'deep',human:!reaper});
+  const mask=k.bone(head,0,-.045,.039);
+  mask.name='Painted court face';
+  const {jaw}=carvedFace(k,mask,{style:reaper?'ghost':'noble',finish:reaper?'porcelain':'complexion',
+    brow:reaper?'rind':'deep',width:reaper?.323:.303,dark:'deep',eye:'glow',
+    lids:reaper?'porcelain':'complexion',detailed:!mobile});
   const hair=k.bone(head,0,.06,-.17),crown=k.bone(head,0,.20,-.066);
   const arms=sides.map(side=>arm(k,body,side,{wide:reaper?.36:.30,y:.76,cloth:'brocade',shell:'edge',glove:'edge'}));
   for(const side of sides){
@@ -293,6 +298,14 @@ function royalMedium(k,entry,mobile){
       [side*.171,.502,-.217],[side*.055,.567,-.247],[side*.025,.743,-.221]],.037,.012);
     swept(k,body,'trim',[[side*.027,.895,-.101,.016],[side*.182,.82,-.171,.019],
       [side*.25,.733,-.189,.017],[side*.159,.521,-.24,.005]],10,7);
+    const cope=k.bone(body,0,.69,-.17);
+    for(let i=0;i<3;i++){
+      const y=.12-i*.087,w=.183+i*.025;
+      plate(k,cope,reaper?'brocade':'rind',[[side*.018,y+.029,-.039],[side*w,y+.05,-.052],
+        [side*(w+.061),y-.032,-.036],[side*(w*.62),y-.084,-.091],[side*.027,y-.103,-.073]],.038,.012);
+      swept(k,cope,'trim',[[side*.028,y-.086,-.081,.013],[side*w*.68,y-.071,-.106,.017],
+        [side*(w+.049),y-.037,-.044,.004]],9,6);
+    }
   }
   for(let i=0;i<5;i++){
     const dart=k.bone(robe.skirt,0,.048,0);dart.rotation.y=i*TAU/5+.32;
@@ -366,6 +379,7 @@ function royalMedium(k,entry,mobile){
     hair.rotation.x=Math.sin(beat*.65)*.035-wind*.12+strike*.18;
     hair.rotation.y=Math.sin(beat*.37)*(.069+stage*.033);
     crown.rotation.z=Math.sin(beat*.8)*.024+strike*.05;
+    jaw.rotation.x=.018+wind*.20+strike*.34;
   }};
 }
 
@@ -392,7 +406,16 @@ function knightRelic(k,entry){
   for(const leg of legs)leg.thigh.position.y=.93;
   shape(k,body,sun?'body':'edge',[[0,-.13,-.01,.279,.183],[0,.12,.007,.309,.202],[0,.36,.01,.332,.187],
     [0,.67,-.02,.386,.218],[0,.823,-.035,.256,.182],[0,.90,0,.14,.12]],24,15,2.81);
-  face(k,head,{hair:sun?'deep':'rind',skin:yaksha?'brocade':'edge',human:false});
+  if(yaksha)face(k,head,{hair:'rind',skin:'brocade',human:false});
+  else{
+    const seated=k.bone(head,0,-.046,.059);
+    const {jaw}=carvedFace(k,seated,{style:sun?'soldier':'elder',finish:sun?'sculptStone':'sculptAsh',
+      width:sun?.355:.337,brow:'deep',dark:'deep',eye:'glow',lids:sun?'sculptStone':'sculptAsh'});
+    jaw.rotation.x=.13;
+    openHelm(k,head,{material:'rind',trim:'trim',dark:'deep',crest:sun?.68:.48,
+      flare:sun?.87:.97,span:sun?1.06:.94,vent:sun?'teeth':'open'});
+    demonicMempo(k,seated,{face:'rind',trim:'trim',fang:'edge',opening:sun?.62:.93,jaw:sun});
+  }
   shape(k,head,'body',[[0,.010,-.089,.145,.122],[0,.153,-.055,.18,.155],
     [0,.218,-.063,.155,.132],[0,sun?.436:.325,-.065,sun?.101:.112,.098]],16,15,sun?4.2:2.2,.11);
   const mantle=k.bone(body,0,.65,-.21);
@@ -1220,10 +1243,13 @@ function ancientYeti(k,entry,mobile){
 export const catalogueFinishes={
   m001:{rind:[0x75437c,.47,.45,'iron']},
   m002:{rind:[0x922577,.22,.43,'hide']},
-  m008:{rind:[0x1d7051,.42,.43,'iron'],brocade:[0x355b32,.11,.66,'cloth']},
-  m016:{rind:[0x9e7c4c,.64,.54,'iron'],brocade:[0xb85b37,.08,.64,'cloth'],crest:[0xbcb1a2,.35,.6,'bone']},
-  m017:{rind:[0x673d23,.62,.46,'iron'],brocade:[0xb26b23,.15,.57,'cloth'],crest:[0x968476,.40,.57,'iron']},
-  m021:{rind:[0x458f97,.47,.42,'iron'],brocade:[0x8f261a,.17,.58,'cloth'],crest:[0xcbd1cd,.05,.78,'bone']},
+  m008:{rind:[0x1d7051,.42,.43,'iron'],brocade:[0x355b32,.11,.66,'cloth'],complexion:[0x977462,.06,.70,'hide']},
+  m016:{rind:[0x9e7c4c,.64,.54,'iron'],brocade:[0xb85b37,.08,.64,'cloth'],crest:[0xbcb1a2,.35,.6,'bone'],
+    sculptStone:[0x988270,.12,.67,'stone']},
+  m017:{rind:[0x673d23,.62,.46,'iron'],brocade:[0xb26b23,.15,.57,'cloth'],crest:[0x968476,.40,.57,'iron'],
+    sculptAsh:[0x898681,.09,.68,'stone']},
+  m021:{rind:[0x458f97,.47,.42,'iron'],brocade:[0x8f261a,.17,.58,'cloth'],crest:[0xcbd1cd,.05,.78,'bone'],
+    porcelain:[0xcac2ad,.09,.65,'bone']},
   m097:{rind:[0x5b9ca6,.66,.4,'iron'],brocade:[0x1c2c46,.27,.62,'cloth'],mica:[0x94c7cb,.40,.37,'gem'],
     skull:[0x8baba6,.23,.62,'bone']},
   m101:{rind:[0x9d3c08,.22,.52,'stone'],brocade:[0xa54a20,.10,.66,'cloth'],crest:[0x99704c,.06,.86,'hide']},

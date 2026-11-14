@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {fitGuardianCollar,sculptGuardianHead} from './campaign-guardian-armour.mjs?v=maskwork-1';
 
 const TAU=Math.PI*2;
 const opposite=(side,points)=>points.map(([x,...rest])=>[x*side,...rest]);
@@ -143,14 +144,16 @@ function cloak(k,body,layout,flaps,colors=['deep','body','edge']){
 function fighter(k,profile){
   const {root,bone,mesh}=k;
   const {broad=.46,neck=.77,ground=.90,armLength=.69,helmet='helmet',height=1.05,legs=true,
-    style='duel',finish='body',weapon,headwear}=profile;
+    style='duel',finish='body',weapon,headwear,guardianType,mobile=false}=profile;
   const body=bone(root,0,ground,0),head=bone(body,0,neck,.053);
   const flaps=[],arms=[],feet=[],joints=[];
   shape(k,body,finish,[[0,-.31,-.03,broad*.54,broad*.49],[0,-.11,-.066,broad*.74,broad*.67],
     [0,.20,-.037,broad*.89,broad*.70],[0,.45,-.016,broad,broad*.77],
     [0,.59,-.036,broad*.73,broad*.66],[0,neck-.031,-.021,broad*.32,broad*.38]],
   {sides:16,rings:19,section:2.86,ridge:.16});
-  face(k,head,{width:broad*.55,z:broad*.51,style:helmet,length:.27+height*.078});
+  const jaw=guardianType?sculptGuardianHead(k,head,guardianType,mobile):
+    face(k,head,{width:broad*.55,z:broad*.51,style:helmet,length:.27+height*.078});
+  if(guardianType)fitGuardianCollar(k,body,guardianType,broad,mobile);
   const back=bone(body,0,.22,-broad*.54);
   flaps.push({joint:back,axis:'x',amp:.11,bias:.04,seed:4.8});
   const grips=[];
@@ -196,7 +199,7 @@ function fighter(k,profile){
   if(headwear)headwear(k,head,collar);
   if(weapon)weapon(k,body,back,head,grips,flaps);
   return {body,head,crest:bone(body,0,.10,0),arms,legs:feet,pattern:style==='heavy'?'slam':style==='shade'?'hover':'duel',
-    campaign:{flaps,joints},back};
+    campaign:{flaps,joints,jaw},back};
 }
 
 function vest(k,body,broad,height,flaps){
@@ -873,7 +876,7 @@ function riverKeeper(k,type){
   return {body,head,arms,tail,crest,pattern:'coil',campaign:{flaps,joints:[],neck}};
 }
 
-function guardian(k,type){
+function guardian(k,type,mobile){
   const styles={
     lotus:{broad:.35,ground:1.13,neck:.88,helmet:'mask',style:'shade',legs:false},
     fox:{broad:.39,ground:1.05,neck:.88,helmet:'mask',style:'duel'},
@@ -885,7 +888,7 @@ function guardian(k,type){
     clock:{broad:.43,ground:1.10,neck:.87,helmet:'helmet',style:'duel'},
     hangman:{broad:.46,ground:1.16,neck:.86,helmet:'blank',style:'duel'},
   };
-  return fighter(k,{...styles[type],height:1.22,headwear(k,head,collar){
+  return fighter(k,{...styles[type],height:1.22,guardianType:type,mobile,headwear(k,head,collar){
     if(type==='lotus'||type==='fox'||type==='hangman')ritualCowl(k,head,collar,.37);
     if(type==='goat'||type==='boar'){
       for(const side of [-1,1]){
@@ -985,25 +988,25 @@ const campaignModels={
   eyes:k=>wraith(k,'eyes'),
   hound:k=>quadruped(k,'hound'),
   'forest-0':(k,m)=>winged(k,'owl',m),
-  'forest-1':k=>guardian(k,'lotus'),
-  'forest-2':k=>guardian(k,'fox'),
-  'forest-3':k=>guardian(k,'boar'),
+  'forest-1':(k,m)=>guardian(k,'lotus',m),
+  'forest-2':(k,m)=>guardian(k,'fox',m),
+  'forest-3':(k,m)=>guardian(k,'boar',m),
   'forest-4':(k,m)=>weaver(k,'queen',m),
   'forest-5':k=>quadruped(k,'vaultTurtle'),
   'forest-6':k=>riverKeeper(k,'eclipse'),
   'forest-7':k=>quadruped(k,'stag'),
   'forest-8':(k,m)=>winged(k,'moth',m),
-  'forest-9':k=>guardian(k,'crown'),
-  'forest-10':k=>guardian(k,'goat'),
+  'forest-9':(k,m)=>guardian(k,'crown',m),
+  'forest-10':(k,m)=>guardian(k,'goat',m),
   'forest-11':k=>riverKeeper(k,'oar'),
-  'forest-12':k=>guardian(k,'frost'),
+  'forest-12':(k,m)=>guardian(k,'frost',m),
   'forest-13':k=>quadruped(k,'forgeBeast'),
   'forest-14':(k,m)=>winged(k,'paper',m),
-  'forest-15':k=>guardian(k,'bank'),
-  'forest-16':k=>guardian(k,'clock'),
+  'forest-15':(k,m)=>guardian(k,'bank',m),
+  'forest-16':(k,m)=>guardian(k,'clock',m),
   'forest-17':(k,m)=>winged(k,'rootDragon',m),
   'forest-18':(k,m)=>winged(k,'glass',m),
-  'forest-19':k=>guardian(k,'hangman'),
+  'forest-19':(k,m)=>guardian(k,'hangman',m),
 };
 
 function stalker(k){

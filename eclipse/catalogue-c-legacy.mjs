@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
-import {curvedPlate} from './catalogue-c-detail.mjs?v=penumbra-1';
+import {curvedPlate} from './catalogue-c-detail.mjs?v=maskwork-1';
 
 const sides=[-1,1],turn=Math.PI*2;
 const seam=(k,part,mat,path)=>k.sculpt.sweep(part,mat,path,{sides:6,steps:10,ridge:.15});
@@ -11,6 +11,14 @@ const solid=(k,part,mat,path)=>k.geometry(part,mat,sculptVolume(path,{
 
 function frozen(k,{head,body},mobile){
   for(const side of sides){
+    curvedPlate(k,head,'skull',[[side*.050,-.145,.209,.030,.030],[side*.102,-.138,.190,.041,.034],
+      [side*.158,-.084,.178,.052,.054],[side*.190,-.036,.130,.040,.030],[side*.200,-.018,.033,.008,.009]],.19);
+    seam(k,head,'deep',[[side*.057,.047,.190,.014],[side*.106,.035,.207,.021],
+      [side*.149,.019,.19,.021],[side*.187,.008,.126,.004]]);
+    for(let i=0;i<4;i++){
+      const x=side*(.014+i*.022);
+      seam(k,head,'frostEdge',[[x,-.126,.172,.012],[x*1.03,-.158,.193,.015],[x*1.05,-.172,.185,.004]]);
+    }
     for(let i=0;i<6;i++){
       const x=(.084+i*.018)*side,y=.178-i*.035;
       seam(k,head,'frostEdge',[[x*.54,y+.065,.164,.014],[x*.88,y+.020,.189,.017],
@@ -27,12 +35,22 @@ function frozen(k,{head,body},mobile){
   }
 }
 
-function court(k,{head,body},mobile){
-  const abbot=mobile.id==='m101', captain=mobile.id==='m107';
-  const phone=mobile.mobile;
+function court(k,{head,body},phone,id){
+  const abbot=id==='m101', captain=id==='m107';
   for(const side of sides){
     const f=x=>side*x;
     if(abbot){
+      curvedPlate(k,head,'legacySkin',[[f(.023),-.096,.151,.024,.022],[f(.102),-.107,.173,.048,.046],
+        [f(.183),-.092,.128,.057,.049],[f(.201),-.049,.073,.027,.019],[f(.205),.003,.015,.005,.004]],.19);
+      seam(k,head,'deep',[[f(.026),.127,.201,.025],[f(.114),.120,.189,.026],
+        [f(.155),.106,.154,.014],[f(.168),.080,.105,.003]]);
+      seam(k,head,'legacySkin',[[f(.013),-.122,.161,.016],[f(.067),-.138,.185,.019],
+        [f(.114),-.147,.174,.013],[f(.137),-.133,.150,.002]]);
+      for(let i=0;i<3;i++){
+        const y=-.148-i*.033;
+        seam(k,head,'crest',[[f(.121),y,.191,.013],[f(.152),y-.016,.162,.014],
+          [f(.179),y-.048,.117,.012],[f(.192),y-.049,.088,.002]]);
+      }
       for(let i=0;i<7;i++){
         const x=f(.081+i*.034);
         seam(k,head,'legacyMetal',[[x*.64,.243-i*.016,-.174,.019],[x,.156-i*.022,-.208,.031],
@@ -44,6 +62,18 @@ function court(k,{head,body},mobile){
           [x,y-.084,-.383,.025],[x*1.38,y-.119,-.308,.004]]);
       }
     }else if(captain){
+      curvedPlate(k,head,'legacySkin',[[f(.017),-.105,.155,.016,.017],[f(.077),-.083,.183,.043,.043],
+        [f(.135),-.068,.156,.043,.045],[f(.167),-.051,.103,.032,.032],[f(.174),-.066,.041,.003,.004]],.22);
+      for(let locks=0;locks<5;locks++){
+        const x=f(.037+locks*.018),y=-.135-locks*.005;
+        seam(k,head,locks%2?'deep':'leatherTrim',[[x,y,.193,.019],[x*1.19,y-.044,.195,.024],
+          [x*1.33,y-.091,.171,.019],[x*1.47,y-.148,.126,.003]]);
+      }
+      seam(k,head,'deep',[[f(.033),.047,.193,.010],[f(.072),.050,.208,.017],
+        [f(.108),.041,.190,.011],[f(.125),.033,.158,.003]]);
+      k.mesh(head,'gem','legacyEye',f(.075),.040,.213,.015,.006,.006,0,f(.28));
+      if(side===1)seam(k,head,'legacyScar',[[f(.080),.124,.157,.011],[f(.092),.073,.189,.015],
+        [f(.106),.030,.186,.013],[f(.130),-.033,.173,.003]]);
       for(let i=0;i<5;i++){
         const x=f(.065+i*.028);
         seam(k,head,'legacyMetal',[[x*.53,.269,-.128,.014],[x*.78,.182,-.164,.015],
@@ -58,6 +88,7 @@ function court(k,{head,body},mobile){
       seam(k,body,'legacyMetal',[[f(.34),.77,-.226,.027],[f(.226),.53,-.308,.041],
         [-f(.1),.29,-.345,.041],[-f(.33),-.10,-.28,.032]]);
     }else{
+      trimJaw(k,head,side);
       for(let i=0;i<6;i++){
         const x=f(.062+i*.026),z=-.045-i*.029;
         seam(k,head,i%2?'oldIvory':'legacyMetal',[[x,.195,z,.024],[x*1.28,.258,z-.04,.028],
@@ -70,12 +101,25 @@ function court(k,{head,body},mobile){
       }
     }
   }
+  curvedPlate(k,head,'legacySkin',[[0,-.095,.200,.020,.020],[0,-.041,.233,.034,.039],
+    [0,.002,.219,.027,.025],[0,.079,.180,.015,.019]],.24);
   if(abbot){
     for(let i=0;i<9;i++){
       const x=(i-4)*.056,y=.32-.12*Math.abs(i-4);
       seam(k,body,'edge',[[x,y+.266,-.363,.012],[x+.012,y+.113,-.42,.018],
         [x+.025,y-.027,-.42,.015],[x+.04,y-.096,-.356,.002]]);
     }
+  }
+}
+
+function trimJaw(k,head,side){
+  const x=d=>side*d;
+  plate(k,head,'legacyMetal',[[x(.047),.015,.168],[x(.156),.037,.147],[x(.2),-.043,.12],
+    [x(.177),-.095,.093],[x(.111),-.111,.164],[x(.077),-.054,.191]],.047);
+  for(let i=0;i<3;i++){
+    const dx=x(.047+.025*i);
+    seam(k,head,'oldIvory',[[dx,-.067,.168,.015],[dx*1.15,-.120,.193,.019],
+      [dx*1.08,-.178,.178,.003]]);
   }
 }
 
@@ -111,6 +155,12 @@ function wasp(k,{head,body},mobile){
 
 function reaper(k,{head,body},mobile){
   for(const side of sides){
+    curvedPlate(k,head,'veilEdge',[[side*.043,.039,.186,.031,.033],[side*.083,.021,.207,.048,.034],
+      [side*.168,.018,.158,.070,.050],[side*.201,.092,.087,.044,.042],[side*.184,.194,.010,.006,.008]],.23);
+    seam(k,head,'deep',[[side*.049,.112,.183,.024],[side*.101,.099,.209,.032],
+      [side*.164,.089,.179,.026],[side*.205,.11,.104,.004]]);
+    seam(k,head,'veilEdge',[[side*.059,-.045,.189,.015],[side*.115,-.079,.22,.016],
+      [side*.160,-.117,.196,.019],[side*.185,-.226,.102,.003]]);
     for(let i=0;i<(mobile?6:9);i++){
       const y=.752-i*.137,x=side*(.32-i*.016);
       seam(k,body,i%3?'hemStitch':'rind',[[x*.25,y+.07,-.273,.014],
@@ -174,12 +224,13 @@ const hide=[.12,.64,'hide'];
 const bone=[.20,.56,'bone'];
 export const legacyCFinishes={
   m097:{frostEdge:[0xabced3,...metallic]},
-  m101:{legacyMetal:[0x907147,...bronze]},
-  m107:{legacyMetal:[0x9f7c54,...bronze],leatherTrim:[0x56443b,...hide]},
-  m109:{legacyMetal:[0xbd843e,...bronze],oldIvory:[0xcac2a3,...bone]},
+  m101:{legacyMetal:[0x907147,...bronze],legacySkin:[0x8c6353,...hide]},
+  m107:{legacyMetal:[0x9f7c54,...bronze],leatherTrim:[0x56443b,...hide],
+    legacySkin:[0x9a735d,...hide],legacyScar:[0x713733,...hide],legacyEye:[0x405765,.04,.34,'gem']},
+  m109:{legacyMetal:[0xbd843e,...bronze],oldIvory:[0xcac2a3,...bone],legacySkin:[0x664434,...hide]},
   m148:{sootFeather:[0x30485f,...hide],paleQuill:[0x6a8999,...bone]},
   m151:{swallowGold:[0x80762e,...bronze]},
-  m153:{hemStitch:[0x565171,...cloth]},
+  m153:{hemStitch:[0x565171,...cloth],veilEdge:[0x6f6a86,...bone]},
   m156:{strawFray:[0xa87843,...hide],tarnish:[0xa4652e,...bronze]},
   m157:{chestFur:[0xa7605a,...hide],maneFiber:[0x423039,...hide]},
   m158:{chestFur:[0xa8aaa8,...hide],maneFiber:[0x747d7d,...hide]},
@@ -192,6 +243,6 @@ const work={
 export function legacyCDetail(k,entry,parts,mobile){
   const sculpt=work[entry.id];
   if(!sculpt)return;
-  if(['m101','m107','m109','m157','m158'].includes(entry.id))sculpt(k,parts,{id:entry.id,mobile});
-  else sculpt(k,parts,mobile);
+  if(['m157','m158'].includes(entry.id))sculpt(k,parts,{id:entry.id,mobile});
+  else sculpt(k,parts,mobile,entry.id);
 }

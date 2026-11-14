@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
+import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
 
 const PI=Math.PI,TAU=PI*2,flanks=[-1,1];
 const volume=(k,j,m,s,detail=16,section=2.18,ridge=.14,fur=false)=>k.geometry(j,m,
@@ -181,27 +182,99 @@ function garmentFasteners(k,body,neck,torso,waist,finish,kind){
   sweep(k,buckle,'rivet',[[-hw*.68,.003,.036,.013],[0,.005,.042,.013],[hw*.63,.005,.036,.009]],6,5);
 }
 
-function humanoid(k,descriptor){
+const faceProfiles={
+  m003:['ogre','teal','ochre',1.0],m004:['soldier','ochre','black',.7],
+  m006:['wild','skin','black',.92],m009:['ascetic','ivory','black',.64],
+  m010:['elder','skin','black',.78],m011:['wild','skin','ivory',1.05],
+  m012:['ghost','ivory','steel',.72],m013:['noble','ivory','black',.66],
+  m018:['elder','ochre','black',.88],m019:['ascetic','ivory','cobalt',.69],
+  m020:['soldier','ochre','black',1.04],m023:['ogre','ochre','red',1.15],
+  m028:['noble','skin','black',.70],m029:['elder','skin','ivory',.94],
+  m031:['ascetic','ochre','black',.82],m032:['noble','ivory','cobalt',.67],
+  m033:['wild','skin','ivory',.79],m034:['noble','ivory','steel',.73],
+  m035:['elder','ochre','ivory',.89],m036:['ghost','ivory','steel',.80],
+  m037:['ascetic','skin','ivory',.75],m038:['elder','ochre','ivory',1.04],
+  m039:['soldier','ochre','teal',.82],m040:['wild','ochre','black',.91],
+  m041:['ogre','teal','black',1.07],m042:['soldier','ochre','black',.83],
+  m043:['ogre','ochre','black',1.18],m044:['ghost','cobalt','black',.92],
+  m045:['ogre','teal','black',1.01],m046:['wild','clay','black',1.08],
+  m047:['ogre','ochre','black',1.14],m048:['ghost','cobalt','black',.99],
+  m049:['ogre','teal','black',1.18],m050:['wild','clay','black',1.20],
+  m051:['soldier','ochre','black',.96],m056:['ghost','ivory','steel',.76],
+  m059:['elder','skin','ivory',.85],
+};
+
+const fittedHelms={
+  m004:{material:'jade',trim:'brass',crest:.38,flare:1.24,span:.94},
+  m020:{material:'cobalt',trim:'steel',crest:.52,flare:1.41,span:1.05},
+  m031:{material:'black',trim:'brass',crest:.26,flare:.97,span:.91},
+  m033:{material:'black',trim:'red',crest:.44,flare:1.24,span:.94},
+  m036:{material:'cobalt',trim:'steel',crest:.65,flare:1.51,span:.97},
+  m041:{material:'jade',trim:'brass',crest:.48,flare:1.15,span:1.07},
+  m051:{material:'ochre',trim:'brass',crest:.76,flare:.93,span:1.03},
+};
+const courtMasks={
+  m012:{face:'cobalt',trim:'steel',opening:.51,jaw:false},
+  m033:{face:'red',trim:'ivory',opening:.87,jaw:false},
+  m041:{face:'jade',trim:'brass',opening:.71,jaw:false},
+  m043:{face:'black',trim:'brass',opening:1.01},m044:{face:'cobalt',trim:'brass',opening:.86},
+  m045:{face:'jade',trim:'brass',opening:1.12},m046:{face:'black',trim:'clay',opening:.65},
+  m047:{face:'clay',trim:'brass',opening:1.26},m048:{face:'cobalt',trim:'steel',opening:.81},
+  m049:{face:'jade',trim:'brass',opening:1.08},m050:{face:'clay',trim:'brass',opening:1.37},
+};
+
+function layeredBack(k,rig,torso,neck,finish,kind){
+  if(!kind)return;
+  const {body,cloak,limbs}=rig,z=torso[3];
+  const n=kind==='gorge'?5:kind==='lacquer'?4:3;
+  for(const side of flanks){
+    const f=x=>side*x,span=torso[2]*.92;
+    const arc=k.bone(body,0,neck*.62,-z*.52);
+    arc.name=side<0?'Left scapular armour':'Right scapular armour';
+    for(let row=0;row<n;row++){
+      const y=.157-row*.126,run=span*(.89-.09*Math.cos(row*1.12));
+      const profile=kind==='gorge'?1.16:kind==='lacquer'?.84:.91;
+      const a=[[f(.029),y+.061,-z*.59],[f(run*.60),y+.084,-z*.67],
+        [f(run*1.18),y+.019,-z*.28],[f(run*1.16),y-.068,-z*.19],
+        [f(run*.67),y-.098*profile,-z*.68],[f(.056),y-.085*profile,-z*.81]];
+      plate(k,arc,row%2?finish:'black',a,.048,.014);
+      sweep(k,arc,kind==='lacquer'?'rivet':finish,[[f(.06),y-.078,-z*.89,.011],
+        [f(run*.57),y-.078,-z*.79,.018],[f(run*1.15),y-.069,-z*.27,.010]],9,6);
+      k.mesh(arc,'gem','rivet',f(run*.48),y+.037,-z*.72,.021,.023,.015);
+    }
+    const limb=limbs[side>0?1:0];
+    const shield=k.bone(limb.shoulder,0,0,0);shield.name='Side pauldron';
+    for(let i=0;i<(kind==='gorge'?3:2);i++){
+      const y=.163-i*.088,w=.254-i*.030;
+      plate(k,shield,i%2?finish:'ironRim',[[f(.084),y+.068,-.193],[f(w*.98),y+.085,-.125],
+        [f(w*1.26),y+.002,.028],[f(w),y-.104,.163],[f(.103),y-.057,.177],[f(.104),y-.021,-.096]],.057,.013);
+      sweep(k,shield,finish,[[f(.088),y+.071,-.206,.016],[f(w*.93),y+.08,-.161,.021],
+        [f(w*1.25),y+.028,-.029,.024],[f(w*1.10),y-.064,.12,.014]],11,6);
+    }
+  }
+  const brooch=k.bone(cloak,0,.038,-.14);
+  brooch.name='Mantle clasp';
+  rim(k,brooch,finish,.072,.019,-.012);
+  k.mesh(brooch,'gem','ironRim',0,0,-.036,.041,.049,.02);
+}
+
+function humanoid(k,entry,descriptor){
   const {torso,waist,neck,skin='skin',shell='body',skirt='deep',facing=.14,boot='black',width=.34,mask='ivory',
     height=1.17,edge='brass',dress=0,robe=0,teeth=false,hair='black',rear='deep',collar=0,
     cut=teeth?'skin':shell==='black'||shell==='cobalt'?'armour':robe>.9?'ritual':'rustic'}=descriptor;
   const body=k.bone(k.root,0,height,0),head=k.bone(body,0,neck,facing);
+  head.name='Head and helmet';
   volume(k,body,shell,[
     [0,-.44,-.048,waist*.86,waist*.67],[0,-.23,-.025,waist,.24],[0,.023,.012,torso[0],torso[3]*.92],
     [0,neck*.31,-.012,torso[1],torso[3]],[0,neck*.72,-.056,torso[2],torso[3]*.78],
     [0,neck*.91,-.048,torso[0]*.53,torso[3]*.65],
   ],23,2.32,.19);
-  volume(k,head,skin,[[0,-.159,.039,width*.27,.069],[0,-.060,.018,width*.465,.127],
-    [0,.017,.004,width*.553,.142],[0,.101,-.016,width*.505,.139],[0,.189,-.045,width*.427,.123],
-    [0,.234,-.064,width*.329,.085]],21,2.45,.14);
+  const [style,finish,brow,fit]=faceProfiles[entry.id];
+  const {jaw}=carvedFace(k,head,{style,finish,brow,width:width*fit,dark:'lining',fang:mask});
   volume(k,head,hair,[[0,-.102,-.102,width*.43,.096],[0,.056,-.137,width*.58,.103],
     [0,.186,-.094,width*.53,.135],[0,.282,-.065,width*.40,.112]],16,2.25,.27,true);
-  const jaw=k.bone(head,0,-.12,.088);
-  volume(k,jaw,skin,[[0,-.039,.023,width*.30,.039],[0,.012,.040,width*.36,.051],[0,.049,.023,width*.42,.053]],12,2.84);
-  volume(k,head,skin,[[0,-.031,.137,width*.12,.017],[0,-.006,.160,width*.12,.031],
-    [0,.025,.157,width*.073,.024],[0,.073,.139,width*.059,.015],[0,.109,.116,width*.053,.009]],12,2.15,.06);
-  if(teeth)for(let i=-3;i<=3;i++)sweep(k,jaw,mask,[[i*.028,.022,.080,.010],[i*.028,.056,.087,.010],
-    [i*.031,.075+.015*(Math.abs(i)/3),.074,.001]],6,5);
+  if(fittedHelms[entry.id])openHelm(k,head,fittedHelms[entry.id]);
+  if(courtMasks[entry.id])demonicMempo(k,head,courtMasks[entry.id]);
   const limbs=[],skirts=[];
   const cloak=k.bone(body,0,neck*.69,-torso[3]*.8);
   if(robe){
@@ -274,16 +347,10 @@ function humanoid(k,descriptor){
       sweep(k,shoulder,'ironRim',[[f(.02),.105,-.132,.023],[f(.161),.102,-.153,.025],
         [f(.246),.017,-.069,.021],[f(.244),-.079,.056,.009]],10,7);
     }
-    sweep(k,head,skin,[[f(width*.45),.069,.053,.042],[f(width*.52),.043,.025,.043],
-      [f(width*.48),-.028,.019,.025],[f(width*.38),-.054,.049,.007]],10,7);
-    sweep(k,head,skin,[[f(.052),.011,.149,.027],[f(.113),.001,.13,.032],
-      [f(.157),-.025,.074,.022],[f(.151),-.065,.038,.004]],9,6);
+    if(!fittedHelms[entry.id])sweep(k,head,finish,[[f(width*.40),.073,.012,.030],
+      [f(width*.46*fit),.038,.004,.035],[f(width*.435*fit),-.021,.012,.021],[f(width*.37),-.048,.036,.006]],9,7);
     if(!teeth)for(let i=0;i<3;i++)vane(k,head,hair,[f(.046+i*.039),.253,-.052],
       [f(.071+i*.05),.184,-.158],[f(.074+i*.053),.019-i*.037,-.222],.039,13+i);
-    sweep(k,head,hair,[[f(.073),.103,.161,.018],[f(.104),.123,.154,.023],
-      [f(.158),.125,.083,.016],[f(.165),.098,.049,.005]],11,6);
-    k.mesh(head,'gem','deep',f(.091),.051,.144,.050,.038,.028,0,f(.31),-f(.22));
-    k.mesh(head,'gem','glow',f(.092),.051,.170,.032,.013,.018,0,f(.31),-f(.22));
     for(let i=0;i<3;i++){
       const arch=collar+i*.022;
       if(collar)sweep(k,body,edge,[[f(.081),neck*.74+i*.020,.186,.021],
@@ -293,7 +360,11 @@ function humanoid(k,descriptor){
     limbs.push({shoulder,elbow,wrist,leg,knee,side});
   }
   garmentFasteners(k,body,neck,torso,waist,edge,cut);
-  return {body,head,jaw,limbs,skirts,cloak};
+  const rig={body,head,jaw,limbs,skirts,cloak};
+  const fitted=entry.id>='m043'&&entry.id<='m050'?'gorge':fittedHelms[entry.id]?'lacquer':
+    ['m018','m035','m037','m038','m039','m042'].includes(entry.id)?'mantle':null;
+  layeredBack(k,rig,torso,neck,edge,fitted);
+  return rig;
 }
 
 function poseHumanoid(rig,{beat,step,wind,strike,travel},motion={}){
@@ -371,7 +442,7 @@ function hiddenHalo(k,body,y,z,r,finish,points,tilt=0){
 }
 
 function ironOni(k,entry){
-  const rig=humanoid(k,{torso:[.46,.61,.59,.32],waist:.43,neck:.71,skin:'teal',shell:'teal',
+  const rig=humanoid(k,entry,{torso:[.46,.61,.59,.32],waist:.43,neck:.71,skin:'teal',shell:'teal',
     skirt:'teal',height:1.04,width:.48,edge:'ochre',hair:'ochre',teeth:true});
   const {body,head}=rig;
   sweep(k,head,'ivory',[[0,.176,.136,.09],[-.005,.265,.140,.075],[-.033,.399,.104,.043],
@@ -410,7 +481,7 @@ function ironOni(k,entry){
 }
 
 function bandit(k,entry){
-  const rig=humanoid(k,{torso:[.28,.315,.39,.21],waist:.27,neck:.89,
+  const rig=humanoid(k,entry,{torso:[.28,.315,.39,.21],waist:.27,neck:.89,
     shell:'jade',skirt:'dusk',rear:'ochre',height:1.12,hair:'black',edge:'red',robe:.46,dress:.58});
   const {body,head}=rig;
   const hat=k.bone(head,0,.234,-.038);
@@ -455,7 +526,7 @@ function auspiciousPoleB(k,j,tip){
 }
 
 function woodSpirit(k,entry){
-  const rig=humanoid(k,{torso:[.27,.327,.31,.16],waist:.28,neck:.92,shell:'jade',
+  const rig=humanoid(k,entry,{torso:[.27,.327,.31,.16],waist:.28,neck:.92,shell:'jade',
     skirt:'dusk',rear:'teal',robe:1.36,dress:.96,hair:'black',collar:.28});
   const {body,head}=rig;
   for(const side of flanks){
@@ -495,7 +566,7 @@ const constellations={
 };
 function constellation(k,entry){
   const a=constellations[entry.id];
-  const rig=humanoid(k,{...a,waist:a.torso[0],neck:.88,collar:.26,robe:a.dress*.81,hair:a.head==='white'?'ivory':'black'});
+  const rig=humanoid(k,entry,{...a,waist:a.torso[0],neck:.88,collar:.26,robe:a.dress*.81,hair:a.head==='white'?'ivory':'black'});
   const {body,head}=rig,crown=k.bone(head,0,.18,-.04);
   const hand=k.bone(rig.limbs[1].wrist,.021,-.033,.047);
   let aura=null;
@@ -561,7 +632,7 @@ function spiralFans(k,j){
 }
 
 function firstEmperor(k,entry){
-  const rig=humanoid(k,{torso:[.31,.36,.43,.24],waist:.29,neck:.91,skin:'ochre',shell:'black',
+  const rig=humanoid(k,entry,{torso:[.31,.36,.43,.24],waist:.29,neck:.91,skin:'ochre',shell:'black',
     skirt:'red',rear:'black',dress:1.15,robe:1.27,edge:'brass',collar:.33});
   const {body,head}=rig;
   const crown=k.bone(head,0,.227,-.042),staff=k.bone(rig.limbs[1].wrist,.035,-.058,.041);
@@ -587,7 +658,7 @@ function firstEmperor(k,entry){
 }
 
 function qinRider(k,entry,mobile){
-  const general=entry.id==='m020',tiger=entry.id==='m029',rig=humanoid(k,{torso:general?[.29,.38,.41,.22]:[.25,.31,.35,.19],
+  const general=entry.id==='m020',tiger=entry.id==='m029',rig=humanoid(k,entry,{torso:general?[.29,.38,.41,.22]:[.25,.31,.35,.19],
     waist:.27,neck:.82,shell:tiger?'steel':general?'cobalt':'jade',skirt:'dusk',rear:tiger?'ochre':general?'cobalt':'jade',
     robe:general?.86:.78,edge:tiger?'brass':'steel',collar:.18,height:1.23});
   const {body,head}=rig;
@@ -686,7 +757,7 @@ function qinRider(k,entry,mobile){
 }
 
 function ghostHydra(k,entry){
-  const rig=humanoid(k,{torso:[.235,.28,.31,.18],waist:.24,neck:.76,shell:'cobalt',
+  const rig=humanoid(k,entry,{torso:[.235,.28,.31,.18],waist:.24,neck:.76,shell:'cobalt',
     skin:'ivory',skirt:'dusk',rear:'steel',dress:.85,robe:.79,height:.82,edge:'steel'});
   const {body,head}=rig;
   const cloud=k.bone(body,0,-.22,.01);
@@ -734,7 +805,7 @@ function ghostHydra(k,entry){
 }
 
 function iceGeneral(k,entry){
-  const rig=humanoid(k,{torso:[.34,.41,.43,.25],waist:.31,neck:.91,skin:'ochre',shell:'cobalt',
+  const rig=humanoid(k,entry,{torso:[.34,.41,.43,.25],waist:.31,neck:.91,skin:'ochre',shell:'cobalt',
     skirt:'dusk',rear:'ochre',dress:1.03,robe:1.31,edge:'brass',collar:.24});
   const {body,head}=rig,weapon=k.bone(rig.limbs[1].wrist,0,-.059,.081);
   solidBlade(k,weapon,1.41,.146,'lance','steel','black');
@@ -945,7 +1016,7 @@ function regionalDragon(k,entry,mobile){
 }
 
 function butcher(k,entry){
-  const rig=humanoid(k,{torso:[.38,.558,.61,.292],waist:.385,neck:.69,skin:'ochre',shell:'ochre',
+  const rig=humanoid(k,entry,{torso:[.38,.558,.61,.292],waist:.385,neck:.69,skin:'ochre',shell:'ochre',
     skirt:'black',dress:.31,height:1.06,boot:'black',width:.457,edge:'brass',hair:'red',teeth:true});
   const {body,head}=rig;
   const knife=k.bone(rig.limbs[1].wrist,.041,-.04,.046);
@@ -980,7 +1051,7 @@ function rimStroke(k,mark){
 function vixen(k,entry,mobile){
   const white=entry.id==='m034',colors=white?['ivory','lilac','brass']:['jade','teal','brass'];
   const [skirt,rear,edge]=colors;
-  const rig=humanoid(k,{torso:[.21,.27,.30,.19],waist:.25,neck:.84,shell:white?'lilac':'jade',
+  const rig=humanoid(k,entry,{torso:[.21,.27,.30,.19],waist:.25,neck:.84,shell:white?'lilac':'jade',
     skin:'ivory',skirt,rear,edge,robe:white?1.22:.73,dress:white?1.38:1.03,hair:white?'ivory':'black',collar:.27});
   const {body,head}=rig,tails=[];
   for(let i=0;i<(white?9:6);i++){
@@ -1183,7 +1254,7 @@ function arcBow(k,j){
 function courtFigure(k,entry,mobile){
   const info=realmFigures[entry.id],[shell,skirt,rear,edge]=info.colors;
   const white=['hornMask','tornCrown','elder'].includes(info.hair);
-  const rig=humanoid(k,{torso:info.torso,waist:info.torso[0]+.01,neck:.87,shell,skirt,rear,edge,
+  const rig=humanoid(k,entry,{torso:info.torso,waist:info.torso[0]+.01,neck:.87,shell,skirt,rear,edge,
     robe:info.length*.92,dress:info.length,hair:white?'ivory':'black',collar:.29});
   const {body,head}=rig;
   const crown=k.bone(head,0,.17,-.059),effects=[],off=k.bone(rig.limbs[0].wrist,-.032,-.044,.079),
@@ -1343,7 +1414,7 @@ function courtFigure(k,entry,mobile){
 
 function windCavalry(k,entry){
   const body=k.bone(k.root,0,1.03,-.032),mount=k.bone(body,0,-.41,.04);
-  const rig=humanoid(k,{torso:[.26,.34,.37,.214],waist:.25,neck:.79,shell:'ochre',
+  const rig=humanoid(k,entry,{torso:[.26,.34,.37,.214],waist:.25,neck:.79,shell:'ochre',
     skirt:'red',rear:'black',height:1.21,robe:.69,collar:.33});
   rig.body.position.set(.14,.071,-.228);body.add(rig.body);
   volume(k,mount,'brass',[[0,-.071,-.61,.184,.171],[0,-.039,-.355,.31,.236],[0,.022,.059,.375,.255],
@@ -1390,7 +1461,7 @@ const rancourRelics={
 };
 function rancour(k,entry){
   const a=rancourRelics[entry.id];
-  const rig=humanoid(k,{torso:[.30,.38,.43,.24],waist:.34,neck:.93,skin:'ochre',shell:'black',
+  const rig=humanoid(k,entry,{torso:[.30,.38,.43,.24],waist:.34,neck:.93,skin:'ochre',shell:'black',
     skirt:'black',rear:a.metal,robe:1.22,dress:1.15,edge:'brass',hair:'ivory',collar:.38});
   const {body,head}=rig;
   const weapon=k.bone(rig.limbs[1].wrist,.04,-.03,.07);
@@ -1451,7 +1522,7 @@ const titans={
 
 function altarTitan(k,entry,mobile){
   const a=titans[entry.id],levitates=a.size>1;
-  const rig=humanoid(k,{torso:[.45,.62,.65,.33],waist:.441,neck:.61,shell:a.armour,skin:'ochre',skirt:'black',
+  const rig=humanoid(k,entry,{torso:[.45,.62,.65,.33],waist:.441,neck:.61,shell:a.armour,skin:'ochre',skirt:'black',
     rear:a.armour,edge:'brass',height:1.03,robe:.59,dress:levitates?.53:.38,hair:'black',width:.47,collar:.23});
   const {body,head}=rig;
   body.scale.x=a.size;
@@ -1459,12 +1530,14 @@ function altarTitan(k,entry,mobile){
   for(const {side,shoulder,elbow,wrist} of rig.limbs){
     const f=x=>side*x;
     shoulder.scale.set(1.32,1.15,1.22);
-    const visor=k.bone(head,f(.121),.104,.145);
-    visor.rotation.y=f(.29);
-    plate(k,visor,a.mask,[[-.08,-.397,-.09],[.17,-.137,-.017],[.182,-.005,-.04],
-      [.283,.128,-.18],[.194,.257,-.222],[.08,.131,-.09],[.022,.097,.036],[-.066,.04,.02]],.063,.016);
-    sweep(k,visor,'brass',[[f(.018),-.229,-.032,.019],[f(.122),-.07,.014,.033],
-      [f(.169),.076,-.093,.032],[f(.163),.188,-.16,.004]],12,7);
+    const helm=k.bone(head,0,.039,0);
+    plate(k,helm,a.mask,[[f(.126),.073,.096],[f(.195),.171,-.014],[f(.23),.119,-.119],
+      [f(.204),-.07,-.158],[f(.186),-.176,-.075],[f(.149),-.167,.013],[f(.132),-.041,.082]],.045,.015);
+    for(let i=0;i<2;i++){
+      const g=k.bone(helm,0,i*.066-.14,-.102);
+      plate(k,g,i%2?a.mask:'black',[[f(.03),.011,-.13],[f(.143),.03,-.126],[f(.211),.036,-.073],
+        [f(.212),-.04,-.046],[f(.135),-.065,-.137],[f(.03),-.069,-.148]],.040,.011);
+    }
     const crest=k.bone(head,0,.189,-.020);
     const sections=[[f(.074),-.081,.162,.053],[f(.131),.098,.063,.079],[f(.114),.235,-.076,.064],
       [f(.066),.427,-.221,.038],[f(.02),.521,-.233,.004]];

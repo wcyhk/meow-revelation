@@ -170,11 +170,10 @@ function backRig(k,body,spec,mobile){
   }
 }
 
-export function championRelief(k,body,head,shoulders,fabric,id,mobile){
+export function championRelief(k,body,shoulders,fabric,id,mobile){
   const spec=designsC[id];
-  faceRelief(k,head,spec);
   heraldry(k,body,spec);
-  backRig(k,body,spec,mobile);
+  if(id==='m139')backRig(k,body,spec,mobile);
   for(const side of sides){
     for(let i=0;i<spec.fasteners;i++){
       const t=i/(spec.fasteners-1),x=side*spec.girth*(.82-t*.33);

@@ -44,39 +44,213 @@ function dress(k,station,s,panelCount){
   return panels;
 }
 
-function brow(k,j,s){
-  const mask=['oni','helm','goat','skull','ghost'].includes(s);
-  const cap=s==='sage';
-  mass(k,j,mask?'bMetal':'bFlesh',[[0,-.274,.026,.10,.105],[0,-.17,.024,.165,.148],[0,-.022,.013,.200,.19],
-    [0,.139,-.038,.177,.173],[0,.241,-.075,.124,.128],[0,.294,-.096,.066,.084]],17,15,2.45,.095);
-  mass(k,j,'bHair',[[0,-.168,-.139,.103,.061],[0,-.02,-.139,.188,.163],[0,.141,-.107,.203,.181],[0,.25,-.073,.141,.125],
-    [0,.298,-.038,.075,.084]],17,14,2.45,.18);
-  for(const side of signs){
-    const fan=path=>reflect(side,path);
-    const y=s==='skull'?.014:.025;
-    const socket=fan([[.028,y+.027,.192],[.134,y+.066,.178],[.159,y+.024,.177],[.124,y-.023,.19],[.049,y-.018,.203]]);
-    relief(k,j,'bShadow',socket,.021);
-    stone(k,j,mask?'glow':'bBone',side*.089,y,.218,.043,.018,.016,side*.23);
-    line(k,j,mask?'bInlay':'bHair',fan([[.035,y+.035,.214],[.087,y+.058,.210],[.150,y+.08,.177]]),.020);
-    if(mask){
-      relief(k,j,'bBone',fan([[.034,.137,.161],[.149,.151,.129],[.193,.052,.102],[.162,-.066,.149],
-        [.104,-.167,.201],[.052,-.108,.212],[.058,-.02,.234]]),.042);
-      line(k,j,'bInlay',fan([[.188,.062,.143],[.136,-.075,.204],[.07,-.184,.204]]),.016);
+// facial width, chin width, brow height, nasal projection, cheek height,
+// mouth width and brow falloff are measured in the local head coordinates.
+const headForms={
+  m060:[.169,.084,.072,.051,.037,.071,.21,'blind-wrap'],
+  m061:[.170,.073,.061,.075,.061,.067,.16,'worn'],
+  m062:[.153,.079,.051,.045,.056,.063,.09,'narrow'],
+  m063:[.180,.089,.064,.084,.053,.093,.34,'fang'],
+  m064:[.173,.091,.075,.055,.072,.070,.23,'ice-visor'],
+  m065:[.174,.061,.073,.032,.078,.065,.32,'jade'],
+  m066:[.193,.111,.066,.079,.057,.089,.29,'fang'],
+  m067:[.177,.100,.068,.073,.060,.072,.24,'court'],
+  m068:[.186,.118,.067,.071,.054,.091,.31,'royal-mask'],
+  m069:[.161,.092,.060,.061,.065,.075,.12,'worn'],
+  m070:[.187,.124,.054,.063,.055,.097,.19,'war-mark'],
+  m071:[.169,.073,.064,.038,.070,.066,.16,'narrow'],
+  m072:[.155,.062,.058,.042,.050,.071,.08,'soft'],
+  m073:[.172,.095,.063,.065,.062,.074,.29,'court'],
+  m074:[.152,.065,.057,.048,.065,.067,.12,'soft'],
+  m075:[.163,.076,.069,.086,.065,.087,.31,'scarlet'],
+  m076:[.177,.098,.064,.071,.059,.079,.31,'lacquer'],
+  m077:[.157,.066,.059,.043,.069,.064,.06,'soft'],
+  m078:[.188,.103,.061,.092,.068,.084,.22,'worn'],
+  m079:[.161,.052,.076,.025,.076,.061,.34,'jade'],
+  m080:[.196,.108,.050,.034,.064,.091,.32,'relic'],
+  m081:[.166,.088,.066,.067,.056,.085,.29,'lacquer'],
+  m082:[.185,.094,.064,.035,.051,.083,.33,'blind-visor'],
+  m083:[.153,.097,.081,.046,.037,.069,.23,'split-visor'],
+  m084:[.161,.082,.068,.054,.062,.070,.20,'split-visor'],
+  m089:[.170,.101,.071,.068,.069,.084,.25,'fang'],
+  m090:[.177,.099,.068,.055,.059,.087,.30,'ice-visor'],
+  m091:[.174,.093,.072,.063,.060,.082,.24,'jade'],
+  m092:[.189,.103,.079,.059,.064,.080,.24,'royal-mask'],
+  m093:[.174,.090,.057,.039,.071,.074,.25,'relic'],
+  m094:[.185,.102,.073,.060,.051,.085,.36,'scarlet'],
+  m099:[.201,.123,.070,.094,.083,.097,.32,'fang'],
+  m100:[.158,.070,.054,.022,.060,.079,.31,'relic'],
+  m102:[.210,.132,.055,.096,.062,.099,.34,'fang'],
+  m104:[.220,.156,.052,.048,.058,.115,.08,'monolith'],
+  m105:[.157,.066,.066,.065,.053,.071,.19,'court'],
+  m110:[.202,.117,.060,.113,.087,.097,.28,'muzzle'],
+  m112:[.170,.100,.077,.066,.054,.083,.24,'royal-mask'],
+};
+const livingFaces=new Set(['worn','narrow','court','war-mark','soft']);
+const gaussian=(value,radius)=>Math.exp(-((value/radius)**2));
+const faceLevels=[
+  [-.264,.47,.102,-.004],[-.210,.72,.125,-.006],[-.158,.84,.143,-.012],
+  [-.095,.94,.168,-.017],[-.020,1,.187,-.021],[.058,.99,.184,-.022],
+  [.128,.94,.178,-.024],[.211,.89,.158,-.040],[.272,.75,.137,-.059],[.305,.47,.104,-.060],
+];
+
+function headSurface(p,mobile){
+  const [width,chin,eyeY,nose,cheek,mouth,browDrop,kind]=p;
+  const levels=new T.CatmullRomCurve3(faceLevels.map(([y,w,d])=>new T.Vector3(y,w,d)));
+  const taper=new T.CatmullRomCurve3(faceLevels.map(([y,, ,z])=>new T.Vector3(y,z,0)));
+  const rows=mobile?18:25, spokes=mobile?23:31, pos=[],uv=[],idx=[];
+  for(let row=0;row<=rows;row++){
+    const {x:y,y:w,z:depth}=levels.getPoint(row/rows);
+    const {y:back}=taper.getPoint(row/rows);
+    for(let j=0;j<=spokes;j++){
+      const a=j*TAU/spokes,front=Math.cos(a),f=front>0?front**1.06:0;
+      const jaw=gaussian(y+.22,.11),wide=T.MathUtils.lerp(width*w,chin*(.84+w*.14),jaw);
+      const x=Math.sin(a)*wide,lateral=Math.abs(x),eye=width*.52;
+      const bridge=gaussian(x,width*.20)*gaussian(y+.000,.101)*nose;
+      const noseTip=gaussian(x,width*.28)*gaussian(y+.060,.041)*nose*.42;
+      const eyeHeight=eyeY+(lateral-eye)*browDrop;
+      const socket=gaussian(lateral-eye,width*.32)*gaussian(y-eyeHeight,.037)*.040;
+      const arch=gaussian(lateral-eye,width*.42)*gaussian(y-eyeHeight-.065,.047)*.042;
+      const cheekbone=gaussian(lateral-width*.71,width*.32)*gaussian(y+.068-cheek*.43,.045)*.039;
+      const maxilla=gaussian(x,mouth*1.52)*gaussian(y+.119,.075)*.029;
+      const mouthCrease=gaussian(x,mouth)*gaussian(y+.149,.019)*.024;
+      const mentum=gaussian(x,chin*.82)*gaussian(y+.235,.034)*.044;
+      const fracture=kind==='monolith'?Math.sin(a*8.5+y*18.4)*Math.cos(y*23.3+a*5.7)*.008:0;
+      pos.push(x,y,back+depth*front+(bridge+noseTip-socket+arch+cheekbone+maxilla-mouthCrease+mentum)*f+fracture);
+      uv.push(j/spokes,row/rows);
+      if(row<rows&&j<spokes){const i=row*(spokes+1)+j;idx.push(i,i+1,i+spokes+1,i+1,i+spokes+2,i+spokes+1);}
     }
   }
-  mass(k,j,mask?'bBone':'bFlesh',[[0,-.124,.198,.042,.028],[0,-.093,.236,.057,.045],[0,.025,.189,.040,.023],[0,.107,.169,.032,.019]],12,9,2.32,.07);
-  const lip=k.bone(j,0,-.176,.091);
-  mass(k,lip,mask?'bMetal':'bFlesh',[[0,-.067,.041,.105,.087],[0,-.025,.071,.134,.098],[0,.023,.039,.111,.061]],10,11,2.27,.06);
-  line(k,lip,mask?'bShadow':'bOxide',[[-.071,.025,.164],[0,.032,.186],[.072,.019,.167]],.012);
-  for(const side of signs)if(mask)for(let i=0;i<4;i++){
-    const x=side*(i+.47)*.022;
-    mass(k,lip,'bBone',[[x,.015,.174,.014,.014],[x,.057,.192,.014,.011],[x,.07+i*.004,.181,.005,.006]],5,6,2,.08);
+  const cap=pos.length/3;
+  pos.push(0,faceLevels[0][0]-.011,-.01,0,.315,-.067);uv.push(.5,0,.5,1);
+  for(let s=0;s<spokes;s++)idx.push(cap,s+1,s,cap+1,rows*(spokes+1)+s,rows*(spokes+1)+s+1);
+  const g=new T.BufferGeometry().setIndex(idx);
+  g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+  g.computeVertexNormals();
+  const n=g.attributes.normal,edge=new T.Vector3(),far=new T.Vector3();
+  for(let row=0;row<=rows;row++){
+    const a=row*(spokes+1),b=a+spokes;
+    edge.fromBufferAttribute(n,a).add(far.fromBufferAttribute(n,b)).normalize();
+    n.setXYZ(a,edge.x,edge.y,edge.z); n.setXYZ(b,edge.x,edge.y,edge.z);
   }
-  if(cap){
-    mass(k,j,'bCloth',[[0,.20,-.027,.190,.157],[0,.278,-.02,.197,.147],[0,.331,-.057,.146,.141],[0,.365,-.077,.105,.132]],12,12,2.88,.09);
-    line(k,j,'bTrim',[[-.159,.286,.108],[0,.307,.160],[.157,.289,.11]],.022);
+  return g;
+}
+
+function brow(k,j,id,mobile){
+  const p=headForms[id];
+  const [w,chin,eyeY,nose,cheek,mouth,slope,design]=p;
+  const living=livingFaces.has(design);
+  const visor=design.includes('visor')||design==='blind-wrap';
+  const skull=design==='relic', fang=['fang','scarlet','muzzle'].includes(design), imperial=design==='royal-mask';
+  const render=skull?'bBone':living?'bFlesh':design==='monolith'?'bMetal':'bOxide';
+  k.geometry(j,render,headSurface(p,mobile));
+  const jaw=k.bone(j,0,-.173,.073);
+  mass(k,jaw,render,[[0,-.081,.011,chin*.57,.052],[0,-.055,.047,chin*.78,.067],
+    [0,-.017,.063,chin,.062],[0,.033,.048,chin*.91,.055]],mobile?8:11,10,2.19,.075);
+  for(const side of signs){
+    const f=points=>reflect(side,points);
+    const eye=w*.51,inner=eye-w*.30,outer=eye+w*.34;
+    const y=eyeY-.016,z=.139;
+    const upper=f([[inner,y-.004,z+.069,.008],[eye*.80,y+.022,z+.071,.018],[eye*1.13,y+.033,z+.063,.022],
+      [outer,y+slope*.072,z+.037,.012]]);
+    const bottom=f([[inner,y-.004,z+.069,.004],[eye*.77,y-.018,z+.071,.008],[eye*1.16,y-.013,z+.061,.010],
+      [outer,y+slope*.072,z+.031,.004]]);
+    relief(k,j,'bShadow',[...upper.map(a=>a.slice(0,3)),...bottom.slice(1,-1).reverse().map(a=>a.slice(0,3))],.013);
+    line(k,j,living?'bHair':skull?'bOxide':'bMetal',upper);line(k,j,living?'bFlesh':render,bottom);
+    if(design!=='blind-wrap'){
+      k.mesh(j,'round',living?'bBone':'glow',eye*side,y+.004,z+.083,w*.189,.014,.020,.04,side*.30,side*slope*.6);
+      k.mesh(j,'round',living?'bShadow':'bInlay',(eye+.007)*side,y+.004,z+.101,w*.060,.015,.007);
+    }
+    const browShape=f([[w*.10,y+.049,.204,.015],[eye*.84,y+.060,.195,.020],[eye*1.39,y+.074,.171,.021],
+      [w*.91,y+.078,.122,.006]]);
+    if(!living)mass(k,j,skull?'bBone':'bMetal',browShape,mobile?7:11,7,2.08,.11);
+    if(living){
+      line(k,j,'bHair',browShape.map(([x,a,b,r])=>[x,a+.015,b+.018,r*.37]));
+      if(design==='worn'||design==='court')for(let row=0;row<(mobile?1:2);row++){
+        line(k,j,'bOxide',f([[eye*.71,y+.108+row*.024,.201,.003],[eye*1.21,y+.118+row*.029,.184,.006],
+          [w*.88,y+.119+row*.028,.126,.003]]));
+      }
+      mass(k,j,'bFlesh',f([[w*.89,-.098,-.041,.020,.027],[w*1.05,-.045,-.07,.028,.038],
+        [w*1.09,.027,-.085,.031,.037],[w*.92,.079,-.078,.014,.025]]),8,8,2.12,.08);
+      line(k,j,'bOxide',f([[w*.984,-.061,-.049,.008],[w*1.10,-.017,-.058,.008],[w*1.06,.040,-.067,.004]]));
+    }else {
+      const cheekOuter=w*(fang?1.14:1.02);
+      const cheekPlate=f([[w*.77,y+.048,.123],[cheekOuter,y+.057,.009],[cheekOuter,y-.110,.023],
+        [w*.84,-.188,.103],[w*.46,-.207,.187],[w*.36,-.144,.226],[w*.66,-.063+cheek*.32,.197]]);
+      relief(k,j,skull?'bBone':visor?'bMetal':'bTrim',cheekPlate,.032);
+      line(k,j,skull?'bOxide':'bInlay',cheekPlate.slice(1,6).map(([x,y,z])=>[x,y,z+.033]),.012);
+      for(let rivet=0;rivet<(mobile?1:3);rivet++){
+        const pinY=y-.012-rivet*.055,x=side*(cheekOuter*.89-rivet*.012);
+        stone(k,j,visor?'bTrim':'bMetal',x,pinY,.086+rivet*.021,.014,.015,.013);
+      }
+    }
+    const wing=.022+nose*.17,zin=.169+nose*.91;
+    mass(k,j,render,f([[w*.12,-.056,zin,.012],[wing,-.079,zin+.007,.017],[wing+.002,-.092,zin-.002,.015],
+      [w*.24,-.095,zin-.028,.008]]),8,8,2.27,.11);
+    line(k,j,'bShadow',f([[w*.056,-.099,zin+.006,.005],[wing,-.092,zin+.008,.006],[wing+.009,-.099,zin-.012,.003]]));
+    if(fang)mass(k,jaw,'bBone',f([[mouth*.94,-.01,.104,.030],[mouth*1.17,.030,.143,.023],[mouth*1.11,.101,.16,.005]]),
+      9,7,2.15,.15);
+    if(skull)for(let t=0;t<(mobile?3:5);t++){
+      const x=mouth*(.12+t*.175),r=.012-t*.0008;
+      mass(k,jaw,'bBone',f([[x,.015,.096,r,.012],[x,.032,.110,r,.012],[x,.047,.105,.008,.008]]),4,6,2.08,.068);
+    }
   }
-  return lip;
+  const lipZ=.096+nose*.17,lipWidth=mouth*(design==='soft'?1.10:1);
+  line(k,jaw,'bShadow',[[-lipWidth,.031,lipZ],[0,.029,lipZ+.031],[lipWidth,.028,lipZ]],living?.008:.013);
+  if(living){
+    const upperLip=[[-lipWidth,.027,lipZ],[0,.038,lipZ+.026],[lipWidth,.028,lipZ]];
+    line(k,jaw,'bFlesh',upperLip,.008);
+    line(k,jaw,'bFlesh',[[-lipWidth*.81,.020,lipZ+.003],[0,.015,lipZ+.025],[lipWidth*.81,.018,lipZ+.003]],.010);
+    if(design==='court'||design==='worn')for(const side of signs)line(k,j,'bHair',
+      reflect(side,[[.005,-.129,.241,.013],[mouth*.60,-.129,.239,.021],[mouth*1.33,-.158,.197,.004]]));
+    if(design==='war-mark')for(const side of signs)line(k,j,'bInlay',
+      reflect(side,[[w*.88,.103,.151,.018],[w*.78,-.026,.198,.031],[w*.91,-.123,.167,.006]]));
+  }else{
+    const bridge=[[0,.164,.179,.027],[0,.082,.206,.041],[0,-.022,.199+nose,.037],[0,-.106,.164+nose,.006]];
+    mass(k,j,skull?'bBone':visor?'bMetal':'bTrim',bridge,11,8,2.8,.086);
+    if(!skull)line(k,jaw,'bInlay',[[-chin*.89,.013,.097],[0,-.042,.146],[chin*.88,.012,.097]],.018);
+  }
+  if(visor||imperial||design==='scarlet')helmetCage(k,j,p,mobile);
+  else{
+    const finish=design==='court'||design==='worn'?'bCloth':'bHair';
+    const crown=k.bone(j,0,.03,-.137);
+    mass(k,crown,finish,[[0,-.172,-.013,w*.72,.058],[0,-.066,-.035,w*.93,.098],
+      [0,.075,-.026,w*1.07,.122],[0,.17,.01,w*.96,.143],[0,.258,.073,w*.76,.122],
+      [0,.293,.101,w*.56,.107]],13,12,2.42,.12);
+    if(design==='court'||design==='worn')line(k,crown,'bTrim',
+      [[-w*.95,.027,-.066],[-w*.51,.044,-.128],[0,.041,-.156],[w*.58,.03,-.121],[w*.91,.033,-.075]],.013);
+  }
+  return jaw;
+}
+
+function helmetCage(k,j,[width,,eye,, , , ,kind],mobile){
+  const blind=kind==='blind-wrap'||kind==='blind-visor', split=kind==='split-visor', red=kind==='scarlet';
+  const w=width*(blind?1.16:1.04), finish=red?'bInlay':'bMetal';
+  for(const side of signs){
+    const f=points=>reflect(side,points);
+    const guard=f([[0,.231,.174],[w*.75,.238,.116],[w*1.21,.173,.036],[w*1.25,.025,.052],
+      [w*.97,-.153,.132],[w*.59,-.161,.193],[w*.54,eye+.049,.189],[0,eye+.085,.222]]);
+    relief(k,j,finish,guard,.052);
+    line(k,j,'bTrim',guard.slice(0,6).map(([x,y,z])=>[x,y,z+.035]),.014);
+    if(!mobile)for(let i=0;i<3;i++)stone(k,j,red?'bBone':'bInlay',
+      side*w*(.96-i*.10),.127-i*.072,.143+i*.014,.020,.023,.018);
+    if(split)line(k,j,'glow',f([[w*.44,.222,.194,.011],[w*.74,.169,.182,.010],[w*.71,.112,.204,.003]]));
+  }
+  if(blind){
+    relief(k,j,kind==='blind-wrap'?'bCloth':'bShadow',[[-w*1.01,eye+.033,.157],[-w*.54,eye+.052,.245],
+      [w*.45,eye+.049,.248],[w*1.03,eye+.026,.164],[w*.96,eye-.038,.174],[0,eye-.019,.254],
+      [-w*.93,eye-.039,.164]],.032);
+    line(k,j,'bInlay',[[-w*.98,eye+.015,.183],[-w*.51,eye+.009,.272],[w*.41,eye-.004,.276],[w*.95,eye+.005,.195]],.010);
+  }
+  const back=k.bone(j,0,.123,-.128);
+  for(let i=0;i<(mobile?2:3);i++){
+    const y=.091-i*.098,wid=w*(1.03+i*.098);
+    const band=[[-wid,y+.041,.042],[-wid*.59,y+.047,-.067],[0,y+.033,-.127],
+      [wid*.64,y+.042,-.064],[wid,y+.037,.046],[wid*.92,y-.059,.04],[0,y-.071,-.127],
+      [-wid*.90,y-.053,.035]];
+    relief(k,back,'bOxide',band,.027);
+    line(k,back,'bTrim',band.slice(0,5),.013);
+  }
 }
 
 function strands(k,head,s,mobile){
@@ -112,6 +286,15 @@ function crown(k,j,design){
       [[side*(.049+i*.032),.60,.236],[side*(.051+i*.032),.407-i*.007,.258]],.011);
     return;
   }
+  if(design==='cloth-pin'){
+    const brow=[[-.178,.160,.118],[-.111,.211,.162],[0,.22,.174],[.122,.215,.15],[.173,.174,.105],
+      [.139,.243,.07],[0,.280,.088],[-.133,.239,.08]];
+    relief(k,j,'bCloth',brow,.035);
+    line(k,j,'bTrim',brow.slice(0,5).map(([x,y,z])=>[x,y,z+.023]),.011);
+    mass(k,j,'bMetal',[[-.218,.202,-.116,.019],[-.076,.243,-.142,.024],[.113,.302,-.173,.026],
+      [.301,.391,-.222,.006]],10,8,2.42,.11);
+    return;
+  }
   if(design==='sun'){
     for(let i=0;i<9;i++){
       const a=(i*.193-.77),s=Math.sin(a),c=Math.cos(a);
@@ -119,13 +302,13 @@ function crown(k,j,design){
         [s*.38,.36+c*.27,-.087,.005]],11,8,2.68,.23);
     }
   }else for(const side of signs){
-    const f=path=>reflect(side,path),asym=design==='cloth-pin'?(side===1?.73:.24):1;
+    const f=path=>reflect(side,path);
     const high=design==='branches'?.63:design==='stag'?.52:design==='flame'?.62:.46;
     const spread=design==='stag'?.36:design==='branches'?.42:.26;
-    const tip=[spread*1.25,high*asym,-.17];
-    mass(k,j,'bMetal',f([[.082,.151,.106,.065],[spread*.63,high*.41*asym,.037,.084],[spread,high*.72*asym,-.064,.066],
+    const tip=[spread*1.25,high,-.17];
+    mass(k,j,'bMetal',f([[.082,.151,.106,.065],[spread*.63,high*.41,.037,.084],[spread,high*.72,-.064,.066],
       [...tip,.006]]),15,11,2.7,.24);
-    line(k,j,'bTrim',f([[.08,.176,.171],[spread*.67,high*.46*asym,.095],[spread*1.02,high*.78*asym,-.01],[tip[0],tip[1],tip[2]+.03]]),.016);
+    line(k,j,'bTrim',f([[.08,.176,.171],[spread*.67,high*.46,.095],[spread*1.02,high*.78,-.01],[tip[0],tip[1],tip[2]+.03]]),.016);
     if(design==='branches'||design==='flame'||design==='stag')for(let i=0;i<3;i++){
       const x=.124+i*.064,y=.21+i*.105;
       mass(k,j,i%2?'bBone':'bInlay',f([[x,y,-.029,.062],[x+.083,y+.082,-.109,.044],[x+.170,y+.20,-.18,.006]]),
@@ -135,7 +318,7 @@ function crown(k,j,design){
   stone(k,j,'bInlay',0,.260,.218,.065,.108,.054);
 }
 
-function armorLap(k,body,mode,height,width,mobile){
+function armorLap(k,body,mode,height,width,mobile,collar){
   const narrow=mode==='vest', rows=mobile?3:4;
   for(const side of signs){
     const fan=p=>reflect(side,p);
@@ -158,6 +341,22 @@ function armorLap(k,body,mode,height,width,mobile){
       [width*.40,height-.198,-.367,.026],[width*.206,height-.36,-.302,.015]]);
     line(k,body,'bWood',strap);
     line(k,body,'bTrim',strap.map(([x,y,z,r])=>[x+side*.028,y,z-.008,r*.37]));
+    if(collar){
+      const y=height+.228,w=width;
+      const collarEdge=fan([[.034,y+.040,.171],[w*.54,y+.051,.152],[w*.97,y-.021,-.003],
+        [w*.86,y-.114,-.157],[.038,y-.077,-.276]]);
+      if(collar==='gilt'||collar==='scales'){
+        relief(k,body,collar==='gilt'?'bTrim':'bMetal',collarEdge,.028);
+        const returned=collarEdge.map(([x,y,z])=>[x*.85,y-.035,z*.93]);
+        relief(k,body,'bOxide',returned,.035);
+        line(k,body,'bInlay',collarEdge.map(([x,y,z])=>[x,y+.014,z]),.013);
+      }else{
+        const collarCloth=collar==='linen'?'bCloth':'bWood';
+        const roll=collarEdge.map(([x,y,z],i)=>[x,y,z,i===0?.04:i===4?.015:.032]);
+        mass(k,body,collarCloth,roll,mobile?7:10,8,2.52,.11);
+        line(k,body,'bTrim',roll.map(([x,y,z,r])=>[x,y+.013,z+.029,r*.30]));
+      }
+    }
   }
 }
 
@@ -259,6 +458,21 @@ function arm(k,body,s,side){
     const y=-s.arm*(i*.096+.23);
     for(const z of [-1,1])line(k,elbow,i===1?'bInlay':'bTrim',
       f([[-r*.6,y,z*r*.31],[-r*.198,y-.019,z*r*.49],[r*.61,y-.03,z*r*.45],[r*.86,y+.015,z*r*.21]]),.015);
+  }
+  const armShell=s.pauldron;
+  if(armShell){
+    const wide=armShell==='spines'?1.21:armShell==='round'?1.11:1.03;
+    const width=r*wide,rows=s.mobile?2:3;
+    for(let i=0;i<rows;i++){
+      const y=.086-i*.089,w=width*(1+i*.089);
+      const loop=f([[.035,y+.051,w*.94],[w*.68,y+.104,w*.78],[w*1.37,y+.039,.018],
+        [w*1.28,y-.049,-w*.79],[w*.52,y-.112,-w*.95],[-w*.17,y-.081,-w*.61]]);
+      relief(k,root,i%2?'bOxide':'bMetal',loop,.024);
+      line(k,root,i%2?'bMetal':'bTrim',loop.slice(1,5),.013);
+      if(armShell==='spines'&&i%2===0)mass(k,root,'bBone',
+        f([[w*1.23,y,-w*.51,.034],[w*1.48,y+.12,-w*.67,.033],
+          [w*1.83,y+.167,-w*.93,.004]]),7,7,2.27,.19);
+    }
   }
   mass(k,hand,'bFlesh',f([[.00,.077,.00,.068,.051],[.025,.003,.039,.081,.063],[.031,-.068,.091,.087,.050],
     [.045,-.112,.106,.078,.036]]),11,10,2.54,.16);
@@ -392,7 +606,7 @@ function weapon(k,hand,type,side=1){
 function drapery(k,body,design,mobile){
   const joints=[];
   const long=design==='wings'||design==='imperial';
-  const count=mobile?6:10;
+  const count=mobile?5:8;
   for(const side of signs){
     const wing=k.bone(body,side*.17,.551,-.23);
     for(let i=0;i<count;i++){
@@ -518,7 +732,7 @@ function attach(k,body,head,s,arms,mobile){
 function humanoid(k,entry,s,mobile,mount){
   const body=k.bone(mount?.saddle??k.root,0,mount?.offset??(s.float?1.1:s.leg+.178),0);
   const chest=s.chest,y=s.length;
-  const head=k.bone(body,0,y+.295,.047),lip=brow(k,head,s.face);
+  const head=k.bone(body,0,y+.295,.047),lip=brow(k,head,entry.id,mobile);
   const hair=strands(k,head,s,mobile);
   crown(k,head,s.crown);
   const waist=s.waist,bell=s.bell;
@@ -534,7 +748,7 @@ function humanoid(k,entry,s,mobile,mount){
     line(k,body,mark,reflect(side,[[.067,y*.93,.24],[.176,y*.75,.275],[.29,y*.65,.252],[.31,y*.50,.241]]),.026);
     line(k,body,mark,reflect(side,[[.073,y*.84,.254],[.205,y*.70,.29],[.25,y*.54,.266]]),.009);
   }
-  if(s.armor!=='bare'&&(!mount||barding[entry.id]))armorLap(k,body,s.armor,y*.74,chest,mobile);
+  if(s.armor!=='bare'&&(!mount||barding[entry.id]))armorLap(k,body,s.armor,y*.74,chest,mobile,s.collar);
   const sash=k.bone(body,0,.07,0);
   mass(k,sash,'bWood',[[0,-.154,0,waist*1.12,waist*.96],[0,-.092,.021,waist*1.14,waist*.98],[0,-.034,.034,waist*1.13,waist*.96]],
     9,18,2.53,.09);
@@ -710,6 +924,14 @@ const coatStyles={
   m068:'sabre',m069:'jade',m070:'sash',m071:'sabre',m072:'sash',m073:'prayer',m075:'broken',m076:'sabre',
   m077:'sash',m078:'jade',m079:'broken',m080:'epaulettes',m081:'sabre',m082:'broken',m083:'sabre',
   m084:'sash',m099:'epaulettes',m102:'broken',m104:'broken',m105:'prayer',m110:'epaulettes',m112:'sash',
+};
+const shoulderCuts={
+  m060:['linen','spines'],m061:['linen','round'],m062:['wrap','rail'],m063:['scales','spines'],m064:['scales','spines'],
+  m065:['wrap','rail'],m066:['gilt','round'],m067:['gilt','round'],m068:['gilt','spines'],m069:['wrap','round'],
+  m071:['wrap','rail'],m073:['gilt','round'],m074:['linen',null],m075:['scales','spines'],m076:['gilt','spines'],
+  m077:['linen','rail'],m079:['wrap','spines'],m081:['scales','spines'],m082:['wrap','round'],m083:['scales','rail'],
+  m084:['scales','rail'],m089:['scales',null],m090:['scales','spines'],m091:['gilt','round'],m092:['gilt','round'],
+  m093:['scales','spines'],m094:['scales','spines'],m099:['scales','spines'],m105:['gilt','round'],m112:['gilt','round'],
 };
 
 // The base, cloth, plated, patinated and inlaid colors are kept separate on the rig
@@ -887,7 +1109,7 @@ function mountTiger(k,entry,mobile){
   const head=k.bone(neck,0,-.099,.277),jaw=tigerHead(k,head,false,mobile),paws=[];
   mass(k,body,plated?'bOxide':'bFur',[[0,.09,-.983,.257,.253],[0,.064,-.69,.314,.288],
     [0,.05,-.29,.322,.307],[0,.031,.21,.377,.332],[0,.061,.60,.322,.30],[0,.086,.86,.168,.19]],
-    mobile?17:22,mobile?14:17,2.31,.23);
+    mobile?15:20,mobile?12:16,2.31,.23);
   mass(k,neck,'bFur',[[0,-.012,-.16,.271,.26],[0,-.025,.086,.245,.224],[0,-.113,.24,.186,.216]],
     17,14,2.29,.22);
   mass(k,tail,'bFur',[[0,.025,.037,.082],[-.182,.105,-.203,.084],[-.27,.19,-.449,.068],
@@ -897,7 +1119,7 @@ function mountTiger(k,entry,mobile){
     const stripe=k.bone(tail,x,y,z);
     stripe.rotation.x=.83;hoop(k,stripe,i%3?'bShadow':'bTrim',.065-t*.03,.013,13);
   }
-  stripes(k,body,.377,1.16,mobile?7:11,.19,mobile?6:8);
+  stripes(k,body,.377,1.16,mobile?7:plated?8:10,.19,mobile?5:7);
   const saddle=k.bone(body,0,.371,-.068);
   mass(k,saddle,'bCloth',[[0,-.046,-.433,.209,.072],[0,-.024,-.272,.37,.137],[0,.051,.106,.313,.114],
     [0,.070,.29,.167,.082]],15,15,2.48,.14);
@@ -924,7 +1146,7 @@ function mountTiger(k,entry,mobile){
         [.039,-.32,front?.073:-.108,.090,.092]]),17,13,2.63,.18);
       mass(k,knee,'bFur',[[0,.055,-.038,.101,.10],[0,-.083,-.051,.112,.098],[0,-.233,-.017,.078,.076],
         [0,-.305,.04,.091,.124]],17,12,2.26,.16);
-      stripes(k,base,.113,.25,mobile?3:4,.035,mobile?6:8);
+      stripes(k,base,.113,.25,mobile?3:4,.035,mobile?5:7);
       const foot=k.bone(knee,0,-.283,-.045);
       mass(k,foot,'bFur',[[0,-.026,.141,.114,.069],[0,.017,.069,.136,.077],[0,.076,-.035,.087,.056]],13,11,2.51,.13);
       clawedFoot(k,foot,0);
@@ -1256,7 +1478,7 @@ function hydra(k,entry,mobile){
 
 function iceShade(k,entry,mobile){
   const body=k.bone(k.root,0,1.11,0),head=k.bone(body,0,.83,.088);
-  const jaw=brow(k,head,'skull'),panels=dress(k,body,{length:1.16,waist:.211,bell:.39,hem:1,slit:.16,embroidery:true},mobile?7:10);
+  const jaw=brow(k,head,entry.id,mobile),panels=dress(k,body,{length:1.16,waist:.211,bell:.39,hem:1,slit:.16,embroidery:true},mobile?7:10);
   const s={...neutral,chest:.30,sleeve:.114,armor:'imperial'};
   const wings=[];
   mass(k,body,'bCloth',[[0,-.19,-.09,.231,.171],[0,.094,-.061,.25,.216],[0,.38,-.029,.29,.211],
@@ -1323,7 +1545,8 @@ export function sculptB(k,entry,mobile=false){
   if(specializedShape)return specializedShape(k,entry,mobile);
   const design=robes[entry.id];
   if(!design)return null;
+  const [collar,pauldron]=shoulderCuts[entry.id]??[];
   const mount=barding[entry.id]?bardedHorse(k,entry,mobile):
     ['m074','m089'].includes(entry.id)?mountTiger(k,entry,mobile):null;
-  return humanoid(k,entry,{...neutral,...design,back:coatStyles[entry.id]},mobile,mount);
+  return humanoid(k,entry,{...neutral,...design,back:coatStyles[entry.id],collar,pauldron,mobile},mobile,mount);
 }

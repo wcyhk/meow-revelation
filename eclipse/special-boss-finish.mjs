@@ -1,3 +1,5 @@
+import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+
 const PI=Math.PI,TAU=PI*2;
 const sides=[-1,1];
 
@@ -58,10 +60,95 @@ function helmet(k,head,style){
   }
 }
 
+function features(k,head,{width,height,lip,jaw,brow,z,skin='edge',frame='trim',visor='open'},mobile){
+  const {mesh,geometry,sculpt}=k;
+  const rings=mobile?13:18;
+  const w=width,h=height,d=z;
+  const form=[
+    [0,-h*.77,d+.022,w*jaw*.66,h*.21],[0,-h*.54,d+.043,w*jaw,h*.29],
+    [0,-h*.27,d+.048,w*.89,h*.43],[0,h*.025,d+.019,w*.99,h*.38],
+    [0,h*.35,d-.011,w*.94,h*.34],[0,h*.62,d-.038,w*.72,h*.25],
+  ];
+  geometry(head,skin,sculptVolume(form,{rings,sides:mobile?12:16,section:2.09,ridge:.08}));
+  const eyeZ=d+h*.435;
+  for(const side of sides){
+    const eye=side*w*.438;
+    const inner=side*w*.19,outer=side*w*.83;
+    const y=h*(.07+brow*.16);
+    const pitch=side*brow*.22;
+    const socket=[[inner,y+h*.061,eyeZ],[eye,y+h*.117,eyeZ+.011],
+      [outer,y+h*.035,eyeZ-.032],[side*w*.651,y-h*.095,eyeZ+.003],[inner,y-h*.053,eyeZ-.009]];
+    sculpt.plate(head,'deep',socket,.014,.005);
+    mesh(head,'gem',visor==='open'?'trim':'glow',eye,y,eyeZ+.012,w*.164,h*.052,.018,0,0,pitch);
+    sculpt.sweep(head,skin,[[inner,y+h*.078,eyeZ+.004,.017],
+      [eye,y+h*.161,eyeZ+.014,.024],[outer,y+h*.069,eyeZ-.028,.010]],
+    {steps:8,sides:6,ridge:.13});
+    sculpt.sweep(head,skin,[[side*w*.21,-h*.16,eyeZ+.005,.026],
+      [side*w*.65,-h*.214,eyeZ-.006,.036],[side*w*.87,-h*.16,eyeZ-.068,.009]],
+    {steps:8,sides:6,ridge:.17});
+    if(visor!=='open'){
+      const flare=visor==='demon'?1.3:visor==='serpent'?1.13:1;
+      sculpt.plate(head,frame,[[side*w*.69,h*.43,eyeZ-.027],[side*w*1.15,h*.49,eyeZ-.125],
+        [side*w*1.35,h*.045,eyeZ-.168],[side*w*.99*flare,-h*.47,eyeZ-.084],
+        [side*w*.53,-h*.55,eyeZ+.005],[side*w*.70,-h*.18,eyeZ+.019]],.027,.009);
+      sculpt.sweep(head,'edge',[[side*w*.95,h*.439,eyeZ-.079,.020],
+        [side*w*1.24,h*.116,eyeZ-.149,.022],[side*w*.97,-h*.46,eyeZ-.088,.009]],
+      {steps:8,sides:6,ridge:.18});
+    }
+  }
+  sculpt.sweep(head,skin,[[0,h*.31,eyeZ-.018,w*.105],[0,-h*.033,eyeZ+w*.28,w*.17],
+    [0,-h*.196,eyeZ+w*.32,w*.23],[0,-h*.256,eyeZ+w*.19,w*.07]],
+    {steps:9,sides:8,ridge:.12});
+  sculpt.sweep(head,'deep',[[-w*lip,-h*.36,eyeZ+.012,.006],
+    [0,-h*.404,eyeZ+.049,.015],[w*lip,-h*.36,eyeZ+.012,.007]],{steps:8,sides:5,ridge:.12});
+  sculpt.sweep(head,skin,[[-w*lip*.83,-h*.443,eyeZ+.012,.009],
+    [0,-h*.515,eyeZ+.046,.021],[w*lip*.85,-h*.441,eyeZ+.014,.008]],{steps:8,sides:6,ridge:.15});
+}
+
+const masks={
+  m117:{width:.206,height:.252,lip:.46,jaw:1.07,brow:.77,z:.239,visor:'demon',skin:'body'},
+  m122:{width:.129,height:.184,lip:.43,jaw:.72,brow:.31,z:.087},
+  m124:{width:.239,height:.237,lip:.64,jaw:.81,brow:.73,z:.233,visor:'serpent'},
+  m125:{width:.243,height:.265,lip:.57,jaw:.86,brow:.65,z:.224,visor:'serpent',skin:'body'},
+  m133:{width:.184,height:.214,lip:.46,jaw:.78,brow:.59,z:.096,skin:'body'},
+  m154:{width:.203,height:.244,lip:.62,jaw:.88,brow:.77,z:.315,visor:'demon',skin:'body',frame:'iron'},
+};
+
+function lordArms(k,parts,id){
+  const dark=id==='m124'||id==='m125',parade=id==='m133';
+  const {sculpt,mesh}=k;
+  for(const [i,arm] of parts.arms.entries()){
+    const side=i%2===0?-1:1, tier=parade?3:2;
+    for(let n=0;n<tier;n++){
+      const y=.142-n*.117, w=(.224-n*.033)*(dark?1.1:1);
+      sculpt.plate(arm,'body',[[side*.04,y+.10,-.09],[side*w*.70,y+.12,-.123],
+        [side*w,y+.029,-.132],[side*w*.90,y-.101,-.118],[side*.05,y-.093,-.093]],.038,.012);
+      mesh(arm,'gem',n?'edge':'trim',side*w*.68,y+.056,-.163,.027,.033,.024);
+    }
+  }
+}
+
 export function finishSpecialBoss(k,parts,id,mobile){
   const {bone,mesh,rod,sculpt}=k,{body,head,tail}=parts;
+  if(masks[id]){
+    features(k,head,masks[id],mobile);
+    lordArms(k,parts,id);
+  }
+  if(id==='m027'){
+    features(k,head,{width:.20,height:.214,lip:.65,jaw:1.04,brow:.83,z:.35,skin:'rust',frame:'trim',visor:'demon'},mobile);
+  }
   if(id==='m114'||id==='m115'){
     pair(k,parts,id==='m114');
+    const court=id==='m114';
+    for(const [i,head] of parts.heads.entries()){
+      features(k,head,court?
+        {width:i?.111:.13,height:i?.171:.149,lip:.45,jaw:i?.64:.98,brow:i?.17:.49,z:.126}:
+        {width:i?.125:.136,height:.165,lip:.45,jaw:i?.74:.93,brow:.61,z:.124,visor:'demon'},mobile);
+      if(court&&i){
+        for(const side of sides)sculpt.sweep(head,'trim',[[side*.049,.12,.04,.023],[side*.124,.151,-.058,.026],
+          [side*.163,.077,-.154,.021],[side*.141,-.12,-.177,.006]],{steps:8,sides:6,ridge:.14});
+      }else helmet(k,head,court?'emperor':'guardian');
+    }
   }else if(id==='m117'||id==='m122'||id==='m124'||id==='m125'||id==='m133'){
     const style=id==='m133'?'mantle':id==='m117'?'demon':'shroud';
     relief(k,body,style,id==='m133'?.72:id==='m122'?.33:.49,id==='m122'?.38:.68);
@@ -134,6 +221,10 @@ export function finishSpecialBoss(k,parts,id,mobile){
     }
   }else if(/^m08[5-8]$/.test(id)){
     const kind=Number(id.at(-1))-5;
+    features(k,head,{width:[.171,.126,.159,.151][kind],height:[.196,.22,.19,.208][kind],
+      lip:.39,jaw:[.87,.72,.84,.71][kind],brow:[.62,.19,.51,.34][kind],z:.199,
+      visor:kind===1?'serpent':'demon',skin:kind===2?'trim':'edge'},mobile);
+    helmet(k,head,kind%2?'serpent':'emperor');
     for(const side of sides){
       const arm=parts.arms[side===-1?0:1];
       const taper=kind===1?.42:.27;
@@ -161,10 +252,12 @@ export function finishSpecialBoss(k,parts,id,mobile){
       }
     }
   }else if(id.startsWith('trial-')&&parts.mount){
-    const {knight,mantle}=parts.mount;
+    const {knight,mantle,helm}=parts.mount;
     const gate=id.split('-')[1],dark=id.endsWith('-dark');
     const crest=gate==='jing'?'horn':gate==='shang'?'gem':'scale';
     const finish=dark?'body':'edge';
+    features(k,helm,{width:gate==='jing'?.196:.151,height:gate==='kai'?.218:.169,lip:.33,jaw:.80,
+      brow:gate==='shang'?.39:.67,z:.209,visor:'guardian',skin:finish},mobile);
     relief(k,knight,'shroud',gate==='shang'?.34:.30,.55);
     for(const side of sides){
       const x=side*(gate==='kai'?.38:.23);

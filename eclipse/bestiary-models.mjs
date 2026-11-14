@@ -10,12 +10,12 @@ import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
-import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=penumbra-1';
-import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=penumbra-1';
-import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=penumbra-1';
-import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=penumbra-1';
-import {buildCampaignSculpt,disposeCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=penumbra-1';
-import {finishSpecialBoss} from './special-boss-finish.mjs?v=penumbra-1';
+import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=maskwork-1';
+import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=maskwork-1';
+import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=maskwork-1';
+import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=maskwork-1';
+import {buildCampaignSculpt,disposeCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=maskwork-1';
+import {finishSpecialBoss} from './special-boss-finish.mjs?v=maskwork-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -761,7 +761,7 @@ function quadruped(k,entry){
         }
       }
       if(gate)sculptGateTack(k,{body,head,helm,knight,mantle,tail,gate,dark});
-      return {body,head,legs,tail,mount:{knight,hand,mantle,embers,trial}};
+      return {body,head,legs,tail,mount:{knight,helm,hand,mantle,embers,trial}};
     }else{
       face(k,helm,{broad:.25,horns:0,snout:.18});
       blade(k,hand,entry.crest,true);
@@ -1384,12 +1384,13 @@ function nabataMage(k,element){
 function yamaTwins(k){
   const {root,bone,mesh,rod}=k;
   const body=bone(root,0,1.21,0);
-  const arms=[];
+  const arms=[],heads=[];
   for(const side of [-1,1]){
     const twin=bone(body,side*.39,side*.37,side*.31);
     mesh(twin,'scale','deep',0,-.34,.04,.63,.91,.70);
     mesh(twin,'scale','trim',0,.04,.18,.54,.72,.62);
     const head=bone(twin,0,.46,.10);
+    heads.push(head);
     const crown=side===-1?'edge':'trim';
     mesh(head,'round','body',0,0,0,.18,.19,.18);
     mesh(head,'scale',crown,0,.12,.09,.37,.32,.46);
@@ -1406,20 +1407,22 @@ function yamaTwins(k){
     mesh(arm,'gem','glow',side*.69,.32,.42,.116,.13,.115);
     arms.push(arm);
   }
-  return {body,arms};
+  return {body,arms,heads};
 }
 
 function shahRoyalPair(k){
   const {root,bone,mesh,rod}=k;
   const body=bone(root,0,.96,0);
-  const wings=[],arms=[];
+  const wings=[],arms=[],heads=[];
   for(const side of [-1,1]){
     const court=bone(body,side*.41,side*.13,side*.14);
     mesh(court,'bar',side>0?'edge':'body',0,-.25,.04,.34,.73,.31);
     mesh(court,'scale','trim',0,.28,.13,.54,.63,.56,.22);
-    mesh(court,'round','edge',0,.64,0,.16,.21,.16);
-    mesh(court,'bar','trim',0,.82,0,.21,.092,.20);
-    rod(court,'trim',[0,.81,0],[0,1.03,-.02],.109,'horn');
+    const head=bone(court,0,.64,0);
+    heads.push(head);
+    mesh(head,'round','edge',0,0,0,.16,.21,.16);
+    mesh(head,'bar','trim',0,.18,0,.21,.092,.20);
+    rod(head,'trim',[0,.17,0],[0,.39,-.02],.109,'horn');
     mesh(court,'mantle','edge',-.09,.26,-.16,.56,.94,.78,.26,.96,.14);
     const sceptre=bone(court,side*.26,.29,.16);
     rod(sceptre,'edge',[0,-.29,-.24],[side*.27,.32,.37],.051);
@@ -1431,7 +1434,7 @@ function shahRoyalPair(k){
     wings.push(silk);
   }
   body.userData.silks=wings;
-  return {body,arms};
+  return {body,arms,heads};
 }
 
 function varunaChariot(k){
@@ -1508,13 +1511,36 @@ function jadeEmperor(k){
     mesh(clouds,'round','mist',Math.sin(a)*.66,i%3*.11,Math.cos(a)*.61,.44,.28,.45);
   }
   mesh(body,'pearl','deep',0,.34,0,.42,.76,.35);
-  mesh(body,'scale','body',0,.25,.33,.88,1.61,.66,.11);
-  mesh(body,'scale','trim',0,.19,.40,.36,1.37,.47,.12);
+  const frontPlate=[[0,.727,.302],[.223,.618,.292],[.438,.557,.244],[.444,.288,.228],
+    [.323,.10,.294],[.177,-.25,.387],[0,-.342,.410],[-.177,-.25,.387],
+    [-.323,.10,.294],[-.444,.288,.228],[-.438,.557,.244],[-.223,.618,.292]];
+  k.sculpt.plate(body,'body',frontPlate,.066,.028);
+  k.sculpt.plate(body,'trim',[[0,.578,.361],[.157,.487,.335],[.209,.241,.351],[.124,.013,.407],
+    [0,-.237,.463],[-.124,.013,.407],[-.209,.241,.351],[-.157,.487,.335]],.035,.014);
+  for(const side of [-1,1])for(let i=0;i<3;i++){
+    const y=.53-i*.142,w=.225+i*.016;
+    k.sculpt.sweep(body,i===0?'edge':'trim',[[side*.04,y+.052,.371,.019],[side*w,y,.352,.028],
+      [side*.372,y-.05,.301,.019],[side*.42,y-.107,.246,.006]],{sides:7,steps:9,ridge:.18});
+  }
   const head=bone(body,0,1.11,.03);
-  mesh(head,'pearl','edge',0,.06,.072,.24,.297,.23);
-  mesh(head,'metal','deep',0,.30,-.05,.64,.06,.44,.12,0,-.05);
-  mesh(head,'bar','deep',0,.40,-.11,.26,.29,.19,.08);
-  mesh(head,'scale','deep',0,-.09,.28,.18,.37,.33);
+  k.geometry(head,'deep',sculptVolume([[0,-.112,-.03,.114,.101],[0,-.029,-.047,.176,.152],
+    [0,.16,-.062,.198,.163],[0,.26,-.087,.170,.151],[0,.32,-.13,.136,.10]],
+    {sides:16,rings:19,section:2.24,ridge:.12}));
+  k.geometry(head,'body',sculptVolume([[0,.19,-.098,.192,.171],[0,.246,-.101,.258,.207],
+    [0,.281,-.111,.248,.208],[0,.318,-.121,.213,.182],[0,.444,-.148,.141,.123],[0,.475,-.166,.069,.071]],
+    {sides:17,rings:18,section:2.50,ridge:.11}));
+  const brim=[[0,.269,.138,.025],[.139,.296,.090,.025],[.242,.27,-.017,.027],
+    [.24,.229,-.215,.023],[.155,.247,-.303,.021],[0,.255,-.323,.025]];
+  for(const side of [-1,1]){
+    k.sculpt.sweep(head,'trim',brim.map(([x,y,z,r])=>[side*x,y,z,r]),{sides:7,steps:15,ridge:.16});
+    k.sculpt.sweep(head,'deep',[[side*.058,-.047,.278,.028],[side*.103,-.079,.303,.039],
+      [side*.173,-.135,.278,.027],[side*.151,-.289,.243,.005]],{steps:12,sides:8,ridge:.19});
+  }
+  for(let j=0;j<3;j++){
+    k.sculpt.sweep(head,'deep',[[0,-.110,.303,.039],[.019,-.232,.296,.044],
+      [(j-1)*.036,-.331,.262,.027],[(j-1)*.068,-.410,.205,.005]],
+      {steps:10,sides:8,ridge:.23});
+  }
   const arms=[],legs=[];
   for(const side of [-1,1]){
     const arm=bone(body,side*.45,.72,.075);

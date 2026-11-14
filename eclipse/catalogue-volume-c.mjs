@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
-import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,membraneRelief,serpentRelief} from './catalogue-c-detail.mjs?v=penumbra-1';
+import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,membraneRelief,serpentRelief} from './catalogue-c-detail.mjs?v=maskwork-1';
+import {fittedChampionArmor,identityFinishes,sculptChampionFace} from './catalogue-human-c.mjs?v=maskwork-1';
 
 const sides=[-1,1];
 const tau=Math.PI*2;
@@ -541,15 +542,16 @@ const championProfiles={
     armor:[.66,.41,.26],position:[.12,.39,.19],cloak:[.72,.46,.27],crest:[.21,.45,.13]},
 };
 
-function helmet(k,head,spec){
+function helmet(k,head,spec,id=null,mobile=false){
   const [width,height,depth]=spec.crest;
-  skin(k,head,spec.crown==='moth'?'silk':'hide',[[0,-.16,.02,.095,.115],[0,-.084,0,.131,.134],
-    [0,.068,0,.154,.141],[0,.166,-.026,.148,.135],[0,.242,-.052,.09,.098]],
-  {rings:15,sides:14,section:2.4,ridge:.11});
+  if(id)sculptChampionFace(k,head,id,mobile);
+  else skin(k,head,spec.crown==='moth'?'silk':'hide',[[0,-.16,.02,.095,.115],[0,-.084,0,.131,.134],
+      [0,.068,0,.154,.141],[0,.166,-.026,.148,.135],[0,.242,-.052,.09,.098]],
+    {rings:15,sides:14,section:2.4,ridge:.11});
   skin(k,head,'rind',[[0,.038,-.080,.171,.113],[0,.099,-.11,.173,.158],
     [0,.20,-.098,.162,.134],[0,.29,-.086,.106,.081],[0,.333,-.07,.025,.041]],
   {rings:13,sides:13,section:2.3});
-  for(const side of sides){
+  if(!id)for(const side of sides){
     const cap=side*.123;
     eye(k,head,side*.075,.049,.127,.028);
     plate(k,head,'trim',[[cap,.12,.14],[side*.048,.083,.173],[side*.03,.119,.174],
@@ -769,21 +771,21 @@ function jointedChampion(k,entry,mobile){
   const elephant=spec.frames==='carriage'?indraElephant(k,body,mobile):null;
   const [width,height,depth]=spec.size;
   const [shell,hood,fold]=spec.armor;
-  const head=k.bone(body,0,height,.045),shoulders=[],steps=[],threads=[],streamers=[];
-  const crownParts=helmet(k,head,spec);
+  const headY=Math.min(height,1.79+(height-1.79)*.36);
+  const head=k.bone(body,0,headY,.045),shoulders=[],steps=[],threads=[],streamers=[];
+  const crownParts=helmet(k,head,spec,entry.id,mobile);
   skin(k,body,'hide',[[0,.47,-.02,width*.68,depth*.62],[0,.68,-.018,width*.70,depth*.67],
     [0,.97,0,width*.79,depth*.82],[0,1.19,.012,width*.84,depth*.91],
-    [0,1.46,.035,width,depth],[0,height-.10,.033,width*.46,depth*.69]],
+    [0,1.43,.025,width,depth],[0,headY-.228,.035,width*.80,depth*.79],
+    [0,headY-.148,.043,width*.39,depth*.51],[0,headY-.094,.048,width*.33,depth*.43]],
   {sides:17,rings:22,section:2.30});
-  const [mx,my,ml]=spec.position;
+  const [mx]=spec.position;
   for(const side of sides){
     for(let row=0;row<4;row++){
       const y=1.38-row*.184,x=side*(shell*.75-row*.031),z=depth*.72+row*.018;
-      plate(k,body,row===0?'rind':row%2?'trim':'hide',[[side*.017,y+.11,z],
-        [side*.092,y+.157,z+.022],[x,y+.083+hood*.16,z-.069],
-        [x+side*.01,y-.12,z-.088],[side*.08,y-.11,z+.040],[side*.022,y-.17,z+.051]],.065);
-      plate(k,body,row%3?'rind':'trim',[[side*.046,y+.083,-depth*.78],
-        [x*.88,y+.020,-depth*.67],[x*.74,y-.105,-depth*.82],[side*.069,y-.111,-depth*.89]],.048);
+      if(row<2)plate(k,body,row===0?'rind':'trim',[[side*.017,y+.11,z-.075],
+        [side*.092,y+.157,z-.056],[x,y+.083+hood*.16,z-.080],
+        [x+side*.01,y-.12,z-.090],[side*.08,y-.11,z-.017],[side*.022,y-.17,z-.061]],.047);
       horn(k,body,iTrim(row),[[side*.053,y-.09,z+.080,.024],[side*.18,y-.077,z+.047,.022],
         [x*.89,y-.055,z-.027,.011]]);
     }
@@ -794,12 +796,6 @@ function jointedChampion(k,entry,mobile){
       [side*.16,-.31,.07,.102,.098]],{sides:12,rings:12});
     skin(k,forearm,'hide',[[0,.029,0,.101,.111],[side*.018,-.11,.019,.127,.10],
       [side*.038,-.27,.044,.071,.076]],{sides:12,rings:12});
-    for(let i=0;i<3;i++){
-      const y=.09-i*.13,x=.17+i*.056;
-      plate(k,shoulder,i%2?'trim':'rind',[[side*.015,y+.055,.161],[side*x,y+.11,.14],
-        [side*(x+.085),y+.076+hood*.74,ml*.13],[side*(x+.03),y-.12,-.091],
-        [side*.061,y-.101,-.120]],.074);
-    }
     plate(k,forearm,'rind',[[side*-.072,-.01,.093],[side*.014,.073,.09],[side*.108,-.012,.112],
       [side*.141,-.20,.101],[side*.013,-.248,.116],[side*-.087,-.16,.111]],.060);
     skin(k,palm,'hide',[[0,.051,.044,.078,.070],[side*.024,-.031,.058,.086,.082],
@@ -880,7 +876,8 @@ function jointedChampion(k,entry,mobile){
       streamers.push(plume);
     }
   }
-  championRelief(k,body,head,shoulders,fabric,entry.id,mobile);
+  championRelief(k,body,shoulders,fabric,entry.id,mobile);
+  const backArmor=fittedChampionArmor(k,body,shoulders,depth,entry.id,mobile);
   return {body,head,pattern:spec.frames==='hover'?'hover':spec.frames==='ogre'?'slam':'duel',
     crest:blank(k,body),catalogueSculpt:entry.id,
     cataloguePose({beat,headtime:t,wind,strike,travel,fall,step,stage}){
@@ -912,6 +909,7 @@ function jointedChampion(k,entry,mobile){
       for(const [index,ribbon] of streamers.entries())ribbon.rotation.x=wind*.49+Math.sin(t*3.2+index)*.21-strike*.34;
       for(const element of crownParts)element.rotation.x=-wind*.23+strike*.77+Math.sin(t*2.4)*.16;
       fabric.rotation.x=wind*.32-strike*.34+travel*.20;
+      backArmor.rotation.x=wind*.14-strike*.12+travel*.06;
       if(seat){
         seat.rotation.y=t*.19+strike*.43;
         seat.scale.setScalar(1+wind*.088+stage*.10);
@@ -1119,6 +1117,7 @@ export const finishesC={
 };
 for(const [id,spec] of Object.entries(designsC)){
   finishesC[id].patina=[spec.streak,.58,.49,['ash','regent','fiend'].includes(spec.face)?'bronze':'iron'];
+  Object.assign(finishesC[id],identityFinishes[id]);
 }
 for(const [id,color] of Object.entries(creaturePatinas))finishesC[id].patina=[color,.38,.56,'iron'];
 finishesC.m132.cinder=[0xc55f3c,.22,.47,'stone'];

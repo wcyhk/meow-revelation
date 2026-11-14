@@ -145,18 +145,15 @@ function isolateBoss(ctx,width,height) {
 
 async function loadCast() {
   const image = new Image();
-  image.src = './cast.png';
+  image.src = new URL('./art/coin-pickup.webp',import.meta.url).href;
   const artwork=loadPaintedActors();
   const wardens=new Image();
   wardens.src='./wardens.webp';
   const [painted]=await Promise.all([artwork,image.decode(),wardens.decode()]);
   const frames=Array.from({length:41},(_,index)=>painted.get(index));
-  const pickup=document.createElement('canvas');
-  pickup.width=265;
-  pickup.height=295;
-  const scale=image.width/1254;
-  pickup.getContext('2d').drawImage(image,865*scale,810*scale,349*scale,388*scale,0,0,265,295);
-  frames[8]=texture(pickup);
+  frames[8]=new T.Texture(image);
+  frames[8].colorSpace=T.SRGBColorSpace;
+  frames[8].needsUpdate=true;
   const tile=wardens.width/5;
   for (let index=0;index<10;index++) {
     const canvas=document.createElement('canvas');

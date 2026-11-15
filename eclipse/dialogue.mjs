@@ -6,6 +6,8 @@ const characters={
   warden:'王冠守夜者',
 };
 
+const artPath=(folder,key)=>`./story-art/${folder}/${key}.webp?v=story-portraits-1`;
+
 function element(tag,className,text) {
   const node=document.createElement(tag);
   node.className=className;
@@ -21,6 +23,11 @@ function button(className,text) {
 
 export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary}) {
   const root=element('div','vn');
+  const illustration=element('img','vn-scene-art');
+  illustration.alt='';
+  illustration.decoding='async';
+  illustration.hidden=true;
+  root.append(illustration);
   if(scene.art) {
     root.classList.add('vn-ending');
     root.dataset.ending=scene.id;
@@ -98,7 +105,17 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
       portrait.hidden=!actors.includes(id);
       if(!portrait.hidden) portrait.dataset.slot=++slot;
       portrait.dataset.active=String(id===visible);
+      const mood=id===entry.speaker&&entry.mood?entry.mood:scene.moods?.[id];
+      portrait.dataset.mood=mood??'neutral';
+      portrait.style.setProperty('--portrait',mood?`url("${artPath('cast',id+'-'+mood)}")`:null);
     }
+    const artwork=entry.illustration??scene.illustration;
+    illustration.hidden=!artwork;
+    if(artwork&&illustration.dataset.key!==artwork){
+      illustration.dataset.key=artwork;
+      illustration.src=artPath('scenes',artwork);
+    }
+    if(artwork||scene.art)root.dataset.view=entry.speaker==='narrator'?'illustration':'portrait';
     speaker.textContent=characters[entry.speaker];
     text.textContent=entry.text;
     transcript.push({name:characters[entry.speaker],text:entry.text});

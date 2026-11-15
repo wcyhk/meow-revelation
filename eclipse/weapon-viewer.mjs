@@ -1,12 +1,13 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
+import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
-import {MotionArt} from './motion-art.mjs?v=golden-veil-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=ascendant-1';
+import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=emberlight-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
+import {SpellLighting} from './spell-lighting.mjs?v=emberlight-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
@@ -635,6 +636,7 @@ export class WeaponViewer {
       }
     }
     scene.add(stage);
+    view.spellLighting=new SpellLighting(view);
     this.view=view;
     this.scene=scene;
     return view;
@@ -699,6 +701,7 @@ export class WeaponViewer {
     const {view}=this;
     view.time+=dt;
     view.feedback.update(dt);
+    view.spellLighting.tick(dt);
     view.updateEffects(dt);
     view.renderParticles(dt,false);
     if(view.arenaArt){

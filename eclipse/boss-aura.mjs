@@ -6,7 +6,7 @@ export function shapeAura(root,{tint,shape,anchor=root,offset=[0,1,0],span=[1,1,
   const form=forms[shape]??forms.ribbons;
   const count=mobile?9:15;
   const geometry=new T.InstancedBufferGeometry();
-  const plane=new T.PlaneGeometry(1,1,10,1);
+  const plane=new T.PlaneGeometry(1,1,mobile?12:18,1);
   geometry.index=plane.index;
   geometry.setAttribute('position',plane.attributes.position);
   const seeds=new Float32Array(count*3);
@@ -18,7 +18,7 @@ export function shapeAura(root,{tint,shape,anchor=root,offset=[0,1,0],span=[1,1,
     dye:{value:new T.Color(tint)},span:{value:new T.Vector3(...span)},center:{value:new T.Vector3(...offset)},
   };
   const material=new T.ShaderMaterial({
-    uniforms,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false,side:T.DoubleSide,
+    uniforms,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false,side:T.DoubleSide,forceSinglePass:true,
     vertexShader:`
       attribute vec3 seed;
       uniform float clock,force,phase,visibility,form;
@@ -32,6 +32,8 @@ export function shapeAura(root,{tint,shape,anchor=root,offset=[0,1,0],span=[1,1,
         float r=.58+seed.z*.20+age*.12+force*.24;
         float angle=orbit+(u-.5)*mix(.39,1.15,force);
         float curl=sin(angle*2.4+seed.x)*.10+sin(u*12.7+seed.x+clock*6.)*.032;
+        r+=sin(u*6.28318)*(.035+.048*force)*sin(clock*2.1+seed.x);
+        if(form>.5&&form<1.5)curl+=(abs(fract(u*4.+seed.y)*2.-1.)-.5)*.18;
         vec3 at=vec3(cos(angle)*r,(age-.46)*.88+curl,sin(angle)*r)*span;
         if(form>1.5&&form<2.5)at.y+=span.y*(age*age-.2);
         if(form>2.5&&form<3.5)at.y=span.y*(.17+sin(seed.x*1.8)*.19+curl);
@@ -58,16 +60,18 @@ export function shapeAura(root,{tint,shape,anchor=root,offset=[0,1,0],span=[1,1,
         if(form>.5&&form<1.5)seam=(abs(fract(u*4.+grain*.31)*2.-1.)-.5)*.67;
         float distance=abs(path.y-seam);
         float tail=smoothstep(0.,.27,u)*(1.-smoothstep(.63,1.,u));
-        float core=exp(-distance*(form>3.5?7.:14.));
+        float current=.57+.43*pow(.5+.5*cos(u*25.-clock*(4.+3.*force)+grain),4.);
+        float core=exp(-distance*(form>3.5?7.:21.));
         float bloom=exp(-distance*(form>3.5?2.:5.7))*.69;
+        float filament=exp(-abs(path.y-seam-.26*sin(u*13.+grain))*25.)*.27;
         if(form>1.5&&form<2.5)tail*=pow(.5+.5*sin(u*27.+grain),3.);
         if(form>2.5&&form<3.5){
           float rune=abs(fract(u*12.+grain*.09)*2.-1.);
           core=max(core*.7,exp(-rune*14.)*exp(-abs(path.y)*2.8));
         }
         float edge=1.-smoothstep(.63,1.,abs(path.y));
-        vec3 glow=mix(dye,vec3(1.,.95,.85),core*.62);
-        gl_FragColor=vec4(glow,(core*.95+bloom)*tail*edge*fuel);
+        vec3 glow=mix(dye,vec3(1.,.95,.85),core*(.46+.30*current));
+        gl_FragColor=vec4(glow,(core*current+bloom+filament*force)*tail*edge*fuel);
         #include <colorspace_fragment>
       }
     `,

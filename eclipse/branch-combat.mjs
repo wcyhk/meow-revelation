@@ -1,9 +1,9 @@
 import {branches,loadoutSkills,mawSkill} from './progression.mjs?v=last-bell-1';
-import {RobotSquad} from './robot-squad.mjs?v=nightforge-1';
-import {EnemyMarkers,Medics} from './tech-support.mjs?v=eye-aura-1';
-import {CthunHand} from './cthun-hand.mjs?v=nightforge-1';
-import {BlackGoatEye} from './black-goat-eye.mjs?v=nightforge-1';
-import {TsathogguaMouth} from './tsathoggua.mjs?v=nightforge-1';
+import {RobotSquad} from './robot-squad.mjs?v=skill-depth-1';
+import {EnemyMarkers,Medics,SupportSweep} from './tech-support.mjs?v=skill-depth-1';
+import {CthunHand} from './cthun-hand.mjs?v=skill-depth-1';
+import {BlackGoatEye} from './black-goat-eye.mjs?v=skill-depth-1';
+import {TsathogguaMouth} from './tsathoggua.mjs?v=skill-depth-1';
 
 const radarRange=13;
 const range=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -14,6 +14,7 @@ export class BranchCombat {
     this.skills=new Set();
     this.branch=null;
     this.radar=new EnemyMarkers('enemy-radar');
+    this.radarSweep=null;
     this.squad=null;
     this.tendrils=null;
     this.eye=null;
@@ -28,6 +29,7 @@ export class BranchCombat {
     const skills=allSkills?branches.flatMap(branch=>branch.skills):loadoutSkills(profile);
     this.skills=new Set(skills.map(skill=>skill.id));
     if(this.skills.has('robot-squad')) this.squad??=new RobotSquad(this.view);
+    if(this.skills.has('radar')) this.radarSweep??=new SupportSweep(this.view,0xff5576,radarRange,true);
     if(this.skills.has('cthun-hand')) this.tendrils??=new CthunHand(this.view);
     if(this.skills.has('black-goat-eye')) this.eye??=new BlackGoatEye(this.view);
     if(this.skills.has(mawSkill.id)) this.activeMaw=this.maw??=new TsathogguaMouth(this.view);
@@ -37,6 +39,7 @@ export class BranchCombat {
 
   enter(game) {
     this.radar.hide();
+    this.radarSweep?.hide();
     this.radarBeat=null;
     if(this.skills.has('black-goat-eye')) this.eye.update(game);
     this.medics?.hide();
@@ -50,6 +53,7 @@ export class BranchCombat {
     this.eye?.reset();
     this.medics?.hide();
     this.radar.hide();
+    this.radarSweep?.hide();
     this.maw?.reset();
     this.activeMaw=null;
     this.reviveReady=false;
@@ -59,6 +63,7 @@ export class BranchCombat {
 
   render(game) {
     if(this.skills.has('radar')&&game.state==='play') {
+      this.radarSweep.update(game.hero,game.t);
       this.radar.render(this.view,game.enemies,foe=>foe.age>=.23&&range(foe,game.hero)<=radarRange,()=>.045);
       const beat=Math.floor(game.t*.68);
       if(beat!==this.radarBeat){
@@ -66,7 +71,10 @@ export class BranchCombat {
         this.view.spellAccent(game.hero,{action:'ring',element:'light',tint:0xe54a60,radius:2.46,seed:22,power:.34});
       }
     }
-    else this.radar.hide();
+    else{
+      this.radar.hide();
+      this.radarSweep?.hide();
+    }
     if(this.skills.has('black-goat-eye')) this.eye.render(game);
   }
 

@@ -5,6 +5,7 @@ import {forgedSurface} from './forged-surface.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {sculptOffhand} from './weapon-sculpts.mjs?v=relic-sculpts-1';
 import {signWeapon} from './weapon-signatures.mjs?v=relic-sculpts-1';
+import {workRelic} from './weapon-workmanship.mjs?v=emberlight-1';
 
 const PI=Math.PI, TAU=PI*2;
 const s=.1;
@@ -1029,6 +1030,7 @@ export function buildWeapon(weapon,finishes){
     if(kind==='lute'||kind==='beads')detailWeapon(kit,weapon,kind,recipe);
   }
   signWeapon(kit,weapon.id);
+  workRelic(kit,weapon.id,kind,recipe);
   const animated=new Set();
   const bow=root.userData.bow;
   if(bow){

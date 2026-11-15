@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {EnemyMarkers} from './tech-support.mjs?v=eye-aura-1';
+import {EnemyMarkers,SupportSweep} from './tech-support.mjs?v=skill-depth-1';
 
 const eyeRange=6;
 const eyeRangeSquared=eyeRange*eyeRange;
@@ -8,6 +8,7 @@ export class BlackGoatEye {
   constructor(view) {
     this.view=view;
     this.markers=new EnemyMarkers('eye-marks');
+    this.rim=new SupportSweep(view,0xa267f2,eyeRange);
     this.wave=new T.Mesh(new T.PlaneGeometry(2,2).rotateX(-Math.PI/2),new T.ShaderMaterial({
       transparent:true,depthWrite:false,depthTest:false,side:T.DoubleSide,
       uniforms:{time:{value:0}},
@@ -49,6 +50,7 @@ export class BlackGoatEye {
     this.wave.visible=false;
     this.lastPulse=null;
     this.markers.hide();
+    this.rim.hide();
   }
 
   contains(hero,foe) {
@@ -61,6 +63,7 @@ export class BlackGoatEye {
     this.wave.position.set(hero.x,.087,hero.z);
     this.wave.material.uniforms.time.value=t%600;
     this.wave.visible=true;
+    this.rim.update(hero,t);
     const pulse=Math.floor(t*1.5);
     if(this.lastPulse!==pulse){
       this.lastPulse=pulse;

@@ -4,6 +4,7 @@ const box=new T.BoxGeometry(1,1,1);
 const bevel=new T.DodecahedronGeometry(1);
 const barrel=new T.CylinderGeometry(1,1,1,8).rotateX(Math.PI/2);
 const cone=new T.ConeGeometry(1,1,8).rotateX(Math.PI/2);
+const collar=new T.TorusGeometry(1,.16,4,10);
 const trailShape=new T.CylinderGeometry(1,1,1,5);
 const metal=new T.MeshStandardMaterial({vertexColors:true,roughness:.45,metalness:.4});
 const light=new T.MeshBasicMaterial({vertexColors:true,toneMapped:false});
@@ -44,10 +45,16 @@ export function createRobot(view,config) {
     [box,silver,0,-.165,.19,.45,.065,.15],
     [box,iron,0,-.125,-.23,.42,.20,.18],
     [box,silver,-.11,.32,-.13,.045,.32,.044,.22],
+    [bevel,iron,0,.224,-.10,.328,.062,.199],
+    [bevel,0x4f606d,0,-.15,-.267,.313,.112,.145],
     ...[-1,1].flatMap(side=>[
       [bevel,iron,side*.34,-.02,-.07,.19,.23,.25],
       [bevel,paint,side*.39,.055,-.07,.17,.15,.23],
       [box,silver,side*.39,-.13,.04,.20,.04,.20],
+      [bevel,silver,side*.455,-.035,.063,.104,.087,.193],
+      [barrel,iron,side*.276,-.018,-.317,.121,.093,.113],
+      [barrel,silver,side*.276,-.016,-.372,.098,.068,.070],
+      ...[-1,0,1].map(row=>[box,0x162631,side*.37,row*.048+.028,-.284,.064,.029,.17,side*.31]),
     ]),
   ],metal));
   frame.add(baked([
@@ -56,6 +63,9 @@ export function createRobot(view,config) {
     [bevel,tint,-.144,.48,-.13,.044,.048,.044],
     [bevel,tint,-.39,-.21,-.07,.11,.10,.12],
     [bevel,tint,.39,-.21,-.07,.11,.10,.12],
+    [bevel,tint,-.287,-.011,-.405,.045,.051,.030],
+    [bevel,tint,.287,-.011,-.405,.045,.051,.030],
+    [box,tint,0,-.102,-.369,.18,.031,.041],
   ],light));
   const length=id==='rocket'?.79:id==='minigun'?.71:.58;
   gun.position.set(.32,-.075,.18);
@@ -72,6 +82,8 @@ export function createRobot(view,config) {
       [barrel,silver,0,.03,.51,.186,.186,.084],
       [barrel,0x100e17,0,.03,.777,.136,.136,.025],
       [box,silver,0,.225,.23,.20,.055,.30],
+    [collar,0xf0d7b7,0,.03,.792,.151,.151,.072],
+    [barrel,iron,0,.03,.431,.187,.187,.051],
     ],metal));
   } else if(id==='smg') {
     gun.add(baked([
@@ -80,6 +92,8 @@ export function createRobot(view,config) {
       [box,silver,0,.092,.24,.13,.037,.32],
       [barrel,silver,0,.014,.48,.074,.074,.22],
       [barrel,iron,0,.014,.58,.092,.092,.075],
+    [collar,silver,0,.013,.623,.066,.066,.055],
+    [box,0xa6bbc6,0,.047,.405,.101,.035,.12],
     ],metal));
   } else {
     gun.add(baked([
@@ -94,6 +108,9 @@ export function createRobot(view,config) {
     [barrel,silver,0,0,.62,.17,.17,.12],
     ...Array.from({length:4},(_,i)=>[
       barrel,iron,Math.cos(i*Math.PI/2)*.098,Math.sin(i*Math.PI/2)*.098,.51,.046,.046,.45,
+    ]),
+    ...Array.from({length:4},(_,i)=>[
+      collar,silver,Math.cos(i*Math.PI/2)*.098,Math.sin(i*Math.PI/2)*.098,.741,.042,.042,.056,
     ]),
   ],metal));
   const muzzle=new T.Object3D();
@@ -130,15 +147,15 @@ export function aimTracer(tracer,from,to,width) {
 
 export function createRocket(tint) {
   const root=new T.Group();
-  const ink=new T.MeshBasicMaterial({color:tint,toneMapped:false});
-  const nose=new T.Mesh(cone,ink),body=new T.Mesh(barrel,ink);
-  nose.scale.set(.105,.105,.22);
-  nose.position.z=.19;
-  body.scale.set(.085,.085,.29);
-  root.add(nose,body);
   root.add(baked([
-    [box,0xffb289,0,0,-.15,.25,.034,.14],
-    [box,0xffb289,0,0,-.15,.034,.25,.14],
+    [cone,0xc96536,0,0,.195,.111,.111,.212],[barrel,0x332b30,0,0,-.011,.097,.097,.296],
+    [collar,0xe9b376,0,0,.073,.106,.106,.071],[collar,0xcd865f,0,0,-.150,.098,.098,.065],
+    [barrel,0x16151e,0,0,-.195,.086,.086,.092],
+    [box,0xab7351,0,0,-.156,.278,.042,.156],[box,0xab7351,0,0,-.156,.042,.278,.156],
+  ],metal));
+  root.add(baked([
+    [barrel,tint,0,0,-.209,.056,.056,.05],[cone,0xff9362,0,0,-.34,.058,.058,.25],
+    [collar,0xffd6a3,0,0,-.25,.039,.039,.058],
   ],light));
   root.visible=false;
   return root;

@@ -37,7 +37,7 @@ function metalwork(k,parts,entry,tools,stitch){
     if(!upper)continue;
     const cap=k.bone(body,upper.position.x,.45,-.045);
     const width=Math.abs(upper.position.x)*.53;
-    const high=entry.id==='forest-12'||entry.id==='forest-9';
+    const high=['forest-12','forest-9'].includes(entry.artId??entry.id);
     const tip=high?.23:.135;
     const rim=mir([[.015,.091,.22],[width*.58,.15,.166],[width,.105,-.04],[width*.99,.053,-.20],
       [width*.65,-tip,-.234],[.057,-.093,-.25],[-.055,-.046,-.087],[-.045,.005,.145]],side);
@@ -58,7 +58,7 @@ function metalwork(k,parts,entry,tools,stitch){
 }
 
 export function refineGuardian(k,parts,entry,mobile,tools){
-  const id=entry.id,rag=garment[id],organ=organs[id],wings=pinions[id];
+  const id=entry.artId??entry.id,rag=garment[id],organ=organs[id],wings=pinions[id];
   if(rag){
     const [label,tint,trim,path]=rag;
     metalwork(k,parts,entry,tools,rag);

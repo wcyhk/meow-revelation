@@ -61,10 +61,15 @@ const fragmentVertex=`
   void main(){
     tex=uv;
     float t=clamp((life-seed.y*.23)/(.52+seed.z*.45),0.,1.);
-    float emit=smoothstep(.0,.11,t)*(1.-smoothstep(.49,1.,t));
-    float spinAngle=seed.x*6.2831853+salt;
+    float ember=1.-step(.5,style),volt=1.-step(.5,abs(style-3.));
+    float storm=1.-step(.5,min(abs(style-2.),abs(style-7.)));
+    float abyss=1.-step(.5,abs(style-5.));
+    float emit=smoothstep(.0,mix(.105,.045,volt),t)*(1.-smoothstep(mix(.52,.31,volt),1.,t));
+    float spinAngle=seed.x*6.2831853+salt+t*(.62*ember+1.45*storm-1.15*abyss);
     float r=spread*(.16+.59*seed.y)*(.25+t*.96);
     float rise=height*(.36+.64*seed.z)*sin((t*.76+.12)*3.14159);
+    rise+=height*t*(.52*ember+.20*abyss);
+    r*=1.-abyss*.65*smoothstep(.24,1.,t);
     float solid=1.-min(1.,min(abs(style-1.),min(abs(style-6.),abs(style-8.))));
     rise=mix(rise, max(0.,height*(.4+.7*seed.z)*(t*2.8-t*t*2.83)),solid*.8);
     vec3 p=vec3(cos(spinAngle)*r,rise,sin(spinAngle)*r);
@@ -73,13 +78,13 @@ const fragmentVertex=`
       p.z=(seed.y-.5)*spread*.33*(.36+t*.64);
     }
     if(form>1.5){
-      float a=spinAngle+t*.87;
-      r=spread*(.58+seed.y*.30+t*.20);
+      float a=spinAngle+t*(.87-1.54*abyss);
+      r=spread*(.58+seed.y*.30+t*(.20-.45*abyss));
       p=vec3(cos(a)*r,rise*.62,sin(a)*r);
     }
     vec3 piece=position;
     piece.x+=sin((uv.y+seed.x)*7.+t*4.)*uv.y*.20*(1.-solid);
-    piece*=vec3(.15,.57,.19)*height*(.53+seed.z*.82)*(.57+emit*.55);
+    piece*=vec3(.15+.10*storm,.57+.28*volt,.19)*height*(.53+seed.z*.82)*(.47+emit*.65);
     piece.yz=spin(seed.x*3.+t*2.6)*piece.yz;
     piece.xz=spin(spinAngle+t*(seed.y-.5)*3.)*piece.xz;
     shade=.43+.43*max(0., dot(normalize(normal),normalize(vec3(.47,.8,.45))))+.19*seed.z;
@@ -103,17 +108,22 @@ const fragmentInk=`
     if(style<.5){
       d=abs(uv.x-.5-.16*sin(uv.y*7.+life*7.)*uv.y);
       mask=(1.-smoothstep(.12,.46,d/max(.36,1.-uv.y*.72)))*belly;
-      white=exp(-d*9.)*pow(1.-uv.y,1.6);
+      float flame=exp(-d*14.)*pow(1.-uv.y,.95);
+      float lick=pow(.5+.5*sin(uv.y*21.-life*20.+speck*5.),3.);
+      white=flame*(.75+.25*lick);
     }else if(style<1.5||abs(style-6.)<.5||abs(style-8.)<.5){
       float edge=pow(abs(sin(uv.x*10.+uv.y*7.)),13.);
+      float facet=step(.5,fract(uv.x*3.-uv.y*2.+speck))*shade;
       mask=.80;
-      white=(edge*.39+shade*.32)*(style<1.5?1.:.59);
+      white=(edge*.38+facet*.26+shade*.24)*(style<1.5?1.:.56);
     }else if(style<3.5){
       float filament=style<2.5?sin(uv.y*9.+life*7.)*.20
         :(abs(fract(uv.y*5.+speck)*2.-1.)-.53)*.48;
       d=abs(uv.x-.5-filament);
       mask=exp(-d*(style<2.5?12.:15.))*belly;
-      white=exp(-d*31.)*(.58+detail*.28);
+      float fork=abs(uv.x-.5-filament-(1.-uv.y)*.28);
+      mask+=step(2.5,style)*exp(-fork*32.)*smoothstep(.5,.9,uv.y)*.31;
+      white=exp(-d*37.)*(.62+detail*.27);
     }else if(style<4.5){
       mask*=pow(abs(detail),5.);
       white=max(white,pow(belly,12.)*max(0.,1.-d*2.));

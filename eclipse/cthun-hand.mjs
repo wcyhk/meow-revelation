@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {createTendril,shapeTendril} from './tentacle-art.mjs?v=squad-1';
+import {createTendril,shapeTendril} from './tentacle-art.mjs?v=skill-depth-1';
 
 const configs=[
   {id:'sweep',skin:0x100b18,flesh:0x79486b,tint:0x9a6488,side:-1.93,rise:2.54,range:2.8,radius:.26,wait:.38,cool:1.8,damage:.40},
@@ -19,7 +19,7 @@ export class CthunHand {
     this.root.name='克蘇恩之手';
     view.scene.add(this.root);
     this.tendrils=configs.map((config,i)=>{
-      const art=createTendril(config);
+      const art=createTendril(config,view.mobile);
       this.root.add(art.root);
       return {config,art,phase:i*2.1,ready:0,attack:null};
     });

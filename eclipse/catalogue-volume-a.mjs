@@ -1,6 +1,7 @@
 import * as T from '../three.min.mjs';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
+import {wingTissue} from './wing-tissue.mjs?v=emberlight-1';
 
 const PI=Math.PI,TAU=PI*2,flanks=[-1,1];
 const volume=(k,j,m,s,detail=16,section=2.18,ridge=.14,fur=false)=>k.geometry(j,m,
@@ -964,12 +965,10 @@ function regionalDragon(k,entry,mobile){
         [[0,0,-.009],[f(.11),-.035,-.31],[f(.28),-.205,-.65],[f(.286),-.29,-.946]],
         [[0,-.019,-.022],[f(-.079),-.052,-.25],[f(-.247),-.148,-.60],[f(-.53),-.28,-.74]],
       ];
-      batSail(k,wing,side,ribs,'wingHide',mobile);
-      for(const [i,row] of ribs.entries())sweep(k,wing,i===0?'ochre':'moss',
-        row.map((point,index)=>[...point,[.048,.039,.027,.004][index]]),13,7);
+      const sail=wingTissue(k,wing,side,ribs,mobile);
       for(let i=0;i<4;i++)sweep(k,shoulder,'moss',[[f(.09+i*.11),.135+i*.051,.03,.032],
         [f(.16+i*.12),.234+i*.024,-.047,.03],[f(.202+i*.13),.23+i*.035,-.19,.003]],9,6);
-      wings.push({shoulder,wing,side});
+      wings.push({shoulder,wing,sail,side});
     }else for(let i=0;i<8;i++)vane(k,body,i%3?'clay':'brass',[f(.14),.167,.374-i*.134],
       [f(.23),.48,.344-i*.143],[f(.29+i*.016),.599-i*.012,.236-i*.168],.079,45+i);
     for(let i=0;i<2;i++){
@@ -995,14 +994,15 @@ function regionalDragon(k,entry,mobile){
     sweep(k,tail,'ivory',[[0,.005,.021,.028],[Math.sin(a)*.095,Math.cos(a)*.094,-.092,.033],
       [Math.sin(a)*.154,Math.cos(a)*.153,-.284,.003]],9,6);
   }
-  return sourcePose(entry,body,head,({headtime,beat,step,wind,strike,travel,stage})=>{
+  const model=sourcePose(entry,body,head,({headtime,beat,step,wind,strike,travel,stage})=>{
     body.rotation.x=-wind*.24+strike*.19;
     neck.rotation.z=Math.sin(headtime*2.1)*.12+wind*.14;
     head.rotation.x=-wind*.39+strike*.37;jaw.rotation.x=wind*.22+strike*.62;
-    for(const {shoulder,wing,side} of wings){
+    for(const {shoulder,wing,sail,side} of wings){
       shoulder.rotation.z=side*(.29+Math.sin(headtime*6.9)*(.45+travel*.28)+wind*.35-strike*.30);
       wing.rotation.y=side*(.18+Math.sin(headtime*6.9-.5)*.24);
       wing.rotation.z=side*(.12+Math.cos(headtime*6.9-.41)*.31+strike*.20);
+      sail.pose(headtime,wind,strike,travel);
     }
     for(const [i,link] of bones.entries()){
       link.rotation.y=(poison?.11:.60)+Math.sin(headtime*2.9-i*.43)*(.17+travel*.138)-wind*.15+strike*.22;
@@ -1013,6 +1013,8 @@ function regionalDragon(k,entry,mobile){
       paw.rotation.x=wind*.39-strike*.41-leg.rotation.x*.49;
     }
   },poison?'wing':'coil');
+  if(poison)model.disposeRig=()=>{for(const {sail} of wings)sail.dispose();};
+  return model;
 }
 
 function butcher(k,entry){

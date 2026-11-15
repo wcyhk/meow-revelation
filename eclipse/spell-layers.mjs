@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {spellVolume,spellVolumeGeometry} from './spell-volume.mjs?v=golden-veil-1';
+import {spellVolume,spellVolumeGeometry} from './spell-volume.mjs?v=emberlight-1';
 
 const TAU=Math.PI*2;
 const elements={
@@ -61,12 +61,20 @@ const surfaces=Object.fromEntries([...new Set(Object.values(scripts))].map(layou
 export const spellGeometry=new Set([...Object.values(surfaces),...spellVolumeGeometry]);
 
 const vertex=`
-  varying vec2 coords; uniform float life, flavor;
+  varying vec2 coords; uniform float life, flavor, coil;
   void main(){
     coords=uv;
     vec3 p=position;
     float bend=sin(uv.x*3.14159)*sin(uv.x*17.+life*9.);
     p.y+=bend*(.018+.021*step(2.5,flavor));
+    if(coil>.5){
+      float tail=sin(uv.x*3.14159);
+      float travel=smoothstep(0.,.8,life);
+      float twist=(.12+.64*travel)*(p.y+.20*uv.x)*(flavor==5.?-1.:1.);
+      float c=cos(twist),s=sin(twist);
+      p.xz=mat2(c,s,-s,c)*p.xz*(1.+tail*bend*.11);
+      p.y+=tail*travel*(flavor==0.?.31:flavor==5.?-.12:.18);
+    }
     gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
   }
 `;
@@ -114,11 +122,15 @@ const fragment=`
     }else{
       thread=.52+.17*pulse;drift=pow(.5+.5*sin(u*52.+v*15.-t),4.);cloud=pow(sides,1.6);
     }
-    float shine=exp(-abs(v-thread)*(flavor==3.?23.:13.));
-    float echo=exp(-abs(v-(1.-thread))*17.)*.35;
-    float glow=cloud*(.38+drift*.37)+shine*.58+echo;
-    vec3 color=mix(tint*(.65+drift*.40),heart,clamp(shine*.76+echo*.27,0.,1.));
-    gl_FragColor=vec4(color,glow*gate*reveal*opacity*.87);
+    float distance=abs(v-thread);
+    float trail=exp(-distance*6.0);
+    float shine=exp(-distance*(flavor==3.?35.:21.));
+    float split=thread+.19*sin(u*21.-t*.5);
+    float echo=exp(-abs(v-split)*24.)*pow(.5+.5*cos(u*26.-t),3.);
+    float packet=pow(.5+.5*cos(u*18.-t*1.45),4.);
+    float glow=cloud*(.24+drift*.21)+trail*.34+shine*(.65+.27*packet)+echo*.27;
+    vec3 color=mix(tint*(.72+drift*.29),heart,clamp(shine*(.76+.24*packet)+echo*.21,0.,1.));
+    gl_FragColor=vec4(color,glow*gate*reveal*opacity*smoothstep(0.,.13,sides));
     #include <colorspace_fragment>
   }
 `;
@@ -136,6 +148,7 @@ export function ornamentSpell(view,point,spec) {
     uniforms:{
       tint:{value:color},heart:{value:color.clone().lerp(new T.Color(0xfff1d7),.59)},
       life:{value:0},opacity:{value:power},flavor:{value:elements[element]??5},salt:{value:(seed%91)*.23},
+      coil:{value:layout==='spiral'||layout==='gate'?1:0},
     },
     vertexShader:vertex,fragmentShader:fragment,
   });

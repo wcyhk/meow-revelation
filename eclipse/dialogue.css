@@ -54,6 +54,23 @@
   background:linear-gradient(0deg,#0d0d13 0%,#101019de 15%,#14131e00 47%),linear-gradient(180deg,#0d0c13c9,transparent 23%);
 }
 
+.vn-scene-art {
+  position:absolute;
+  z-index:-3;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:50% 43%;
+  opacity:.96;
+  pointer-events:none;
+  transition:opacity .25s ease,filter .25s ease;
+}
+
+.vn[data-view=portrait] .vn-scene-art {opacity:.54;filter:saturate(.76) brightness(.72)}
+.vn[data-view=illustration] .vn-cast {opacity:0}
+.vn[data-view=portrait]:not([data-cast="0"]) .vn-ending-art {opacity:.42}
+
 .vn-ending {background:radial-gradient(ellipse at 50% 20%,#21171d,#0d0c11 77%)}
 .vn-ending-art {
   position:absolute;
@@ -125,6 +142,7 @@
 .vn-portrait[data-character=little] {background-position:100% 0}
 .vn-portrait[data-character=keeper] {background-position:0 100%}
 .vn-portrait[data-character=warden] {background-position:100% 100%}
+.vn-portrait[data-mood]:not([data-mood=neutral]) {background:var(--portrait) center / cover no-repeat}
 .vn[data-cast="2"] .vn-portrait {width:min(58vw,110vh,950px)}
 .vn[data-cast="2"] .vn-portrait[data-slot="1"] {left:29%}
 .vn[data-cast="2"] .vn-portrait[data-slot="2"] {left:71%}
@@ -291,6 +309,7 @@
     width:clamp(480px,137vw,790px);
   }
   .vn[data-cast="2"] .vn-portrait[data-slot] {left:50%}
+  .vn-scene-art {height:84%;object-position:50% 42%;mask-image:linear-gradient(#000 71%,transparent 100%)}
   .vn-portrait[data-active=false] {opacity:0}
   .vn::after {background:linear-gradient(0deg,#0e0d16 5%,#15131cee 24%,#14131e00 52%),linear-gradient(180deg,#0d0c13cd,transparent 21%)}
   .vn-box {min-height:160px;padding:22px 14px 9px}
@@ -316,5 +335,5 @@
 }
 
 @media (prefers-reduced-motion:reduce) {
-  .vn-portrait {transition:none}
+  .vn-portrait,.vn-scene-art {transition:none}
 }

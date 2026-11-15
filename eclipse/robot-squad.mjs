@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {aimTracer,createRobot,createRocket,createTracer,muzzlePosition,poseRobot,rocketPose} from './robot-art.mjs?v=squad-1';
+import {aimTracer,createRobot,createRocket,createTracer,muzzlePosition,poseRobot,rocketPose} from './robot-art.mjs?v=skill-depth-1';
 
 const models=[
   {id:'rocket',paint:0x9d342e,tint:0xff805c,scale:1.15,lift:.17,side:0,back:2.10,range:9.8,windup:.41,shots:1,interval:2.95,speed:13,power:.50},

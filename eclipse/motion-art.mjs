@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {arms,disposeForge,forge} from './armory.mjs?v=relic-sculpts-1';
+import {arms,disposeForge,forge} from './armory.mjs?v=emberlight-1';
 
 const PI=Math.PI;
 const TAU=PI*2;
@@ -57,9 +57,39 @@ function fallingBladeRibbon() {
 }
 
 function arrowHead() {
-  return new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute([
-    .22,0,0, -.13,0,-.084, -.07,0,0, .22,0,0, -.07,0,0, -.13,0,.084,
-  ],3));
+  const diamond=new T.Shape().moveTo(.26,0).lineTo(-.06,.102).lineTo(-.184,.054)
+    .lineTo(-.122,0).lineTo(-.184,-.054).lineTo(-.06,-.102).closePath();
+  const point=new T.ExtrudeGeometry(diamond,{depth:.047,bevelEnabled:true,bevelSize:.011,
+    bevelThickness:.013,bevelSegments:1,curveSegments:1}).translate(0,0,-.024).rotateX(PI/2);
+  // Extend the head into a shaft so the side silhouette reads as a flying arrow.
+  const shaft=new T.CylinderGeometry(.019,.026,.40,6).rotateZ(-PI/2).translate(-.27,0,0);
+  const fletching=new T.Shape().moveTo(-.23,.02).lineTo(-.34,.09)
+    .lineTo(-.48,.065).lineTo(-.42,0).lineTo(-.34,-.058).closePath();
+  const feather=new T.ExtrudeGeometry(fletching,{depth:.018,bevelEnabled:false}).translate(0,0,-.009);
+  return combine([point,shaft,feather,feather.clone().rotateX(PI/2)]);
+}
+
+function combine(parts) {
+  const position=[],normal=[];
+  for(const part of parts){
+    const geometry=part.index?part.toNonIndexed():part;
+    for(const n of geometry.attributes.position.array)position.push(n);
+    for(const n of geometry.attributes.normal.array)normal.push(n);
+    if(geometry!==part)geometry.dispose();
+    part.dispose();
+  }
+  return new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(position,3))
+    .setAttribute('normal',new T.Float32BufferAttribute(normal,3));
+}
+
+function shotGeometry(caliber) {
+  const shell=caliber==='shell';
+  const profile=shell?[[0,.23],[.094,.17],[.14,.08],[.135,-.17],[.098,-.22],[0,-.22]]:
+    [[0,.24],[.044,.18],[.07,.072],[.071,-.123],[.055,-.171],[0,-.171]];
+  return combine([
+    new T.LatheGeometry(profile.map(p=>new T.Vector2(...p)),shell?10:8).rotateZ(-PI/2),
+    new T.TorusGeometry(shell?.139:.069,shell?.020:.012,4,8).rotateY(PI/2).translate(shell?-.14:-.073,0,0),
+  ]);
 }
 
 function cleaveRibbon(halfAngle) {
@@ -83,9 +113,8 @@ function shieldFragments() {
   return new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(vertices,3));
 }
 
-function boltRibbon(path,width,positions,uvs,indices) {
+function boltRibbon(path,width,positions,uvs,indices,camera) {
   const start=positions.length/3;
-  const camera=new T.Vector3(0,.63,.77);
   for (let i=0;i<path.length;i++) {
     const u=i/(path.length-1);
     const direction=path[Math.min(path.length-1,i+1)].clone().sub(path[Math.max(0,i-1)]);
@@ -100,6 +129,12 @@ function boltRibbon(path,width,positions,uvs,indices) {
       indices.push(a,a+1,a+2,a+2,a+1,a+3);
     }
   }
+}
+
+function boltStrands(path,width,positions,uvs,indices) {
+  const eye=new T.Vector3(0,.63,.77);
+  boltRibbon(path,width,positions,uvs,indices,eye);
+  boltRibbon(path,width*.79,positions,uvs,indices,new T.Vector3(.91,-.22,.12));
 }
 
 function lightning(from,to,intensity,mobile) {
@@ -119,14 +154,14 @@ function lightning(from,to,intensity,mobile) {
   }
   path.push(end);
   const positions=[],uvs=[],indices=[];
-  boltRibbon(path,.056+intensity*.060,positions,uvs,indices);
+  boltStrands(path,.056+intensity*.060,positions,uvs,indices);
   const branches=intensity>1.18?(mobile?2:4):1;
   for (let branch=0;branch<branches;branch++) {
     const i=2+Math.floor(branch*(count-3)/branches);
     const origin=path[i],target=path[i+2];
     const drift=new T.Vector3(Math.sin(seed+branch*5.4),.15+Math.sin(branch*8+seed)*.25,Math.cos(seed+branch*4.1))
       .multiplyScalar(Math.min(.86,distance*.19));
-    boltRibbon([origin,origin.clone().lerp(target,.38).addScaledVector(drift,.32),
+    boltStrands([origin,origin.clone().lerp(target,.38).addScaledVector(drift,.32),
       origin.clone().lerp(target,.66).addScaledVector(drift,.72),target.clone().add(drift)],
       .032+intensity*.012,positions,uvs,indices);
   }
@@ -223,8 +258,36 @@ function serratedDisk() {
   cut.absarc(0,0,.386,0,TAU,true);
   shape.holes.push(cut);
   shape.closePath();
-  return new T.ShapeGeometry(shape).rotateX(-PI/2);
+  const edge=new T.ExtrudeGeometry(shape,{depth:.047,bevelEnabled:true,bevelThickness:.016,
+    bevelSize:.012,bevelSegments:1,curveSegments:14}).translate(0,0,-.023).rotateX(-PI/2);
+  const collar=new T.TorusGeometry(.427,.030,5,32).rotateX(-PI/2);
+  const center=new T.TorusGeometry(.356,.014,4,24).rotateX(-PI/2);
+  return combine([edge,collar,center]);
 }
+
+function wrappedJet() {
+  const length=21,facets=5;
+  const positions=[],uv=[],indices=[];
+  for(let row=0;row<=length;row++){
+    const t=row/length,diameter=.013+.115*Math.sin(PI*t)**1.2;
+    for(let i=0;i<=facets;i++){
+      const phase=i/facets,angle=phase*TAU+t*.79;
+      positions.push(t,Math.sin(angle)*diameter*.54,Math.cos(angle)*diameter);
+      uv.push(t,phase);
+      if(row<length&&i<facets){
+        const edge=row*(facets+1)+i,next=edge+facets+1;
+        indices.push(edge,edge+1,next,next,edge+1,next+1);
+      }
+    }
+  }
+  return new T.BufferGeometry().setIndex(indices)
+    .setAttribute('position',new T.Float32BufferAttribute(positions,3))
+    .setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+}
+
+const solid=(tint,emission=.27)=>new T.MeshStandardMaterial({
+  color:tint,emissive:tint,emissiveIntensity:emission,metalness:.65,roughness:.28,
+});
 
 export class MotionArt {
   constructor(view) {
@@ -232,9 +295,11 @@ export class MotionArt {
     this.cut=slashRibbon();
     this.spiral=spiralRibbon();
     this.jet=jetRibbon();
+    this.jetShell=wrappedJet();
     this.downstroke=fallingBladeRibbon();
     this.arrowhead=arrowHead();
-    this.ironshot=new T.IcosahedronGeometry(.18,1);
+    this.ironshot=shotGeometry('rifle');
+    this.cannonball=shotGeometry('shell');
     this.blade=shardGeometry();
     this.disk=serratedDisk();
     this.star=flashGeometry();
@@ -288,7 +353,7 @@ export class MotionArt {
 
   thrust(point,dx,dz,reach,tint,heavy) {
     const angle=-Math.atan2(dz,dx);
-    this.ribbon(this.jet,point,tint,heavy?.28:.19,{kind:1,scale:reach,angle,opacity:.94,order:94});
+    this.ribbon(this.jetShell,point,tint,heavy?.28:.19,{kind:1,scale:reach,angle,opacity:.79,order:94});
     if (heavy&&this.accent()) this.ribbon(this.jet,{...point,y:.88},tint,.24,
       {scale:reach*.92,angle:angle+.064,growth:.19,opacity:.59,order:93});
   }
@@ -306,11 +371,11 @@ export class MotionArt {
     const point={x:origin.x,y:origin.y??.92,z:origin.z};
     const travel={x:dx*range/duration,z:dz*range/duration};
     const head=this.view.addEffect(this.arrowhead,point,tint,duration+.02,
-      {scale:heavy?1.95:1.18,angle,opacity:1.04,order:94});
+      {scale:heavy?1.95:1.18,angle,material:solid(tint,.37),order:94});
     head.travel=travel;
     head.combatClock=true;
-    const trail=this.ribbon(this.jet,{x:point.x-dx*.84,y:point.y,z:point.z-dz*.84},tint,duration+.02,
-      {kind:1,scale:heavy?1.65:1.07,angle,opacity:.98,order:93});
+    const trail=this.ribbon(this.jetShell,{x:point.x-dx*.89,y:point.y,z:point.z-dz*.89},tint,duration+.02,
+      {kind:1,scale:heavy?1.43:.90,angle,opacity:.75,order:93});
     trail.travel=travel;
     trail.combatClock=true;
     if (heavy&&this.accent()) this.flash(point,0xc6edff,.73);
@@ -327,7 +392,7 @@ export class MotionArt {
     const angle=-Math.atan2(dz,dx);
     const travel={x:dx*range/duration,z:dz*range/duration};
     const bullet=this.view.addEffect(this.ironshot,origin,0xf3eaff,duration,
-      {scale:heavy?.64:.41,opacity:1,order:95});
+      {scale:heavy?.83:.59,angle,material:solid(0xf3eaff,.57),order:95});
     const trail=this.ribbon(this.jet,{x:origin.x-dx*.48,y:origin.y,z:origin.z-dz*.48},tint,duration,
       {kind:1,scale:heavy?1.02:.70,angle,opacity:.84,order:94});
     for(const fx of [bullet,trail]){fx.travel=travel;fx.combatClock=true;}
@@ -338,8 +403,10 @@ export class MotionArt {
   shell(origin,dx,dz,range,tint,duration,heavy) {
     const muzzle={x:origin.x,y:origin.y??.88,z:origin.z};
     const travel={x:dx*range/duration,z:dz*range/duration};
-    const core=this.view.addEffect(this.ironshot,muzzle,0xffebad,duration+.025,{scale:heavy?1.63:1,opacity:1,order:95});
-    const plume=this.ribbon(this.jet,{x:muzzle.x-dx*.83,y:muzzle.y,z:muzzle.z-dz*.83},tint,duration+.025,
+    const angle=-Math.atan2(dz,dx);
+    const core=this.view.addEffect(this.cannonball,muzzle,0xffebad,duration+.025,
+      {scale:heavy?1.63:1,angle,material:solid(tint,.49),order:95});
+    const plume=this.ribbon(this.jetShell,{x:muzzle.x-dx*.83,y:muzzle.y,z:muzzle.z-dz*.83},tint,duration+.025,
       {kind:1,scale:heavy?1.88:1.2,angle:-Math.atan2(dz,dx),opacity:.96,order:93});
     for(const fx of [core,plume]) {fx.travel=travel;fx.combatClock=true;}
     this.view.spark(muzzle.x,muzzle.y,muzzle.z,tint,this.view.mobile?6:11,.92,'fire',Math.atan2(dz,dx));
@@ -413,7 +480,8 @@ export class MotionArt {
   spinningDisk(x,z,dx,dz,range,tint,curve=0,heavy=false,duration=.38,size=1) {
     const point={x,y:.68,z};
     const travel={x:dx*range/duration,z:dz*range/duration};
-    const rim=this.view.addEffect(this.disk,point,tint,duration,{scale:size*(heavy?1.72:1.32),growth:.14,opacity:.94,order:85});
+    const rim=this.view.addEffect(this.disk,point,tint,duration,
+      {scale:size*(heavy?1.72:1.32),growth:.14,material:solid(tint,.52),order:85});
     rim.spin=29;
     rim.travel=travel;
     const filigree=this.view.addEffect(this.view.ring,{...point,y:.75},0xffe2a1,duration*.97,

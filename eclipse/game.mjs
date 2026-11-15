@@ -1,15 +1,15 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=ascendant-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=ascendant-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=emberlight-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=emberlight-1';
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=golden-veil-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=emberlight-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=golden-veil-1';
+import {Scenery} from './scenery.mjs?v=emberlight-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
 import {Audio} from './audio.mjs?v=afterglow-1';
 import {Input} from './input.mjs?v=bestiary-1';
-import {arms} from './armory.mjs?v=relic-sculpts-1';
+import {arms} from './armory.mjs?v=emberlight-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
 import {blessingRankCap, blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ascendant-1';
@@ -32,10 +32,10 @@ import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs
 import {actorMotion} from './actor-kinetics.mjs?v=forgelight-4';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle,training} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
-import {BranchCombat} from './branch-combat.mjs?v=ascendant-1';
-import {storyDialogue} from './dialogue-scenes.mjs?v=last-bell-1';
-import {dialoguePanel} from './dialogue.mjs?v=last-bell-1';
-import {endingFor} from './endings.mjs?v=last-bell-1';
+import {BranchCombat} from './branch-combat.mjs?v=skill-depth-1';
+import {storyDialogue} from './dialogue-scenes.mjs?v=story-portraits-1';
+import {dialoguePanel} from './dialogue.mjs?v=story-portraits-1';
+import {endingFor} from './endings.mjs?v=story-portraits-1';
 import {RelicHunt} from './relic-hunt.mjs?v=world-3d-1';
 import {relicCounter} from './relic-cast.mjs?v=ledger-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
@@ -442,7 +442,7 @@ export class Game {
     this.altar=null;
     this.twinReward=null;
     this.failure=null;
-    this.heroVisual = this.view.createActor(0,2.68);
+    this.heroVisual = this.view.createActor(0,2.68,{hero:true});
     this.relics = this.testRun?testBlessings():this.practiceRun?[...this.practiceRun.relics]:[];
     this.huntedWeapons=new Set();
     this.fusionPin=null;
@@ -2371,7 +2371,7 @@ function makeWeaponPractice(view,weapon,kind) {
   Object.assign(practice,{view,weapon,hero,t:0,state:'preview',rituals:[],relicWalls:[],learned:new Set(),autoReady:new Map(),
     branchCombat:{},audio:{attack(){},arm(){},ghostRifle(){},link(){}},enemies:[],stage:{props:[]}});
   practice.ranks=buildStats(hero,weapon,1,[]);
-  practice.heroVisual=view.createActor(0,2.68);
+  practice.heroVisual=view.createActor(0,2.68,{hero:true});
   view.equip(practice.heroVisual,weapon);
   const wide=hero.spellRadius>5.8;
   const dummies=(kind==='combo'?[[.1,.5]]:wide?[[1.7,.5],[2.9,-.92],[3.4,1.65]]:[[.15,.5],[1.6,-.73],[1.95,1.49]]);
@@ -2472,7 +2472,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
       if(gap>1.2&&Math.abs(aim.x)<9&&aim.z<8)Object.assign(hero,aim);
     }
   }
-  practice.heroVisual=view.createActor(0,2.36);
+  practice.heroVisual=view.createActor(0,2.36,{hero:true});
   const arena=practice.bossArena;
   const rehearsal=drill?arena.layout.weakness:null;
   const riftDrill=rehearsal?.type==='rift';

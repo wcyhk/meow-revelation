@@ -1,4 +1,4 @@
-import {createMaw,poseMaw} from './tsathoggua-art.mjs?v=maw-1';
+import {createMaw,poseMaw} from './tsathoggua-art.mjs?v=skill-depth-1';
 import {mawSkill} from './progression.mjs?v=last-bell-1';
 
 const life=1.04,swallowed=.86;

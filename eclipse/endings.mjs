@@ -5,7 +5,23 @@ const little=text=>line('little',text);
 const keeper=text=>line('keeper',text);
 const warden=text=>line('warden',text);
 
-const finale=(id,title,route,intro)=>({id,title,route,art:`./ending-art/${id}.webp?v=last-bell-1`,cast:[],intro});
+const endingsMoods={
+  home:{hero:'dawn',little:'dawn'},
+  't-robots':{hero:'dawn',little:'shock'},
+  't-radar':{hero:'dawn',keeper:'shock'},
+  't-medic':{hero:'dawn',warden:'shock'},
+  't-evac':{hero:'dawn',little:'grief'},
+  't-forge':{hero:'dawn',keeper:'dawn'},
+  't-charter':{hero:'dawn',little:'dawn',keeper:'shock'},
+  'm-hand':{hero:'dawn',little:'grief'},
+  'm-eye':{hero:'grief',little:'grief'},
+  'm-mouth':{hero:'grief',little:'shock'},
+  'm-order':{hero:'dawn',little:'grief'},
+  'm-bond':{hero:'grief',keeper:'grief'},
+  'm-night':{hero:'dawn',keeper:'grief',little:'shock'},
+};
+const finale=(id,title,route,lines)=>({id,title,route,art:`./ending-art/${id}.webp?v=last-bell-1`,cast:[],
+  moods:endingsMoods[id],intro:lines.map(beat=>beat.speaker==='narrator'?beat:{...beat,cast:[beat.speaker]})});
 const ordinary='普通結局';
 const tech='科技・智慧策略';
 const mystic='神祕・犧牲狂熱';

@@ -4,11 +4,15 @@ const disc=new T.PlaneGeometry(2.6,2.6).rotateX(-Math.PI/2);
 const bone=new T.ConeGeometry(1,1,6);
 const joint=new T.SphereGeometry(1,7,5);
 const tendon=new T.CylinderGeometry(.72,1,1,6);
+const fold=new T.SphereGeometry(1,7,5);
 const ivory=new T.MeshStandardMaterial({color:0xf4d9bc,roughness:.39,emissive:0x60212c,emissiveIntensity:.48});
 const flesh=new T.MeshStandardMaterial({color:0x7e1928,roughness:.41,emissive:0x511021,emissiveIntensity:.66});
 const claw=new T.MeshStandardMaterial({color:0xf1bba5,roughness:.36,emissive:0x451426,emissiveIntensity:.38});
+const gum=new T.MeshStandardMaterial({color:0x733445,roughness:.27,metalness:.13,emissive:0x651326,emissiveIntensity:.34});
+const vein=new T.MeshStandardMaterial({color:0x9c5360,roughness:.37,emissive:0x721f47,emissiveIntensity:.36});
 const dummy=new T.Object3D(),up=new T.Vector3(0,1,0);
 const start=new T.Vector3(),end=new T.Vector3(),direction=new T.Vector3();
+const shoulder=new T.Vector3(),elbow=new T.Vector3(),palm=new T.Vector3();
 const clamp=t=>Math.max(0,Math.min(1,t));
 const ease=t=>{t=clamp(t);return t*t*(3-2*t);};
 
@@ -54,6 +58,7 @@ const fragment=`
     ink+=vec3(.59,.13,.18)*wet;
     float alpha=max(inside*.99,max(gum*.84,crack*.82))*smoothstep(.0,.17,opening);
     gl_FragColor=vec4(ink,alpha);
+    #include <colorspace_fragment>
   }
 `;
 
@@ -70,16 +75,27 @@ export function createMaw(view) {
   const arms=batch(root,tendon,flesh,4);
   const palms=batch(root,joint,flesh,2);
   const nails=batch(root,bone,claw,8);
+  const lips=batch(root,fold,gum,view.mobile?14:20);
+  const cords=batch(root,tendon,vein,8);
   view.scene.add(root);
-  return {root,hole,teeth,arms,palms,nails};
+  return {root,hole,teeth,arms,palms,nails,lips,cords};
 }
 
 export function poseMaw(art,age,corpseX,corpseZ) {
-  const {hole,teeth,arms,palms,nails}=art;
+  const {hole,teeth,arms,palms,nails,lips,cords}=art;
   const open=ease(age/.22)*(1-ease((age-.78)/.24));
   const grab=ease((age-.12)/.26)*(1-ease((age-.76)/.21));
   hole.material.uniforms.opening.value=open;
   hole.material.uniforms.clock.value=age;
+  for(let i=0;i<lips.count;i++){
+    const angle=i*Math.PI*2/lips.count,x=Math.cos(angle),z=Math.sin(angle);
+    const lobe=(.86+.08*Math.sin(i*3.4+age*10))*open;
+    dummy.position.set(x*lobe,.069+(Math.abs(z)*.088+i%2*.029)*open,z*lobe*.81);
+    dummy.rotation.set(Math.abs(z)*.28,-angle-Math.PI/2,0);
+    dummy.scale.set(.226*open,(.072+i%3*.012)*open,(.098+i%2*.023)*open);
+    dummy.updateMatrix();
+    lips.setMatrixAt(i,dummy.matrix);
+  }
   for(let i=0;i<18;i++) {
     const angle=i*Math.PI/9;
     const x=Math.cos(angle),z=Math.sin(angle);
@@ -94,9 +110,20 @@ export function poseMaw(art,age,corpseX,corpseZ) {
     start.set(side*.35*open,.03,-.18);
     end.set(x*.65,.08+height*.61,z-.28*grab);
     segment(arms,i*2,start,end,.13*grab);
+    shoulder.copy(start);elbow.copy(end);
     start.copy(end);
     end.set(x,.065+height,z);
     segment(arms,i*2+1,start,end,.10*grab);
+    palm.copy(end);
+    for(const wing of [-1,1]){
+      const index=i*4+(wing>0?2:0);
+      start.copy(shoulder);start.x+=wing*grab*.053;start.y+=grab*.084;
+      end.copy(elbow);end.x+=wing*grab*.083;end.y+=grab*.068;
+      segment(cords,index,start,end,.027*grab);
+      start.copy(end);end.copy(palm);end.x+=wing*grab*.074;end.y+=grab*.044;
+      segment(cords,index+1,start,end,.022*grab);
+    }
+    end.copy(palm);
     dummy.position.copy(end);
     dummy.quaternion.identity();
     dummy.scale.set(.18*grab,.12*grab,.24*grab);
@@ -109,5 +136,5 @@ export function poseMaw(art,age,corpseX,corpseZ) {
       segment(nails,i*4+j,start,end,.049*grab);
     }
   }
-  for(const mesh of [teeth,arms,palms,nails]) mesh.instanceMatrix.needsUpdate=true;
+  for(const mesh of [teeth,arms,palms,nails,lips,cords]) mesh.instanceMatrix.needsUpdate=true;
 }

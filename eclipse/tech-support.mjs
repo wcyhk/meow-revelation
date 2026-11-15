@@ -1,5 +1,57 @@
 import * as T from '../three.min.mjs';
-import {createRobot,poseRobot} from './robot-art.mjs?v=squad-1';
+import {createRobot,poseRobot} from './robot-art.mjs?v=skill-depth-1';
+
+const sweepVertex=`
+  varying vec2 path;
+  uniform float elapsed;
+  void main(){
+    path=uv;
+    vec3 crest=position;
+    crest.y+=sin(uv.x*31.416+elapsed*3.1)*.045+
+      sin(uv.x*69.115-elapsed*4.7)*.028;
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(crest,1.);
+  }`;
+const sweepFragment=`
+  varying vec2 path;
+  uniform float elapsed,opacity,scanner;
+  uniform vec3 tint;
+  void main(){
+    float scan=.89+.11*sin(path.x*43.982+elapsed*4.);
+    float ticks=pow(.5+.5*cos(path.x*113.097),8.);
+    float arc=pow(max(0.,sin((path.x-elapsed*.36)*6.2832)),3.);
+    float fissure=pow(.5+.5*cos(path.x*106.-elapsed*7.+path.y*9.),10.);
+    float seam=pow(.5+.5*sin(path.y*6.2832),4.);
+    float pulse=mix(.57+.16*fissure+seam*.23,.29+.51*arc+.33*ticks,scanner)*scan;
+    gl_FragColor=vec4(mix(tint,vec3(.96,.89,.78),seam*.35+ticks*scanner*.21),opacity*pulse);
+    #include <colorspace_fragment>
+  }`;
+
+export class SupportSweep {
+  constructor(view,tint,range,scanner=false){
+    const surface=new T.ShaderMaterial({vertexShader:sweepVertex,fragmentShader:sweepFragment,
+      transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false,
+      uniforms:{elapsed:{value:0},opacity:{value:0},scanner:{value:Number(scanner)},tint:{value:new T.Color(tint)}}});
+    const ring=new T.TorusGeometry(1,.027,5,view.mobile?38:58).rotateX(-Math.PI/2);
+    this.mesh=new T.Mesh(ring,surface);
+    this.mesh.frustumCulled=false;
+    this.mesh.renderOrder=scanner?31:28;
+    this.range=range;
+    this.speed=scanner?.78:1.06;
+    view.scene.add(this.mesh);
+    this.hide();
+  }
+
+  update(hero,time){
+    const t=(time*this.speed)%1,spread=.18+.82*t;
+    this.mesh.position.set(hero.x,.15+.13*Math.sin(t*Math.PI),hero.z);
+    this.mesh.scale.set(this.range*spread,1+.76*t,this.range*spread);
+    this.mesh.material.uniforms.elapsed.value=time%600;
+    this.mesh.material.uniforms.opacity.value=Math.sin(Math.PI*t)*.72;
+    this.mesh.visible=true;
+  }
+
+  hide(){this.mesh.visible=false;}
+}
 
 export class EnemyMarkers {
   constructor(id) {

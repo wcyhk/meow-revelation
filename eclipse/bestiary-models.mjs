@@ -13,7 +13,7 @@ import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
 import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=maskwork-1';
-import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=turnaround-1';
+import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=emberlight-1';
 import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=maskwork-1';
 import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=jointwork-1';
 import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=turnaround-2';
@@ -22,13 +22,14 @@ import {bossSkin} from './boss-skin.mjs?v=jointwork-1';
 import {refineBossA} from './boss-refinements-a.mjs?v=jointwork-1';
 import {refineBossB} from './boss-refinements-b.mjs?v=jointwork-1';
 import {refineBossC} from './boss-refinements-c.mjs?v=jointwork-1';
-import {refineGuardian} from './guardian-refinements.mjs?v=jointwork-1';
+import {refineGuardian} from './guardian-refinements.mjs?v=emberlight-1';
 import {refineCreature} from './creature-refinements.mjs?v=jointwork-1';
+import {polishCreature} from './field-anatomy.mjs?v=emberlight-1';
 import {polishBossA} from './boss-polish-a.mjs?v=ascendant-1';
 import {polishBossB} from './boss-polish-b.mjs?v=ascendant-1';
 import {polishBossC} from './boss-polish-c.mjs?v=ascendant-1';
 import {polishGuardian} from './guardian-polish.mjs?v=ascendant-1';
-import {shapeAura} from './boss-aura.mjs?v=ascendant-1';
+import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -1628,7 +1629,9 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     ||refineBossC(k,parts,entry,mobile,tools)||refineGuardian(k,parts,entry,mobile,tools)
     ||refineCreature(k,parts,entry,mobile,tools));
   if(!entry.field)polishBossA(k,parts,entry,mobile)||polishBossB(k,parts,entry,mobile)
-    ||polishBossC(k,parts,entry,mobile)||polishGuardian(k,parts,entry,mobile);
+    ||polishBossC(k,parts,entry,mobile)||polishGuardian(k,parts,entry,mobile)
+    ||polishCreature(k,parts,entry,mobile);
+  else polishCreature(k,parts,entry,mobile);
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
@@ -1758,6 +1761,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   }
   model.finishPose?.({beat,wind,strike,stage,stagger,thrust,sweep,crush,fall});
   model.aura?.update(time,stage,wind,strike,fall,stagger);
+  if(model.polishEnergy?.attackOnly)model.aura.mesh.visible=wind+.48*strike>.08;
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
     for(const [index,shield] of arms.entries()){

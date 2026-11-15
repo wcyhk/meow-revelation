@@ -52,11 +52,12 @@ export class GroveLight {
           float grain=sin(dot(ground,vec2(4.5,7.6)))*sin(dot(ground,vec2(-6.1,9.)));
           float glints=pow(max(0.,grain),5.)*(.73+.27*sin(angle*7.+time*2.+d));
           float sweep=sin(angle*11.+time*.8)*.5+.5;
-          float haze=falloff*(.65+.35*sweep)*.084;
-          float bloom=exp(-d*d*.49)*.14;
-          vec3 tone=mix(glow,zone,.17+.18*sweep);
+          float haze=falloff*(.76+.24*sweep)*.105;
+          float bounce=exp(-d*d*.28)*.16;
+          float bloom=exp(-d*d*1.7)*.09;
+          vec3 tone=mix(glow,zone,smoothstep(0.,radius,d)*.55);
           float visibility=lanternVisibility(vec3(ground.x,.02,ground.y));
-          gl_FragColor=vec4(mix(tone,vec3(1.,.88,.67),glints*.33),on*(haze+bloom+glints*falloff*.10)*visibility);
+          gl_FragColor=vec4(mix(tone,vec3(1.,.88,.67),glints*.24),on*(haze+bounce+bloom+glints*falloff*.07)*visibility);
           #include <colorspace_fragment>
         }
       `,

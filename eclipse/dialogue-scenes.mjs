@@ -1,14 +1,16 @@
-const line=(speaker,text)=>({speaker,text});
-const narration=text=>line('narrator',text);
-const hero=text=>line('hero',text);
-const little=text=>line('little',text);
-const keeper=text=>line('keeper',text);
-const warden=text=>line('warden',text);
+const line=(speaker,text,mood)=>({speaker,text,mood});
+const narration=(text,illustration)=>({...line('narrator',text),illustration});
+const hero=(text,mood)=>line('hero',text,mood);
+const little=(text,mood)=>line('little',text,mood);
+const keeper=(text,mood)=>line('keeper',text,mood);
+const warden=(text,mood)=>line('warden',text,mood);
 const choice=(id,label,reply,note)=>({id,label,reply,note});
 
 const scenes={
   '缺頁的口糧簿':{
     cast:['hero'],
+    illustration:'ration-book',
+    moods:{hero:'shock'},
     intro:[
       narration('七年前，三個冬天冇收成。商會喺呢道門發放救命糧，領糧嘅人只須喺簿上寫低一個名。'),
       narration('糧食數目寫得清清楚楚，領糧人嗰欄卻成頁空白。最後一行有個細指印，旁邊畫住一盞提柄歪咗嘅燈。'),
@@ -16,16 +18,18 @@ const scenes={
     ],
     options:[
       choice('drawing','描低嗰盞歪燈',[
-        hero('你每次都畫歪提柄。我以前成日笑你……今次我一定認得。'),
+        hero('你每次都畫歪提柄。我以前成日笑你……今次我一定認得。','grief'),
       ],'抄低小燈畫嘅歪提柄，記住辨認佢嘅方法。'),
       choice('receipt','揭起簿底嘅收據',[
         narration('收據寫住，每穿過一層出口，就會有一小段時間凝成金幣。林門外嘅訓練所只收呢種錢。'),
-        hero('簽名係司刻。佢應該知道啲名字去咗邊。'),
+        hero('簽名係司刻。佢應該知道啲名字去咗邊。','dawn'),
       ],'留低司刻簽發嘅收據，記住時間金幣嘅來歷。'),
     ],
   },
   '水底的留聲燈':{
     cast:['hero','little'],
+    illustration:'flooded-light',
+    moods:{hero:'grief',little:'grief'},
     intro:flags=>[
       narration(flags['缺頁的口糧簿']==='drawing'?'你拎出抄低嘅畫，比對燈柄。兩道歪弧一模一樣。'
         :flags['缺頁的口糧簿']==='receipt'?'司刻嘅收據一掂到水，墨跡就向一盞沉底嘅小燈游過去。'
@@ -35,17 +39,19 @@ const scenes={
     ],
     options:[
       choice('answer','「小燈，我認得你。」',[
-        hero('提柄係歪嘅。你係小燈，我認得你。'),
+        hero('提柄係歪嘅。你係小燈，我認得你。','dawn'),
         narration('錄音冇答。但水底嗰盞燈忽然定住，唔再閃。'),
       ],'你叫咗一聲小燈，留聲燈靜咗落嚟。'),
       choice('listen','再聽一次錄音',[
-        little('我無熄門口盞燈。你行夜路最怕睇唔到級樓梯。'),
+        little('我無熄門口盞燈。你行夜路最怕睇唔到級樓梯。','shock'),
         hero('原來你一路都等緊我。'),
       ],'錄音最後，小燈話佢一直留住門口盞燈。'),
     ],
   },
   '守關人的回條':{
     cast:['hero','keeper'],
+    illustration:'three-doors',
+    moods:{hero:'shock',keeper:'dawn'},
     intro:[
       narration('冬糧已送到山下，商會仍然喺每袋糧上面留低封印。回條背面畫住三扇門。'),
       keeper('巡燈、血月、無月。三道門都去同一座王座，越深嗰條路，個黑夜就越難捱。'),
@@ -56,12 +62,14 @@ const scenes={
       ],'司刻話，更難行嘅路可以帶返更多時間金幣。'),
       choice('seal','摸一摸糧袋上嘅封印',[
         hero('上面仲有熱。啲糧明明一早送咗出去。'),
-        keeper('糧袋交咗貨，封印仲等緊收數。'),
+        keeper('糧袋交咗貨，封印仲等緊收數。','shock'),
       ],'糧袋送出後，封印仍然活躍。'),
     ],
   },
   '商會的印模':{
     cast:['hero'],
+    illustration:'iron-faces',
+    moods:{hero:'shock'},
     intro:[
       narration('印模正面係糧倉印記，背面每一格都刻住一張臉。工匠喺地磚留低字：送入爐嘅係名字，倒出嚟嘅係俾王座嘅金屬。'),
       hero('咁多張臉……有冇人記得佢哋叫咩名？'),
@@ -77,6 +85,8 @@ const scenes={
   },
   '一塊寫不完的碑':{
     cast:['hero'],
+    illustration:'empty-place',
+    moods:{hero:'grief'},
     intro:[
       narration('墓碑上刻住一行淺字：佢仲活著，我只係想唔起佢個名。碑前擺住兩雙碗筷，碗底畫住一盞細燈。'),
       hero('每晚都擺多一雙筷子……就算唔記得等緊邊個。'),
@@ -92,6 +102,8 @@ const scenes={
   },
   '一袋無人領走的糧':{
     cast:['hero'],
+    illustration:'sealed-grain',
+    moods:{hero:'dawn'},
     intro:[
       narration('金庫入面摞滿穀袋。帳簿上嘅欠數每個月都加，餘糧一袋都冇少。最後嗰欄寫住「王座維護」。'),
       hero('明明仲有糧。佢哋一直知道山下有人捱餓。'),
@@ -107,21 +119,25 @@ const scenes={
   },
   '倒行的星盤':{
     cast:['hero','keeper'],
+    illustration:'reverse-clock',
+    moods:{hero:'shock',keeper:'grief'},
     intro:[
       narration('星盤嘅刻線向後轉，終點全部指向王座下嗰口鐘。最後一位修鐘人喺盤上留低兩個字：司刻。'),
       keeper('第一場月蝕本來過一陣就完。商會改咗星盤，你一倒低，森林就會退返去午夜。'),
     ],
     options:[
       choice('reset','「點解你每次都記得我？」',[
-        keeper('入口嗰本帳簿留喺圈外。你行過幾遠、倒低幾多次，我一筆一筆記住。'),
+        keeper('入口嗰本帳簿留喺圈外。你行過幾遠、倒低幾多次，我一筆一筆記住。','dawn'),
       ],'司刻嘅帳簿留喺循環之外，可以保留每輪紀錄。'),
       choice('clock','「你以前修過王座嗰口鐘？」',[
-        keeper('修過。鐘擺仲郁得，只係俾王冠壓住咗。聽到第一聲鐘，就知今次仲有得行落去。'),
+        keeper('修過。鐘擺仲郁得，只係俾王冠壓住咗。聽到第一聲鐘，就知今次仲有得行落去。','shock'),
       ],'王冠壓住歸名鐘，司刻曾修過嗰口鐘。'),
     ],
   },
   '根下的童謠':{
     cast:['hero','little'],
+    illustration:'root-song',
+    moods:{hero:'dawn',little:'shock'},
     intro:flags=>[
       narration('菌絲一亮，樹根底就傳出小燈哼歌嘅聲。石壁上疊住兩道爪痕，無月嘅守衛曾經成對喺呢度巡邏。'),
       little('當有人叫返我個名，我就知邊度係屋企。'),
@@ -130,7 +146,7 @@ const scenes={
     ],
     options:[
       choice('humming','跟住小燈哼埋最後一句',[
-        hero('跟住門口嗰點光，一步一步返屋企。'),
+        hero('跟住門口嗰點光，一步一步返屋企。','grief'),
         narration('菌光順住你嘅聲一路亮起，停喺兩行一大一細嘅腳印前。'),
       ],'你接上小燈嘅童謠，照出一大一細兩行腳印。'),
       choice('steps','沿住石壁搵小燈嘅腳印',[
@@ -140,6 +156,8 @@ const scenes={
   },
   '戴冠人的證詞':{
     cast:['hero','warden'],
+    illustration:'crowned-witness',
+    moods:{hero:'dawn',warden:'grief'},
     intro:[
       warden('我當時只求救活孩子。佢哋話，有人戴上王冠保管啲名字，糧就會送到。'),
       narration('證詞上嘅簽名俾人刮走。最後一頁仍然留住筆尖壓出嚟嘅鐘形。'),
@@ -150,13 +168,15 @@ const scenes={
         hero('我會喺契約度搵返。'),
       ],'你答應喺契約搵返守夜者自己嘅名字。'),
       choice('children','「啲孩子收到糧未？」',[
-        warden('第一批有。戴咗冠之後，我再冇機會落山睇佢哋。'),
+        warden('第一批有。戴咗冠之後，我再冇機會落山睇佢哋。','shock'),
         hero('我到王座嗰陣會再問你。'),
       ],'守夜者記得第一批孩子收到糧，其後再冇落過山。'),
     ],
   },
   '王座下的契約':{
     cast:['hero','keeper'],
+    illustration:'throne-contract',
+    moods:{hero:'dawn',keeper:'dawn'},
     intro:flags=>[
       narration(flags['戴冠人的證詞']==='name'?'你沿住契約嘅壓痕摸過去。封蠟底下，仲留住守夜者自己個名。'
         :'商會把守夜人鎖喺王座，叫佢看管每個典當咗嘅名字。契約嘅封蠟下仲壓住守夜者自己個名。'),
@@ -167,12 +187,14 @@ const scenes={
         hero('輪到有人記住你喇。'),
       ],'你決定喺鐘聲響起前，叫返守夜者個名。'),
       choice('home','「小燈，等埋我一齊返屋企。」',[
-        hero('今次我會記得帶你返去。'),
+        hero('今次我會記得帶你返去。','grief'),
       ],'你攞實小燈嘅畫，答應同佢一齊返屋企。'),
     ],
   },
   '歸名鐘':{
     cast:['hero','warden'],
+    illustration:'returning-bell',
+    moods:{hero:'dawn',warden:'dawn'},
     intro:flags=>[
       narration(flags['王座下的契約']==='home'?'你摸一摸外衣入面小燈嘅畫，照住契約念出守夜者嘅名字。'
         :'你照住契約念出守夜者嘅名字。碎裂嘅王冠跌落台階，佢第一次應咗聲。'),
@@ -181,6 +203,7 @@ const scenes={
     options:[
       choice('call','一邊拉鐘，一邊叫「小燈」',[
         hero('小燈，我返嚟喇。'),
+        narration('遠處有一下燈響。有人踩過門口嗰級鬆咗嘅樓梯。','first-light'),
       ]),
       choice('together','同守夜者一齊拉鐘繩',[
         warden('等山下每一戶，都聽清楚自己屋企人個名。'),

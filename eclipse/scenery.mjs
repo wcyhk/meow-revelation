@@ -1,28 +1,30 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=ascendant-1';
-import {shapeAura} from './boss-aura.mjs?v=ascendant-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=emberlight-1';
+import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=relic-sculpts-1';
+import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=emberlight-1';
 import {stages} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=golden-veil-1';
+import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=afterglow-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
 import {loadPaintedActors} from './actor-art.mjs?v=ascendant-1';
-import {GroveLight} from './grove-light.mjs?v=afterglow-1';
+import {GroveLight} from './grove-light.mjs?v=emberlight-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=relic-sculpts-1';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=skill-depth-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=nightforge-1';
-import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=pao-detail-1';
-import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=golden-veil-1';
+import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=emberlight-1';
+import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=emberlight-1';
+import {SpellLighting} from './spell-lighting.mjs?v=emberlight-1';
+import {createKeeper,keeperPaw,poseKeeper,removeKeeper} from './keeper-model.mjs?v=emberlight-1';
 import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 
 const PI = Math.PI;
@@ -245,6 +247,7 @@ export class Scenery {
     this.sigilTextures=new Map();
     this.makeSkillSeals();
     this.groveLight=new GroveLight(this.scene,this.landscape.lanternShadows);
+    this.spellLighting=new SpellLighting(this);
     this.mist = Array.from({length:5}, (_, index) => this.makeMist(index));
     this.ring = circle(1, .038);
     this.disc = new T.CircleGeometry(1, 48).rotateX(-PI / 2);
@@ -315,6 +318,7 @@ export class Scenery {
   setStage(stage) {
     this.stage = stage;
     this.feedback.clear();
+    this.spellLighting.reset();
     this.sigilPreview.visible=this.sigilBurst.visible=false;
     this.sigilPreview.material.opacity=0;
     this.sigilTime=0;
@@ -430,13 +434,13 @@ export class Scenery {
     return mesh;
   }
 
-  createActor(frame, height) {
+  createActor(frame, height, {hero=false}={}) {
     const hitFlash={value:0};
     const spriteMaterial = new T.ShaderMaterial({
       uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},hitFlash,fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
         stride:{value:0},footLift:{value:0},lag:{value:0},paw:{value:new T.Vector2()},wrist:{value:new T.Vector2()},
         guard:{value:0},ink:{value:new T.Color(0xffffff)},rim:{value:new T.Color()},texel:{value:new T.Vector2()},
-        rimLight:{value:0},goldEyes:{value:0},eyeTime:{value:0},eyeCenters:{value:new T.Vector4()}},
+        rimLight:{value:0},spellFill:{value:new T.Color(0x000000)},goldEyes:{value:0},eyeTime:{value:0},eyeCenters:{value:new T.Vector4()}},
       vertexShader:`
         varying vec2 artUV;
         uniform float bend,sway,compression,stride,footLift,lag;
@@ -468,6 +472,7 @@ export class Scenery {
         uniform vec4 eyeCenters;
         uniform vec3 ink;
         uniform vec3 rim;
+        uniform vec3 spellFill;
         uniform vec2 texel;
         varying vec2 artUV;
         void main() {
@@ -481,6 +486,7 @@ export class Scenery {
           paint=mix(paint,vec3(1.,.35,.10),warm*.24);
           paint=mix(paint,mix(vec3(1.,.78,.53),vec3(.71,.97,1.),guard),flash);
           paint=mix(paint,rim*.75+vec3(.085),outline);
+          paint+=min(spellFill,vec3(.78))*(paint*.63+vec3(.14+min(outline,.6)*.44));
           paint=mix(paint*(1.+hitFlash*.38),vec3(1.65,1.57,1.48),hitFlash*.89);
           if(goldEyes>0.){
             vec2 a=(artUV-eyeCenters.xy)/vec2(.021,.016),b=(artUV-eyeCenters.zw)/vec2(.014,.015);
@@ -501,7 +507,12 @@ export class Scenery {
     const rim = this.ground(this.halo, 0xff8d52, .19, height * 1.6, height * 1.06);
     rim.material.blending = T.AdditiveBlending;
     this.scene.add(art, shade, rim);
-    return {art,shade,rim,height,hitFlash,footPhase:null};
+    const keeper=hero?createKeeper(this.scene,this.mobile):null;
+    if(keeper){
+      art.visible=false;
+      for(const material of Object.values(keeper.materials))addHitSurface(material,hitFlash);
+    }
+    return {art,shade,rim,height,hitFlash,keeper,footPhase:null};
   }
 
   prepareBoss(visual,spec) {
@@ -841,6 +852,10 @@ export class Scenery {
     art.material.uniforms.rimLight.value=.41+(spec.aura??.1)*.5;
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
+    if(art.visible)this.spellLighting.fill(x,figureHeight*.52,z,art.material.uniforms.spellFill.value);
+    if(visual.keeper)poseKeeper(visual.keeper,unit,flash===spec.flash?spec:{...spec,flash},{
+      x,z,height:figureHeight,time:this.time,direction,weaponProfile:visual.weapon?.profile,
+    });
     if(unit.ascendant){
       visual.ascendantAura??=this.awakenActor();
       const {root,energy}=visual.ascendantAura;
@@ -898,7 +913,9 @@ export class Scenery {
     if (visual.weapon) {
       const {model,glow,id,profile,anchor,blades,mount} = visual.weapon;
       const paws=pawPositions[spec.frame]??pawPositions[0];
-      this.pawPosition(art,paws[profile.hand??0],handPoint);
+      const hand=profile.hand??0;
+      if(visual.keeper)keeperPaw(visual.keeper,hand,handPoint);
+      else this.pawPosition(art,paws[hand],handPoint);
       previousGrip.copy(model.quaternion);
       model.rotation.set(profile.pitch, direction*(.32+Math.sin(this.time*3.2)*.08),
         direction*(profile.turn+(spec.frame===1?-.32:0)+(spec.sway??0)*1.3-(spec.lag??0)*2.2)+roll*.75);
@@ -941,7 +958,8 @@ export class Scenery {
       if(blades) {
         for(const [index,blade] of blades.entries()){
           blade.rotation.z=(index?1:-1)*direction*(.34+charge*.29);
-          this.pawPosition(art,paws[index],handPoint);
+          if(visual.keeper)keeperPaw(visual.keeper,index,handPoint);
+          else this.pawPosition(art,paws[index],handPoint);
           model.worldToLocal(handPoint);
           blade.position.copy(handPoint).sub(weaponOffset.copy(anchor).applyQuaternion(blade.quaternion));
         }
@@ -983,9 +1001,10 @@ export class Scenery {
   }
 
   removeActor(visual) {
-    const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary}=visual;
+    const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary,keeper}=visual;
     this.feedback.forget(visual);
     this.scene.remove(art, shade, rim);
+    if(keeper)removeKeeper(keeper);
     if(visual.ascendantAura){
       visual.ascendantAura.energy.dispose();
       visual.ascendantAura.root.removeFromParent();
@@ -1234,6 +1253,7 @@ export class Scenery {
   }
 
   spellAccent(point,spec) {
+    this.spellLighting.emit(point,spec);
     return ornamentSpell(this,point,spec);
   }
 
@@ -1377,6 +1397,7 @@ export class Scenery {
     const pao=unit.visual?.bestiary?.pao;
     this.feedback.impact(visual,kind,angle);
     const impactColor=shield?0xa7edff:tint;
+    if(heavy)this.spellLighting.emit({x,y:height,z},{action:'impact',element:'gold',tint:impactColor,radius:1.22,power:.6});
     if(kind==='break'||kind==='fall')this.spellAccent(unit,{
       action:kind==='break'?'spikes':'ring',element:shield?'ice':'stone',tint:impactColor,
       radius:unit.spec?.height*.47||1.25,angle,power:.67,seed:10,
@@ -1414,6 +1435,7 @@ export class Scenery {
     const pao=unit.visual?.bestiary?.pao;
     if(pao){
       if(phase==='entrance')pao.entranceAt=this.time;
+      this.spellLighting.emit(unit,{action:phase,element:'water',tint:0x6cf1dd,radius:3.3,power:1.12});
       paoArrival(this,unit,phase);
       this.shake=Math.max(this.shake,phase==='phase'?.30:.17);
       return;
@@ -1494,7 +1516,11 @@ export class Scenery {
        Math.hypot(x-this.focus?.x,z-this.focus?.z)<radius+3.8){
       this.feedback.surge(effect,hazard,Math.min(.93,radius*.18));
     }
-    if(owner?.visual?.bestiary?.pao&&paoStrike(this,hazard))return;
+    if(owner?.visual?.bestiary?.pao&&paoStrike(this,hazard)){
+      const fire=pattern==='cinders';
+      this.spellLighting.emit(hazard,{action:kind,element:fire?'fire':'water',tint:fire?0xf68b50:0x62dfd6,radius,power:.92});
+      return;
+    }
     const line=kind==='line',bearing=angle??0;
     const mark=line?{x:x-Math.cos(bearing)*radius*.5,z:z-Math.sin(bearing)*radius*.5}:{x,z};
     this.spellAccent(mark,{action:pattern==='prison'||pattern==='eclipse'?'storm':kind,element:effect,tint,
@@ -1680,6 +1706,7 @@ export class Scenery {
       if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
     }
     this.updateEffects(dt,paused,freezeWarnings);
+    this.spellLighting.tick(paused?0:dt);
     this.renderParticles(paused?0:dt,!this.feedback.subdued);
     if(this.leaves.mesh.visible)this.renderLeaves(this.feedback.subdued?0:time);
     this.renderMission();

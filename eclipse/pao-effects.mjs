@@ -46,12 +46,22 @@ function helix(view,x,y,z,radius,rise,turns,color,duration,reverse=false){
   const vapor=new T.ShaderMaterial({
     uniforms:{life:{value:0},opacity:{value:.97},tint:{value:new T.Color(color)}},
     transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-    vertexShader:`varying vec2 filament;void main(){filament=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    vertexShader:`uniform float life;varying vec2 filament;
+      void main(){
+        filament=uv;
+        vec3 p=position;
+        float swell=sin(uv.x*3.14159)*sin(uv.x*16.-life*8.);
+        p.xz*=1.+swell*.075;
+        p.y+=swell*.065;
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
+      }`,
     fragmentShader:`uniform float life,opacity;uniform vec3 tint;varying vec2 filament;
       void main(){
         float tail=smoothstep(0.,.29,filament.x)*(1.-smoothstep(.72,1.,filament.x));
-        float bunch=.30+.70*pow(.5+.5*sin(filament.x*42.+life*25.),2.5);
-        gl_FragColor=vec4(tint,tail*bunch*opacity);
+        float bunch=.35+.65*pow(.5+.5*sin(filament.x*42.-life*25.),2.5);
+        float core=pow(.5+.5*cos(filament.x*16.-life*17.),5.);
+        float front=smoothstep(-.12,.15,life*3.-filament.x);
+        gl_FragColor=vec4(mix(tint,vec3(.84,1.,.96),core*.73),tail*bunch*front*opacity);
         #include <colorspace_fragment>
       }`,
   });

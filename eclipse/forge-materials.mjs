@@ -105,6 +105,8 @@ export function forgedMaterials(weapon) {
     dark:material(dark,cloth.has(id)?'cloth':'wood',.12,.79),
     trim:material(referenceColor(trim,2,.31),'metal',.69,.37,.035,true),
     edge:material(referenceColor(edge,0,.43),chipped?'bone':'metal',chipped?.16:.73,chipped?.60:.31,.046),
+    patina:material(new T.Color(body).lerp(new T.Color(trim),.29).multiplyScalar(.69),'metal',.52,.67,.027),
+    hardened:material(new T.Color(edge).lerp(new T.Color(sample?.[0]??trim),.34),'metal',.80,.32,.064),
     body:material(referenceColor(body,1,.42),gem?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
       gem?.29:.38,lacquer.has(id)?.38:.54,.075),
     core:material(core,gem?'crystal':'stone',.15,.34,gem?.55:.26),

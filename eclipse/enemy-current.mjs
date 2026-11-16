@@ -17,6 +17,8 @@ function currentsGeometry(field,mobile,weaponCount){
   if(!field)for(let i=0;i<weaponCount;i++){
     for(let j=0;j<(mobile?2:3);j++)strands.push(4+i,j*2.39,j%2);
     for(let j=0;j<(mobile?5:8);j++)strands.push(6+i,j*2.39,(j*.618)%1);
+    strands.push(8+i,0,0);
+    for(let j=0;j<(mobile?3:5);j++)strands.push(10+i,j*2.39,(j*.618)%1);
   }
   geometry.setAttribute('strand',new T.InstancedBufferAttribute(new Float32Array(strands),3));
   geometry.instanceCount=strands.length/3;
@@ -30,12 +32,17 @@ const vertex=`
   uniform vec4 grip[2],tip[2];
   uniform vec4 burstPoint[2];
   uniform vec3 burstHeading[2],weaponPlane[2];
-  uniform float weaponKind[2];
+  uniform float weaponKind[2],idleAge[2],idlePulse[2];
   uniform vec4 wake[6];
   varying vec2 ribbon;
   varying float opacity,seed,kind;
   vec3 normalTo(vec3 axis){
     return normalize(cross(axis,abs(axis.y)>.82?vec3(1.,0.,0.):vec3(0.,1.,0.)));
+  }
+  void hideStrand(){
+    gl_Position=vec4(2.,2.,2.,1.);
+    ribbon=vec2(0.);
+    opacity=seed=kind=0.;
   }
   void main(){
     float u=position.x,v=position.y;
@@ -87,17 +94,18 @@ const vertex=`
         tx=normalTo(axis);ty=cross(axis,tx);
       }
       float hand=strand.z>.5?-1.:1.;
-      float angle=hand*ringSpin+strand.y+u*(3.36+weaponPower*.84);
-      float radius=grip[i].w*(mix(.82,1.16,circular)+weaponPower*.65);
+      float angle=hand*ringSpin+strand.y+u*(3.72+weaponPower*.62);
+      float radius=grip[i].w*(mix(.93,1.19,circular)+weaponPower*.52+idlePulse[i]*.17);
       vec3 radial=tx*cos(angle)+ty*sin(angle);
       p=mix(a,b,mix(.88,.5,circular))+radial*radius;
       p+=axis*sin(angle)*radius*.18*hand;
       orthogonal=radial;
-      bandwidth*=.68+weaponPower*.18;
-      edge*=.24+weaponPower*.89+stage*.09;
-    }else{
+      bandwidth*=.88+weaponPower*.19;
+      edge*=.65+weaponPower*.69+stage*.07+idlePulse[i]*.32;
+    }else if(mode<7.5){
       int i=int(mode)-6;
       vec4 burst=burstPoint[i];
+      if(releaseAge>=1.||burst.w<=0.){hideStrand();return;}
       vec3 axis=burstHeading[i];
       vec3 tx=normalTo(axis),ty=cross(axis,tx);
       vec3 fan=tx*cos(strand.y)+ty*sin(strand.y);
@@ -110,6 +118,34 @@ const vertex=`
       orthogonal=normalize(cross(jet,cameraPosition-p)+vec3(.00001));
       bandwidth=burst.w*(.038+.029*strand.z)*(1.-age*.58);
       edge*=smoothstep(0.,.09,age)*(1.-smoothstep(.20,1.,age))*(1.09+strand.z*.35);
+    }else if(mode<9.5){
+      int i=int(mode)-8;
+      float circular=step(1.5,weaponKind[i]);
+      vec3 anchor=mix(grip[i].xyz,tip[i].xyz,mix(.84,.5,circular));
+      float radius=min(scaleUnit*.73,grip[i].w*(1.85+idlePulse[i]*.52+weaponPower*.38));
+      vec3 viewRight=vec3(viewMatrix[0].x,viewMatrix[1].x,viewMatrix[2].x);
+      vec3 viewUp=vec3(viewMatrix[0].y,viewMatrix[1].y,viewMatrix[2].y);
+      p=anchor+(viewRight*(u*2.-1.)+viewUp*v)*radius;
+      orthogonal=viewUp;
+      bandwidth=0.;
+      edge=.35+idlePulse[i]*.28+weaponPower*.27;
+    }else{
+      int i=int(mode)-10;
+      if(idlePulse[i]<=0.){hideStrand();return;}
+      float age=idleAge[i];
+      float circular=step(1.5,weaponKind[i]);
+      vec3 anchor=mix(grip[i].xyz,tip[i].xyz,mix(.94,.5,circular));
+      vec3 axis=normalize(tip[i].xyz-grip[i].xyz+vec3(.00001));
+      if(circular>.5)axis=weaponPlane[i];
+      vec3 tx=normalTo(axis),ty=cross(axis,tx);
+      float angle=ringSpin*.8+strand.y;
+      vec3 radial=tx*cos(angle)+ty*sin(angle);
+      float radius=grip[i].w;
+      p=anchor+radial*radius*(.48+age*(1.1+strand.z*.94)+u*(.25+age*.61));
+      p+=axis*radius*(age*(strand.z-.35)*.92+u*.19);
+      orthogonal=normalize(cross(radial,cameraPosition-p)+vec3(.00001));
+      bandwidth=radius*(.125+.053*strand.z)*(1.-age*.60);
+      edge*=idlePulse[i]*(1.0+strand.z*.33);
     }
     p+=orthogonal*v*bandwidth;
     gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);
@@ -127,6 +163,15 @@ const fragment=`
   varying float opacity,seed,kind;
   void main(){
     float u=ribbon.x,v=ribbon.y;
+    if(kind>7.5&&kind<9.5){
+      vec2 center=vec2(u*2.-1.,v);
+      float d=dot(center,center);
+      float edge=(1.-smoothstep(.22,1.,d))*exp(-4.6*d);
+      float hot=exp(-24.*d)*.30;
+      gl_FragColor=vec4(mix(tint,heart,hot),edge*opacity);
+      #include <colorspace_fragment>
+      return;
+    }
     float t=clock*(5.6+force*2.0)+seed;
     float vein=sin(u*22.-t)*.18+sin(u*43.+t*.62)*.093;
     if(style>1.5&&style<2.5)vein=(abs(fract(u*7.+seed*.143-clock*.83)*2.-1.)-.5)*.86;
@@ -165,12 +210,15 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
   let lastSample=-Infinity;
   let lastRelease=null;
   let lastPose;
+  let idleClock=(tint%811)/811;
+  const idlePeriod=2.35+(tint%31)*.022;
   const uniforms={
     clock:{value:0},force:{value:0},stage:{value:0},style:{value:flavors[shape]??flavors[effect]??4},
     strength:{value:0},scaleUnit:{value:1},center:{value:new T.Vector3()},span:{value:new T.Vector3()},
     grip:{value:[new T.Vector4(),new T.Vector4()]},tip:{value:[new T.Vector4(),new T.Vector4()]},
     wake:{value:trail},tint:{value:hues},heart:{value:hues.clone().lerp(new T.Color(0xfff1dc),.76)},
     weaponPower:{value:0},ringSpin:{value:0},releaseAge:{value:1},
+    idleAge:{value:[1,1]},idlePulse:{value:[0,0]},
     weaponKind:{value:Array.from({length:2},(_,i)=>links[i]?.kind==='ring'?2:links[i]?.kind==='bow'?1:0)},
     burstPoint:{value:[new T.Vector4(),new T.Vector4()]},
     burstHeading:{value:[new T.Vector3(0,0,1),new T.Vector3(0,0,1)]},
@@ -234,6 +282,13 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
       const elapsed=T.MathUtils.clamp(time-(lastPose??time),0,.055);
       const speed=(2.4+uniforms.weaponPower.value*6.5)*(subdued?.52:1);
       uniforms.ringSpin.value=(uniforms.ringSpin.value+elapsed*speed)%(Math.PI*2);
+      idleClock=(idleClock+elapsed)%idlePeriod;
+      for(let i=0;i<links.length;i++){
+        const age=Math.min(1,((idleClock+i*idlePeriod*.41)%idlePeriod)/.52);
+        uniforms.idleAge.value[i]=age;
+        uniforms.idlePulse.value[i]=subdued||field?0:T.MathUtils.smoothstep(age,0,.12)*
+          (1-T.MathUtils.smoothstep(age,.31,1))*(1-uniforms.weaponPower.value*.72);
+      }
       lastPose=time;
       uniforms.releaseAge.value=motion&&motion===lastRelease?T.MathUtils.clamp(motion.age/.48,0,1):1;
       uniforms.clock.value=subdued?time*.45:time;

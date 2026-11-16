@@ -4,9 +4,9 @@ import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=forgeburst-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyCurrent} from './enemy-current.mjs?v=forgeburst-1';
+import {enemyCurrent} from './enemy-current.mjs?v=everglow-1';
 import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=forgeburst-1';
-import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=forgeburst-1';
+import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=everglow-1';
 import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=night-current-1';
@@ -1814,11 +1814,14 @@ export function poseBestiary(model,unit,spec,time,x,z){
   model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
   if(model.weaponEmission){
     const uniforms=model.weaponEmission;
+    const energy=model.aura.mesh.material.uniforms;
     const subdued=spec.subdued?.48:1;
-    uniforms.weaponClock.value=model.aura.mesh.material.uniforms.ringSpin.value;
+    uniforms.weaponClock.value=energy.ringSpin.value;
     uniforms.weaponCharge.value=T.MathUtils.smoothstep(wind,.14,1)*(1-fall)*subdued;
     uniforms.weaponRelease.value=strike*(1-fall)*subdued;
     uniforms.weaponStage.value=Math.min(2,stage);
+    uniforms.weaponIdlePulse.value=Math.max(...energy.idlePulse.value);
+    uniforms.weaponLive.value=(1-fall)*(spec.subdued?.77:1);
   }
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);

@@ -34,15 +34,18 @@ function glowingFinish(original,uniforms){
     shader.fragmentShader=shader.fragmentShader.replace('#include <common>',`#include <common>
       varying float vWeaponDistance;
       uniform vec3 weaponTint,weaponHeart;
-      uniform float weaponClock,weaponCharge,weaponRelease,weaponStage;`)
+      uniform float weaponClock,weaponCharge,weaponRelease,weaponStage,weaponIdlePulse,weaponLive;`)
       .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
-        float energized=smoothstep(.12,.67,vWeaponDistance);
-        float rimGlow=pow(clamp(1.-abs(dot(normal,normalize(vViewPosition))),0.,1.),2.5);
+        float energized=smoothstep(.15,.59,vWeaponDistance);
+        float edge=clamp(1.-abs(dot(normal,normalize(vViewPosition))),0.,1.);
+        float rimGlow=edge*edge;
+        float tipHeat=smoothstep(.59,.96,vWeaponDistance);
         float flow=pow(.5+.5*cos(vWeaponDistance*15.-weaponClock*2.),5.);
-        float mantle=(.08+.18*weaponCharge+rimGlow*(.32+.41*weaponCharge))*energized;
-        float vein=energized*flow*(.14+.52*weaponCharge);
-        totalEmissiveRadiance+=weaponTint*(mantle+vein*.65)*(1.+weaponStage*.19);
-        totalEmissiveRadiance+=weaponHeart*(vein*.40+weaponRelease*energized*(.27+.58*rimGlow));`);
+        float mantle=(.24+.20*weaponCharge+rimGlow*(.58+.32*weaponCharge)+tipHeat*.21)*energized;
+        float vein=energized*flow*(.25+.46*weaponCharge);
+        totalEmissiveRadiance+=weaponTint*(mantle+vein*.67)*(1.+weaponStage*.19)*weaponLive;
+        float hotEdge=energized*(tipHeat*.12+rimGlow*.14+weaponIdlePulse*(.10+tipHeat*.22));
+        totalEmissiveRadiance+=weaponHeart*(hotEdge+vein*.43+weaponRelease*energized*(.27+.58*rimGlow))*weaponLive;`);
   };
   return material;
 }
@@ -52,6 +55,7 @@ export function armWeaponEmission(weapons,materials,tint){
   const dye=new T.Color(tint);
   const uniforms={
     weaponClock:{value:0},weaponCharge:{value:0},weaponRelease:{value:0},weaponStage:{value:0},
+    weaponIdlePulse:{value:0},weaponLive:{value:1},
     weaponTint:{value:dye},weaponHeart:{value:dye.clone().lerp(new T.Color(0xfff6e5),.66)},
   };
   const finishes=new Map();

@@ -1,9 +1,9 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=forgeburst-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=forgeburst-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=everglow-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=everglow-1';
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=forgeburst-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=everglow-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=forgeburst-1';
+import {Scenery} from './scenery.mjs?v=everglow-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
@@ -2619,6 +2619,13 @@ function makeBossPractice(view,dossier,action,signal,sound) {
       if(!drill)return practice.t<(action.portrait?1:duration);
       if(done)this.finishAt??=practice.t+1.15;
       return !done||practice.t<this.finishAt;
+    },
+    idle(dt){
+      if(drill||demonstration==='defeat'||!unit.visual.bestiary?.weapons.length)return false;
+      practice.t+=dt;
+      if(unit.motion)unit.motion.age+=dt;
+      paint(dt);
+      return true;
     },
     dispose() {
       if(arena)view.setBossArena(null);

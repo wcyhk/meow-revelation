@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgeburst-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=everglow-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
@@ -689,17 +689,23 @@ export class WeaponViewer {
 
   startPlayback(){
     this.resize();
+    this.playbackDone=false;
     this.previous=performance.now();
     this.animate(this.previous);
   }
 
   animate(now){
     if(!this.open||!this.practice)return;
+    if(this.playbackDone&&this.main.mobile&&now-this.previous<30){
+      this.raf=requestAnimationFrame(this.animate);
+      return;
+    }
     const dt=T.MathUtils.clamp((now-this.previous)/1000,0,.05);
     this.previous=now;
-    const active=dt>0&&this.practice.step(dt);
+    if(dt>0&&!this.playbackDone)this.playbackDone=!this.practice.step(dt);
     const {view}=this;
     view.time+=dt;
+    const idle=this.playbackDone&&!this.main.feedback.subdued&&this.practice.idle?.(dt);
     view.feedback.update(dt);
     view.spellLighting.tick(dt);
     view.updateEffects(dt);
@@ -717,7 +723,7 @@ export class WeaponViewer {
     this.renderer.render(this.scene,battleCamera);
     view.motion.budget=0;
     view.elementBudget=0;
-    if(active||dt===0)this.raf=requestAnimationFrame(this.animate);
+    if(!this.playbackDone||idle)this.raf=requestAnimationFrame(this.animate);
   }
 
   clearScene(){

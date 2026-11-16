@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {featherVane,sculptVolume,wingWeb} from './sculpt-volume.mjs?v=sculpted-1';
 
 const PI=Math.PI,TAU=PI*2;
@@ -503,6 +504,7 @@ function weapon(k,hand,type,side=1){
   if(type==='fist'||type==='shield')return joint;
   if(type==='orb'||type==='loop'||type==='disc'){
     const radius=type==='disc'?.31:type==='loop'?.26:.21;
+    markEnemyWeapon(joint,[0,radius*1.2,.06],{from:[0,-radius,.06],width:radius,aim:false});
     hoop(k,joint,'bInlay',radius,.037,30);
     hoop(k,joint,'bTrim',radius*.74,.014,24,0,0,.070);
     stone(k,joint,'glow',0,0,.063,radius*.56,radius*.61,radius*.32);
@@ -534,6 +536,7 @@ function weapon(k,hand,type,side=1){
     return joint;
   }
   if(type==='bow'){
+    markEnemyWeapon(joint,[-.65,0,.03],{from:[.27,0,.03],width:.28});
     const limb=[[0,0,.03,.042],[.172,.29,.037,.061],[.29,.567,.016,.055],[.236,.767,-.008,.044],[.345,.862,.006,.006]];
     for(const part of signs){
       const f=pt=>pt.map(([x,y,z,r])=>[x,y*part,z,r]);
@@ -546,6 +549,7 @@ function weapon(k,hand,type,side=1){
     return joint;
   }
   if(type==='mace'){
+    markEnemyWeapon(joint,[.037,1.58,.067],{width:.24});
     mass(k,joint,'bWood',[[0,-.42,0,.038],[0,.12,0,.048],[.025,.729,.045,.043],[.037,1.26,.064,.039]],17,9);
     const cage=k.bone(joint,.037,1.27,.067);
     stone(k,cage,'bInlay',0,.150,0,.124,.166,.118);
@@ -560,6 +564,7 @@ function weapon(k,hand,type,side=1){
   }
   const isAxe=['axe','crescent'].includes(type),staff=['branch','hook','sceptre','trident','flame','staff'].includes(type);
   const length=isAxe?1.37:staff?1.28:type==='spear'?1.62:type==='dagger'?.47:.92;
+  markEnemyWeapon(joint,[0,length+(staff?.32:.13),.025],{width:isAxe?.29:staff?.23:.13,aim:!staff||type==='trident'});
   mass(k,joint,'bWood',[[0,staff?-.72:-.265,0,.038,.042],[0,.138,0,.046,.049],[.012,length*.85,.017,.043,.043],
     [0,length,.014,.029,.036]],15,10,2.10,.15);
   for(let i=0;i<6;i++){

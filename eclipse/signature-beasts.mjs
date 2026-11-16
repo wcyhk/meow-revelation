@@ -1,4 +1,5 @@
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 
 const opposite=(side,points)=>points.map(([x,y,z,...rest])=>[x*side,y,z,...rest]);
 
@@ -269,6 +270,7 @@ export function sculptDestroyer(k){
         [x+.11*side,-.43,-.011,.119,.031],[x+.14*side,-.58,-.192,.009,.005]],i);
     }
     if(side===1){
+      markEnemyWeapon(fist,[1.12,1.15,.39],{width:.39});
       rod(fist,'deep',[.06,-.398,-.245],[.016,.49,.457],.081);
       rod(fist,'trim',[.016,.49,.457],[-.049,.96,.72],.104);
       k.sculpt.plate(fist,'coal',[[.0,.39,.31],[-.14,.65,.48],[.16,.98,.52],[.43,1.28,.56],

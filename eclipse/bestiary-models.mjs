@@ -4,19 +4,20 @@ import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=chiaroscuro-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyEnergy} from './enemy-energy.mjs?v=turnaround-1';
-import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=jade-rig-1';
+import {enemyCurrent} from './enemy-current.mjs?v=night-current-1';
+import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=night-current-1';
+import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
-import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=sculpted-1';
+import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=night-current-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
-import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=maskwork-1';
-import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=emberlight-1';
-import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=maskwork-1';
-import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=jointwork-1';
-import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=turnaround-2';
+import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=night-current-1';
+import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=night-current-1';
+import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=night-current-1';
+import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=night-current-1';
+import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=night-current-1';
 import {finishSpecialBoss} from './special-boss-finish.mjs?v=turnaround-2';
 import {bossSkin} from './boss-skin.mjs?v=jointwork-1';
 import {refineBossA} from './boss-refinements-a.mjs?v=jointwork-1';
@@ -29,7 +30,6 @@ import {polishBossA} from './boss-polish-a.mjs?v=ascendant-1';
 import {polishBossB} from './boss-polish-b.mjs?v=ascendant-1';
 import {polishBossC} from './boss-polish-c.mjs?v=ascendant-1';
 import {polishGuardian} from './guardian-polish.mjs?v=ascendant-1';
-import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -389,6 +389,8 @@ function face(k,joint,options={}){
 function blade(k,hand,crest,huge=false){
   const {mesh,rod}=k;
   const length=huge?1.54:1.03;
+  const pole=['spear','lancer','trident','staff','banner'].includes(crest);
+  markEnemyWeapon(hand,pole?[0,length*.81,.65]:[0,-.15,.74+length*.32],{width:pole?.128:.17});
   rod(hand,'deep',[0,-.08,-.20],[0,-.08,.37],.067);
   mesh(hand,'gem','glow',0,-.08,.26,.10,.12,.10);
   if(['axe','cleaver','cannon','magma'].includes(crest)){
@@ -408,6 +410,8 @@ function blade(k,hand,crest,huge=false){
 
 function trialWeapon(k,hand,weapon){
   const {mesh,rod}=k;
+  const tip=weapon==='bow'?[-.49,0,.14]:weapon==='swords'?[0,.25,1.42]:weapon==='windmace'?[-.16,1.36,.43]:[-.39,1.50,.88];
+  markEnemyWeapon(hand,tip,{width:weapon==='bow'||weapon==='swords'?.27:.16});
   if(weapon==='swords'){
     for(const side of [-1,1]){
       rod(hand,'deep',[side*.29,-.14,-.08],[side*.31,.04,.32],.046);
@@ -565,6 +569,7 @@ function humanoid(k,entry){
     mesh(head,'gem','edge',.05,.47,.29,.32,.17,.09);
     if(entry.id==='m107'){
       const carriage=bone(body,.56,-.22,.35);
+      markEnemyWeapon(carriage,[0,.16,.98],{from:[0,.16,.02],width:.22});
       mesh(carriage,'pearl','deep',0,.16,.37,.27,.26,.61);
       mesh(carriage,'ring','edge',0,.16,.97,.24,.23,1.2);
       mesh(carriage,'bar','deep',0,.18,.92,.18,.08,.18,PI/2);
@@ -590,6 +595,7 @@ function humanoid(k,entry){
   }
   if(entry.id==='m119'){
     const trident=bone(arms[1],.082,-.66,.095);
+    markEnemyWeapon(trident,[0,.09,1.64],{width:.15});
     rod(trident,'deep',[0,0,-.58],[0,.04,.86],.036);
     rod(trident,'trim',[0,.04,.80],[0,.06,1.16],.044);
     for(let tine=-1;tine<=1;tine++){
@@ -626,6 +632,7 @@ function humanoid(k,entry){
     body.userData.train=train;
   }else if(entry.id==='m017'||entry.id==='m109'){
     const staff=bone(arms[1],.084,-.66,.16);
+    markEnemyWeapon(staff,[0,.97,.36],{width:.21,aim:false});
     rod(staff,'deep',[0,-.50,-.19],[0,.78,.33],.052);
     mesh(staff,'pearl',entry.id==='m109'?'body':'deep',0,.67,.33,.29,.30,.24,.25);
     for(let tooth=0;tooth<7;tooth++){
@@ -1111,6 +1118,7 @@ function serpentGuardian(k,tiamat){
     const hand=bone(arm,side*.23,-.71,.23);
     if(side>0){
       hand.rotation.z=-.68;
+      markEnemyWeapon(hand,[0,1.69,.01],{width:.225});
       rod(hand,'body',[0,-1.29,0],[0,1.37,0],.048);
       for(let wrap=0;wrap<8;wrap++)mesh(hand,'ring','trim',0,-1.14+wrap*.28,0,.052,.056,.8,PI*.49,0,.31);
       for(const tine of [-1,0,1]){
@@ -1240,6 +1248,7 @@ function bullOni(k){
   const arms=[],legs=[];
   for(const side of [-1,1]){
     const shield=bone(body,side*.56,.10,.43);
+    markEnemyWeapon(shield,[0,.48,.10],{from:[0,-.48,.10],width:.23,aim:false});
     const mir=path=>path.map(([x,...row])=>[side*x,...row]);
     const claw=mir([[.03,.19,.07],[.232,.39,.161],[.653,.345,.298],[.897,.09,.60],[1.068,-.187,.94],
       [.687,-.238,.792],[.479,-.174,.55],[.297,-.132,.29],[.067,-.08,.17]]);
@@ -1635,9 +1644,10 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
-  const aura=parts.polishEnergy?shapeAura(root,parts.polishEnergy,mobile):
-    entry.field||parts.pao||parts.signature?.lume?null:enemyEnergy(root,box,
-      {...entry,effect:spec.effect},colors(entry)[3],mobile);
+  const weapons=enemyWeapons(root);
+  const palette=colors(entry);
+  const aura=enemyCurrent(root,box,{tint:parts.polishEnergy?.tint??palette[3],shape:parts.polishEnergy?.shape,
+    effect:spec.effect??entry.tone,field:!!entry.field,pao:!!parts.pao,mobile,weapons});
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
   const width=ratio?T.MathUtils.clamp(Math.sqrt(ratio/.91),.80,1.20):1;
@@ -1645,36 +1655,45 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   scene.add(root);
   const pattern=parts.pao?'hover':parts.mount?'gallop':entry.id==='m005'?'slam':entry.crest==='scarab'||entry.id==='m154'?'crawl':
     entry.id==='m106'?'coil':entry.id==='m124'?'duel':['m114','m115','m133','m155'].includes(entry.id)?'hover':poses[entry.family];
-  return {root,materials,entry,crest,dimensions,palette:colors(entry),bounce:reference?Math.min(.39,reference[3])*.13:0,
-    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,skin,...parts};
+  const footed=!!(parts.legs?.length||parts.feet?.length||parts.grounded);
+  const floor=footed?T.MathUtils.clamp(box.min.y,0,.36):0;
+  return {root,materials,entry,crest,dimensions,palette,bounce:reference?Math.min(.39,reference[3])*.13:0,
+    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,skin,weapons,footed,floor,...parts};
 }
 
 export function poseBestiary(model,unit,spec,time,x,z){
   const {root,body,crest,head,arms=[],legs=[],tail,pattern,scale,dimensions,materials,mount}=model;
+  restoreWeaponPose(model.weapons);
   const stage=spec.phase??unit.bossPhase??0;
   const fall=spec.fall??0;
   const wind=unit.attack?T.MathUtils.clamp(1-unit.attack.time/Math.max(.001,unit.attack.windup??unit.spec.time),0,1):0;
-  const strike=unit.motion?Math.max(0,1-unit.motion.age/.32):0;
+  const release=unit.motion?.age<.34?unit.motion:null;
+  const strike=release?Math.max(0,1-release.age/.34)**1.36:0;
   const beat=time*(pattern==='flutter'?24:pattern==='wing'?8:4.2)+(unit.phase??0);
-  const airborne=['wing','flutter','hover'].includes(pattern);
+  const flight=pattern==='wing'||pattern==='flutter';
+  const airborne=flight||pattern==='hover'&&(!model.footed||unit.spec?.float>0||!!model.pao);
   const travel=spec.stepWeight??unit.move??0;
   const step=spec.gaitPhase??beat;
-  const float=airborne?.24+Math.sin(beat)*(.145+model.bounce)+stage*.10:Math.sin(beat)*(.05+model.bounce*travel);
   const phaseScale=1+stage*(model.pao?.047:.155);
   root.visible=(spec.fade??1)>.18;
-  root.position.set(x,.02+Math.max(0,(spec.bob??0)*.38+float)*(1-fall),z);
-  const attack=unit.attack??unit.motion;
+  const attack=unit.attack??release;
   const patternAtContact=attack?.pattern;
   const thrust=['lance','cross','barrage','feathers','coins','marked'].includes(patternAtContact);
   const sweep=['sweep','cleave','gravefan','jaws'].includes(patternAtContact);
   const crush=['burst','pounce','cinders','toll','counterCharge'].includes(patternAtContact);
   const stagger=unit.reaction&&unit.reaction.kind!=='fall'?Math.exp(-unit.reaction.age*9):0;
-  const animationSpeed=1-Math.exp(-Math.max(.001,spec.dt??1/60)*17);
-  const facing=attack&&Number.isFinite(attack.dz)?Math.atan2(attack.dx,attack.dz):
-    travel>.07&&Number.isFinite(spec.heading)?spec.heading:model.heading??(unit.face>0?.47:-.47);
+  const animationSpeed=1-Math.exp(-Math.max(.001,spec.dt??1/60)*(attack?29:13));
+  const facing=attack&&Math.hypot(attack.dx,attack.dz)>.05?Math.atan2(attack.dx,attack.dz):
+    spec.targetHeading??spec.heading??model.heading??(unit.face>0?.47:-.47);
   const change=facing-(model.heading??facing);
-  model.heading=(model.heading??facing)+Math.atan2(Math.sin(change),Math.cos(change))*animationSpeed;
-  root.rotation.set(-fall*1.43+strike*.10,model.heading+Math.sin(beat*.37)*.035,(spec.tilt??0)*.62+fall*.24);
+  const turn=Math.atan2(Math.sin(change),Math.cos(change));
+  model.heading=(model.heading??facing)+turn*animationSpeed;
+  const lift=airborne?.23+Math.sin(beat)*(.085+model.bounce)+stage*.061+travel*(flight?.20:.11)+wind*.13-strike*.19:
+    travel*(.016+.050*Math.max(0,Math.sin(step*2)))+Math.max(0,(spec.bob??0)*.18)*travel;
+  root.position.set(x,.022-model.floor*scale*phaseScale*(1-fall)+Math.max(0,lift)*(1-fall),z);
+  const lean=airborne?travel*.18+strike*.19:travel*.08+strike*(crush?.18:.09);
+  root.rotation.set(-fall*1.43-wind*.078+lean,model.heading+Math.sin(beat*.37)*.017,
+    (spec.tilt??0)*.62+fall*.24+(airborne?T.MathUtils.clamp(turn,-1,1)*travel*.22:0));
   const [width,height,depth]=dimensions;
   root.scale.set(scale*phaseScale*width,scale*phaseScale*height*(1-(spec.compression??0)*.31),scale*phaseScale*depth);
   body.rotation.x=-(wind*.22)+strike*(pattern==='slam'?.56:.26)+Math.sin(beat)*.025;
@@ -1760,8 +1779,6 @@ export function poseBestiary(model,unit,spec,time,x,z){
     }
   }
   model.finishPose?.({beat,wind,strike,stage,stagger,thrust,sweep,crush,fall});
-  model.aura?.update(time,stage,wind,strike,fall,stagger);
-  if(model.polishEnergy?.attackOnly)model.aura.mesh.visible=wind+.48*strike>.08;
   if(model.entry.id==='m154'){
     body.rotation.x=-wind*.20+strike*.23;
     for(const [index,shield] of arms.entries()){
@@ -1790,6 +1807,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
     legs[3].rotation.x-=lift;
   }
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall});
+  aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading:model.heading});
+  model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued);
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);
   const glow=model.palette[3];

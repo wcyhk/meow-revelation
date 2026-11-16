@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {fitGuardianCollar,sculptGuardianHead} from './campaign-guardian-armour.mjs?v=maskwork-1';
 import {detailBossVariant,detailForestGuardian} from './enemy-sculpt.mjs?v=turnaround-2';
@@ -94,6 +95,7 @@ function bell(k,joint,size){
 }
 
 function hookedBlade(k,joint,{length=1.1,breadth=.24,tear=.05}={}){
+  markEnemyWeapon(joint,[breadth*.70,length,.44],{from:[0,0,.17],width:breadth*.85});
   shape(k,joint,'deep',[[0,-.47,0,.061,.055],[0,-.255,.08,.069,.057],[0,.01,.17,.083,.079]]);
   k.mesh(joint,'ring','trim',0,.014,.171,.153,.122,.74,Math.PI*.5);
   shape(k,joint,'edge',[[0,-.001,.18,breadth*.76,.072],[-.034,.22,.25,breadth,.077],

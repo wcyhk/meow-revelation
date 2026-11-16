@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,serpentRelief} from './catalogue-c-detail.mjs?v=maskwork-1';
 import {fittedChampionArmor,identityFinishes,sculptChampionFace} from './catalogue-human-c.mjs?v=maskwork-1';
@@ -605,11 +606,13 @@ function helmet(k,head,spec,id=null,mobile=false){
   return [];
 }
 
-function armament(k,group,kind,side,radius){
+function armament(k,palm,kind,side,radius){
+  const group=k.bone(palm,0,0,0);
   const stave=(a,b,r=.041)=>k.rod(group,'deep',a,b,r);
   const loop=(color,x,y,z,r,rx=0)=>k.mesh(group,'ring',color,x,y,z,r,r,1,rx);
   if(kind==='wheel'){
     const x=side*.28;
+    markEnemyWeapon(group,[x,.23,.18],{from:[x,-.50,.18],width:.33,aim:false});
     loop('trim',x,-.11,.17,.37);
     loop('ember',x,-.11,.206,.32);
     for(let i=0;i<8;i++){
@@ -639,6 +642,7 @@ function armament(k,group,kind,side,radius){
     return;
   }
   if(kind==='bow'){
+    markEnemyWeapon(group,[side*.72,-.09,.14],{width:.25});
     const chain=[[.06,-.77,.10,.033],[side*.27,-.65,.10,.064],[side*.42,-.37,.15,.055],
       [side*.29,-.11,.20,.055],[side*.42,.33,.13,.052],[side*.29,.60,.085,.075],
       [.07,.75,.10,.03]];
@@ -648,6 +652,7 @@ function armament(k,group,kind,side,radius){
     return;
   }
   if(kind==='sword'){
+    markEnemyWeapon(group,[.01,1.51,.15],{from:[0,0,.15],width:.17});
     stave([0,-.26,.15],[0,.29,.15],.055);
     plate(k,group,'ember',[[-.12,.20,.152],[-.22,.52,.15],[-.28,.92,.15],[-.13,1.27,.15],
       [.01,1.51,.15],[.11,1.35,.15],[.013,.98,.16],[.07,.74,.15],[.10,.23,.15]],.078);
@@ -656,6 +661,7 @@ function armament(k,group,kind,side,radius){
     horn(k,group,'trim',[[-.16,.26,.14,.044],[0,.185,.14,.072],[.15,.27,.14,.047],[.23,.42,.14,.004]]);
     return;
   }
+  markEnemyWeapon(group,[0,1.52,.13],{from:[0,0,.11],width:kind==='axe'||kind==='halberd'?.26:.17,aim:kind!=='sceptre'});
   stave([0,-.70,.11],[0,kind==='sceptre'?1.01:1.13,.11],radius);
   stave([0,-.52,.11],[0,.17,.11],radius*1.28);
   for(const y of [-.69,-.5,-.33,.29,.86,1.10]){
@@ -872,7 +878,7 @@ function jointedChampion(k,entry,mobile){
   }
   championRelief(k,body,shoulders,fabric,entry.id,mobile);
   const backArmor=fittedChampionArmor(k,body,shoulders,depth,entry.id,mobile);
-  return {body,head,pattern:spec.frames==='hover'?'hover':spec.frames==='ogre'?'slam':'duel',
+  return {body,head,grounded:!floating,pattern:spec.frames==='hover'?'hover':spec.frames==='ogre'?'slam':'duel',
     crest:blank(k,body),catalogueSculpt:entry.id,
     cataloguePose({beat,headtime:t,wind,strike,travel,fall,step,stage}){
       body.rotation.x=-wind*.17+strike*(spec.frames==='ogre'?.59:.32);

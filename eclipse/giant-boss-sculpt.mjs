@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {bindJadeSilks} from './jade-garments.mjs?v=jade-rig-1';
 import {jadeEffects} from './jade-effects.mjs?v=jade-rig-1';
@@ -57,6 +58,7 @@ function footClaws(k,part,x,y,z,size,side){
 }
 
 function royalBlade(k,hand){
+  markEnemyWeapon(hand,[0,1.53,.025],{width:.18});
   const rings=[-.47,-.31,-.14,.045];
   sweep(k,hand,'deep',[[0,-.62,0,.053],[0,.09,0,.064],[0,.21,0,.067]],9,14);
   for(const y of rings)k.mesh(hand,'ring','trim',0,y,0,.066,.066,.71,Math.PI*.5);
@@ -513,6 +515,7 @@ export function carveVaruna(k,mobile){
       [.028,-.23,.09,.068,.064],[.037,-.28,.13,.050,.051]]),12,10);
     if(s===1){
       const staff=k.bone(forearm,.033,-.231,.15);
+      markEnemyWeapon(staff,[0,1.04,0],{width:.15,aim:false});
       sweep(k,staff,'trim',[[0,-.51,0,.026],[0,.32,0,.030],[0,.78,0,.037]],7,12);
       for(const sign of sides)sweep(k,staff,'edge',mirror(sign,[[0,.64,0,.043],[.127,.737,0,.046],
         [.161,.943,-.021,.018],[.115,1.040,-.04,.004]]));
@@ -594,6 +597,7 @@ export function carveRoyalPair(k,mobile,awakened){
         [.016,-.225,.199],[-.034,-.151,.151]]),.040);
       if(s===side){
         const weapon=k.bone(elbow,s*.039,-.233,.158);
+        markEnemyWeapon(weapon,[0,.86,.13],{width:.15});
         weapon.rotation.set(.48,-s*.21,s*.67);
         sweep(k,weapon,'trim',[[0,-.31,0,.029],[0,.139,.004,.036],[0,.472,.013,.039],[0,.717,.079,.026]],8,16);
         for(const q of sides)sweep(k,weapon,'bronzeRib',mirror(q,[[0,.52,0,.035],[.122,.639,.025,.043],

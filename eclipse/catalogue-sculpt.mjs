@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
 import {legacyCDetail,legacyCFinishes} from './catalogue-c-legacy.mjs?v=maskwork-1';
@@ -455,6 +456,7 @@ function knightRelic(k,entry){
   if(sun){
     const shoulder=arms[1].shoulder;
     const disk=k.bone(arms[1].palm,.16,-.05,.18);
+    markEnemyWeapon(disk,[0,.43,.03],{from:[0,-.43,.03],width:.32,aim:false});
     for(const [r,w,finish,d] of [[.34,.041,'edge',.025],[.294,.042,'trim',.045],[.213,.015,'rind',.054],[.074,.026,'trim',.116]]){
       ring(k,disk,finish,r,w,36,0,d);
     }
@@ -476,6 +478,7 @@ function knightRelic(k,entry){
   }
   const mace=k.bone(arms[yaksha?0:1].palm,.035,-.05,.05);
   const shaftLength=yaksha?1.17:.76;
+  markEnemyWeapon(mace,[0,shaftLength+.34,.06],{width:.21});
   swept(k,mace,'deep',[[.0,-.88,-.026,.037],[.006,-.46,-.022,.042],[0,.11,0,.043],
     [-.016,.62,.013,.042],[.001,shaftLength,.064,.047]],20,9,.19);
   for(let i=0;i<18;i++){
@@ -610,6 +613,7 @@ function captain(k,entry){
     }
   }
   const cannon=k.bone(k.root,-.92,.47,.325);
+  markEnemyWeapon(cannon,[0,.12,1.1],{width:.26});
   const pitch=k.bone(cannon,0,.36,.005);
   barrel(k,pitch,'rind',.251,1.34);
   for(const side of sides){
@@ -758,6 +762,7 @@ function shadowReaper(k,entry){
       [0,-i*.09-.11,-.065],[-.095,-i*.09-.058,-.042]],.031,.013);
   }
   const scythe=k.bone(arms[1].palm,.02,-.03,.039);
+  markEnemyWeapon(scythe,[1.22,.73,.207],{width:.27});
   swept(k,scythe,'deep',[[.06,-.99,-.081,.052],[-.04,-.55,-.076,.061],[0,.22,.04,.063],
     [.08,.78,.093,.045],[.213,1.22,.112,.039]],27,9);
   for(let i=0;i<12;i++)k.mesh(scythe,'ring',i%3?'body':'trim',.012+Math.sin(i*.41)*.038,-.65+i*.10,.010,.062,.066,.61,PI/2,.04);
@@ -1041,6 +1046,7 @@ function frozenLord(k,entry,mobile){
     }
   }
   const blade=k.bone(arms[1].palm,.025,-.037,.026);
+  markEnemyWeapon(blade,[.037,1.418,-.036],{width:.155});
   swept(k,blade,'deep',[[0,-.36,-.005,.051],[.006,-.19,-.002,.059],[0,.04,0,.053],[0,.19,0,.053]],16,9,.25);
   plate(k,blade,'rind',[[-.148,.127,.012],[.148,.108,.016],[.113,.253,.023],[.09,.68,-.034],
     [.088,1.131,-.054],[.037,1.418,-.036],[-.055,1.299,-.052],[-.103,.981,-.049],[-.125,.584,-.025]],.086,.019);

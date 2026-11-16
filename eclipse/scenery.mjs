@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=emberlight-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=night-current-1';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
@@ -24,7 +24,6 @@ import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v
 import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=emberlight-1';
 import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=emberlight-1';
 import {SpellLighting} from './spell-lighting.mjs?v=emberlight-1';
-import {createKeeper,keeperPaw,poseKeeper,removeKeeper} from './keeper-model.mjs?v=emberlight-1';
 import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 
 const PI = Math.PI;
@@ -434,7 +433,7 @@ export class Scenery {
     return mesh;
   }
 
-  createActor(frame, height, {hero=false}={}) {
+  createActor(frame, height) {
     const hitFlash={value:0};
     const spriteMaterial = new T.ShaderMaterial({
       uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},hitFlash,fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
@@ -507,12 +506,7 @@ export class Scenery {
     const rim = this.ground(this.halo, 0xff8d52, .19, height * 1.6, height * 1.06);
     rim.material.blending = T.AdditiveBlending;
     this.scene.add(art, shade, rim);
-    const keeper=hero?createKeeper(this.scene,this.mobile):null;
-    if(keeper){
-      art.visible=false;
-      for(const material of Object.values(keeper.materials))addHitSurface(material,hitFlash);
-    }
-    return {art,shade,rim,height,hitFlash,keeper,footPhase:null};
+    return {art,shade,rim,height,hitFlash,footPhase:null};
   }
 
   prepareBoss(visual,spec) {
@@ -853,9 +847,6 @@ export class Scenery {
     art.material.uniforms.ink.value.setHex(spec.ink??0xffffff);
     const x=unit.x+(spec.offsetX??0), z=unit.z+(spec.offsetZ??0);
     if(art.visible)this.spellLighting.fill(x,figureHeight*.52,z,art.material.uniforms.spellFill.value);
-    if(visual.keeper)poseKeeper(visual.keeper,unit,flash===spec.flash?spec:{...spec,flash},{
-      x,z,height:figureHeight,time:this.time,direction,weaponProfile:visual.weapon?.profile,
-    });
     if(unit.ascendant){
       visual.ascendantAura??=this.awakenActor();
       const {root,energy}=visual.ascendantAura;
@@ -863,11 +854,12 @@ export class Scenery {
       energy.update(this.feedback.subdued?0:this.time,1.0,unit.rolling>0?.75:.36,unit.atk>0?.76:.32,0,0);
     }
     poseEffigy(visual,spec,this.time,x,z);
-    if(visual.bestiary)poseBestiary(visual.bestiary,unit,flash===spec.flash?spec:{...spec,flash},this.time,x,z);
+    if(visual.bestiary)poseBestiary(visual.bestiary,unit,{...spec,flash,subdued:this.feedback.subdued},this.time,x,z);
     const foot=spec.feet??null;
     if(foot!==null&&visual.footPhase!==null&&foot!==visual.footPhase&&!unit.spec?.float){
       const hue=unit.spec?.tint??0xc6a88f;
-      this.elementBurst(x+direction*(foot===0?-.22:.22),.08,z,hue,unit.spec?.effect??'wind',unit.kind==='boss'?4:2,.63);
+      const groundedBoss=unit.kind==='boss'&&visual.bestiary?.footed;
+      this.elementBurst(x+direction*(foot===0?-.22:.22),.08,z,hue,unit.spec?.effect??'wind',groundedBoss?7:2,groundedBoss?.82:.63);
     }
     visual.footPhase=foot;
     const fall=spec.fall??0;
@@ -913,9 +905,7 @@ export class Scenery {
     if (visual.weapon) {
       const {model,glow,id,profile,anchor,blades,mount} = visual.weapon;
       const paws=pawPositions[spec.frame]??pawPositions[0];
-      const hand=profile.hand??0;
-      if(visual.keeper)keeperPaw(visual.keeper,hand,handPoint);
-      else this.pawPosition(art,paws[hand],handPoint);
+      this.pawPosition(art,paws[profile.hand??0],handPoint);
       previousGrip.copy(model.quaternion);
       model.rotation.set(profile.pitch, direction*(.32+Math.sin(this.time*3.2)*.08),
         direction*(profile.turn+(spec.frame===1?-.32:0)+(spec.sway??0)*1.3-(spec.lag??0)*2.2)+roll*.75);
@@ -958,8 +948,7 @@ export class Scenery {
       if(blades) {
         for(const [index,blade] of blades.entries()){
           blade.rotation.z=(index?1:-1)*direction*(.34+charge*.29);
-          if(visual.keeper)keeperPaw(visual.keeper,index,handPoint);
-          else this.pawPosition(art,paws[index],handPoint);
+          this.pawPosition(art,paws[index],handPoint);
           model.worldToLocal(handPoint);
           blade.position.copy(handPoint).sub(weaponOffset.copy(anchor).applyQuaternion(blade.quaternion));
         }
@@ -1001,10 +990,9 @@ export class Scenery {
   }
 
   removeActor(visual) {
-    const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary,keeper}=visual;
+    const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary}=visual;
     this.feedback.forget(visual);
     this.scene.remove(art, shade, rim);
-    if(keeper)removeKeeper(keeper);
     if(visual.ascendantAura){
       visual.ascendantAura.energy.dispose();
       visual.ascendantAura.root.removeFromParent();

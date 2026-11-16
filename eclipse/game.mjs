@@ -1,9 +1,9 @@
-import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=emberlight-1';
-import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=emberlight-1';
+import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=night-current-1';
+import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=night-current-1';
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=emberlight-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=night-current-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=emberlight-1';
+import {Scenery} from './scenery.mjs?v=night-current-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
@@ -442,7 +442,7 @@ export class Game {
     this.altar=null;
     this.twinReward=null;
     this.failure=null;
-    this.heroVisual = this.view.createActor(0,2.68,{hero:true});
+    this.heroVisual = this.view.createActor(0,2.68);
     this.relics = this.testRun?testBlessings():this.practiceRun?[...this.practiceRun.relics]:[];
     this.huntedWeapons=new Set();
     this.fusionPin=null;
@@ -1667,6 +1667,9 @@ export class Game {
     const frozen=unit.frozen>0;
     const wind=unit.attack ? 1-clamp(unit.attack.time/(unit.attack.windup??unit.spec.time),0,1) : 0;
     const gait=actorMotion(unit,dt,t);
+    const target=this.enemyTarget(unit);
+    const xToTarget=target.x-unit.x,zToTarget=target.z-unit.z;
+    const targetHeading=Math.hypot(xToTarget,zToTarget)>.09?Math.atan2(xToTarget,zToTarget):undefined;
     const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
     const fierce=unit.bossPhase>0;
     const owlDive=!unit.visual.bestiary&&unit.spec.frame===6&&(wind>.42||unit.recover>.37);
@@ -1686,7 +1689,7 @@ export class Game {
       aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
       rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
       phase:unit.bossPhase,
-      gaitPhase:gait.phase,stepWeight:gait.weight,heading:gait.heading,dt,
+      gaitPhase:gait.phase,stepWeight:gait.weight,heading:gait.heading,targetHeading,dt,
     };
     this.view.actor(unit.visual,unit,blendPose(blendPose(frame,staggered?null:enemyPose(unit)),reactionPose(unit,boss)));
   }
@@ -2371,7 +2374,7 @@ function makeWeaponPractice(view,weapon,kind) {
   Object.assign(practice,{view,weapon,hero,t:0,state:'preview',rituals:[],relicWalls:[],learned:new Set(),autoReady:new Map(),
     branchCombat:{},audio:{attack(){},arm(){},ghostRifle(){},link(){}},enemies:[],stage:{props:[]}});
   practice.ranks=buildStats(hero,weapon,1,[]);
-  practice.heroVisual=view.createActor(0,2.68,{hero:true});
+  practice.heroVisual=view.createActor(0,2.68);
   view.equip(practice.heroVisual,weapon);
   const wide=hero.spellRadius>5.8;
   const dummies=(kind==='combo'?[[.1,.5]]:wide?[[1.7,.5],[2.9,-.92],[3.4,1.65]]:[[.15,.5],[1.6,-.73],[1.95,1.49]]);
@@ -2472,7 +2475,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
       if(gap>1.2&&Math.abs(aim.x)<9&&aim.z<8)Object.assign(hero,aim);
     }
   }
-  practice.heroVisual=view.createActor(0,2.36,{hero:true});
+  practice.heroVisual=view.createActor(0,2.36);
   const arena=practice.bossArena;
   const rehearsal=drill?arena.layout.weakness:null;
   const riftDrill=rehearsal?.type==='rift';

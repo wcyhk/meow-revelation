@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
 import {wingTissue} from './wing-tissue.mjs?v=emberlight-1';
@@ -389,6 +390,7 @@ function poseHumanoid(rig,{beat,step,wind,strike,travel},motion={}){
 }
 
 function solidBlade(k,j,h,wide,kind,edge='steel',shaft='black'){
+  markEnemyWeapon(j,kind==='axe'?[wide*1.35,h+.20,0]:[kind==='sabre'?wide*.95:0,h+.17,-.075],{width:Math.max(.112,wide*.83)});
   if(kind==='axe'){
     sweep(k,j,shaft,[[0,-.87,0,.06],[0,-.38,.025,.064],[0,.35,0,.06],[0,h-.19,-.017,.076]],17,8);
     plate(k,j,edge,[[0,h,0],[wide*.72,h+.28,-.06],[wide*1.51,h+.25,.015],[wide*1.59,h-.062,.02],
@@ -419,6 +421,7 @@ function solidBlade(k,j,h,wide,kind,edge='steel',shaft='black'){
 }
 
 function ritualPole(k,j,height,mark,tip='ivory'){
+  markEnemyWeapon(j,[0,height+.24,.04],{width:.17,aim:false});
   sweep(k,j,'black',[[0,-.81,0,.040],[0,-.37,0,.047],[0,.37,.026,.043],
     [0,height-.05,.04,.053]],16,8);
   for(let i=0;i<7;i++)k.mesh(j,'ring',i%2?'brass':'ochre',0,.08+i*.105,.019,.052,.051,.6,PI/2);
@@ -467,6 +470,7 @@ function ironOni(k,entry){
     sweep(k,joint,'black',[[.014,-.014,r+.041,.015],[.018,-.109,r+.06,.016],[-.009,-.236,r+.091,.003]],7,6);
   }
   const club=k.bone(rig.limbs[0].wrist,0,-.06,.081);
+  markEnemyWeapon(club,[-.034,.88,-.08],{width:.24});
   volume(k,club,'ochre',[[0,-.15,0,.065,.056],[0,.12,0,.069,.073],[-.026,.31,.01,.123,.118],
     [-.045,.71,-.053,.181,.145],[-.034,.88,-.08,.131,.107]],17,3.02,.31);
   for(let i=0;i<7;i++){
@@ -1022,6 +1026,7 @@ function butcher(k,entry){
     skirt:'black',dress:.31,height:1.06,boot:'black',width:.457,edge:'brass',hair:'red',teeth:true});
   const {body,head}=rig;
   const knife=k.bone(rig.limbs[1].wrist,.041,-.04,.046);
+  markEnemyWeapon(knife,[.062,1.187,-.165],{width:.24});
   plate(k,knife,'steel',[[-.114,.128,-.037],[.205,.137,-.016],[.222,.539,-.063],
     [.29,1.071,-.147],[.062,1.187,-.165],[-.255,1.016,-.07],[-.244,.492,-.012]],.094,.026);
   sweep(k,knife,'black',[[0,-.32,0,.045],[.006,-.094,.023,.071],[0,.148,.022,.057],[0,.273,.043,.051]],13,8);

@@ -28,8 +28,6 @@
   background:radial-gradient(ellipse, color-mix(in srgb,var(--preview-ink) 21%,transparent),transparent 67%);
   opacity:.67;pointer-events:none;z-index:0;
 }
-.weapon-viewer-comparison {display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1fr);align-items:stretch}
-.weapon-viewer-comparison:has(.sprite-reference[hidden]) {grid-template-columns:minmax(0,1fr)}
 .pao-viewer .weapon-viewer-stage {
   background:radial-gradient(ellipse at 53% 32%,#2e3236,#161921 46%,#0c0e14 75%);
 }
@@ -41,59 +39,15 @@
   position:absolute;top:10px;left:11px;display:flex;gap:4px;z-index:3;
 }
 .model-view-angles .secondary {min-height:44px;padding:0 10px;font-size:12px;background:#171b25e8}
-.weapon-viewer-stage.pao-compare {
-  height:clamp(270px,52dvh,475px);
-  background:radial-gradient(ellipse at 25% 43%,#30383e,transparent 47%),
-    radial-gradient(ellipse at 75% 43%,#30383e,transparent 47%),#11151d;
-}
-.weapon-viewer-stage.pao-compare::before {
-  inset:56px 50% 29px auto;width:1px;border:0;mask-image:none;
-  background:linear-gradient(transparent,#baa9906e 25%,#baa99040 75%,transparent);z-index:2;
-}
-.weapon-viewer-stage.pao-compare::after {content:none}
-.boss-compare-names {
-  position:absolute;z-index:2;inset:auto 0 31px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  text-align:center;pointer-events:none;color:#f4ce98;font:900 clamp(13px,3.65vw,17px)/1.35 var(--serif);
-  text-shadow:0 2px 7px #08090f;
-}
-.boss-compare-names span {padding-inline:6px;overflow-wrap:anywhere}
-.sprite-reference {display:grid;grid-template-rows:auto minmax(68px,1fr) auto auto auto auto;gap:4px;min-width:0;padding:8px;
-  border-block:1px solid #a07e624f;border-left:1px solid #a07e624f;background:#1b1621;color:#efdfc7}
-.sprite-reference h3 {margin:0;font:800 13px/1.35 var(--serif);color:#f1cd9f}
-.sprite-viewport {min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;place-items:center;gap:4px;
-  background:radial-gradient(ellipse,#3b343a,#191720);padding:5px;text-align:center;overflow:hidden}
-.sprite-viewport :is(img,canvas) {display:block;width:100%;height:100%;min-height:0;max-height:240px;object-fit:contain;image-rendering:pixelated}
-.sprite-viewport small,.sprite-note,.sprite-guide {font-size:10px;line-height:1.2;color:#deccbd;overflow-wrap:anywhere}
-.sprite-guide {color:#ecd0a3}
-.sprite-viewport small {grid-row:2}
-.sprite-import {position:relative;display:grid;place-items:center;min-height:36px;padding:3px 5px;text-align:center;font-size:12px;letter-spacing:0}
-.sprite-import:focus-within {outline:2px solid #f5d6ab}
-.sprite-import input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
-.sprite-controls {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 4px}
-.sprite-controls input {width:100%;min-height:24px;margin:0;accent-color:#dcae85;touch-action:pan-y}
-.sprite-controls output {font-size:10px;white-space:nowrap}
-.sprite-controls button {grid-column:1/-1;min-height:38px;padding:3px}
-.sprite-controls:has(select:not([hidden])) button {grid-column:2}
-.sprite-controls select {width:100%;min-height:38px;padding:3px;background:#1e1928;color:#ecd9bb;
-  border:1px solid #987c64;font-size:14px;color-scheme:dark}
-.weapon-viewer-comparison:has(.weapon-viewer-stage:is([data-preview=phase],[data-preview=drill])) {
-  grid-template-columns:minmax(0,1fr);
-}
-.weapon-viewer-comparison:has(.weapon-viewer-stage:is([data-preview=phase],[data-preview=drill])) .sprite-reference {
-  display:none;
-}
 .weapon-viewer-canvas {position:relative;z-index:1;display:block;width:100%;height:100%;touch-action:none}
 .weapon-viewer-stage[data-preview=model] canvas {cursor:grab}
 .weapon-viewer-stage[data-preview=model] canvas:active {cursor:grabbing}
 .weapon-viewer-fallback {position:absolute;inset:6% 8%;width:84%;height:88%;object-fit:contain}
 .weapon-viewer-hint {position:absolute;z-index:2;bottom:9px;left:0;right:0;margin:0;text-align:center;pointer-events:none;color:#cfbda9;font-size:12px}
-.weapon-viewer-tools {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:12px 20px 0}
+.weapon-viewer-tools {display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:7px;padding:12px 20px 0}
 .weapon-viewer-tools button {padding:6px 4px;font-size:12px;min-width:0}
 .weapon-viewer-tools button[aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
 .weapon-viewer-description {margin:0;line-height:1.6;font-size:13px;color:#dbc5af}
-.weapon-viewer-reference {display:inline-flex;align-items:center;min-height:31px;margin-top:2px;color:#dec694;
-  font-size:12px;text-underline-offset:.25em;touch-action:manipulation}
-.weapon-viewer-reference:not([hidden])+.weapon-viewer-reference {margin-inline-start:16px}
 .weapon-viewer-footer .primary {white-space:normal;text-align:center;max-width:46%;justify-content:center}
 .weapon-viewer-actions {display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .weapon-viewer-actions button {padding-inline:14px}
@@ -109,24 +63,18 @@
   .weapon-viewer-tools {padding:9px 12px 0}
   .weapon-viewer-footer {align-items:stretch;flex-direction:column}
   .weapon-viewer-footer .primary {max-width:none}
-  .weapon-viewer-comparison {grid-template-columns:minmax(0,1.5fr) minmax(123px,1fr)}
-  .weapon-viewer-comparison .weapon-viewer-stage {height:clamp(235px,34dvh,300px)}
-  .weapon-viewer-comparison .weapon-viewer-stage.pao-compare {height:clamp(255px,42dvh,345px)}
-  .sprite-reference {padding:5px}
-  .sprite-import {font-size:11px;min-height:42px}
-  .sprite-viewport :is(img,canvas) {max-height:157px}
+  .weapon-viewer-stage {height:clamp(235px,34dvh,300px)}
 }
 @media (max-height:490px) and (orientation:landscape){
   .weapon-viewer-stage {height:45dvh;min-height:155px}
-  .weapon-viewer-stage.pao-compare {height:52dvh;min-height:170px}
   .weapon-viewer-head,.weapon-viewer-footer {padding:6px 12px}
   .weapon-viewer-tools {padding-top:6px}
 }
 @media (max-width:360px){
-  .pao-compare .model-view-angles {left:6px;gap:3px}
-  .pao-compare .model-view-angles button {padding-inline:7px}
-  .pao-compare .model-zoom {right:6px;gap:3px}
-  .pao-compare .model-zoom button {width:36px}
+  .weapon-viewer .model-view-angles {left:6px;gap:3px}
+  .weapon-viewer .model-view-angles button {padding-inline:7px}
+  .weapon-viewer .model-zoom {right:6px;gap:3px}
+  .weapon-viewer .model-zoom button {width:36px}
 }
 #modal[data-kind=practice-loadout] {z-index:11}
 .model-zoom {position:absolute;z-index:2;top:11px;right:12px;display:flex;gap:5px}
@@ -140,8 +88,8 @@
 }
 .boss-preview-attacks .secondary {padding:5px 4px;font-size:12px;background:#211d2b}
 .boss-preview-attacks [aria-pressed=true] {border-color:var(--preview-ink);background:#372b3b;color:#fbdfb9}
-.pao-preview-motions {grid-template-columns:repeat(4,minmax(0,1fr));border-top:0;padding-top:0}
-.pao-preview-motions .secondary {min-height:44px;color:#c9e2e6;background:#1c2631}
+.boss-preview-motions {grid-template-columns:repeat(4,minmax(0,1fr));border-top:0;padding-top:0}
+.boss-preview-motions .secondary {min-height:44px;color:#c9e2e6;background:#1c2631}
 .weapon-viewer[data-subject=boss] .weapon-viewer-tools {display:flex}
 .weapon-viewer[data-subject=boss] .weapon-viewer-tools button:not([hidden]) {flex:1;min-height:44px}
 .boss-preview-weakness {display:grid;gap:6px;margin:8px 20px 0}

@@ -9,11 +9,8 @@ import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
 import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';
-import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
-import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
 import {paoForms} from './pao-model.mjs?v=forgeburst-1';
-import {monsterCatalogue} from './monster-catalogue.mjs?v=boss-foundry-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -39,9 +36,7 @@ const floor=new T.Plane(new T.Vector3(0,1,0));
 const cursor=new T.Vector2(), groundPoint=new T.Vector3(), ray=new T.Raycaster();
 const drillKeys={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down'};
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
-const bronzePao=monsterCatalogue.find(entry=>entry.id==='m025');
-const previewSize=new T.Vector2(),previewFocus=new T.Vector3();
-const previewRotation=new T.Matrix4();
+const previewFocus=new T.Vector3();
 
 function studioBounds(root){
   const bounds=new T.Box3();
@@ -53,41 +48,6 @@ function studioBounds(root){
     bounds.union(geometry.boundingBox.clone().applyMatrix4(part.matrixWorld));
   });
   return bounds.isEmpty()?new T.Box3().setFromObject(root):bounds;
-}
-
-function studioRig(scene,rig){
-  const bounds=studioBounds(rig.root);
-  const size=bounds.getSize(new T.Vector3());
-  const centered=new T.Group();
-  centered.position.copy(bounds.getCenter(new T.Vector3())).negate();
-  centered.add(rig.root);
-  const pivot=new T.Group();
-  pivot.add(centered);
-  pivot.scale.setScalar(1.84/Math.max(size.x,size.y,size.z));
-  pivot.userData.studioSize=size.multiplyScalar(pivot.scale.x);
-  scene.add(pivot);
-  return pivot;
-}
-
-function projectedStudioSize(pivot){
-  const {x,y,z}=pivot.userData.studioSize;
-  const m=previewRotation.makeRotationFromEuler(pivot.rotation).elements;
-  return [Math.abs(m[0])*x+Math.abs(m[4])*y+Math.abs(m[8])*z,
-    Math.abs(m[1])*x+Math.abs(m[5])*y+Math.abs(m[9])*z];
-}
-
-function elongatedStudioFrame(pivot,root,mobile,raisedCrown){
-  const rotation=[pivot.rotation.x,pivot.rotation.y,pivot.rotation.z].map(angle=>Math.round(angle*12)).join('/');
-  const fitted=pivot.userData.fitted;
-  if(fitted?.rotation===rotation)return fitted;
-  root.updateWorldMatrix(true,true);
-  const bounds=studioBounds(root);
-  const center=bounds.getCenter(new T.Vector3());
-  const size=bounds.getSize(new T.Vector3());
-  const tallOnMobile=mobile&&size.y>1.30;
-  const headroom=raisedCrown?.91:tallOnMobile?.55:.36;
-  return pivot.userData.fitted={rotation,center,width:Math.max(.78,size.x+.26),
-    height:Math.max(1.10,size.y+headroom),lift:raisedCrown?.115:tallOnMobile?.095:.05};
 }
 
 function fit(camera,width,height,viewWidth,viewHeight){
@@ -114,11 +74,6 @@ export class WeaponViewer {
     heading.append(this.role,this.title);
     const close=button('返回',()=>this.dialog.close());
     close.autofocus=true;
-    close.addEventListener('pointerup',event=>{
-      if(event.pointerType==='touch'&&document.elementFromPoint(event.clientX,event.clientY)===close){
-        this.dialog.close();
-      }
-    });
     header.append(heading,close);
     this.stage=node('div','weapon-viewer-stage');
     this.image=node('img','weapon-viewer-fallback');
@@ -134,10 +89,10 @@ export class WeaponViewer {
     this.zoomOut.setAttribute('aria-label','縮小模型');
     this.zoomIn.setAttribute('aria-label','放大模型');
     this.faceZoom=button('面部',()=>{
-      if(!this.paoStudio)return;
-      this.paoStudio.closeUp=!this.paoStudio.closeUp;
-      this.faceZoom.setAttribute('aria-pressed',String(this.paoStudio.closeUp));
-      this.renderModel();
+      if(this.mode!=='model'||!this.bossRig)return;
+      this.closeUp=!this.closeUp;
+      this.faceZoom.setAttribute('aria-pressed',String(this.closeUp));
+      this.resize();
     });
     this.faceZoom.classList.add('boss-face-zoom');
     this.faceZoom.setAttribute('aria-label','切換面部近鏡');
@@ -159,44 +114,11 @@ export class WeaponViewer {
     }
     this.viewAngles.hidden=true;
     this.stage.append(this.image,this.canvas,this.hint,this.zoomTools,this.viewAngles);
-    this.compareNames=node('div','boss-compare-names');
-    this.compareName=node('span','','');
-    this.compareNames.append(this.compareName,node('span','','破奧'));
-    this.compareNames.hidden=true;
-    this.stage.append(this.compareNames);
-    this.spriteReference=spriteReferenceView();
-    const comparison=node('div','weapon-viewer-comparison');
-    comparison.append(this.stage,this.spriteReference.root);
     this.inspect=button('旋轉睇模型',()=>this.showModel());
-    let compareTouch=null,compareTap=0;
-    this.paoCompare=button('與破奧對照',()=>{
-      clearTimeout(compareTap);
-      this.togglePaoComparison();
-    });
-    // After dragging the canvas, a scrollable touch dialog may deliver pointerup
-    // but suppress the click. Treat a stationary touch on this button as a tap.
-    this.paoCompare.addEventListener('pointerdown',event=>{
-      if(event.pointerType==='touch'){
-        compareTouch={id:event.pointerId,x:event.clientX,y:event.clientY};
-      }
-    });
-    this.paoCompare.addEventListener('pointercancel',()=>{compareTouch=null;});
-    this.paoCompare.addEventListener('pointerup',event=>{
-      const start=compareTouch;
-      compareTouch=null;
-      if(!start||start.id!==event.pointerId||
-         Math.hypot(event.clientX-start.x,event.clientY-start.y)>10||
-         document.elementFromPoint(event.clientX,event.clientY)!==this.paoCompare)return;
-      clearTimeout(compareTap);
-      compareTap=setTimeout(()=>{if(this.open)this.togglePaoComparison();},120);
-    });
-    this.paoCompare.dataset.comparePao='';
-    this.paoCompare.setAttribute('aria-pressed','false');
-    this.paoCompare.hidden=true;
     this.combo=button('播放三段普攻',()=>this.play('combo'));
     this.skill=button('播放技能',()=>this.play('skill'));
     this.tools=node('div','weapon-viewer-tools');
-    this.tools.append(this.inspect,this.paoCompare,this.combo,this.skill);
+    this.tools.append(this.inspect,this.combo,this.skill);
     this.drillTools=node('div','counter-drill-tools');
     const roll=button('翻滾',()=>{this.practice.controls.roll=true;});
     const interact=button('祭燈／機關',()=>{this.practice.controls.interact=true;});
@@ -206,18 +128,10 @@ export class WeaponViewer {
     this.attacks=node('div','boss-preview-attacks');
     this.attacks.setAttribute('role','group');
     this.attacks.setAttribute('aria-label','頭目攻擊預覽');
-    this.motions=node('div','boss-preview-attacks pao-preview-motions');
+    this.motions=node('div','boss-preview-attacks boss-preview-motions');
     this.motions.setAttribute('role','group');
-    this.motions.setAttribute('aria-label','破奧動作預覽');
+    this.motions.setAttribute('aria-label','頭目動作預覽');
     this.detail=node('p','weapon-viewer-description');
-    const copy=node('div','weapon-viewer-copy');
-    this.reference=node('a','weapon-viewer-reference','52 巨商原圖資料 ↗');
-    this.reference.target='_blank';
-    this.reference.rel='noopener noreferrer';
-    this.koreanReference=node('a','weapon-viewer-reference','韓文原圖 ↗');
-    this.koreanReference.target='_blank';
-    this.koreanReference.rel='noopener noreferrer';
-    copy.append(this.detail,this.reference,this.koreanReference);
     this.choose=button('',()=>{
       const {commit}=this;
       this.dialog.close();
@@ -231,8 +145,8 @@ export class WeaponViewer {
     });
     const actions=node('div','weapon-viewer-actions');
     actions.append(this.practiceChoice,this.choose);
-    footer.append(copy,actions);
-    this.dialog.append(header,comparison,this.tools,this.weakness,this.motions,this.attacks,footer);
+    footer.append(this.detail,actions);
+    this.dialog.append(header,this.stage,this.tools,this.weakness,this.motions,this.attacks,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
       if(this.dialog.open)return;
@@ -323,8 +237,7 @@ export class WeaponViewer {
     this.attacks.replaceChildren();
     this.inspect.textContent='旋轉睇模型';
     this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice:'選擇'+weapon.name,
-      image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon)),
-      compare:!!commit});
+      image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon))});
   }
 
   showBoss(dossier,names,makePractice,commit,practice){
@@ -373,27 +286,16 @@ export class WeaponViewer {
       choice:'挑戰此頭目',description:spec.signature,commit,practice});
   }
 
-  get controls(){return [this.inspect,this.paoCompare,this.combo,this.skill,...this.phaseControls,...this.attackControls,
+  get controls(){return [this.inspect,this.combo,this.skill,...this.phaseControls,...this.attackControls,
     ...this.motions.querySelectorAll('button'),
     ...(this.boss?this.weakness.querySelectorAll('button'):[])];}
 
-  openViewer({title,role,choice,ink,image,description,commit,practice,compare=false}){
+  openViewer({title,role,choice,ink,image,description,commit,practice}){
     this.clear();
     this.commit=commit;
     this.practiceAction=practice;
     this.practiceChoice.hidden=!practice;
     this.description=description;
-    const entry=this.boss?this.dossier.entry:null;
-    const reference=compare?jushangReference(this.weapon,entry):null;
-    this.spriteReference.root.hidden=!compare;
-    this.spriteReference.setReference(compare?jushangImage(this.weapon,entry):null,compare?clientSpriteGuide(this.weapon,entry):null);
-    this.reference.hidden=!reference;
-    if(reference)this.reference.href=reference;
-    else this.reference.removeAttribute('href');
-    const korean=compare?koreanTrialReference(entry):null;
-    this.koreanReference.hidden=!korean;
-    if(korean)this.koreanReference.href=korean;
-    else this.koreanReference.removeAttribute('href');
     this.focusReturn=document.activeElement;
     this.title.textContent=title;
     this.role.textContent=role;
@@ -403,7 +305,6 @@ export class WeaponViewer {
     this.dialog.classList.toggle('pao-viewer',paoForms.has(this.boss?.bestiary?.id));
     this.dialog.style.setProperty('--preview-ink',ink);
     this.combo.hidden=this.skill.hidden=!!this.boss;
-    this.paoCompare.hidden=!entry||entry.id==='m025';
     this.attacks.hidden=!this.boss;
     this.motions.hidden=!this.boss||!this.motionNames;
     this.weakness.hidden=!this.boss;
@@ -418,7 +319,6 @@ export class WeaponViewer {
     }catch{
       this.canvas.hidden=true;
       this.image.hidden=!image;
-      this.paoCompare.disabled=true;
       for(const control of this.controls)control.disabled=true;
       this.hint.textContent='3D 預覽暫未能載入';
       this.detail.textContent=description;
@@ -429,7 +329,6 @@ export class WeaponViewer {
     this.renderer.toneMappingExposure=1.18;
     this.canvas.hidden=false;
     this.image.hidden=true;
-    this.paoCompare.disabled=false;
     for(const control of this.controls)control.disabled=false;
     this.showModel();
   }
@@ -443,7 +342,8 @@ export class WeaponViewer {
     this.renderer.setSize(width,height,false);
     const pao=paoForms.has(this.boss?.bestiary?.id);
     this.viewAngles.hidden=this.mode!=='model';
-    fit(inspectCamera,width,height,pao?2.03:this.wideModel?2.82:2.30,pao?1.98:2.24);
+    fit(inspectCamera,width,height,this.closeUp?.93:pao?2.03:this.wideModel?2.82:2.30,
+      this.closeUp?1.57:pao?1.98:2.24);
     const arena=['phase','drill'].includes(this.mode);
     const vault=this.boss?.model?.artId==='forest-5';
     const battleWidth=arena?23:vault?17.2:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
@@ -484,58 +384,21 @@ export class WeaponViewer {
     this.zoomIn.disabled=inspectCamera.zoom>=1.8;
   }
 
-  togglePaoComparison(){
-    if(!this.boss||this.dossier.entry.id==='m025')return;
-    const enable=!this.paoStudio;
-    this.showModel(enable);
-  }
-
   renderModel(refreshEnergy=false){
-    if(!this.paoStudio){
-      if(refreshEnergy)this.bossRig?.aura.update(this.modelTime,0,0,0,0,0);
-      this.renderer.render(this.scene,inspectCamera);
-      return;
+    const rig=this.bossRig;
+    if(refreshEnergy)rig?.aura.update(this.modelTime,0,0,0,0,0);
+    if(this.closeUp&&rig){
+      const focus=rig.portraitHead??rig.mount?.helm??rig.inspectionHead??rig.head??rig.heads?.[0]
+        ??rig.body.userData.inspectionHead??rig.body.userData.dragonHead??rig.body;
+      focus.getWorldPosition(previewFocus);
+      inspectCamera.position.set(previewFocus.x,previewFocus.y+.045,8);
+    }else{
+      inspectCamera.position.set(0,0,8);
     }
-    const renderer=this.renderer;
-    const {camera,scene,rig,pivot,closeUp}=this.paoStudio;
-    const size=renderer.getSize(previewSize);
-    const left=Math.floor(size.x*.5);
-    if(left<1||size.y<1)return;
-    pivot.rotation.copy(this.model.rotation);
-    pivot.rotation.y+=this.bossRig.heading-rig.heading;
-    if(refreshEnergy){
-      this.bossRig.aura.update(this.modelTime,0,0,0,0,0);
-      rig.aura.update(this.modelTime,0,0,0,0,0);
-    }
-    const measured=closeUp?null:[projectedStudioSize(this.model),projectedStudioSize(pivot)];
-    const viewWidth=closeUp?.93:Math.max(2.06,Math.max(measured[0][0],measured[1][0])+.32);
-    const viewHeight=closeUp?1.57:Math.max(2.58,Math.max(measured[0][1],measured[1][1])+.32);
-    camera.zoom=inspectCamera.zoom;
-    renderer.setScissorTest(true);
-    try {
-      for(const [subject,model,x,width] of [[this.scene,this.bossRig,0,left],[scene,rig,left,size.x-left]]){
-        const focus=model.portraitHead??model.mount?.helm??model.inspectionHead??model.head??model.heads?.[0]??model.body.userData.inspectionHead??model.body.userData.dragonHead??model.body;
-        if(closeUp){
-          focus.getWorldPosition(previewFocus);
-          camera.position.set(previewFocus.x,previewFocus.y+.045,8);
-        }else camera.position.set(0,0,8);
-        const longBody=model.entry.id==='m152'||
-          (model.pattern==='coil'&&!!(model.inspectionHead??model.body.userData.inspectionHead));
-        const framed=!closeUp&&model===this.bossRig&&longBody?elongatedStudioFrame(this.model,model.root,this.main.mobile,
-          this.main.mobile&&model.entry.id==='m126'):null;
-        if(framed)camera.position.set(framed.center.x,framed.center.y+framed.lift,8);
-        fit(camera,width,size.y,framed?.width??viewWidth,framed?.height??viewHeight);
-        renderer.setViewport(x,0,width,size.y);
-        renderer.setScissor(x,0,width,size.y);
-        renderer.render(subject,camera);
-      }
-    } finally {
-      renderer.setScissorTest(false);
-      renderer.setViewport(0,0,size.x,size.y);
-    }
+    this.renderer.render(this.scene,inspectCamera);
   }
 
-  showModel(withPao=false){
+  showModel(){
     const model=this.boss?.bestiary??this.boss?.model;
     if(this.boss&&!model){this.playBoss({portrait:true},this.inspect);return;}
     this.clearScene();
@@ -543,7 +406,7 @@ export class WeaponViewer {
     this.modelTime=0;
     this.stage.dataset.preview='model';
     this.setActive(this.inspect);
-    this.hint.textContent=withPao?'拖動可同步旋轉':'拖動旋轉';
+    this.hint.textContent='拖動旋轉';
     this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
     this.zoomTools.hidden=false;
     this.drillTools.hidden=true;
@@ -562,28 +425,7 @@ export class WeaponViewer {
       item=this.bossRig.root;
       this.displayActor=actor;
     }else item=forge(this.weapon);
-    if(withPao&&this.bossRig){
-      this.model=studioRig(this.scene,this.bossRig);
-      const scene=new T.Scene();
-      lightPaoDisplay(scene);
-      const rig=mountBestiary(scene,bronzePao,this.boss.height,this.main.mobile);
-      poseBestiary(rig,{phase:0,move:0,face:1,spec:this.boss},{phase:0},0,0,0);
-      this.paoStudio={scene,rig,pivot:studioRig(scene,rig),camera:inspectCamera.clone()};
-      this.stage.classList.add('pao-compare');
-      this.compareName.textContent=this.title.textContent;
-      this.compareNames.hidden=false;
-      this.faceZoom.hidden=false;
-      this.paoCompare.setAttribute('aria-pressed','true');
-      this.setActive(this.paoCompare);
-      this.item=item;
-      this.yaw=-this.bossRig.heading;
-      this.pitch=.095;
-      this.setZoom(1);
-      this.turn(0,0);
-      this.resize();
-      this.animateModel();
-      return;
-    }
+    this.faceZoom.hidden=!this.bossRig;
     const bounds=this.boss?studioBounds(item):new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
     if(this.boss){
@@ -613,15 +455,12 @@ export class WeaponViewer {
       let frame=start;
       const update=now=>{
         if(!this.open||this.mode!=='model'||!this.displayActor||reducedMotion.matches)return;
-        if(!this.main.mobile||now-frame>=(this.paoStudio?61:27)){
+        if(!this.main.mobile||now-frame>=27){
           const dt=(now-frame)/1000;
           frame=now;
           const clock=(now-start)/1000;
           this.modelTime=clock;
           poseBestiary(this.bossRig,this.displayActor,{phase:0,dt},clock,0,0);
-          if(this.paoStudio){
-            poseBestiary(this.paoStudio.rig,this.displayActor,{phase:0,dt},clock,0,0);
-          }
           this.renderModel();
         }
         this.raf=requestAnimationFrame(update);
@@ -771,15 +610,9 @@ export class WeaponViewer {
   clearScene(){
     cancelAnimationFrame(this.raf);
     this.viewAngles.hidden=true;
-    this.stage.classList.remove('pao-compare');
-    this.compareNames.hidden=true;
+    this.closeUp=false;
     this.faceZoom.hidden=true;
     this.faceZoom.setAttribute('aria-pressed','false');
-    this.paoCompare.setAttribute('aria-pressed','false');
-    if(this.paoStudio){
-      removeBestiary(this.paoStudio.scene,this.paoStudio.rig);
-      this.paoStudio=null;
-    }
     this.displayActor=null;
     this.stage.classList.remove('counter-success');
     for(const control of this.weakness.querySelectorAll('[data-drill]'))control.textContent='試反制';
@@ -813,7 +646,6 @@ export class WeaponViewer {
 
   clear(){
     this.clearScene();
-    this.spriteReference.setReference(null);
     this.bossSeed=null;
     this.renderer?.renderLists.dispose();
   }

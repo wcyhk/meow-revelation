@@ -14,11 +14,13 @@ function currentsGeometry(field,mobile,weaponCount){
   for(let i=0;i<(field?2:mobile?4:6);i++)strands.push(0,i*2.399,(i%3)*.29);
   for(let i=0;i<weaponCount;i++)for(let j=0;j<(mobile?2:3);j++)strands.push(1+i,j*2.66,(j+1)*.23);
   for(let i=0;i<(field||mobile?2:3);i++)strands.push(3,i*2.39,i*.32);
+  for(let i=0;i<(field?1:mobile?2:4);i++)strands.push(12,i*2.39,(i*.618)%1);
   if(!field)for(let i=0;i<weaponCount;i++){
     for(let j=0;j<(mobile?2:3);j++)strands.push(4+i,j*2.39,j%2);
     for(let j=0;j<(mobile?5:8);j++)strands.push(6+i,j*2.39,(j*.618)%1);
     strands.push(8+i,0,0);
     for(let j=0;j<(mobile?3:5);j++)strands.push(10+i,j*2.39,(j*.618)%1);
+    for(let j=0;j<(mobile?2:4);j++)strands.push(13+i,j*2.39,(j*.618)%1);
   }
   geometry.setAttribute('strand',new T.InstancedBufferAttribute(new Float32Array(strands),3));
   geometry.instanceCount=strands.length/3;
@@ -28,7 +30,8 @@ function currentsGeometry(field,mobile,weaponCount){
 const vertex=`
   attribute vec3 strand;
   uniform float clock,force,stage,style,strength,scaleUnit,weaponPower,ringSpin,releaseAge;
-  uniform vec3 center,span;
+  uniform vec3 center,span,surfaceOrigin,surfaceSpan;
+  uniform mat3 surfaceAxes;
   uniform vec4 grip[2],tip[2];
   uniform vec4 burstPoint[2];
   uniform vec3 burstHeading[2],weaponPlane[2];
@@ -129,7 +132,7 @@ const vertex=`
       orthogonal=viewUp;
       bandwidth=0.;
       edge=.35+idlePulse[i]*.28+weaponPower*.27;
-    }else{
+    }else if(mode<11.5){
       int i=int(mode)-10;
       if(idlePulse[i]<=0.){hideStrand();return;}
       float age=idleAge[i];
@@ -146,6 +149,33 @@ const vertex=`
       orthogonal=normalize(cross(radial,cameraPosition-p)+vec3(.00001));
       bandwidth=radius*(.125+.053*strand.z)*(1.-age*.60);
       edge*=idlePulse[i]*(1.0+strand.z*.33);
+    }else if(mode<12.5){
+      float angle=t*.63+u*(3.45+force*1.2);
+      float radius=.90+.12*sin(u*9.+t)+force*.13;
+      float y=(strand.z-.50)*.77+(u-.33)*.38+sin(angle*1.53)*.24;
+      vec3 radial=vec3(cos(angle),0.,sin(angle));
+      p=surfaceOrigin+surfaceAxes*((radial*radius+vec3(0.,y,0.))*surfaceSpan);
+      orthogonal=normalize(surfaceAxes*(vec3(0.,1.,0.)+radial*.42));
+      bandwidth*=.62;
+      edge*=.68+force*.41;
+    }else{
+      int i=int(mode)-13;
+      vec3 a=grip[i].xyz,b=tip[i].xyz;
+      vec3 axis=normalize(b-a+vec3(.00001));
+      float circular=step(1.5,weaponKind[i]);
+      if(circular>.5)axis=weaponPlane[i];
+      vec3 tx=normalTo(axis),ty=cross(axis,tx);
+      float phase=ringSpin*(strand.z>.42?-1.38:1.51)+strand.y;
+      float angle=phase+u*(3.8+strand.z*2.1);
+      float crest=sin(u*3.14159);
+      float radius=grip[i].w*(1.04+crest*(.47+weaponPower*.44)+idlePulse[i]*.27);
+      vec3 radial=tx*cos(angle)+ty*sin(angle);
+      vec3 filament=tx*sin(angle*2.+t)+ty*cos(angle*2.+t);
+      p=mix(a,b,mix(.23+u*.78,.5,circular))+radial*radius;
+      p+=filament*radius*.15*crest+axis*radius*.26*sin(angle);
+      orthogonal=normalize(cross(radial,cameraPosition-p)+vec3(.00001));
+      bandwidth*=.62;
+      edge*=crest*(.62+weaponPower*.68+idlePulse[i]*.46);
     }
     p+=orthogonal*v*bandwidth;
     gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);
@@ -185,9 +215,16 @@ const fragment=`
     float sparkle=exp(-d*18.)*pow(.5+.5*sin(u*60.-t*1.62+seed),13.);
     vec3 glow=mix(tint,heart,clamp(core*packet*.75+sparkle*.35,0.,1.));
     float energy=(core*packet*.76+veil+tendril*.26+sparkle*.43)*mask*opacity;
-    if(kind>5.5){
+    if((kind>5.5&&kind<7.5)||(kind>9.5&&kind<11.5)){
       glow=mix(tint,heart,.55+core*.45);
       energy=(core*.98+veil*.51)*mask*opacity;
+    }
+    if(kind>11.5){
+      float split=smoothstep(.20,.53,u)*(1.-smoothstep(.74,1.,u));
+      float branch=exp(-abs(v-vein-sin(u*9.+seed)*.48*split)*18.)*split;
+      float knot=pow(.5+.5*cos(u*31.-t*1.35),9.)*core;
+      glow=mix(tint,heart,min(1.,core*(.48+packet*.34)+knot*.49));
+      energy=(core*packet*.94+branch*.54+veil*.58+knot*.57)*mask*opacity;
     }
     gl_FragColor=vec4(glow,energy*(kind>2.5&&kind<3.5?1.27:1.));
     #include <colorspace_fragment>
@@ -197,12 +234,15 @@ const fragment=`
 const bodyPoint=new T.Vector3(),weaponPoint=new T.Vector3(),strandTip=new T.Vector3();
 const axes=new T.Vector3(),origin=new T.Vector3();
 
-export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,weapons}){
+export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,weapons,profile,body}){
   const center=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3());
   center.x=T.MathUtils.clamp(center.x,-.25,.25);
   center.z=T.MathUtils.clamp(center.z,-.30,.30);
   const radiusX=Math.min(size.x*.44,size.y*(field?.53:.62));
   const radiusZ=Math.min(size.z*.49,size.y*.50);
+  const surface=profile?.anchor??body??root;
+  const surfaceOffset=profile?.offset?new T.Vector3(...profile.offset):surface.worldToLocal(root.localToWorld(center.clone()));
+  const surfaceSpan=profile?.span?new T.Vector3(...profile.span):new T.Vector3(radiusX*.64,size.y*.54,radiusZ*.72);
   const hues=new T.Color(tint);
   const links=weapons.slice(0,2);
   const trail=Array.from({length:pathSamples},()=>new T.Vector4(0,0,0,0));
@@ -215,6 +255,7 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
   const uniforms={
     clock:{value:0},force:{value:0},stage:{value:0},style:{value:flavors[shape]??flavors[effect]??4},
     strength:{value:0},scaleUnit:{value:1},center:{value:new T.Vector3()},span:{value:new T.Vector3()},
+    surfaceOrigin:{value:new T.Vector3()},surfaceSpan:{value:surfaceSpan},surfaceAxes:{value:new T.Matrix3()},
     grip:{value:[new T.Vector4(),new T.Vector4()]},tip:{value:[new T.Vector4(),new T.Vector4()]},
     wake:{value:trail},tint:{value:hues},heart:{value:hues.clone().lerp(new T.Color(0xfff1dc),.76)},
     weaponPower:{value:0},ringSpin:{value:0},releaseAge:{value:1},
@@ -242,6 +283,9 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
       root.updateWorldMatrix(true,false);
       const amount=axes.setFromMatrixScale(root.matrixWorld).y;
       bodyPoint.copy(center).applyMatrix4(root.matrixWorld);
+      surface.updateWorldMatrix(true,false);
+      uniforms.surfaceOrigin.value.copy(surfaceOffset).applyMatrix4(surface.matrixWorld);
+      uniforms.surfaceAxes.value.setFromMatrix4(surface.matrixWorld);
       origin.setFromMatrixPosition(root.matrixWorld);
       const anchor=sampled[0];
       const gap=Math.hypot(origin.x-anchor.x,origin.z-anchor.z);

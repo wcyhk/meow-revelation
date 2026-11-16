@@ -1,12 +1,12 @@
 import * as T from '../three.min.mjs';
-import {paintedFinish} from './painted-finish.mjs?v=penumbra-1';
+import {paintedFinish} from './painted-finish.mjs?v=guard-forge-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=forgeburst-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyCurrent} from './enemy-current.mjs?v=everglow-1';
-import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=forgeburst-1';
-import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=everglow-1';
+import {enemyCurrent} from './enemy-current.mjs?v=guard-forge-1';
+import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=guard-forge-1';
+import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=guard-forge-1';
 import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=night-current-1';
@@ -150,7 +150,7 @@ function buildMaterials(entry){
     return paintedFinish(new T.MeshStandardMaterial({
       color,metalness,roughness,...bump,...scan,vertexColors:true,emissive:color,emissiveIntensity:.03,
       envMap:conduct?forgeEnvironment():null,envMapIntensity:metal?.81:.48,
-    }),finish,true);
+    }),finish,true,!entry.field);
   }
   const pigment=color=>new T.Color(color).lerp(new T.Color(0x5d5049),.20);
   const trim=new T.Color(edge).lerp(new T.Color(0xb48556),.52);
@@ -1645,12 +1645,12 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
-  const weapons=enemyWeapons(root);
+  const weapons=enemyWeapons(root,parts);
   const palette=colors(entry);
   const tint=parts.polishEnergy?.tint??palette[3];
   const weaponEmission=entry.field?null:armWeaponEmission(weapons,materials,tint);
-  const aura=enemyCurrent(root,box,{tint,shape:parts.polishEnergy?.shape,
-    effect:spec.effect??entry.tone,field:!!entry.field,pao:!!parts.pao,mobile,weapons});
+  const aura=enemyCurrent(root,box,{tint,shape:parts.polishEnergy?.shape,profile:parts.polishEnergy,
+    body:parts.body,effect:spec.effect??entry.tone,field:!!entry.field,pao:!!parts.pao,mobile,weapons});
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
   const width=ratio?T.MathUtils.clamp(Math.sqrt(ratio/.91),.80,1.20):1;
@@ -1780,6 +1780,23 @@ export function poseBestiary(model,unit,spec,time,x,z){
       arms[1].rotation.x-=strike*.48;
       arms[0].rotation.x+=wind*.17;
     }
+    const held=model.weapons.find(weapon=>weapon.aim&&arms.includes(weapon.grip.shoulder));
+    if(held&&!model.mount&&!flight){
+      const {shoulder,side}=held.grip;
+      const offHand=arms.find(arm=>arm!==shoulder);
+      const brace=(1-travel)*(1-fall);
+      body.rotation.z+=side*brace*(.045-wind*.069+strike*.058);
+      shoulder.rotation.x-=brace*(.21+strike*(thrust?.34:.13));
+      shoulder.rotation.z+=side*brace*(.061+wind*.087);
+      if(offHand){
+        offHand.rotation.x+=brace*(.16+wind*.32-strike*.41);
+        offHand.rotation.z-=side*brace*strike*.13;
+      }
+      if(model.footed&&legs.length===2){
+        legs[0].rotation.x+=side*brace*(.12+wind*.16-strike*.12);
+        legs[1].rotation.x-=side*brace*(.12+wind*.16-strike*.12);
+      }
+    }
   }
   model.finishPose?.({beat,wind,strike,stage,stagger,thrust,sweep,crush,fall});
   if(model.entry.id==='m154'){
@@ -1810,7 +1827,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     legs[3].rotation.x-=lift;
   }
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall});
-  aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading:model.heading});
+  aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading:spec.targetHeading??model.heading,fall});
   model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
   if(model.weaponEmission){
     const uniforms=model.weaponEmission;

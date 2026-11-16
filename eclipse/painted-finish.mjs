@@ -3,11 +3,12 @@ import * as T from '../three.min.mjs';
 const finishes={iron:[.38,.39],bronze:[.44,.52],bone:[.29,.20],cloth:[.29,.08],hide:[.39,.13],stone:[.32,.21],gem:[.16,.45]};
 const surfaceKinds=Object.keys(finishes);
 
-export function paintedFinish(material,kind,sculpted=false){
+export function paintedFinish(material,kind,sculpted=false,weathered=false){
+  weathered=weathered&&sculpted;
   const [pigment,shine]=finishes[kind];
   const before=material.onBeforeCompile;
   const program=material.customProgramCacheKey();
-  material.customProgramCacheKey=()=>program+'|painted-finish'+(sculpted?'|sculpted-'+kind:'');
+  material.customProgramCacheKey=()=>program+'|painted-finish'+(sculpted?'|sculpted-'+kind:'')+(weathered?'|weathered':'');
   material.onBeforeCompile=shader=>{
     before.call(material,shader);
     shader.uniforms.paintPigment={value:pigment};
@@ -78,8 +79,42 @@ export function paintedFinish(material,kind,sculpted=false){
           diffuseColor.rgb+=pow(ridge,3.)*paintHighlight*.027;
         }
       ` : ''}
+      ${weathered ? `
+        float paintPixel=length(fwidth(q));
+        float fineDetail=1.0-smoothstep(.013,.045,paintPixel);
+        float elevation=0.0,wornMetal=0.0,surfaceWear=0.0;
+        if(surfaceKind<=1){
+          float dents=smoothstep(.48,.81,pits)*smoothstep(.26,.73,mottles);
+          float polish=smoothstep(.48,.79,mottles)*(.38+ridge*.62);
+          float scoringEdge=smoothstep(.76,.975,scoring)*smoothstep(.44,.73,pits);
+          wornMetal=polish-dents*.45;
+          surfaceWear=dents*.17-polish*.28-scoringEdge*.14;
+          diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.47+paintShadow*.09,dents*.49);
+          diffuseColor.rgb+=paintHighlight*scoringEdge*(.048+polish*.12);
+          elevation=.0019*(polish-dents*.75)-scoringEdge*.00064;
+        }else if(surfaceKind==3){
+          float warp=sin(q.x*166.+q.z*43.+wash*3.);
+          float weft=sin(q.y*197.+q.z*69.);
+          float thread=warp*weft;
+          diffuseColor.rgb*=.974+thread*.058*fineDetail+patina*.023;
+          elevation=.0011*thread;
+        }else if(surfaceKind<6){
+          elevation=.0020*(pits-patina*.42);
+        }
+      ` : ''}
     `).replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
-      roughnessFactor=clamp(roughnessFactor+wash*paintPigment*.19+patina*.24-scratches*paintShine*.29-flecks*paintShine*.22${sculpted?'+relief':''},.2,1.0);`);
+      roughnessFactor=clamp(roughnessFactor+wash*paintPigment*.19+patina*.24-scratches*paintShine*.29-flecks*paintShine*.22${sculpted?'+relief':''}${weathered?'+surfaceWear':''},.2,1.0);`);
+    if(weathered){
+      shader.fragmentShader=shader.fragmentShader
+        .replace('#include <metalnessmap_fragment>',`#include <metalnessmap_fragment>
+          metalnessFactor=clamp(metalnessFactor*(1.0+wornMetal*.27),0.0,1.0);`)
+        .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+          vec3 paintDx=dFdx(-vViewPosition),paintDy=dFdy(-vViewPosition);
+          vec3 paintU=cross(paintDy,normal),paintV=cross(normal,paintDx);
+          float paintJacobian=dot(paintDx,paintU);
+          normal=normalize(max(abs(paintJacobian),1e-9)*normal-
+            sign(paintJacobian)*fineDetail*(dFdx(elevation)*paintU+dFdy(elevation)*paintV));`);
+    }
   };
   return material;
 }

@@ -39,12 +39,14 @@ function glowingFinish(original,uniforms){
         float energized=smoothstep(.15,.59,vWeaponDistance);
         float edge=clamp(1.-abs(dot(normal,normalize(vViewPosition))),0.,1.);
         float rimGlow=edge*edge;
+        float seam=pow(edge,5.);
         float tipHeat=smoothstep(.59,.96,vWeaponDistance);
         float flow=pow(.5+.5*cos(vWeaponDistance*15.-weaponClock*2.),5.);
-        float mantle=(.24+.20*weaponCharge+rimGlow*(.58+.32*weaponCharge)+tipHeat*.21)*energized;
+        float shard=pow(.5+.5*cos(vWeaponDistance*49.+sin(vWeaponDistance*29.)*.7-weaponClock*2.3),13.);
+        float mantle=(.20+.20*weaponCharge+rimGlow*(.53+.32*weaponCharge)+tipHeat*.21)*energized;
         float vein=energized*flow*(.25+.46*weaponCharge);
-        totalEmissiveRadiance+=weaponTint*(mantle+vein*.67)*(1.+weaponStage*.19)*weaponLive;
-        float hotEdge=energized*(tipHeat*.12+rimGlow*.14+weaponIdlePulse*(.10+tipHeat*.22));
+        totalEmissiveRadiance+=weaponTint*(mantle+vein*.67+energized*seam*.36)*(1.+weaponStage*.19)*weaponLive;
+        float hotEdge=energized*(tipHeat*.12+seam*(.32+shard*.37)+weaponIdlePulse*(.10+tipHeat*.22));
         totalEmissiveRadiance+=weaponHeart*(hotEdge+vein*.43+weaponRelease*energized*(.27+.58*rimGlow))*weaponLive;`);
   };
   return material;

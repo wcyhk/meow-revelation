@@ -4,7 +4,7 @@ import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=forgeburst-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyCurrent} from './enemy-current.mjs?v=guard-forge-2';
+import {enemyCurrent} from './enemy-current.mjs?v=boss-sculpt-1';
 import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=guard-forge-2';
 import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=guard-forge-2';
 import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
@@ -31,6 +31,10 @@ import {polishBossA} from './boss-polish-a.mjs?v=ascendant-1';
 import {polishBossB} from './boss-polish-b.mjs?v=ascendant-1';
 import {polishBossC} from './boss-polish-c.mjs?v=ascendant-1';
 import {polishGuardian} from './guardian-polish.mjs?v=ascendant-1';
+import {masterworkA} from './boss-masterwork-a.mjs?v=masterwork-1';
+import {masterworkB} from './boss-masterwork-b.mjs?v=masterwork-1';
+import {masterworkC} from './boss-masterwork-c.mjs?v=masterwork-1';
+import {masterworkGuardian,masterworkHunt} from './guardian-masterwork.mjs?v=masterwork-1';
 
 const PI=Math.PI,TAU=PI*2;
 const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
@@ -1642,6 +1646,11 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     ||polishBossC(k,parts,entry,mobile)||polishGuardian(k,parts,entry,mobile)
     ||polishCreature(k,parts,entry,mobile);
   else polishCreature(k,parts,entry,mobile);
+  if(!entry.field){
+    masterworkA(k,parts,entry,mobile)||masterworkB(k,parts,entry,mobile)||
+      masterworkC(k,parts,entry,mobile)||masterworkGuardian(k,parts,entry,mobile);
+    masterworkHunt(k,parts,entry,spec.relicWeapon,mobile);
+  }
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);

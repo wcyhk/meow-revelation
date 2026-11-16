@@ -21,7 +21,9 @@ function currentsGeometry(field,mobile,weaponCount){
     strands.push(8+i,0,0);
     for(let j=0;j<(mobile?3:5);j++)strands.push(10+i,j*2.39,(j*.618)%1);
     for(let j=0;j<(mobile?2:4);j++)strands.push(13+i,j*2.39,(j*.618)%1);
+    for(let j=0;j<(mobile?3:6);j++)strands.push(16+i,j*2.39,(j*.618)%1);
   }
+  if(!field)for(let i=0;i<(mobile?6:11);i++)strands.push(15,i*2.399,(i*.618)%1);
   geometry.setAttribute('strand',new T.InstancedBufferAttribute(new Float32Array(strands),3));
   geometry.instanceCount=strands.length/3;
   return geometry;
@@ -158,7 +160,7 @@ const vertex=`
       orthogonal=normalize(surfaceAxes*(vec3(0.,1.,0.)+radial*.42));
       bandwidth*=.62;
       edge*=.68+force*.41;
-    }else{
+    }else if(mode<14.5){
       int i=int(mode)-13;
       vec3 a=grip[i].xyz,b=tip[i].xyz;
       vec3 axis=normalize(b-a+vec3(.00001));
@@ -176,6 +178,36 @@ const vertex=`
       orthogonal=normalize(cross(radial,cameraPosition-p)+vec3(.00001));
       bandwidth*=.62;
       edge*=crest*(.62+weaponPower*.68+idlePulse[i]*.46);
+    }else{
+      float age=fract(clock*(.55+strand.z*.31)+strand.z*2.24);
+      float angle=t*.30+age*(1.1+strand.z);
+      float radius=scaleUnit*(.017+strand.z*.011);
+      float pulse=sin(age*3.14159);
+      if(mode<15.5){
+        vec3 local=vec3(cos(angle)*surfaceSpan.x*(.89+age*.39),
+          surfaceSpan.y*((strand.z-.63)*.73+age*.89),
+          sin(angle)*surfaceSpan.z*(.93+age*.51));
+        p=surfaceOrigin+surfaceAxes*local;
+        edge=pulse*(.60+force*.42);
+      }else{
+        int i=int(mode)-16;
+        float circular=step(1.5,weaponKind[i]);
+        vec3 a=grip[i].xyz,b=tip[i].xyz;
+        vec3 axis=normalize(b-a+vec3(.00001));
+        if(circular>.5)axis=weaponPlane[i];
+        vec3 tx=normalTo(axis),ty=cross(axis,tx);
+        angle=ringSpin*(.83+strand.z*.72)+strand.y+age*1.67;
+        vec3 drift=tx*cos(angle)+ty*sin(angle);
+        p=mix(a,b,mix(.38+age*.68,.5,circular))+drift*grip[i].w*(.87+age*(.73+idlePulse[i]*.75));
+        p+=axis*grip[i].w*(age-.39)*(.27+weaponPower*.46);
+        radius*=1.+weaponPower*.62;
+        edge=pulse*(.77+weaponPower*.59+idlePulse[i]*.33);
+      }
+      vec3 viewRight=vec3(viewMatrix[0].x,viewMatrix[1].x,viewMatrix[2].x);
+      vec3 viewUp=vec3(viewMatrix[0].y,viewMatrix[1].y,viewMatrix[2].y);
+      p+=(viewRight*(u*2.-1.)+viewUp*v*(1.+strand.z*1.1))*radius;
+      orthogonal=viewUp;
+      bandwidth=0.;
     }
     p+=orthogonal*v*bandwidth;
     gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);
@@ -193,6 +225,15 @@ const fragment=`
   varying float opacity,seed,kind;
   void main(){
     float u=ribbon.x,v=ribbon.y;
+    if(kind>14.5){
+      vec2 delta=vec2(u*2.-1.,v);
+      float d=dot(delta,delta);
+      float halo=exp(-5.1*d)*(1.-smoothstep(.46,1.,d));
+      float core=exp(-21.*d);
+      gl_FragColor=vec4(mix(tint,heart,.16+core*.84),(halo*.45+core*.70)*opacity);
+      #include <colorspace_fragment>
+      return;
+    }
     if(kind>7.5&&kind<9.5){
       vec2 center=vec2(u*2.-1.,v);
       float d=dot(center,center);

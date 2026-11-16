@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=night-current-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgeburst-1';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
@@ -23,7 +23,7 @@ import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
 import {elementStyle,particleContours,weaponElements} from './elemental-fx.mjs?v=nightforge-1';
 import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effects.mjs?v=emberlight-1';
 import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=emberlight-1';
-import {SpellLighting} from './spell-lighting.mjs?v=emberlight-1';
+import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 
 const PI = Math.PI;
@@ -854,7 +854,14 @@ export class Scenery {
       energy.update(this.feedback.subdued?0:this.time,1.0,unit.rolling>0?.75:.36,unit.atk>0?.76:.32,0,0);
     }
     poseEffigy(visual,spec,this.time,x,z);
-    if(visual.bestiary)poseBestiary(visual.bestiary,unit,{...spec,flash,subdued:this.feedback.subdued},this.time,x,z);
+    if(visual.bestiary){
+      const model=visual.bestiary;
+      poseBestiary(model,unit,{...spec,flash,subdued:this.feedback.subdued},this.time,x,z);
+      if(model.weaponFlash&&unit.kind==='boss')this.spellLighting.emit(model.weaponFlash,{
+        action:'weapon-release',element:unit.spec.effect,tint:model.weaponFlash.tint,
+        radius:1.9,power:.80+(spec.phase??0)*.09,sourceHeight:true,
+      });
+    }
     const foot=spec.feet??null;
     if(foot!==null&&visual.footPhase!==null&&foot!==visual.footPhase&&!unit.spec?.float){
       const hue=unit.spec?.tint??0xc6a88f;

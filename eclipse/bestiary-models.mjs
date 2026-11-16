@@ -1,11 +1,12 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=penumbra-1';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
-import {buildPao,paoForms,posePao} from './pao-model.mjs?v=chiaroscuro-1';
+import {buildPao,paoForms,posePao} from './pao-model.mjs?v=forgeburst-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyCurrent} from './enemy-current.mjs?v=night-current-1';
-import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=night-current-1';
+import {enemyCurrent} from './enemy-current.mjs?v=forgeburst-1';
+import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=forgeburst-1';
+import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=forgeburst-1';
 import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=night-current-1';
@@ -13,10 +14,10 @@ import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
-import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=night-current-1';
+import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=forgeburst-1';
 import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=night-current-1';
-import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=night-current-1';
-import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=night-current-1';
+import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=forgeburst-1';
+import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=forgeburst-1';
 import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=night-current-1';
 import {finishSpecialBoss} from './special-boss-finish.mjs?v=turnaround-2';
 import {bossSkin} from './boss-skin.mjs?v=jointwork-1';
@@ -411,7 +412,7 @@ function blade(k,hand,crest,huge=false){
 function trialWeapon(k,hand,weapon){
   const {mesh,rod}=k;
   const tip=weapon==='bow'?[-.49,0,.14]:weapon==='swords'?[0,.25,1.42]:weapon==='windmace'?[-.16,1.36,.43]:[-.39,1.50,.88];
-  markEnemyWeapon(hand,tip,{width:weapon==='bow'||weapon==='swords'?.27:.16});
+  markEnemyWeapon(hand,tip,{width:weapon==='bow'||weapon==='swords'?.27:.16,kind:weapon==='bow'?'bow':'edge'});
   if(weapon==='swords'){
     for(const side of [-1,1]){
       rod(hand,'deep',[side*.29,-.14,-.08],[side*.31,.04,.32],.046);
@@ -1646,7 +1647,9 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   const box=new T.Box3().setFromObject(root);
   const weapons=enemyWeapons(root);
   const palette=colors(entry);
-  const aura=enemyCurrent(root,box,{tint:parts.polishEnergy?.tint??palette[3],shape:parts.polishEnergy?.shape,
+  const tint=parts.polishEnergy?.tint??palette[3];
+  const weaponEmission=entry.field?null:armWeaponEmission(weapons,materials,tint);
+  const aura=enemyCurrent(root,box,{tint,shape:parts.polishEnergy?.shape,
     effect:spec.effect??entry.tone,field:!!entry.field,pao:!!parts.pao,mobile,weapons});
   const reference=KoreanBossArt[entry.id];
   const ratio=reference?.[2];
@@ -1658,7 +1661,7 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   const footed=!!(parts.legs?.length||parts.feet?.length||parts.grounded);
   const floor=footed?T.MathUtils.clamp(box.min.y,0,.36):0;
   return {root,materials,entry,crest,dimensions,palette,bounce:reference?Math.min(.39,reference[3])*.13:0,
-    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,skin,weapons,footed,floor,...parts};
+    scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,skin,weapons,weaponEmission,footed,floor,...parts};
 }
 
 export function poseBestiary(model,unit,spec,time,x,z){
@@ -1808,7 +1811,15 @@ export function poseBestiary(model,unit,spec,time,x,z){
   }
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall});
   aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading:model.heading});
-  model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued);
+  model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
+  if(model.weaponEmission){
+    const uniforms=model.weaponEmission;
+    const subdued=spec.subdued?.48:1;
+    uniforms.weaponClock.value=model.aura.mesh.material.uniforms.ringSpin.value;
+    uniforms.weaponCharge.value=T.MathUtils.smoothstep(wind,.14,1)*(1-fall)*subdued;
+    uniforms.weaponRelease.value=strike*(1-fall)*subdued;
+    uniforms.weaponStage.value=Math.min(2,stage);
+  }
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);
   const glow=model.palette[3];

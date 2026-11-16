@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=forgeburst-1';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
 import {legacyCDetail,legacyCFinishes} from './catalogue-c-legacy.mjs?v=maskwork-1';
@@ -456,7 +456,7 @@ function knightRelic(k,entry){
   if(sun){
     const shoulder=arms[1].shoulder;
     const disk=k.bone(arms[1].palm,.16,-.05,.18);
-    markEnemyWeapon(disk,[0,.43,.03],{from:[0,-.43,.03],width:.32,aim:false});
+    markEnemyWeapon(disk,[0,.43,.03],{from:[0,-.43,.03],width:.32,aim:false,kind:'ring'});
     for(const [r,w,finish,d] of [[.34,.041,'edge',.025],[.294,.042,'trim',.045],[.213,.015,'rind',.054],[.074,.026,'trim',.116]]){
       ring(k,disk,finish,r,w,36,0,d);
     }

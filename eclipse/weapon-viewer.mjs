@@ -2,17 +2,17 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=night-current-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=forgeburst-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
-import {SpellLighting} from './spell-lighting.mjs?v=emberlight-1';
+import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} from './jushang-references.mjs?v=pao-1';
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
-import {paoForms} from './pao-model.mjs?v=chiaroscuro-1';
+import {paoForms} from './pao-model.mjs?v=forgeburst-1';
 import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
 
 function node(tag,kind,text){

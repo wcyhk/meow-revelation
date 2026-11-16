@@ -14,6 +14,10 @@ function currentsGeometry(field,mobile,weaponCount){
   for(let i=0;i<(field?2:mobile?4:6);i++)strands.push(0,i*2.399,(i%3)*.29);
   for(let i=0;i<weaponCount;i++)for(let j=0;j<(mobile?2:3);j++)strands.push(1+i,j*2.66,(j+1)*.23);
   for(let i=0;i<(field||mobile?2:3);i++)strands.push(3,i*2.39,i*.32);
+  if(!field)for(let i=0;i<weaponCount;i++){
+    for(let j=0;j<(mobile?2:3);j++)strands.push(4+i,j*2.39,j%2);
+    for(let j=0;j<(mobile?5:8);j++)strands.push(6+i,j*2.39,(j*.618)%1);
+  }
   geometry.setAttribute('strand',new T.InstancedBufferAttribute(new Float32Array(strands),3));
   geometry.instanceCount=strands.length/3;
   return geometry;
@@ -21,9 +25,12 @@ function currentsGeometry(field,mobile,weaponCount){
 
 const vertex=`
   attribute vec3 strand;
-  uniform float clock,force,stage,style,strength,scaleUnit;
+  uniform float clock,force,stage,style,strength,scaleUnit,weaponPower,ringSpin,releaseAge;
   uniform vec3 center,span;
   uniform vec4 grip[2],tip[2];
+  uniform vec4 burstPoint[2];
+  uniform vec3 burstHeading[2],weaponPlane[2];
+  uniform float weaponKind[2];
   uniform vec4 wake[6];
   varying vec2 ribbon;
   varying float opacity,seed,kind;
@@ -56,7 +63,7 @@ const vertex=`
       p=mix(a,b,.08+u*.93)+radial*grip[i].w*(.77+.28*sin(u*3.14159)+force*.16);
       orthogonal=radial;
       bandwidth*=.78;
-    }else{
+    }else if(mode<3.5){
       float point=u*4.999;
       int i=int(point);
       vec4 a=wake[i],b=wake[i+1];
@@ -69,6 +76,40 @@ const vertex=`
       orthogonal=normalize(cross(forward,cameraPosition-p)+vec3(.00001));
       edge=envelope*smoothstep(0.,.075,u);
       bandwidth*=1.46+u*.69;
+    }else if(mode<5.5){
+      int i=int(mode)-4;
+      float circular=step(1.5,weaponKind[i]);
+      vec3 a=grip[i].xyz,b=tip[i].xyz;
+      vec3 axis=normalize(b-a+vec3(.00001));
+      vec3 tx=normalTo(axis),ty=cross(axis,tx);
+      if(circular>.5){
+        axis=weaponPlane[i];
+        tx=normalTo(axis);ty=cross(axis,tx);
+      }
+      float hand=strand.z>.5?-1.:1.;
+      float angle=hand*ringSpin+strand.y+u*(3.36+weaponPower*.84);
+      float radius=grip[i].w*(mix(.82,1.16,circular)+weaponPower*.65);
+      vec3 radial=tx*cos(angle)+ty*sin(angle);
+      p=mix(a,b,mix(.88,.5,circular))+radial*radius;
+      p+=axis*sin(angle)*radius*.18*hand;
+      orthogonal=radial;
+      bandwidth*=.68+weaponPower*.18;
+      edge*=.24+weaponPower*.89+stage*.09;
+    }else{
+      int i=int(mode)-6;
+      vec4 burst=burstPoint[i];
+      vec3 axis=burstHeading[i];
+      vec3 tx=normalTo(axis),ty=cross(axis,tx);
+      vec3 fan=tx*cos(strand.y)+ty*sin(strand.y);
+      float disperse=.31+.71*strand.z;
+      vec3 jet=normalize(axis*(.84+strand.z*.52)+fan*disperse);
+      float reach=burst.w*(.54+1.03*strand.z);
+      float age=releaseAge;
+      p=burst.xyz+jet*reach*(.12+age*2.1+u*(.20+age*.38));
+      p.y-=burst.w*age*age*.39;
+      orthogonal=normalize(cross(jet,cameraPosition-p)+vec3(.00001));
+      bandwidth=burst.w*(.038+.029*strand.z)*(1.-age*.58);
+      edge*=smoothstep(0.,.09,age)*(1.-smoothstep(.20,1.,age))*(1.09+strand.z*.35);
     }
     p+=orthogonal*v*bandwidth;
     gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);
@@ -99,7 +140,11 @@ const fragment=`
     float sparkle=exp(-d*18.)*pow(.5+.5*sin(u*60.-t*1.62+seed),13.);
     vec3 glow=mix(tint,heart,clamp(core*packet*.75+sparkle*.35,0.,1.));
     float energy=(core*packet*.76+veil+tendril*.26+sparkle*.43)*mask*opacity;
-    gl_FragColor=vec4(glow,energy*(kind>2.5?1.27:1.));
+    if(kind>5.5){
+      glow=mix(tint,heart,.55+core*.45);
+      energy=(core*.98+veil*.51)*mask*opacity;
+    }
+    gl_FragColor=vec4(glow,energy*(kind>2.5&&kind<3.5?1.27:1.));
     #include <colorspace_fragment>
   }
 `;
@@ -118,11 +163,18 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
   const trail=Array.from({length:pathSamples},()=>new T.Vector4(0,0,0,0));
   const sampled=trail.map(()=>new T.Vector4(0,0,0,-Infinity));
   let lastSample=-Infinity;
+  let lastRelease=null;
+  let lastPose;
   const uniforms={
     clock:{value:0},force:{value:0},stage:{value:0},style:{value:flavors[shape]??flavors[effect]??4},
     strength:{value:0},scaleUnit:{value:1},center:{value:new T.Vector3()},span:{value:new T.Vector3()},
     grip:{value:[new T.Vector4(),new T.Vector4()]},tip:{value:[new T.Vector4(),new T.Vector4()]},
     wake:{value:trail},tint:{value:hues},heart:{value:hues.clone().lerp(new T.Color(0xfff1dc),.76)},
+    weaponPower:{value:0},ringSpin:{value:0},releaseAge:{value:1},
+    weaponKind:{value:Array.from({length:2},(_,i)=>links[i]?.kind==='ring'?2:links[i]?.kind==='bow'?1:0)},
+    burstPoint:{value:[new T.Vector4(),new T.Vector4()]},
+    burstHeading:{value:[new T.Vector3(0,0,1),new T.Vector3(0,0,1)]},
+    weaponPlane:{value:[new T.Vector3(0,0,1),new T.Vector3(0,0,1)]},
   };
   const geometry=currentsGeometry(field,mobile,links.length);
   const shader=new T.ShaderMaterial({uniforms,vertexShader:vertex,fragmentShader:fragment,
@@ -135,10 +187,10 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
 
   return {
     mesh,
-    update(time,stage,wind,strike,fall,stagger,travel=0,subdued=false){
+    update(time,stage,wind,strike,fall,stagger,travel=0,subdued=false,motion=null){
       const charge=Math.max(wind,strike,stagger*.45);
       mesh.visible=fall<.98&&(root.visible||!field);
-      if(!mesh.visible)return;
+      if(!mesh.visible)return null;
       root.updateWorldMatrix(true,false);
       const amount=axes.setFromMatrixScale(root.matrixWorld).y;
       bodyPoint.copy(center).applyMatrix4(root.matrixWorld);
@@ -159,13 +211,31 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
         const weight=subdued?0:Math.max(0,1-age/.53);
         trail[i].set(i===0?origin.x:sample.x,i===0?bodyPoint.y:sample.y,i===0?origin.z:sample.z,weight);
       }
-      for(const [index,{node,base,end,width}] of links.entries()){
+      const newRelease=!field&&motion&&motion!==lastRelease&&links.length>0&&motion.age<.18;
+      let flash=null;
+      for(const [index,{node,base,end,width,kind}] of links.entries()){
         node.updateWorldMatrix(true,false);
         weaponPoint.copy(base).applyMatrix4(node.matrixWorld);
         strandTip.copy(end).applyMatrix4(node.matrixWorld);
-        uniforms.grip.value[index].set(...weaponPoint,Math.max(.045,width*amount));
+        const widthInWorld=width*axes.setFromMatrixScale(node.matrixWorld).y;
+        uniforms.grip.value[index].set(...weaponPoint,Math.max(.045,widthInWorld));
         uniforms.tip.value[index].set(...strandTip,0);
+        if(kind==='ring')uniforms.weaponPlane.value[index].set(0,0,1).transformDirection(node.matrixWorld);
+        if(newRelease){
+          const at=kind==='ring'?strandTip.lerp(weaponPoint,.5):strandTip;
+          const radius=amount*(subdued?.46:kind==='ring'?.89:.78);
+          uniforms.burstPoint.value[index].set(...at,radius);
+          uniforms.burstHeading.value[index].set(motion.dx??0,kind==='ring'?.38:.12,motion.dz??1).normalize();
+          flash??={x:at.x,y:at.y,z:at.z,tint};
+        }
       }
+      if(newRelease)lastRelease=motion;
+      uniforms.weaponPower.value=(wind>.01?T.MathUtils.smoothstep(wind,.12,1):strike*.62)*(subdued?.55:1);
+      const elapsed=T.MathUtils.clamp(time-(lastPose??time),0,.055);
+      const speed=(2.4+uniforms.weaponPower.value*6.5)*(subdued?.52:1);
+      uniforms.ringSpin.value=(uniforms.ringSpin.value+elapsed*speed)%(Math.PI*2);
+      lastPose=time;
+      uniforms.releaseAge.value=motion&&motion===lastRelease?T.MathUtils.clamp(motion.age/.48,0,1):1;
       uniforms.clock.value=subdued?time*.45:time;
       uniforms.stage.value=Math.min(2,stage);
       uniforms.force.value=charge;
@@ -173,6 +243,7 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
       uniforms.center.value.copy(bodyPoint);
       uniforms.span.value.set(radiusX,size.y*.73,radiusZ).multiplyScalar(amount);
       uniforms.strength.value=(1-fall)*(field?.40+travel*.10+charge*.24:pao?.52:1.12)*(subdued?.59:1);
+      return flash;
     },
     dispose(){mesh.removeFromParent();geometry.dispose();shader.dispose();},
   };

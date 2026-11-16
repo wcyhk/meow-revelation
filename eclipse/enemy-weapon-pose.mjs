@@ -1,7 +1,7 @@
 import * as T from '../three.min.mjs';
 
-export function markEnemyWeapon(node,tip,{from=[0,0,0],width=.14,aim=true}={}){
-  node.userData.enemyWeapon={from,tip,width,aim};
+export function markEnemyWeapon(node,tip,{from=[0,0,0],width=.14,aim=true,kind='edge'}={}){
+  node.userData.enemyWeapon={from,tip,width,aim,kind};
   return node;
 }
 
@@ -11,7 +11,7 @@ export function enemyWeapons(root){
     const mark=node.userData.enemyWeapon;
     if(!mark)return;
     const base=new T.Vector3(...mark.from),end=new T.Vector3(...mark.tip);
-    items.push({node,base,end,axis:end.clone().sub(base).normalize(),width:mark.width,aim:mark.aim,previous:null});
+    items.push({node,base,end,axis:end.clone().sub(base).normalize(),width:mark.width,aim:mark.aim,kind:mark.kind??'edge',previous:null});
   });
   return items;
 }

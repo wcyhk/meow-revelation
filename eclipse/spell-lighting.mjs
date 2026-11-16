@@ -36,16 +36,18 @@ export class SpellLighting {
     });
   }
 
-  emit(point,{action,element,tint,radius=1.5,power=1}){
+  emit(point,{action,element,tint,radius=1.5,power=1,sourceHeight=false}){
     if(power<.48)return;
     const important=major.has(action);
-    const rank=important?3:action==='impact'?1:2;
+    const rank=important?3:action==='weapon-release'?2.5:action==='impact'?1:2;
     const [hue,intensity,decay,height,glow]=emission[element]??neutral;
     const {x,z}=point;
     const size=clamp(radius,1,5.4);
+    const lift=sourceHeight?clamp(point.y??height,.25,6):clamp(point.y??height,height,height+.6)+(important?.40:0);
     // Continuous and overlapping spells can share one pool slot.
     const near=this.slots.find(slot=>slot.duration&&slot.element===element&&slot.rank===rank&&slot.age<.11&&
-      (slot.light.position.x-x)**2+(slot.light.position.z-z)**2<.95**2);
+      (slot.light.position.x-x)**2+(slot.light.position.z-z)**2<.95**2&&
+      (!sourceHeight||Math.abs(slot.light.position.y-lift)<.20));
     let slot=near??this.slots.find(slot=>!slot.duration);
     if(!slot){
       slot=this.slots.reduce((weakest,other)=>{
@@ -58,7 +60,6 @@ export class SpellLighting {
     const {light,halo}=slot;
     const weight=clamp(power,.48,1.22)*(important?1.18:1);
     const range=3.0+size*.86;
-    const lift=clamp(point.y??height,height,height+.6)+(important?.40:0);
     light.position.set(x,lift,z);
     light.distance=range;
     light.color.setHex(tint??hue).lerp(halo.material.color.setHex(hue),.36);

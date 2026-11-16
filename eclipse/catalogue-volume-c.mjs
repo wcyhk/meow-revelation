@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=forgeburst-1';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {backFeathers,beastRelief,championRelief,creaturePatinas,curvedPlate,designsC,serpentRelief} from './catalogue-c-detail.mjs?v=maskwork-1';
 import {fittedChampionArmor,identityFinishes,sculptChampionFace} from './catalogue-human-c.mjs?v=maskwork-1';
@@ -612,7 +612,7 @@ function armament(k,palm,kind,side,radius){
   const loop=(color,x,y,z,r,rx=0)=>k.mesh(group,'ring',color,x,y,z,r,r,1,rx);
   if(kind==='wheel'){
     const x=side*.28;
-    markEnemyWeapon(group,[x,.23,.18],{from:[x,-.50,.18],width:.33,aim:false});
+    markEnemyWeapon(group,[x,.23,.18],{from:[x,-.50,.18],width:.33,aim:false,kind:'ring'});
     loop('trim',x,-.11,.17,.37);
     loop('ember',x,-.11,.206,.32);
     for(let i=0;i<8;i++){
@@ -642,7 +642,7 @@ function armament(k,palm,kind,side,radius){
     return;
   }
   if(kind==='bow'){
-    markEnemyWeapon(group,[side*.72,-.09,.14],{width:.25});
+    markEnemyWeapon(group,[side*.72,-.09,.14],{width:.25,kind:'bow'});
     const chain=[[.06,-.77,.10,.033],[side*.27,-.65,.10,.064],[side*.42,-.37,.15,.055],
       [side*.29,-.11,.20,.055],[side*.42,.33,.13,.052],[side*.29,.60,.085,.075],
       [.07,.75,.10,.03]];

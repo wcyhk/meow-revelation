@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=forgeburst-1';
 import {featherVane,sculptVolume,wingWeb} from './sculpt-volume.mjs?v=sculpted-1';
 
 const PI=Math.PI,TAU=PI*2;
@@ -504,7 +504,7 @@ function weapon(k,hand,type,side=1){
   if(type==='fist'||type==='shield')return joint;
   if(type==='orb'||type==='loop'||type==='disc'){
     const radius=type==='disc'?.31:type==='loop'?.26:.21;
-    markEnemyWeapon(joint,[0,radius*1.2,.06],{from:[0,-radius,.06],width:radius,aim:false});
+    markEnemyWeapon(joint,[0,radius*1.2,.06],{from:[0,-radius,.06],width:radius,aim:false,kind:'ring'});
     hoop(k,joint,'bInlay',radius,.037,30);
     hoop(k,joint,'bTrim',radius*.74,.014,24,0,0,.070);
     stone(k,joint,'glow',0,0,.063,radius*.56,radius*.61,radius*.32);
@@ -536,7 +536,7 @@ function weapon(k,hand,type,side=1){
     return joint;
   }
   if(type==='bow'){
-    markEnemyWeapon(joint,[-.65,0,.03],{from:[.27,0,.03],width:.28});
+    markEnemyWeapon(joint,[-.65,0,.03],{from:[.27,0,.03],width:.28,kind:'bow'});
     const limb=[[0,0,.03,.042],[.172,.29,.037,.061],[.29,.567,.016,.055],[.236,.767,-.008,.044],[.345,.862,.006,.006]];
     for(const part of signs){
       const f=pt=>pt.map(([x,y,z,r])=>[x,y*part,z,r]);

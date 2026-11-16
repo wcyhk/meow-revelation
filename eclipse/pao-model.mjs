@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=forgeburst-1';
 import {beardLocks,bracer,cuirass,rivenCloth,sculptPao,skull,wingJoint} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {paoEnergy} from './pao-energy.mjs?v=chiaroscuro-1';
 
@@ -250,6 +251,7 @@ export function buildPao(k,entry,mobile){
     mesh(palm,'pearl','body',0,-.025,.05,.102,.105,.072);
     bracer(k,sculpt,arm,elbow,palm,side);
     const wheel=ring(k,palm,awakened,frozen,mobile);
+    markEnemyWeapon(wheel,[0,.41,.085],{from:[0,-.41,.085],width:.43,aim:false,kind:'ring'});
     if(side===-1&&!awakened)wheel.scale.setScalar(.65);
     arms.push({shoulder:arm,elbow});
     wheels.push(wheel);

@@ -296,6 +296,7 @@ export function masterworkGuardian(k,m,entry,mobile){
   if(entry.field||!m.campaign||!id.startsWith('forest-'))return false;
   const n=Number(id.slice(7));
   if(!palettes[n])return false;
+  if(m.vaultMechanism||m.burialRig)return true;
   materials(k,n);
   if(armor[n]){
     const [wide,y,z,drop,crest]=armor[n];
@@ -325,7 +326,7 @@ export function masterworkGuardian(k,m,entry,mobile){
     }
   }else if(m.flight){
     const styles={0:'ash',8:'moth',14:'paper',17:'root',18:'glass'};
-    wingWork(k,m,styles[n],mobile);
+    if(n!==8&&n!==18)wingWork(k,m,styles[n],mobile);
     neckRuff(k,m,styles[n],mobile);
     brow(k,m,{w:n===17?.27:n===0?.25:.18,y:n===0?.085:.062,z:n===17?.39:n===0?.40:.28,h:n===17?.18:.121,mobile});
     const spine=hangs(k,m,m.body,0,.247,-.301,{amp:.125,seed:4.4});
@@ -334,9 +335,9 @@ export function masterworkGuardian(k,m,entry,mobile){
   }else if(n===6||n===11){
     river(k,m,n===6,mobile);
   }else{
-    const shellShape={4:[-.68,.60,.35,'silk'],5:[-.79,.69,.57,'vault'],7:[-.77,.38,.30,'deer'],13:[-.84,.49,.36,'slag']};
+    const shellShape={4:[-.68,.60,.35,'silk'],7:[-.77,.38,.30,'deer'],13:[-.84,.49,.36,'slag']};
     const [depth,wide,y,style]=shellShape[n];
-    shell(k,m,{depth,wide,y,style,mobile});
+    if(n!==4)shell(k,m,{depth,wide,y,style,mobile});
     brow(k,m,{w:n===4?.24:n===7?.21:.32,z:n===4?.33:.28,y:.084,h:.14,mobile});
   }
   return true;

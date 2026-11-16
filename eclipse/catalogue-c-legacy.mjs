@@ -9,13 +9,13 @@ const solid=(k,part,mat,path)=>k.geometry(part,mat,sculptVolume(path,{
   sides:10,rings:12,section:2.5,ridge:.17,
 }));
 
-function frozen(k,{head,body},mobile){
+function frozen(k,{head,body,frozenMandible},mobile){
   for(const side of sides){
     curvedPlate(k,head,'skull',[[side*.050,-.145,.209,.030,.030],[side*.102,-.138,.190,.041,.034],
       [side*.158,-.084,.178,.052,.054],[side*.190,-.036,.130,.040,.030],[side*.200,-.018,.033,.008,.009]],.19);
     seam(k,head,'deep',[[side*.057,.047,.190,.014],[side*.106,.035,.207,.021],
       [side*.149,.019,.19,.021],[side*.187,.008,.126,.004]]);
-    for(let i=0;i<4;i++){
+    for(let i=0;i<(frozenMandible?0:4);i++){
       const x=side*(.014+i*.022);
       seam(k,head,'frostEdge',[[x,-.126,.172,.012],[x*1.03,-.158,.193,.015],[x*1.05,-.172,.185,.004]]);
     }

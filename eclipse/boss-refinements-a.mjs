@@ -1,4 +1,5 @@
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
+import {gandharvaGarments} from './gandharva-garment.mjs?v=gandharva-2';
 
 const sides=[-1,1];
 const mirror=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
@@ -8,33 +9,23 @@ const offset=(at,path,direction=1)=>path.map(([x,y,z,...rest])=>[
 
 // Head details and cloth are fitted in each original rig's local coordinates.
 const armour={
-  m003:{mask:'fang',metal:'steel',silk:'裂口獵皮',tint:0x4b5244,trim:0x73644d,hems:[[.29,.43,-.23,.10],[.61,.12,-.39,.13],[.67,-.31,-.53,.12],[.72,-.66,-.60,.062]],span:.62,crest:[.16,.105,-.07,.32]},
   m004:{mask:'plates',metal:'steel',silk:'騎槍手燕尾旗',tint:0x435770,hems:[[.16,.61,-.17,.052],[.22,.38,-.34,.082],[.34,.09,-.58,.090],[.39,-.22,-.75,.021]],span:.35,crest:[.13,.17,-.08,.24]},
   m006:{mask:'brow',metal:'ochre',silk:'赤賊掩面束帶',tint:0x773b36,hems:[[.127,-.015,-.09,.043],[.22,-.16,-.24,.067],[.36,-.31,-.41,.056],[.42,-.51,-.54,.019]],anchor:'head',span:.39,crest:[.12,.09,-.04,.18]},
   m008:{mask:'jewel',metal:'rind',silk:'翠華祭衣',tint:0x416046,hems:[[.21,.72,-.158,.061],[.30,.34,-.324,.11],[.34,-.27,-.49,.138],[.48,-.91,-.72,.074]],span:.29,crest:[.105,.16,-.06,.16]},
   m009:{mask:'bark',metal:'jade',silk:'句芒葉纓',tint:0x456641,trim:0x9c9b5c,hems:[[.18,.26,-.06,.048],[.25,.10,-.20,.077],[.40,-.19,-.36,.069],[.50,-.55,-.48,.025]],anchor:'head',span:.33,crest:[.17,.20,-.08,.31]},
   m010:{mask:'diadem',metal:'jade',silk:'風運飄帶',tint:0x4b6d57,hems:[[.18,.64,-.18,.070],[.27,.27,-.38,.102],[.41,-.10,-.58,.105],[.51,-.70,-.79,.044]],span:.37,crest:[.12,.14,-.06,.22]},
-  m011:{mask:'brow',metal:'clay',silk:'炎運腕旗',tint:0x982e21,hems:[[.29,.53,-.16,.078],[.43,.26,-.26,.112],[.47,-.14,-.43,.11],[.53,-.50,-.52,.068]],span:.46,crest:[.13,.04,-.055,.23]},
   m012:{mask:'jewel',metal:'cobalt',silk:'水運霜帛',tint:0x5c86a2,trim:0xb4d6db,hems:[[.22,.62,-.18,.061],[.29,.31,-.34,.092],[.38,-.22,-.57,.12],[.46,-.69,-.81,.038]],span:.35,crest:[.12,.14,-.053,.23]},
   m013:{mask:'diadem',metal:'brass',silk:'雷運銅鈴綬',tint:0x825744,hems:[[.24,.55,-.15,.05],[.37,.15,-.32,.082],[.43,-.28,-.52,.059],[.46,-.91,-.69,.034]],span:.33,crest:[.122,.149,-.07,.30]},
-  m016:{mask:'plates',metal:'rind',silk:'裹鐮鎖甲裙',tint:0x945733,hems:[[.20,.21,.234,.097],[.30,-.037,.284,.129],[.40,-.33,.38,.135],[.43,-.69,.48,.098]],span:.40,crest:[.132,.18,-.09,.28]},
-  m017:{mask:'fang',metal:'rind',silk:'魔奧朱金束帛',tint:0x8c643f,hems:[[.20,.72,-.218,.081],[.29,.45,-.326,.121],[.34,-.15,-.49,.103],[.44,-.63,-.64,.047]],span:.39,crest:[.138,.15,-.062,.27]},
   m018:{mask:'plates',metal:'ochre',silk:'裂紋龍袍',tint:0x723125,hems:[[.24,.71,-.25,.077],[.35,.39,-.41,.138],[.43,-.20,-.57,.167],[.43,-.91,-.75,.126]],span:.43,crest:[.13,.19,-.08,.22]},
   m019:{mask:'diadem',metal:'ivory',silk:'冰龍旌帶',tint:0x516f88,trim:0xbbc3ab,hems:[[.145,.59,-.15,.045],[.26,.33,-.305,.076],[.35,-.055,-.49,.092],[.45,-.51,-.80,.043]],span:.30,crest:[.125,.155,-.085,.20]},
-  m020:{mask:'plates',metal:'cobalt',silk:'楚軍斷氅',tint:0x4a516b,hems:[[.22,.67,-.19,.083],[.33,.34,-.39,.130],[.46,-.13,-.55,.153],[.56,-.89,-.68,.096]],span:.44,crest:[.14,.21,-.075,.26]},
   m021:{mask:'jewel',metal:'rind',silk:'喪魂白帛',tint:0xa5b0aa,trim:0x679a99,hems:[[.242,.13,-.155,.064],[.35,-.20,-.335,.083],[.45,-.55,-.52,.073],[.54,-.94,-.71,.035]],anchor:'head',span:.28,crest:[.135,.102,-.055,.23]},
   m023:{mask:'fang',metal:'ochre',silk:'屠翼的斷皮圍裙',tint:0x3f4b37,hems:[[.31,.03,.305,.096],[.44,-.21,.377,.15],[.47,-.52,.39,.128],[.42,-.86,.49,.079]],span:.61,crest:[.157,.090,-.070,.27]},
   m027:{mask:'bark',metal:'rust',silk:'破滅者暗紅垂裳',tint:0x942b24,hems:[[.37,.12,.397,.080],[.53,-.13,.475,.131],[.60,-.43,.514,.123],[.63,-.72,.584,.053]],span:.66,crest:[.172,.19,-.05,.27]},
   m028:{mask:'jewel',metal:'teal',silk:'狐仙的引雷冠纓',tint:0x9a6d45,trim:0xc1ad79,hems:[[.17,.072,-.083,.049],[.29,-.023,-.232,.077],[.41,-.28,-.37,.083],[.49,-.59,-.49,.038]],anchor:'head',span:.36,crest:[.13,.136,-.057,.21]},
-  m029:{mask:'brow',metal:'steel',silk:'鐵拐葫蘆繫繩',tint:0x7f4c37,hems:[[.19,.46,-.15,.038],[.32,.13,-.30,.056],[.44,-.21,-.48,.049],[.60,-.38,-.62,.027]],span:.36,crest:[.13,.13,-.05,.18]},
   m031:{mask:'diadem',metal:'brass',silk:'公公官服雲肩',tint:0x833b36,hems:[[.23,.625,-.19,.079],[.35,.315,-.37,.123],[.455,-.19,-.53,.132],[.50,-.73,-.65,.100]],span:.41,crest:[.135,.18,-.063,.27]},
   m032:{mask:'jewel',metal:'cobalt',silk:'藍菜花湖藍飄袖',tint:0x456f97,trim:0x94bec4,hems:[[.215,.54,-.14,.08],[.345,.26,-.29,.115],[.440,-.14,-.48,.151],[.55,-.61,-.66,.092]],span:.30,crest:[.128,.12,-.06,.19]},
   m033:{mask:'fang',metal:'red',silk:'妖刀姬白紅寬袖',tint:0xaf4542,hems:[[.23,.46,-.108,.075],[.34,.19,-.285,.137],[.44,-.14,-.418,.150],[.63,-.42,-.61,.106]],span:.31,crest:[.141,.15,-.06,.23]},
   m034:{mask:'jewel',metal:'ivory',silk:'白面狐仙霧白襟帛',tint:0xa7b3c0,trim:0xc5aa80,hems:[[.18,.53,.20,.063],[.28,.31,.24,.093],[.34,-.16,.327,.080],[.49,-.82,.49,.035]],span:.36,crest:[.13,.139,-.069,.20]},
-  m035:{mask:'fang',metal:'clay',silk:'火怨炎鬃',tint:0x964333,hems:[[.15,.18,-.14,.067],[.23,.035,-.26,.095],[.32,-.26,-.46,.111],[.36,-.63,-.62,.049]],anchor:'head',span:.43,crest:[.151,.121,-.045,.27]},
-  m036:{mask:'plates',metal:'cobalt',silk:'水怨凍結垂絲',tint:0x7b99b6,trim:0xa9bfbf,hems:[[.23,.53,-.24,.065],[.38,.24,-.41,.10],[.40,-.31,-.51,.151],[.41,-1.02,-.70,.061]],span:.41,crest:[.139,.185,-.055,.27]},
-  m037:{mask:'bark',metal:'moss',silk:'風怨散葉披幟',tint:0x51684f,hems:[[.26,.44,-.19,.074],[.41,.16,-.38,.122],[.53,-.12,-.59,.083],[.64,-.57,-1.00,.040]],span:.44,crest:[.144,.13,-.05,.25]},
-  m038:{mask:'diadem',metal:'brass',silk:'雷怨朱銅纓',tint:0x956b42,hems:[[.25,.63,-.225,.046],[.39,.24,-.40,.064],[.48,-.27,-.61,.095],[.50,-.90,-.77,.061]],span:.45,crest:[.15,.160,-.057,.23]},
   m039:{mask:'diadem',metal:'brass',silk:'樓陀羅飄髮',tint:0x425d77,trim:0x93a7a4,hems:[[.129,.15,-.18,.073],[.233,-.089,-.37,.105],[.36,-.34,-.54,.108],[.51,-.563,-.71,.067]],anchor:'head',span:.39,crest:[.146,.18,-.066,.24]},
   m040:{mask:'jewel',metal:'jade',silk:'伶人青襟打結帶',tint:0x547a77,trim:0xc5b99d,hems:[[.166,.457,.24,.054],[.265,.12,.28,.071],[.36,-.26,.37,.082],[.44,-.58,.51,.033]],span:.34,crest:[.12,.16,-.063,.20]},
   m041:{mask:'fang',metal:'jade',silk:'夜叉冠後獸鬃',tint:0x6a6346,hems:[[.161,.102,-.09,.088],[.32,-.04,-.205,.102],[.37,-.24,-.33,.113],[.49,-.61,-.43,.055]],anchor:'head',span:.36,crest:[.153,.086,-.066,.29]},
@@ -87,19 +78,12 @@ function shaped(k,part,finish,points,mobile,seed){
 
 const reliefs={
   m008:{seal:'pagoda',size:[.107,.165],at:[0,.54,-.25],finish:'rind',inlay:'edge'},
-  m016:{seal:'eye',size:[.147,.125],at:[0,.53,.285],finish:'rind',inlay:'deep'},
-  m017:{seal:'gate',size:[.192,.15],at:[0,.53,-.29],finish:'rind',inlay:'deep'},
   m018:{seal:'fang',size:[.185,.15],at:[0,.51,-.32],finish:'ochre',inlay:'red'},
-  m020:{seal:'gate',size:[.189,.13],at:[0,.43,.337],finish:'steel',inlay:'cobalt'},
   m023:{seal:'eye',size:[.155,.13],at:[0,.23,.365],finish:'black',inlay:'clay'},
   m027:{seal:'fang',size:[.183,.178],at:[0,.16,.48],finish:'rust',inlay:'deep'},
   m031:{seal:'pagoda',size:[.129,.14],at:[0,.564,-.31],finish:'brass',inlay:'red'},
   m032:{seal:'lotus',size:[.167,.10],at:[0,.447,-.26],finish:'cobalt',inlay:'steel'},
   m033:{seal:'eye',size:[.136,.11],at:[0,.285,.264],finish:'red',inlay:'brass'},
-  m035:{seal:'fang',size:[.162,.128],at:[0,.47,.329],finish:'clay',inlay:'ochre'},
-  m036:{seal:'lotus',size:[.142,.13],at:[0,.41,.34],finish:'cobalt',inlay:'steel'},
-  m037:{seal:'gate',size:[.15,.105],at:[0,.45,.328],finish:'moss',inlay:'ochre'},
-  m038:{seal:'pagoda',size:[.126,.112],at:[0,.505,.329],finish:'brass',inlay:'black'},
   m039:{seal:'eye',size:[.162,.135],at:[0,.481,.264],finish:'cobalt',inlay:'brass'},
   m040:{seal:'lotus',size:[.112,.111],at:[0,.431,-.30],finish:'ochre',inlay:'jade'},
   m041:{seal:'fang',size:[.129,.155],at:[0,.41,.29],finish:'jade',inlay:'ochre'},
@@ -196,7 +180,7 @@ function rigArmour(k,parts,entry,mobile,tools,design){
   const edge=metal(k,'ironRim','edge');
   const neck=head?.position.y??.76;
   const soft=design.anchor==='head'&&head?head:upper;
-  const style=['m035','m039','m041'].includes(entry.id)?'mane':'cloth';
+  const style=['m039','m041'].includes(entry.id)?'mane':'cloth';
   if(reliefs[entry.id])relief(k,upper,mobile,reliefs[entry.id]);
   if(head)facialDetail(k,head,entry,mobile);
   for(const side of sides){
@@ -219,15 +203,14 @@ function rigArmour(k,parts,entry,mobile,tools,design){
         sweep(k,head,finish,offset(at,rear),mobile);
       }
     }
-    const unarmored=entry.id==='m003';
-    const pauldron=k.bone(upper,side*size*(unarmored?.83:.90),Math.max(.29,neck*(unarmored?.41:.71)),unarmored?-.31:-.18);
+    const pauldron=k.bone(upper,side*size*.90,Math.max(.29,neck*.71),-.18);
     pauldron.name=entry.name+'側後護肩';
-    const shape=unarmored?.81:design.mask==='bark'?1.21:design.mask==='plates'?.82:1;
+    const shape=design.mask==='bark'?1.21:design.mask==='plates'?.82:1;
     const form=mirror(side,[[0,.08,-.046],[.134,.123*shape,-.079],[.218*shape,.033,-.035],
       [.19*shape,-.063,.055],[.111,-.131,.091],[.032,-.123,.041]]);
-    panel(k,pauldron,unarmored?'ochre':finish,form,.039);
+    panel(k,pauldron,finish,form,.039);
     const trail=form.slice(0,5).map(([x,y,z],i)=>[x+side*.008,y-.005,z-.025,[.010,.017,.019,.013,.003][i]]);
-    sweep(k,pauldron,unarmored?'brass':edge,trail,mobile);
+    sweep(k,pauldron,edge,trail,mobile);
     k.mesh(pauldron,'gem','trim',side*.065,.051,-.082,.023,.021,.018);
     const arm=parts.arms?.[side===1?1:0];
     tools.hinge(pauldron,{side,axis:'z',wind:.14,strike:-.19,travel:.045,phase:.06,follow:arm,ratio:.29});
@@ -282,11 +265,42 @@ function rigCreature(k,parts,entry,mobile,tools,design){
 }
 
 export function refineBossA(k,parts,entry,mobile,tools){
+  if(parts.tombBeastRig)return true;
+  if(parts.gorgeArmour){
+    facialDetail(k,parts.head,entry,mobile);
+    return true;
+  }
+  if(parts.rancourGarments){
+    for(const {parent,name,path,tint,trim,phase,flex} of parts.rancourGarments){
+      tools.silk(parent,name,path,{across:[.92,0,phase*.31],tint,trim,lining:0x282938,phase,flex,style:'woven'});
+    }
+    return true;
+  }
+  const sculptCloth=parts.relicGarments??parts.oniGarments??parts.commanderGarments;
+  if(sculptCloth){
+    if(parts.oniGarments)facialDetail(k,parts.head,entry,mobile);
+    for(const {parent,name,path,tint,trim,lining,phase,flex,across=[.91,0,phase*.41]} of sculptCloth){
+      tools.silk(parent,name,path,{across,tint,trim,lining,phase,flex,style:'woven'});
+    }
+    return true;
+  }
+  if(entry.id==='m040'&&parts.clothLimbs){
+    gandharvaGarments(k,parts,tools);
+    return true;
+  }
   const armourDesign=armour[entry.id];
   if(armourDesign){
     rigArmour(k,parts,entry,mobile,tools,armourDesign);
     return true;
   }
   const creature=creatures[entry.id];
+  if(parts.ancientBanners){
+    for(const {crown,side} of parts.ancientBanners)for(let i=0;i<2;i++){
+      const x=side*(.18+i*.11),y=.42+i*.16;
+      tools.silk(crown,'古龍 · 祭枝紅藍幡',[[x,y,-.12,.035],[x+side*.011,y-.16,-.155,.042],
+        [x+side*.036,y-.34,-.24,.034],[x+side*.104,y-.48,-.32,.014]],
+        {tint:i?0x2e467a:0x9c3a30,trim:0xcb9a61,lining:0x3c2b33,style:'woven',phase:side+i*.75,flex:1.17});
+    }
+  }
   return creature?rigCreature(k,parts,entry,mobile,tools,creature):false;
 }

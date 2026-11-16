@@ -17,27 +17,18 @@ const garments={
   m008:['lotus','brass','brocade',.31,.24,.51,.259,-.26,.22,.43],
   m009:['roots','jade','ochre',.27,.31,.49,.247,-.31,.38,.58],
   m010:['fan','steel','jade',.36,.29,.41,.279,-.28,.27,.48],
-  m011:['ribs','brass','red',.38,.20,.42,.335,-.28,.23,.36],
   m012:['ripple','steel','dusk',.29,.28,.48,.305,-.27,.235,.50],
   m013:['fork','brass','cobalt',.30,.24,.49,.27,-.27,.225,.62],
-  m016:['pinion','rind','brocade',.36,.36,.48,.299,-.32,.29,.37],
-  m017:['fork','rind','crest',.31,.26,.46,.295,-.32,.27,.55],
   m018:['ribs','brass','black',.34,.34,.47,.333,-.30,.34,.43],
   m019:['ripple','ivory','cobalt',.26,.24,.38,.269,-.265,.25,.55],
-  m020:['pinion','steel','dusk',.375,.31,.46,.329,-.30,.31,.47],
   m021:['lotus','rind','porcelain',.28,.24,.49,.260,-.30,.24,.5],
   m023:['cord','brass','black',.43,.23,.50,.309,-.29,.29,.42],
   m027:['ribs','rust','coal',.56,.29,.49,.375,-.405,.44,.53],
   m028:['fan','ochre','teal',.29,.26,.49,.249,-.29,.26,.54],
-  m029:['cord','ochre','steel',.28,.26,.43,.209,-.28,.22,.51],
   m031:['fork','brass','red',.34,.28,.49,.319,-.29,.27,.49],
   m032:['lotus','steel','cobalt',.27,.28,.50,.273,-.25,.25,.43],
   m033:['pinion','brass','red',.28,.18,.53,.265,-.242,.28,.54],
   m034:['ripple','ivory','cobalt',.32,.21,.474,.254,-.279,.29,.52],
-  m035:['ribs','ochre','clay',.34,.24,.52,.334,-.31,.27,.49],
-  m036:['ripple','steel','cobalt',.36,.23,.51,.347,-.31,.30,.47],
-  m037:['roots','jade','moss',.38,.22,.478,.324,-.34,.29,.50],
-  m038:['fork','brass','ochre',.33,.255,.515,.329,-.319,.33,.54],
   m039:['fan','brass','cobalt',.34,.235,.45,.265,-.315,.31,.67],
   m040:['lotus','ochre','jade',.25,.22,.47,.269,-.30,.23,.37],
   m041:['roots','steel','jade',.31,.24,.45,.29,-.29,.30,.51],
@@ -62,10 +53,6 @@ const garments={
   m066:['fork','rim','patina',.34,.25,.471,.317,-.29,.34,.60],
   m067:['ribs','trim','deep',.39,.30,.577,.351,-.32,.33,.50],
   m068:['pinion','trim','rind',.443,.32,.596,.34,-.345,.41,.56],
-  m069:['fan','rim','silk',.31,.27,.46,.313,-.285,.29,.57],
-  m070:['ribs','trim','patina',.40,.25,.471,.345,-.31,.28,.46],
-  m071:['ripple','rim','silk',.26,.31,.446,.302,-.27,.235,.51],
-  m072:['fork','trim','leather',.27,.25,.478,.318,-.28,.26,.59],
   m073:['lotus','rim','red',.30,.31,.466,.318,-.298,.27,.51],
   m074:['cord','rim','patina',.25,.21,.48,.282,-.27,.23,.44],
   m075:['pinion','rim','silk',.42,.25,.48,.309,-.338,.31,.39],
@@ -193,7 +180,7 @@ function attachRear(k,head,torso,entry,model,mobile){
       [w*.39,topRear+.025,depth-.101,.028],[w*.66,topRear-.041,depth-.119,.036],
       [w*.80,topRear-length,depth-.087,.006]]);
     band(k,torso,trim,fitted,mobile);
-    if(!head)continue;
+    if(!head||head.userData.gandharvaSculpt)continue;
     const anchor=.09+span*.25;
     const y=entry.id==='m033'?.210:entry.id==='m031'?.23:entry.id==='m068'?.30:.186;
     const axis=-.12-angle*.17;
@@ -295,8 +282,6 @@ const animals={
   m007:['horn','clay','brass',[.165,.023,.245],[.224,.274,.145],.87,7],
   m014:['ruff','body','edge',[.285,.120,.415],[.294,.658,-.141],.89,8],
   m015:['plume','body','edge',[.231,.072,.201],[.297,.339,-.186],.68,7],
-  m022:['shell','black','steel',[.161,.051,.13],[.347,.321,-.178],.59,7],
-  m024:['serrated','moss','ochre',[.161,.018,.247],[.214,.245,.174],.71,8],
   m030:['membrane','black','clay',[.153,.034,.151],[.235,.250,-.178],.46,6],
   m052:['ruff','steel','ivory',[.156,-.048,.235],[.25,.337,-.089],.61,6],
   m053:['horn','clay','brass',[.166,-.054,.243],[.267,.322,-.097],.59,6],
@@ -379,32 +364,6 @@ function serpentHood(k,head,evil,mobile){
   }
 }
 
-function bearChest(k,body,head,mobile){
-  // Lay angled guard hairs over the main pale fur volume instead of a painted breastplate.
-  for(const side of sides){
-    for(let row=0;row<4;row++){
-      const count=mobile?4:6;
-      for(let i=0;i<count;i++){
-        const strand=i*2.17+row*1.49+side*.84;
-        const t=i/(count-1),curve=.036*Math.sin(strand),curl=Math.cos(strand*1.27)*.021;
-        const x=.037+t*(.36+row*.021)+Math.abs(curl),y=.477-row*.192+t*.11+curve,
-          z=.552-(t*t*.101)-row*.010;
-        const a=[x,y,z-.028],b=[x*1.02+.01+curl,y-.072+curve,z+.019],
-          c=[x+.078*(t-.04)+curl,y-.18-(i%3)*.013,z+.024-(row===3?.055:0)];
-        const width=.052+.013*Math.sin(1.2+i*.72)+row*.003;
-        const m=i>0&&((i+row+side)%4===0||t>.7&&row===0)?'ash':'edge';
-        k.geometry(body,m,featherVane(...mirror(side,[a,b,c]),width,10+i+row*3,mobile?7:12));
-        band(k,body,m,mirror(side,[[...a,.007],[...b,.011],[...c,.001]]),mobile,7);
-      }
-    }
-    for(let i=0;i<(mobile?4:7);i++){
-      const t=i/(mobile?3:6),x=.11+t*.2,y=-.125+t*.135,z=.391-t*.196;
-      k.geometry(head,i%3?'edge':'ivory',featherVane(...mirror(side,
-        [[x,y,z],[x+.042,y-.062,z+.027],[x+.062,y-.215,z-.045]]),.039+t*.018,29+i,mobile?8:12));
-    }
-  }
-}
-
 function beastMasterwork(k,parts,entry,mobile,profile){
   const {body}=parts;
   const head=parts.head??body.children[0]?.children[0];
@@ -413,23 +372,21 @@ function beastMasterwork(k,parts,entry,mobile,profile){
   const bone=profile[0]==='hood'?head.parent:body;
   dorsalSpines(k,bone,profile,mobile);
   if(profile[0]==='hood')serpentHood(k,head,entry.id==='m002',mobile);
-  if(entry.id==='m005')bearChest(k,body,head,mobile);
-  if(entry.id==='m022'){
-    for(let i=0;i<(mobile?4:6);i++){
-      const theta=i*.81,reach=.397+.061*Math.sin(i*.855);
-      const x=Math.cos(theta)*reach,z=Math.sin(theta)*reach;
-      volume(k,body,i%3?'black':'steel',[[x,.195,z,.069,.058],[x*1.01,.277,z,.086,.058],
-        [x*.98,.358,z-.026,.039,.031],[x*.90,.409,z-.067,.003,.002]],mobile,i+.34,{section:2.88,detail:11});
-    }
-  }
   return true;
 }
 
 export function masterworkA(k,parts,entry,mobile){
+  if(parts.moonSourceRig)return true;
+  if(parts.templePortrait)return true;
+  if(parts.wootaiElderSculpt)return true;
+  if(parts.imperialRegalia)return true;
+  if(parts.tombBeastRig)return true;
+  if(parts.gorgeArmour)return true;
   if(entry.id==='m003'){
     oni(k,parts,mobile);
     return true;
   }
+  if(entry.id==='m022'||entry.id==='m024')return true;
   const animal=animals[entry.id];
   if(animal)return beastMasterwork(k,parts,entry,mobile,animal);
   const garment=garments[entry.id];

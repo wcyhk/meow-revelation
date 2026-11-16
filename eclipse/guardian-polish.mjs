@@ -18,7 +18,6 @@ const court={
 const creatures={
   'forest-0':[.213,.122,.286,.062,.36,0xff9d66,'embers'],
   'forest-4':[.213,.108,.290,.088,.42,0xe697fa,'ribbons'],
-  'forest-5':[.168,.089,.305,.09,.34,0xffcc88,'sigils'],
   'forest-6':[.236,.136,.295,.105,.53,0xff9852,'embers'],
   'forest-7':[.199,.084,.288,.071,.49,0x99f6b3,'mist'],
   'forest-8':[.154,.162,.234,.044,.57,0xd399ff,'mist'],
@@ -94,6 +93,10 @@ function armour(k,parts,w,tier,sentinel,mobile){
 
 export function polishGuardian(k,parts,entry,mobile){
   const id=entry.artId??entry.id;
+  if(parts.vaultMechanism){
+    parts.polishEnergy={tint:0xffc480,shape:'sigils',anchor:parts.body,offset:[0,.64,-.13],span:[1.04,.54,1.12]};
+    return true;
+  }
   const helmet=court[id],hide=creatures[id];
   if(!helmet&&!hide)return false;
   const {head,body}=parts;

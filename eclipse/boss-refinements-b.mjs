@@ -19,10 +19,6 @@ const outfits={
   m066:{cut:'standards',crown:'thunder',chest:.35,hem:1.07,ink:0x6e5833,trim:0xe4bc72,emblem:'bolt'},
   m067:{cut:'court',crown:'court',chest:.40,hem:1.20,ink:0x872c28,trim:0xe5b665,emblem:'seal',large:true},
   m068:{cut:'royal',crown:'royal',chest:.49,hem:1.30,ink:0x443957,trim:0xe9bc57,emblem:'sun',large:true},
-  m069:{cut:'prayer',crown:'sage',chest:.34,hem:.90,ink:0x33543c,trim:0xc7ad7a,emblem:'leaf'},
-  m070:{cut:'warwrap',crown:'pin',chest:.49,hem:.74,ink:0x8e3d2e,trim:0xd8a367,emblem:'embers'},
-  m071:{cut:'stole',crown:'veil',chest:.26,hem:.86,ink:0x3e578a,trim:0xb5d9db,emblem:'ripple'},
-  m072:{cut:'court',crown:'thunder',chest:.28,hem:1.09,ink:0x94604a,trim:0xe6c886,emblem:'bolt'},
   m073:{cut:'prayer',crown:'elder',chest:.36,hem:.88,ink:0x863c32,trim:0xdcb46f,emblem:'sun'},
   m074:{cut:'saddle',crown:'pin',chest:.29,hem:.63,ink:0x943b32,trim:0xe0a05d,emblem:'fang'},
   m075:{cut:'shroud',crown:'fang',chest:.42,hem:1.29,ink:0x672d37,trim:0xac9fae,emblem:'scars'},
@@ -234,9 +230,9 @@ function cuirass(k,station,head,parts,tools,design,mobile){
 function dressedBoss(k,parts,entry,mobile,tools,design){
   const {head,body}=parts;
   const station=design.cut==='saddle'?head.parent:body;
-  helmet(k,head,design,mobile);
-  cuirass(k,station,head,parts,tools,design,mobile);
-  makeCloth(station,head,entry,tools,design);
+  if(!parts.templePortrait)helmet(k,head,design,mobile);
+  if(!parts.carvedThunder&&!parts.fittedPalace&&!parts.orochiThrall)cuirass(k,station,head,parts,tools,design,mobile);
+  if(!parts.fittedPalace)makeCloth(station,head,entry,tools,design);
   dressFeatures[entry.id]?.(k,parts,station,mobile,tools);
 }
 
@@ -446,7 +442,7 @@ function cloudDragon(k,{body},entry,mobile,tools){
   }
 }
 
-function oniBeast(k,{body,head},entry,mobile,tools){
+function oniBeast(k,{body,head,bullPortrait},entry,mobile,tools){
   const tiger=entry.id==='m108',color=tiger?0x8a969d:0x582929,trim=tiger?0xc8e0df:0xae8b7f;
   for(const side of sides){
     const shoulder=k.bone(body,side*(tiger?.48:.52),tiger?.53:.45,-.234);
@@ -463,7 +459,7 @@ function oniBeast(k,{body,head},entry,mobile,tools){
     ]:[
       [.166,.139,-.103,.073],[.293,.039,-.199,.12],[.382,-.106,-.305,.137],[.373,-.331,-.442,.018],
     ]),{tint:color,trim,style:'mane',phase:side*.87,flex:tiger?1.02:.73,across:[.19,.86,-.47*side]});
-    seam(k,head,tiger?'bInlay':'bBone',mirror(side,[[.037,.04,.232,.008],[.129,.11,.207,.023],
+    if(!bullPortrait)seam(k,head,tiger?'bInlay':'bBone',mirror(side,[[.037,.04,.232,.008],[.129,.11,.207,.023],
       [.214,.128,.118,.035],[.275,.093,-.018,.006]]));
   }
   tools.silk(body,entry.name+' · 獸毛背脊',[
@@ -477,6 +473,22 @@ const creatures={
 };
 
 export function refineBossB(k,parts,entry,mobile,tools){
+  if(parts.emberForge)return true;
+  if(parts.votiveTailoring){
+    for(const {parent,name,path,...options} of parts.votiveTailoring){
+      tools.silk(parent,name,path,{...options,style:'woven'});
+    }
+    return true;
+  }
+  if(parts.valleyFigure)return true;
+  if(parts.orochiRig)return true;
+  if(parts.frenzyTiger){
+    for(const side of sides)tools.silk(parts.head,'狂虎頸鬃',mirror(side,[[.183,.093,.014,.053],
+      [.271,-.017,-.077,.088],[.302,-.137,-.194,.074],[.344,-.259,-.284,.008]]),{
+      tint:0x697281,trim:0xb7bdc0,phase:side*.76,style:'mane',flex:.94,across:[.1,.87,.44*side]
+    });
+    return true;
+  }
   const design=outfits[entry.id],build=creatures[entry.id];
   if(!design&&!build)return false;
   if(design)dressedBoss(k,parts,entry,mobile,tools,design);

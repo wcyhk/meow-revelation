@@ -20,11 +20,9 @@ export function wingTissue(kit,wing,side,outlines,mobile){
       [knuckle,.45,1,joint,[.031,.024,.017,.003]],
     ]){
       const path=diameters.map((w,n)=>[...curve.getPoint(from+(to-from)*n/3).sub(origin).toArray(),w,w*.69]);
-      kit.sculpt.sweep(part,i===0?'ochre':'moss',path,{steps:mobile?8:12,sides:mobile?6:8,ridge:.19});
-      if(i===0||!mobile){
-        const edge=path.map(([x,y,z,w],n)=>[x,y+w*.65,z+.010,[.015,.011,.009,.002][n]]);
-        kit.sculpt.sweep(part,i%2?'trim':'edge',edge,{steps:8,sides:5,ridge:.12});
-      }
+      kit.sculpt.sweep(part,'venomWingBone',path,{steps:mobile?8:12,sides:mobile?6:8,ridge:.21});
+      const edge=path.map(([x,y,z,w],n)=>[x,y+w*.59,z+.016,[.017,.013,.009,.002][n]]);
+      kit.sculpt.sweep(part,'venomWingGold',edge,{steps:8,sides:5,ridge:.16});
     }
   }
   const skin=kit.materials.wingHide;
@@ -42,19 +40,21 @@ export function wingTissue(kit,wing,side,outlines,mobile){
         const u=col/(columns-1),sin=Math.sin(Math.PI*u);
         const edgeWeight=T.MathUtils.smoothstep(u,0,1);
         const edgeTear=(.17+.022*panel)*t**8*sin*(1+.39*Math.sin(u*35+panel*2.9));
-        const ripple=sin*Math.sin(Math.PI*t)*(.13+.026*Math.sin(u*19+t*18+panel));
+        const ridge=.028*Math.sin(t*9.4+panel)*Math.max(0,Math.cos(u*8.7-t*12.1+panel))**3;
+        const ripple=sin*Math.sin(Math.PI*t)*(.125+.035*Math.sin(u*19+t*18+panel)+ridge);
         const p=nearLeft.clone().lerp(nearRight,u);
         p.x-=side*edgeTear*.62;p.y-=edgeTear*1.4;p.z-=ripple+edgeTear*.43;
         position.push(...p.toArray());uv.push(u*.8+t*.14,t*.91);
-        const nearVein=.52+.17*Math.cos(u*Math.PI*2);
-        const vein=.12*Math.exp(-Math.abs(u-.48+.10*Math.sin(t*12+panel))*23);
-        const branches=.070*Math.pow(.5+.5*Math.sin(u*23+t*25+panel*2.8),9);
-        const chafe=.24*t**8*sin;
-        const red=nearVein+vein+branches+chafe,green=nearVein+.115+vein*.8+branches*.43+chafe*.82;
-        tints.push(red,green,nearVein*.78+vein*.7+chafe*.75);
+        const lean=.70-.11*Math.cos(u*Math.PI*2);
+        const veins=.19*Math.exp(-Math.abs(u-.48+.10*Math.sin(t*12+panel))*31);
+        const branches=.12*Math.pow(.5+.5*Math.sin(u*27+t*25+panel*2.8),8);
+        const mottling=.1*Math.sin(u*30+t*15+panel)*Math.cos(t*23-u*19);
+        const weathering=lean+veins+branches+mottling+.14*t**8*sin;
+        tints.push(weathering*.93,weathering*.966,weathering);
         joints.push(1+panel*2,2+panel*2,3+panel*2,4+panel*2);
         weights.push((1-edgeWeight)*(1-bend),(1-edgeWeight)*bend,edgeWeight*(1-bend),edgeWeight*bend);
-        if(row===segments||col===columns-1)continue;
+        const torn=panel%2===1&&t>.84&&u>.39&&u<.66;
+        if(row===segments||col===columns-1||torn)continue;
         const a=vertexStart+row*columns+col,b=a+columns;
         if(side>0)indices.push(a,a+1,b,a+1,b+1,b);
         else indices.push(a,b,a+1,a+1,b,b+1);

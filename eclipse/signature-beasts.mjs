@@ -1,5 +1,6 @@
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
+import {bearClawSculpt,bearHockSculpt,bearRuffSculpt} from './polar-bear-sculpt.mjs?v=polar-bear-1';
 
 const opposite=(side,points)=>points.map(([x,y,z,...rest])=>[x*side,y,z,...rest]);
 
@@ -11,7 +12,7 @@ function blade(k,part,finish,sections,seed=0){
   anatomy(k,part,finish,sections,{sides:8,rings:12,section:1.48,ridge:.17,seed});
 }
 
-export function sculptWhiteBear(k){
+export function sculptWhiteBear(k,mobile){
   const {root,bone,mesh}=k;
   const body=bone(root,0,.99,0);
   const head=bone(body,0,.72,.24);
@@ -19,10 +20,10 @@ export function sculptWhiteBear(k){
   const arms=[],legs=[],knees=[],wrists=[];
   anatomy(k,body,'deep',[[0,-.59,-.11,.27,.26],[0,-.34,-.10,.52,.41],[0,.02,-.06,.56,.44],[0,.36,-.07,.68,.47],
     [0,.59,-.08,.58,.41],[0,.79,-.08,.29,.26],[0,.85,-.04,.14,.16]],{section:2.2,ridge:.115});
-  anatomy(k,body,'edge',[[0,-.55,.07,.25,.09],[0,-.34,.25,.43,.18],[0,.01,.35,.46,.19],[0,.33,.36,.56,.21],
-    [0,.52,.29,.40,.16],[0,.67,.14,.25,.155]],{ridge:.145,section:2.25,fur:true,sides:24});
-  anatomy(k,head,'edge',[[0,-.18,.07,.16,.18],[0,-.05,.07,.33,.28],[0,.15,.015,.32,.35],
-    [0,.33,-.06,.265,.28],[0,.41,-.12,.15,.16]],{ridge:.13,fur:true,sides:24});
+  anatomy(k,body,'bearUnderfur',[[0,-.56,.09,.23,.084],[0,-.35,.22,.405,.17],[0,.015,.295,.434,.18],
+    [0,.33,.321,.517,.198],[0,.52,.272,.382,.159],[0,.67,.129,.236,.146]],{ridge:.185,section:2.13,fur:true,sides:24});
+  anatomy(k,head,'bearUnderfur',[[0,-.18,.07,.16,.18],[0,-.05,.07,.33,.28],[0,.15,.015,.32,.35],
+    [0,.30,-.06,.257,.274],[0,.37,-.12,.133,.157]],{ridge:.22,fur:true,sides:24});
   anatomy(k,head,'body',[[0,-.122,.18,.154,.12],[0,-.079,.31,.205,.14],[0,.009,.37,.174,.17],[0,.104,.24,.20,.19],
     [0,.185,.14,.12,.111]],{sides:18,section:2.6,ridge:.11});
   anatomy(k,head,'deep',[[0,-.051,.476,.096,.040],[0,.005,.505,.144,.055],[0,.048,.496,.126,.062],
@@ -35,14 +36,6 @@ export function sculptWhiteBear(k){
       [i%2?.081:-.081,y-.025,-.78,w*.65,.039],[0,y-.153,-.92+i*.020,.007,.006]],i);
     blade(k,body,'ember',[[0,y+.028,-.552,.034,.012],[.024,y+.013,-.699,.025,.014],[0,y-.075,-.832+i*.013,.003,.004]],i);
   }
-  for(let row=0;row<5;row++)for(let i=-3;i<=3;i++){
-    const x=i*(.102+(row<2?.019:0)),y=.47-row*.152,z=.543-(Math.abs(i)/3)**2*.097-
-      Math.pow(Math.abs(row-1)*.114,2);
-    const side=i>=0?1:-1,reach=.141+((row*13+(i+4)*7)%8)*.008;
-    anatomy(k,body,i%3===1?'ash':'edge',[[x,y,z-.060,.040,.030],[x+side*.026,y-.044,z,.060,.027],
-      [x+side*.046,y-reach*.68,z+.025,.031,.018],[x+side*.046,y-reach,z-.03,.004,.004]],
-    {sides:6,rings:8,section:1.61,ridge:.20,seed:row*5+i});
-  }
   for(const side of [-1,1]){
     const reflect=points=>opposite(side,points);
     anatomy(k,head,'body',reflect([[.237,.179,-.152,.11,.079],[.294,.255,-.195,.148,.115],
@@ -51,20 +44,10 @@ export function sculptWhiteBear(k){
     mesh(head,'gem','glow',side*.206,.133,.366,.047,.031,.029,0,side*.33,side*.18);
     blade(k,head,'edge',reflect([[.059,.194,.386,.054,.041],[.168,.222,.356,.087,.047],[.263,.208,.263,.062,.046],
       [.346,.168,.166,.024,.017],[.346,.119,.11,.006,.003]]),side);
-    for(let i=0;i<5;i++){
-      const y=.14-i*.065;
-      blade(k,head,i%4===2?'body':'edge',reflect([[.224,y+.08,.17,.071,.085],[.342,y+.033,.156,.089,.065],
-        [.377,y-.107,.073,.063,.043],[.334,y-.18,-.027,.005,.009]]),i);
-    }
     for(let i=0;i<3;i++){
       const x=.089+i*.039;
       blade(k,jaw,'ivory',reflect([[x,-.061,.237-i*.035,.028,.028],[x,-.023,.260-i*.037,.020,.019],
         [x*.90,.026-i*.012,.243-i*.041,.003,.003]]),i);
-    }
-    for(let i=0;i<5;i++){
-      const y=.59-i*.146,x=.21+i*.026;
-      blade(k,body,i%3?'edge':'ash',reflect([[x,y,.357,.114,.076],[x+.094,y-.06,.426,.130,.079],
-        [x+.11,y-.19,.40,.083,.042],[x+.09,y-.29,.294,.005,.009]]),i*1.61);
     }
     for(let i=0;i<5;i++){
       const z=.18-i*.148,x=.16+i*.028;
@@ -81,11 +64,11 @@ export function sculptWhiteBear(k){
     const arm=bone(body,side*.567,.43,.017);
     const elbow=bone(arm,side*.136,-.48,.033);
     const claw=bone(elbow,side*.05,-.52,.223);
-    arms.push(arm);wrists.push({elbow,claw,side});
-    anatomy(k,arm,'body',reflect([[.02,-.56,.052,.129,.134],[.108,-.37,-.02,.217,.204],[.094,-.21,-.06,.292,.26],
+    arms.push(arm);
+    anatomy(k,arm,'bearUnderfur',reflect([[.02,-.56,.052,.129,.134],[.108,-.37,-.02,.217,.204],[.094,-.21,-.06,.292,.26],
       [.041,-.009,-.003,.289,.234],[-.04,.132,.01,.156,.14]]),{section:2.3,ridge:.13,fur:true});
-    anatomy(k,elbow,'ash',reflect([[.035,-.528,.24,.201,.175],[.06,-.316,.123,.223,.215],[.056,-.17,.031,.193,.178],
-      [.017,.015,-.014,.167,.166]]),{section:2.6,ridge:.135,fur:true});
+    const toes=bearClawSculpt(k,elbow,claw,side,mobile);
+    wrists.push({elbow,claw,side,toes});
     for(let i=0;i<5;i++){
       const z=.264-i*.124;
       blade(k,arm,i%2?'rust':'coal',reflect([[.02,.037,z,.198,.085],[.231,.174,z-.041,.164,.068],
@@ -96,26 +79,11 @@ export function sculptWhiteBear(k){
       blade(k,elbow,i%3===1?'coal':'rust',reflect([[.071,y,.159,.096,.067],[.226,y+.074,.158,.100,.054],
         [.277,y-.032,.114,.077,.036],[.243,y-.169,.048,.007,.008]]),i);
     }
-    anatomy(k,claw,'deep',[ [0,-.118,.12,.185,.192],[0,-.049,.072,.223,.182],[0,.036,0,.17,.132] ],
-      {section:2.6,ridge:.15,sides:14,rings:11});
-    for(let i=0;i<4;i++){
-      const x=(i-1.5)*.094,z=.177-Math.abs(i-1.5)*.032;
-      blade(k,claw,'ivory',[[x,-.042,z,.055,.047],[x*1.13,-.101,z+.104,.052,.040],
-        [x*1.22,-.167,z+.164,.029,.031],[x*1.33,-.219,z+.165,.006,.007]],i);
-    }
     const thigh=bone(root,side*.305,.65,.012);
     const knee=bone(thigh,side*.068,-.307,-.109);
-    legs.push(thigh);knees.push(knee);
-    anatomy(k,thigh,'deep',reflect([[.071,-.364,-.14,.151,.179],[.081,-.229,-.044,.226,.254],
-      [.027,-.080,.008,.258,.235],[-.011,.104,-.01,.183,.171]]),{section:2.4,ridge:.16});
-    anatomy(k,knee,'body',[[0,-.294,.151,.204,.203],[0,-.233,.085,.211,.219],[0,-.10,-.025,.158,.172],
-      [0,.047,-.043,.144,.144]],{section:2.6,ridge:.17});
-    for(let i=0;i<3;i++){
-      const x=(i-1)*.126;
-      blade(k,knee,'ivory',[[x,-.249,.245,.064,.047],[x*1.04,-.276,.327,.059,.043],
-        [x*1.12,-.31,.391,.031,.026],[x*1.16,-.335,.407,.005,.006]],i);
-    }
+    legs.push(thigh);knees.push(bearHockSculpt(k,thigh,knee,side,mobile));
   }
+  bearRuffSculpt(k,body,head,mobile);
   blade(k,head,'rust',[[0,.21,-.18,.166,.123],[0,.375,-.262,.142,.080],[0,.554,-.367,.072,.038],[0,.59,-.523,.004,.005]]);
   const crest=bone(root,0,0,0);
   return {body,head,arms,legs,crest,signature:{type:'bear',jaw,wrists,knees}};
@@ -202,12 +170,14 @@ export function sculptDestroyer(k){
   const {root,bone,mesh,rod}=k;
   const body=bone(root,0,1.01,0),head=bone(body,0,.88,.16);
   const jaw=bone(head,0,-.055,.091),tail=bone(body,0,-.40,-.34);
-  const arms=[],legs=[],limbs=[];
+  const arms=[],legs=[],limbs=[],hocks=[],dorsal=[];
   anatomy(k,body,'coal',[[0,-.46,-.06,.35,.34],[0,-.27,-.02,.61,.41],[0,.09,-.055,.60,.46],
     [0,.37,-.023,.69,.46],[0,.64,-.026,.67,.39],[0,.79,.027,.45,.28],[0,.85,.048,.24,.228]],
   {sides:20,rings:28,section:2.55,ridge:.13});
-  anatomy(k,body,'rust',[[0,-.24,.29,.43,.198],[0,-.043,.36,.48,.231],[0,.22,.31,.54,.22],
-    [0,.46,.30,.49,.192],[0,.63,.26,.314,.151]],{sides:17,section:2.66,ridge:.14});
+  anatomy(k,body,'deep',[[0,-.24,.27,.35,.138],[0,-.043,.33,.39,.174],[0,.22,.29,.45,.21],
+    [0,.46,.25,.46,.192],[0,.63,.23,.311,.141]],{sides:17,section:2.66,ridge:.14});
+  blade(k,body,'coal',[[0,-.291,.452,.082,.052],[.008,-.14,.523,.098,.067],[.023,.077,.542,.105,.067],
+    [.024,.311,.535,.094,.054],[.005,.504,.487,.088,.054],[-.019,.641,.388,.062,.039],[-.021,.70,.274,.006,.005]]);
   anatomy(k,head,'coal',[[0,-.18,.076,.146,.181],[0,-.09,.087,.258,.26],[0,.124,.038,.298,.29],
     [0,.33,-.062,.253,.229],[0,.40,-.103,.16,.18]],{section:2.33,ridge:.15});
   anatomy(k,jaw,'rust',[[0,-.155,.062,.15,.128],[0,-.074,.088,.206,.147],[0,.016,.11,.171,.158]],
@@ -217,6 +187,17 @@ export function sculptDestroyer(k){
   blade(k,tail,'deep',[[0,-.04,.21,.25,.199],[.04,-.17,-.13,.233,.163],[.13,-.41,-.38,.173,.136],
     [.31,-.48,-.70,.156,.134],[.598,-.39,-.97,.13,.11],[.917,-.13,-1.13,.103,.083],
     [1.02,.22,-1.20,.064,.061],[.97,.53,-1.37,.007,.006]]);
+  const chips=[
+    [.014,-.113,.015,.19],[.063,-.24,-.197,.16],[.132,-.399,-.356,.15],[.248,-.456,-.590,.137],
+    [.402,-.425,-.79,.126],[.588,-.370,-.934,.109],[.775,-.212,-1.064,.081],[.93,.001,-1.172,.064],
+  ];
+  for(const [i,[x,y,z,w]] of chips.entries()){
+    const ridge=bone(tail,x,y,z);ridge.name='破滅者 · 椎尾棘片 '+(i+1);
+    blade(k,ridge,'coal',[[-w*.49,-w*.34,w*.40,w*.62,w*.26],[w*.08,w*.37,-w*.19,w*.91,w*.42],
+      [w*.36,w*.69,-w*.64,w*.60,w*.22],[w*.49,w*.72,-w*1.38,.007,.004]],i*.59);
+    blade(k,ridge,i%3===1?'ivory':'ember',[[w*.04,w*.42,w*.11,w*.22,.021],[w*.27,w*.59,-w*.39,w*.24,.014],
+      [w*.43,w*.66,-w*.94,.004,.004]],i*1.49);
+  }
   const spine=[[0,-.02,-.35],[0,.046,-.398],[0,.223,-.425],[0,.40,-.406],[0,.58,-.368],[0,.75,-.290]];
   for(const [i,[x,y,z]] of spine.entries())blade(k,body,i%3?'rust':'trim',[[x,y-.08,z+.04,.145,.061],[x,y+.064,z-.12,.132,.051],
     [x+.039,y+.184,z-.227,.072,.035],[x+.03,y+.19,z-.354,.008,.005]],i);
@@ -231,12 +212,23 @@ export function sculptDestroyer(k){
     anatomy(k,head,'coal',reflect(horn),{sides:16,rings:24,section:2.25,ridge:.25});
     blade(k,head,'rust',reflect([[.283,.299,.051,.084,.053],[.448,.356,-.043,.104,.058],[.556,.506,-.069,.063,.034],
       [.539,.642,-.088,.031,.019],[.474,.746,-.119,.005,.004]]),3);
-    for(let i=0;i<4;i++){
-      const y=.535-i*.207,x=.14+i*.017;
-      blade(k,body,i%3===1?'coal':'trim',reflect([[x,y,.459,.068,.061],[.306,y+.074,.425,.081,.051],
-        [.522,y+.019,.298,.084,.045],[.586,y-.12,.114,.055,.032],[.537,y-.179,-.073,.009,.008]]),i);
-      blade(k,body,i%2?'ember':'rust',reflect([[.375,y+.049,-.274,.13,.075],[.556,y+.101,-.354,.099,.060],
-        [.670,y-.009,-.431,.063,.033],[.716,y-.122,-.553,.006,.006]]),i);
+    for(let i=0;i<5;i++){
+      const y=.51-i*.162,x=.106+i*.016,wide=.61-i*.025;
+      blade(k,body,'rust',reflect([[x,y-.062,.487,.065,.060],[.283,y+.025,.494,.111,.084],
+        [wide-.105,y+.05,.411,.123,.091],[wide,y-.014,.219,.096,.057],
+        [wide-.033,y-.113,.076,.039,.032],[wide-.104,y-.174,-.051,.006,.005]]),i+side*3);
+      blade(k,body,i%2===1?'ivory':'trim',reflect([[x+.052,y+.016,.513,.038,.026],
+        [.312,y+.073,.510,.051,.034],[wide-.103,y+.093,.411,.054,.025],
+        [wide+.015,y+.014,.247,.034,.023],[wide,y-.122,.13,.007,.005]]),i);
+      blade(k,body,'ember',reflect([[x+.048,y-.065,.538,.012,.009],[.214,y-.045,.558,.017,.01],
+        [.349,y-.004,.531,.019,.012],[wide-.102,y+.01,.445,.006,.005]]),i);
+      const flank=bone(body,side*(.389+i*.013),y,-.299);
+      flank.name='破滅者 · 肩胛後骨片 '+(i+1);
+      blade(k,flank,i%3===0?'trim':'coal',reflect([[.001,.022,.079,.114,.063],
+        [.175,.125,-.019,.146,.072],[.28,.092,-.146,.091,.049],[.38,-.022,-.30,.007,.005]]),1+i*3);
+      blade(k,flank,'rust',reflect([[.078,.076,-.015,.041,.028],[.225,.129,-.082,.050,.027],
+        [.314,.083,-.205,.039,.021],[.378,-.008,-.291,.006,.003]]),i);
+      dorsal.push({flank,side,index:i});
     }
     const arm=bone(body,side*.612,.51,.003);
     const forearm=bone(arm,side*.08,-.48,.078);
@@ -246,22 +238,32 @@ export function sculptDestroyer(k){
       [.04,.147,-.076,.208,.207]]),{section:2.48,ridge:.13});
     anatomy(k,forearm,'coal',reflect([[.045,-.426,.103,.137,.152],[.084,-.29,.087,.172,.179],
       [.089,-.129,.058,.229,.225],[.025,.046,.04,.176,.167]]),{section:2.72,ridge:.17});
-    for(let i=0;i<5;i++){
+    for(let i=0;i<(side<0?6:4);i++){
       const z=.23-i*.116;
+      const length=side<0?.58:.43;
       blade(k,arm,i%2?'ivory':'trim',reflect([[.041,.073,z,.17,.099],[.218,.212,z-.03,.144,.080],
-        [.385,.174,z-.11,.098,.050],[.489,.037,z-.245,.007,.005]]),i);
+        [length*.81,.203,z-.11,.115,.059],[length,.037-i*.018,z-.245,.007,.005]]),i);
       const y=-.078-i*.071;
       blade(k,forearm,i%2?'ember':'rust',reflect([[.077,y,.18,.116,.054],[.221,y+.037,.128,.096,.046],
         [.283,y-.056,.035,.064,.032],[.240,y-.122,-.06,.007,.006]]),i);
     }
-    const leg=bone(root,side*.377,.78,.04);legs.push(leg);
-    anatomy(k,leg,'rust',reflect([[.032,-.69,.11,.211,.177],[.042,-.55,-.005,.242,.218],
-      [.004,-.32,-.032,.222,.235],[-.032,-.14,-.01,.275,.239],[-.073,.082,.004,.236,.174]]),
+    const leg=bone(root,side*.377,.84,.04),hock=bone(leg,side*.042,-.363,.025);
+    legs.push(leg);hocks.push({hock,side});
+    anatomy(k,leg,'rust',reflect([[.042,-.424,.031,.193,.17],[.047,-.258,-.047,.255,.235],
+      [-.015,-.10,-.011,.28,.245],[-.073,.082,.004,.236,.174]]),
     {sides:16,rings:21,section:2.5,ridge:.155});
+    anatomy(k,hock,'coal',reflect([[.02,-.403,.023,.161,.184],[.075,-.263,-.034,.152,.164],
+      [.036,-.105,.029,.207,.182],[0,.083,.019,.195,.188]]),{sides:16,section:2.35,ridge:.166});
+    blade(k,hock,'trim',reflect([[.006,.025,.17,.112,.041],[.08,-.102,.23,.136,.047],
+      [.121,-.234,.191,.08,.033],[.095,-.356,.115,.007,.004]]),5+side);
+    blade(k,hock,'rust',reflect([[.073,.062,-.064,.083,.067],[.181,-.061,-.146,.110,.071],
+      [.24,-.242,-.189,.075,.045],[.259,-.381,-.178,.007,.006]]),14+side);
     for(let i=0;i<3;i++){
       const x=(i-1)*.125;
-      blade(k,leg,'coal',[[x,-.646,.209,.080,.065],[x*1.10,-.693,.314,.087,.061],
-        [x*1.15,-.75,.427,.035,.028],[x*1.29,-.768,.469,.004,.004]],i);
+      blade(k,hock,'coal',[[x,-.328,.129,.080,.065],[x*1.10,-.366,.238,.087,.061],
+        [x*1.15,-.405,.332,.035,.028],[x*1.29,-.430,.369,.004,.004]],i);
+      blade(k,hock,'ivory',[[x,-.351,.204,.033,.037],[x*1.10,-.396,.291,.04,.036],
+        [x*1.29,-.435,.386,.005,.004]],i);
     }
     const apron=bone(body,side*.20,-.28,.449);
     for(let i=0;i<3;i++){
@@ -291,20 +293,30 @@ export function sculptDestroyer(k){
     }
   }
   const crest=bone(root,0,0,0);
-  return {body,head,arms,legs,tail,crest,limbs,signature:{type:'destroyer',jaw}};
+  return {body,head,arms,legs,tail,crest,limbs,polishEnergy:{tint:0xec624d,shape:'embers',anchor:body,
+    offset:[0,.34,-.32],span:[.91,.74,.63]},signature:{type:'destroyer',jaw,hocks,dorsal}};
 }
 
 export function poseSignatureBeast(model,time,beat,{wind,strike,travel,fall}){
   const rig=model.signature;
   if(rig.type==='bear'){
     rig.jaw.rotation.x=.054+wind*.27+strike*.42+Math.sin(beat*.41)*.032;
-    for(const {side,elbow,claw} of rig.wrists){
+    for(const {side,elbow,claw,toes} of rig.wrists){
       const step=Math.cos(beat+side*Math.PI*.5)*travel;
       elbow.rotation.x=-.19+wind*.59-strike*.65+step*.27;
       elbow.rotation.z=side*(.09+wind*.16-strike*.19);
       claw.rotation.x=-.12+strike*.38-step*.23+fall*.3;
+      for(const [i,toe] of toes.entries()){
+        toe.rotation.x=.04+wind*.17+strike*.37-step*.15+i*.034*strike;
+        toe.rotation.y=(i-1.5)*(wind*.10-strike*.083+Math.abs(step)*.072);
+      }
     }
-    for(const [i,knee] of rig.knees.entries())knee.rotation.x=travel*Math.max(0,Math.sin(beat+i*Math.PI))*.52;
+    for(const {knee,hock,toes,side} of rig.knees){
+      const stride=Math.sin(beat+side*Math.PI*.5)*travel;
+      knee.rotation.x=Math.max(0,stride)*.52+wind*.091-strike*.21;
+      hock.rotation.x=-knee.rotation.x*.71-Math.min(0,stride)*.21+strike*.063;
+      for(const [i,toe] of toes.entries())toe.rotation.x=Math.min(0,stride)*.19+(i+1)*.018*strike;
+    }
     model.body.rotation.x+=.19;
     model.head.rotation.x-=.16;
   }else if(rig.type==='phoenix'){
@@ -321,5 +333,14 @@ export function poseSignatureBeast(model,time,beat,{wind,strike,travel,fall}){
     rig.jaw.rotation.x=.057+wind*.25+strike*.42;
     model.tail.rotation.x=Math.sin(beat*.71)*.20-wind*.26+strike*.30;
     model.tail.rotation.y=Math.sin(beat*.57)*(.19+travel*.24)+strike*.31;
+    for(const {hock,side} of rig.hocks){
+      const gait=Math.sin(beat+side*Math.PI*.5)*travel;
+      hock.rotation.x=-.048+Math.max(0,gait)*.40+strike*.23+fall*.25;
+    }
+    for(const {flank,side,index} of rig.dorsal){
+      const breath=Math.sin(beat*.67-index*.47)*.038;
+      flank.rotation.z=side*(breath+wind*.16-strike*.11);
+      flank.rotation.x=breath-wind*.16+strike*.29;
+    }
   }
 }

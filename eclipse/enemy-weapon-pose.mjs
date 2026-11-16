@@ -45,6 +45,7 @@ function weaponSections(node,base,end){
   const count=6;
   const sectionsByJoint=new Map();
   const mounted=new Set(Object.values(node.userData).filter(part=>part?.isObject3D&&!part.isLight));
+  for(const part of node.userData.weaponClearanceParts??[])mounted.add(part);
   const axis=end.clone().sub(base);
   const length=axis.lengthSq()||1;
   node.updateWorldMatrix(true,true);

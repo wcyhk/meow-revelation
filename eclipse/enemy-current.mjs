@@ -286,6 +286,7 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
   const surfaceSpan=profile?.span?new T.Vector3(...profile.span):new T.Vector3(radiusX*.64,size.y*.54,radiusZ*.72);
   const hues=new T.Color(tint);
   const links=weapons.slice(0,2);
+  const weaponWidth=profile?.weaponWidth??1;
   const trail=Array.from({length:pathSamples},()=>new T.Vector4(0,0,0,0));
   const sampled=trail.map(()=>new T.Vector4(0,0,0,-Infinity));
   let lastSample=-Infinity;
@@ -350,13 +351,13 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
         node.updateWorldMatrix(true,false);
         weaponPoint.copy(base).applyMatrix4(node.matrixWorld);
         strandTip.copy(end).applyMatrix4(node.matrixWorld);
-        const widthInWorld=width*axes.setFromMatrixScale(node.matrixWorld).y;
+        const widthInWorld=width*weaponWidth*axes.setFromMatrixScale(node.matrixWorld).y;
         uniforms.grip.value[index].set(...weaponPoint,Math.max(.045,widthInWorld));
         uniforms.tip.value[index].set(...strandTip,0);
         if(kind==='ring')uniforms.weaponPlane.value[index].set(0,0,1).transformDirection(node.matrixWorld);
         if(newRelease){
           const at=kind==='ring'?strandTip.lerp(weaponPoint,.5):strandTip;
-          const radius=amount*(subdued?.46:kind==='ring'?.89:.78);
+          const radius=amount*(subdued?.46:kind==='ring'?.89:.78)*(.55+.45*weaponWidth);
           uniforms.burstPoint.value[index].set(...at,radius);
           uniforms.burstHeading.value[index].set(motion.dx??0,kind==='ring'?.38:.12,motion.dz??1).normalize();
           flash??={x:at.x,y:at.y,z:at.z,tint};

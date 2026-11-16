@@ -39,7 +39,7 @@ m035|怨恨神(火)|yuanhen|emperor|ember|orbs|cross
 m036|怨恨神(水)|yuanhen|emperor|frost|orbs|cross
 m037|怨恨神(風)|yuanhen|emperor|jade|orbs|cross
 m038|怨恨神(雷)|yuanhen|emperor|amber|orbs|cross
-m039|樓陀羅之魂(水) ( , )|yuetian|priest|blood|halo|icicles
+m039|樓陀羅之魂(水)|yuetian|priest|frost|halo|icicles,summon,eclipse,marked
 m040|乾達婆之魂(水)|yuetian|duelist|teal|ring|sweep,prison
 m041|夜叉之魂(風)|yuetian|duelist|moss|sword|
 m042|伐由之魂(風)|yuetian|rider|amber|spear|pounce

@@ -254,7 +254,6 @@ const grounded={
   m130:{mat:['rind','trim','silk'],nose:[.226,.095,.317],zone:[.467,.303,-.49],pitch:[.289,.116,.064],motion:'harness',pigment:0x35697d,rough:.51},
   m132:{mat:['rind','ember','hide'],nose:[.353,.114,.282],zone:[.573,.365,-.067],pitch:[.304,.130,.078],motion:'furnace',pigment:0x703025,rough:.68},
   m134:{mat:['rind','edge','hide'],nose:[0,0,0],zone:[.43,.28,-.48],pitch:[.364,.186,.114],motion:'ice',pigment:0x517f95,rough:.48},
-  m140:{mat:['rind','edge','hide'],nose:[.246,.089,.208],zone:[.464,.34,-.1],pitch:[.252,.091,.047],motion:'whisker',pigment:0x97aeba,rough:.54},
   m144:{mat:['rind','ember','hide'],nose:[.333,.144,.365],zone:[.588,.379,-.178],pitch:[.339,.149,.107],motion:'basalt',pigment:0x533932,rough:.71},
   m145:{mat:['rind','trim','hide'],nose:[.325,.122,.268],zone:[.568,.372,-.14],pitch:[.309,.133,.073],motion:'sinus',pigment:0x584b3c,rough:.61},
   m149:{mat:['rind','edge','hide'],nose:[.269,.139,.358],zone:[.487,.37,-.10],pitch:[.301,.139,.055],motion:'current',pigment:0x3f6771,rough:.51},
@@ -268,13 +267,8 @@ function quadruped(k,parts,spec,mobile){
   const {head,body}=parts,{mat:[stone,edge,back],nose:[w,h,z],zone:[sx,sy,sz],pitch,motion}=spec;
   alloy(k,stone,spec.pigment,spec.rough);
   const fortified=motion==='ice'||motion==='shell'||motion==='yoke';
-  const fur=['whisker','primate','shag','current'].includes(motion);
+  const fur=['primate','shag','current'].includes(motion);
   const hot=motion==='furnace'||motion==='basalt';
-  if(motion==='whisker'){
-    alloy(k,back,0x7b91a3,.78);
-    alloy(k,'ember',0x715449,.72);
-    k.materials[back].metalness=.14;
-  }
   if(hot){
     alloy(k,back,0x564441,.76);
     alloy(k,edge,0xbc511d,.54);
@@ -298,15 +292,6 @@ function quadruped(k,parts,spec,mobile){
           const ridge=mirror(side,[[w*.38,h-.06,z+.057,.012],[w*.62,h-.091,z+.050,.031],
             [w*.84,h-.103,z-.021,.043],[w*1.02,h-.153,z-.099,.024],[w*1.06,h-.202,z-.18,.004]]);
           line(k,head,hot?'deep':edge,ridge,13);
-        }
-      }
-      if(motion==='whisker'){
-        const marks=[[.054,.123,.210],[.013,.199,.065],[-.014,.231,-.087],[-.05,.217,-.234]];
-        for(const [i,[x,y,z]] of marks.entries()){
-          const slope=i%2===0?.046:.021;
-          const furrow=mirror(side,[[x,y,z,.006],[x+.081,y+slope,z-.030,.016],
-            [x+.135,y+.025,z-.055,.022],[x+.187,y-.018,z-.057,.015],[x+.218,y-.088,z-.049,.003]]);
-          line(k,head,'deep',furrow,8,6);
         }
       }
     }
@@ -352,35 +337,8 @@ function jade(k,{head,body},mobile){
   }
 }
 
-function whiteTiger(k,{head,body},mobile){
-  const count=mobile?5:8;
-  for(const side of halves){
-    const brow=mirror(side,[[.132,.087,.226,.021,.019],[.208,.132,.231,.055,.034],
-      [.266,.160,.167,.071,.040],[.314,.136,.052,.038,.036],[.323,.085,-.092,.005,.008]]);
-    shell(k,head,'rind',brow,mobile,side);
-    line(k,head,'deep',brow.slice(0,4).map(([x,y,z,r])=>[x,y-.032,z+.029,r*.33]),13);
-    const muzzle=mirror(side,[[.044,-.067,.369,.030,.024],[.097,-.115,.354,.063,.048],
-      [.163,-.115,.301,.069,.054],[.228,-.106,.221,.042,.042],[.260,-.074,.129,.009,.010]]);
-    shell(k,head,'hide',muzzle,mobile,side+2);
-    for(let i=0;i<3;i++)line(k,head,'deep',mirror(side,[[.105+i*.027,-.119+i*.023,.392-i*.017,.011],
-      [.226+i*.035,-.144+i*.05,.372-i*.025,.009],[.355+i*.04,-.145+i*.079,.305-i*.049,.006],
-      [.427+i*.05,-.132+i*.089,.223-i*.063,.002]]),10,5);
-    for(let i=0;i<count;i++){
-      const angle=i/(count-1),l=.31+.13*Math.sin(angle*Math.PI),w=.080+.022*Math.sin(i*2.04);
-      const lineX=.13+angle*.19,Y=.07-angle*.16,z=.033-angle*.225;
-      const tuft=mirror(side,[[lineX,Y,z,w*.45,w*.54],[lineX+.077,Y-l*.31,z-.021,w,w*.57],
-        [lineX+.095,Y-l*.61,z-.104,w*.69,w*.41],[lineX+.092,Y-l*.88,z-.197,w*.32,w*.23],
-        [lineX+.112,Y-l*1.02,z-.249,.005,.006]]);
-      k.geometry(head,i%3?'hide':'rind',sculptVolume(tuft,{sides:mobile?7:9,rings:mobile?9:13,
-        section:2.2,ridge:.31,fur:true,seed:i+side}));
-    }
-    const shoulder=mirror(side,[[.218,.319,.379,.086,.069],[.339,.277,.327,.141,.123],
-      [.439,.209,.24,.139,.107],[.480,.176,.097,.092,.085],[.443,.182,-.081,.014,.025]]);
-    shell(k,body,'hide',shoulder,mobile,side);
-  }
-}
-
 function reaper(k,parts,mobile){
+  if(parts.shadowSculpt)return;
   const {head,body}=parts,hood=k.bone(head,0,.11,-.12);
   for(const side of halves){
     const shroud=mirror(side,[[.026,.23,-.077,.022,.039],[.102,.332,-.159,.060,.061],
@@ -455,6 +413,26 @@ const mounted={
   'trial-kai-dark':{mat:['deep','edge'],tone:0x394635,width:.26,reach:.36,rise:.31,theme:'fang'},
 };
 
+function mandrillMuzzle(k,head,mobile){
+  const jaw=head.children.find(joint=>joint.isGroup&&Math.abs(joint.position.y+.151)<.002
+    &&Math.abs(joint.position.z-.131)<.002);
+  for(const side of halves){
+    const muzzle=mirror(side,[[.023,.045,.215,.027,.025],[.058,-.021,.256,.050,.043],
+      [.078,-.078,.276,.058,.047],[.097,-.121,.220,.048,.034],[.121,-.15,.196,.009,.010]]);
+    shell(k,head,'rind',muzzle,mobile,side+1);
+    line(k,head,'deep',mirror(side,[[.022,-.079,.285,.010],[.064,-.085,.301,.020],
+      [.087,-.103,.295,.016],[.083,-.119,.267,.003]]),11,6);
+    if(jaw){
+      const outside=mirror(side,[[.057,-.073,.110,.028,.022],[.113,-.05,.124,.043,.031],
+        [.155,-.005,.066,.038,.033],[.159,.041,-.041,.009,.012]]);
+      shell(k,jaw,'rind',outside,mobile,side+8);
+      const fang=mirror(side,[[.091,.012,.138,.026,.020],[.108,.044,.155,.024,.018],
+        [.107,.083,.161,.018,.012],[.091,.127,.154,.004,.003]]);
+      shell(k,jaw,'edge',fang,mobile,side+3);
+    }
+  }
+}
+
 function rider(k,parts,spec,mobile){
   const {body,head,mount:{helm,knight}}=parts,{mat:[base,edge],tone,width,reach,rise,theme}=spec;
   alloy(k,base,tone,theme==='moon'?.48:.59);
@@ -485,9 +463,10 @@ export function masterworkC(k,parts,{id},mobile){
   if(Object.hasOwn(rulers,id))sovereign(k,parts,rulers[id],mobile);
   else if(Object.hasOwn(serpents,id))serpent(k,parts,serpents[id],mobile);
   else if(Object.hasOwn(flyers,id))flightArmor(k,parts,flyers[id],mobile);
-  else if(id==='m140'){
+  else if(parts.snowTiger||parts.windTaowu||parts.desertKirin||parts.asuraCarved)return true;
+  else if(id==='m157'){
     quadruped(k,parts,grounded[id],mobile);
-    whiteTiger(k,parts,mobile);
+    mandrillMuzzle(k,parts.head,mobile);
   }
   else if(Object.hasOwn(grounded,id))quadruped(k,parts,grounded[id],mobile);
   else if(Object.hasOwn(mounted,id))rider(k,parts,mounted[id],mobile);

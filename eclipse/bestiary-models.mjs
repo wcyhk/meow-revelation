@@ -4,40 +4,53 @@ import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=forgeburst-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyCurrent} from './enemy-current.mjs?v=boss-sculpt-1';
-import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=guard-forge-2';
-import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=guard-forge-2';
-import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
+import {enemyCurrent} from './enemy-current.mjs?v=boss-foundry-1';
+import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=boss-foundry-1';
+import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=boss-foundry-1';
+import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=boss-foundry-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
-import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=night-current-1';
+import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=boss-foundry-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {articulatedWing} from './wing-sculpt.mjs?v=sculpted-1';
 import {poseKirin,sculptKirin} from './kirin-sculpt.mjs?v=lantern-nave-1';
-import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=forgeburst-1';
-import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=night-current-1';
-import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=forgeburst-1';
-import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=forgeburst-1';
-import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=night-current-1';
+import {catalogueFinishes,catalogueSculpt} from './catalogue-sculpt.mjs?v=boss-foundry-1';
+import {finishesA,sculptA} from './catalogue-volume-a.mjs?v=boss-foundry-1';
+import {finishesB,sculptB} from './catalogue-volume-b.mjs?v=boss-foundry-1';
+import {finishesC,sculptC} from './catalogue-volume-c.mjs?v=boss-foundry-1';
+import {buildCampaignSculpt,poseCampaignSculpt} from './campaign-sculpt.mjs?v=boss-foundry-1';
 import {finishSpecialBoss} from './special-boss-finish.mjs?v=turnaround-2';
-import {bossSkin} from './boss-skin.mjs?v=jointwork-1';
-import {refineBossA} from './boss-refinements-a.mjs?v=jointwork-1';
-import {refineBossB} from './boss-refinements-b.mjs?v=jointwork-1';
-import {refineBossC} from './boss-refinements-c.mjs?v=jointwork-1';
-import {refineGuardian} from './guardian-refinements.mjs?v=emberlight-1';
+import {bossSkin} from './boss-skin.mjs?v=boss-foundry-1';
+import {refineBossA} from './boss-refinements-a.mjs?v=boss-foundry-1';
+import {refineBossB} from './boss-refinements-b.mjs?v=boss-foundry-1';
+import {refineBossC} from './boss-refinements-c.mjs?v=boss-foundry-1';
+import {refineGuardian} from './guardian-refinements.mjs?v=boss-foundry-1';
 import {refineCreature} from './creature-refinements.mjs?v=jointwork-1';
 import {polishCreature} from './field-anatomy.mjs?v=emberlight-1';
-import {polishBossA} from './boss-polish-a.mjs?v=ascendant-1';
-import {polishBossB} from './boss-polish-b.mjs?v=ascendant-1';
-import {polishBossC} from './boss-polish-c.mjs?v=ascendant-1';
-import {polishGuardian} from './guardian-polish.mjs?v=ascendant-1';
-import {masterworkA} from './boss-masterwork-a.mjs?v=masterwork-1';
-import {masterworkB} from './boss-masterwork-b.mjs?v=masterwork-1';
-import {masterworkC} from './boss-masterwork-c.mjs?v=masterwork-1';
-import {masterworkGuardian,masterworkHunt} from './guardian-masterwork.mjs?v=masterwork-1';
+import {polishBossA} from './boss-polish-a.mjs?v=boss-foundry-1';
+import {polishBossB} from './boss-polish-b.mjs?v=boss-foundry-1';
+import {polishBossC} from './boss-polish-c.mjs?v=boss-foundry-1';
+import {polishGuardian} from './guardian-polish.mjs?v=boss-foundry-1';
+import {masterworkA} from './boss-masterwork-a.mjs?v=boss-foundry-1';
+import {masterworkB} from './boss-masterwork-b.mjs?v=boss-foundry-1';
+import {masterworkC} from './boss-masterwork-c.mjs?v=boss-foundry-1';
+import {masterworkGuardian,masterworkHunt} from './guardian-masterwork.mjs?v=boss-foundry-1';
+import {gateFinishes,sculptGateSteed} from './gate-steed-sculpts.mjs?v=gate-foundry-2';
+import {nabataBackplate,nabataRegalia,nabataRegaliaPose,nabataVestments} from './nabata-regalia.mjs?v=element-regalia-3';
+import {craftNabataRing} from './nabata-ring.mjs?v=element-ring-2';
+import {carveCloudDragon,carveCloudEddies,poseCloudDragon} from './cloud-dragon-sculpt.mjs?v=drake-1';
+import {relicBeastSource,sculptBeastRelic} from './relic-beast-forms.mjs?v=hunter-beast-1';
+import {relicDeitySource,sculptDeityRelic} from './relic-deity-forms.mjs?v=hunter-deity-1';
+import {devaSerpentFinishes,sculptDevaSerpent} from './deva-serpents.mjs?v=boss-foundry-1';
+import {carveSlagColossus,slagColossusFinishes} from './slag-colossus.mjs?v=boss-foundry-1';
+import {bronzeDokkaebiFinishes,sculptBronzeDokkaebi} from './bronze-dokkaebi.mjs?v=boss-foundry-1';
+import {carveXiaoling,xiaolingFinishes} from './avenger-xiaoling.mjs?v=boss-foundry-1';
+import {carveEmberCoil,emberCoilFinishes} from './ember-coil.mjs?v=boss-foundry-1';
 
 const PI=Math.PI,TAU=PI*2;
-const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC};
+const authoredFinishes={...catalogueFinishes,...finishesA,...finishesB,...finishesC,...gateFinishes,...devaSerpentFinishes,
+  m007:emberCoilFinishes,m056:xiaolingFinishes,m157:bronzeDokkaebiFinishes,'raid-flame':slagColossusFinishes};
+const bossSculptors={m007:carveEmberCoil,m056:carveXiaoling,m157:sculptBronzeDokkaebi,'raid-flame':carveSlagColossus};
 const shapes={
   pearl:new T.IcosahedronGeometry(1,1), round:new T.SphereGeometry(1,13,9),
   horn:new T.ConeGeometry(1,1,9), metal:new T.BoxGeometry(1,1,1),
@@ -120,7 +133,7 @@ const colors=entry=>{
   return result;
 };
 const trialWeapons={'trial-jing':'halberd','trial-shang':'swords','trial-kai':'bow',
-  m004:'pennant',m090:'swords',m091:'windmace',m092:'spear',m093:'spear',m094:'spear'};
+  m004:'pennant',m089:'halberd',m090:'swords',m091:'windmace',m092:'spear',m093:'spear',m094:'spear'};
 const trialType=id=>trialWeapons[id]??trialWeapons[id.replace(/-(light|dark)$/,'')];
 let surface;
 
@@ -184,6 +197,10 @@ function buildMaterials(entry){
       ivory:surface(bear?0xd0b587:0xf2d190,.10,.65,'bone'),
       ash:surface(0x6e6860,.06,.83,'cloth'),
     });
+    if(bear){
+      finishes.bearUnderfur=surface(0x626661,.04,.91,'hide');
+      finishes.bearGuardHair=surface(0xa9aba3,.03,.86,'hide');
+    }
     if(entry.id==='m027'){
       finishes.rust.color.setHex(0x7f291c);
       finishes.coal.color.setHex(0x242026);
@@ -256,11 +273,20 @@ function buildMaterials(entry){
     finishes.bronzeRib=surface(0x805429,.68,.46,'bronze');
     finishes.trim.color.setHex(0xa88043);
   }
-  if(entry.id==='m154')finishes.iron=surface(0x4c4745,.66,.41,'iron');
-  if(entry.id==='m106')finishes.mist=new T.MeshStandardMaterial({
-    color:0xa2c5de,emissive:0x526b85,
-    emissiveIntensity:.36,roughness:1,transparent:true,opacity:.54,depthWrite:false,
-  });
+  if(entry.id==='m154'){
+    finishes.iron=surface(0x4c4745,.66,.41,'iron');
+    finishes.oniPincer=surface(0x373b3e,.76,.36,'iron');
+    finishes.oniPincerEdge=surface(0x8c8171,.69,.39,'iron');
+    finishes.oniCarapace=surface(0x282723,.47,.55,'hide');
+  }
+  if(entry.id==='m106'){
+    finishes.mist=new T.MeshStandardMaterial({color:0x9eb2c7,emissive:0x42596a,emissiveIntensity:.26,
+      roughness:1,transparent:true,opacity:.49,depthWrite:false});
+    finishes.drakeSlate=surface(0x293847,.24,.66,'hide');
+    finishes.drakeHorn=surface(0xaeb5af,.23,.58,'bone');
+    finishes.drakeTrim=surface(0x6b8293,.55,.50,'iron');
+    finishes.drakeCloud=surface(0x415663,.06,.87,'stone');
+  }
   for(const [name,parameters] of Object.entries(authoredFinishes[entry.id]??{})){
     finishes[name]=surface(...parameters);
   }
@@ -317,12 +343,14 @@ function kit(root,materials){
         finishes.get(batch.finish).push(batch);
       }
       for(const [finish,batches] of finishes){
+        const material=materials[finish];
+        if(!material)throw new Error('Unknown bestiary material: '+finish);
         const count=batches.reduce((total,batch)=>{
           const geo=batch.geo??shapes[batch.shape];
           return total+(geo.index?.count??geo.attributes.position.count)*batch.parts.length;
         },0);
         const positions=new Float32Array(count*3), normals=new Float32Array(count*3), uv=new Float32Array(count*2);
-        const pigment=materials[finish].vertexColors?new Float32Array(count*3):null;
+        const pigment=material.vertexColors?new Float32Array(count*3):null;
         let cursor=0;
         for(const batch of batches){
           const geo=batch.geo??shapes[batch.shape];
@@ -353,7 +381,7 @@ function kit(root,materials){
         geo.setAttribute('normal',new T.BufferAttribute(normals,3));
         geo.setAttribute('uv',new T.BufferAttribute(uv,2));
         if(pigment)geo.setAttribute('color',new T.BufferAttribute(pigment,3));
-        part.add(new T.Mesh(geo,materials[finish]));
+        part.add(new T.Mesh(geo,material));
       }
     }
   }
@@ -674,11 +702,10 @@ function humanoid(k,entry){
   return {body,arms,legs,head,limbs};
 }
 
-function quadruped(k,entry){
+function quadruped(k,entry,mobile){
   const {root,bone,mesh,rod}=k;
   const turtle=entry.family==='turtle',rider=entry.family==='rider';
   const trial=trialType(entry.id),windBeast=entry.id==='m149';
-  const gate=entry.id.startsWith('trial-')?entry.id.split('-')[1]:null;
   const body=bone(root,0,turtle?.85:1.11,0);
   const corpus=turtle?.81:.51;
   k.geometry(body,turtle?'shell':'body',sculptVolume([[0,.018,-1.20,corpus*.34,.13],[0,.12,-.97,corpus*.70,.36],
@@ -822,7 +849,6 @@ function quadruped(k,entry){
             -.38-mote*.18,.046,.14,.037,-.5,side*.3,side*.22);
         }
       }
-      if(gate)sculptGateTack(k,{body,head,helm,knight,mantle,tail,gate,dark});
       return {body,head,legs,tail,mount:{knight,helm,hand,mantle,embers,trial}};
     }else{
       face(k,helm,{broad:.25,horns:0,snout:.18});
@@ -833,76 +859,6 @@ function quadruped(k,entry){
   return {body,head,legs,tail};
 }
 
-function sculptGateTack(k,{body,head,helm,knight,mantle,tail,gate,dark}){
-  const {mesh,rod,geometry,sculpt}=k;
-  const jing=gate==='jing',shang=gate==='shang';
-  const metal=dark?'deep':'edge',scoring=dark?'edge':'trim';
-  const curve=(parent,finish,pts)=>sculpt.sweep(parent,finish,pts,{steps:12,sides:7,ridge:.20});
-  for(const side of [-1,1]){
-    const z=-.61;
-    // Saddlebags and buckles sit below the seat on both sides, including the far side.
-    geometry(body,metal,sculptVolume([[side*.42,.36,z,.14,.23],[side*.57,.29,z,.183,.26],
-      [side*.67,.13,z+.025,.151,.235],[side*.62,-.03,z+.035,.106,.207],
-      [side*.50,-.16,z+.065,.065,.148]],{sides:11,rings:14,section:2.61,ridge:.21}));
-    for(let i=0;i<4;i++){
-      const travel=i*.118;
-      curve(body,scoring,[[side*.528,.373,z-.178+travel,.027],
-        [side*.668,.215,z-.162+travel,.036],[side*.704,.093,z-.141+travel,.023],
-        [side*.617,-.083,z-.095+travel,.009]]);
-      mesh(body,'gem',i===1?'glow':metal,side*.672,.118,z-.16+travel,.029,.054,.039,0,side*.48);
-    }
-    curve(head,scoring,[[side*.13,.251,.44,.022],[side*.234,.142,.51,.032],
-      [side*.279,-.009,.501,.031],[side*.245,-.204,.398,.018]]);
-    curve(head,metal,[[side*.253,.254,.104,.057],[side*.322,.133,.260,.061],
-      [side*.318,-.112,.406,.039],[side*.259,-.210,.378,.012]]);
-    curve(body,'trim',[[side*.44,.59,.26,.029],[side*.52,.54,.51,.034],
-      [side*.47,.432,.74,.028],[side*.27,.393,.96,.010]]);
-    // Rolled cloth at the back of the saddle carries its own clasps and seals.
-    geometry(mantle,dark?'body':'deep',sculptVolume([[side*.21,.132,-.153,.123,.14],
-      [side*.29,-.083,-.247,.132,.159],[side*.35,-.30,-.38,.113,.12],
-      [side*.405,-.48,-.493,.052,.056]],{sides:11,rings:14,section:1.9,ridge:.21}));
-    for(let i=0;i<4;i++){
-      const f=i*.108;
-      rod(mantle,i===2?'glow':scoring,[side*(.22+f*.18),.15-f*1.08,-.311-f*.27],
-        [side*(.341+f*.25),.12-f*1.04,-.293-f*.20],.021);
-    }
-    const top=jing?.94:shang?.72:1.11;
-    const spread=jing?.35:shang?.51:.27;
-    curve(helm,metal,[[side*.153,.347,-.176,.076],[side*.251,.485,-.281,.086],
-      [side*spread,top*.77,-.296,.045],[side*(spread+.09),top,-.35,.006]]);
-    for(let i=0;i<(shang?5:4);i++){
-      const kx=i*.072;
-      const reach=jing?.29:shang?.45:.27;
-      curve(knight,i%2?metal:scoring,[[side*(.13+kx*.55),.46+kx,-.218,.042],
-        [side*(.28+kx),.42+kx+reach*.15,-.30-kx*.41,.054],
-        [side*(.31+kx*.98),.29+kx-reach*.04,-.35-kx*.32,.009]]);
-    }
-    if(gate==='kai'){
-      for(let i=0;i<4;i++){
-        const lift=i*.124;
-        curve(helm,i%3===0?'glow':scoring,[[side*.11,.33+lift*.47,-.10,.050],
-          [side*(.30+lift*.48),.43+lift,-.17,.047],
-          [side*(.39+lift*.80),.64+lift,-.29,.006]]);
-      }
-    }else if(shang){
-      for(let i=0;i<4;i++){
-        const height=.38+i*.083;
-        mesh(helm,'gem',i===2?'glow':metal,side*(.19+i*.027),height,-.21-i*.03,.050,.17,.08,.44,side*.3,side*.25);
-      }
-    }
-  }
-  const back=dark?'body':'trim';
-  for(let j=0;j<5;j++){
-    const y=.47-j*.10;
-    const span=jing?.105+j*.018:.157-j*.013;
-    mesh(knight,'scale',back,0,y,-.278,span,.18,.28,.23,PI,0);
-  }
-  const plait=jing?[[0,.13,-.10,.094],[-.13,.33,-.37,.091],[-.13,.55,-.65,.056],[.05,.58,-.97,.008]]:
-    shang?[[0,.13,-.10,.101],[.08,.29,-.32,.11],[.23,.41,-.68,.075],[.14,.61,-1.03,.006]]:
-      [[0,.13,-.10,.108],[.04,.39,-.30,.073],[-.19,.64,-.47,.056],[-.43,.75,-.72,.007]];
-  curve(tail,metal,plait);
-  curve(tail,scoring,plait.map(([x,y,z,r])=>[x+.034,y+.063,z-.006,r*.43]));
-}
 function flyer(k,entry){
   const {root,bone,mesh,rod}=k;
   const dragon=entry.family==='dragon', insect=entry.family==='wasp';
@@ -953,16 +909,16 @@ function flyer(k,entry){
   return {body,head,arms,tail,flight};
 }
 
-function coil(k,entry){
+function coil(k,entry,mobile){
   const {root,bone,mesh}=k;
   const body=bone(root,0,.14,0);
-  const cloudDragon=entry.id==='m106'||entry.id==='m019';
+  const frost=entry.id==='m106',cloudDragon=frost||entry.id==='m019';
   if(cloudDragon){
     body.position.y=.48;
     const bank=bone(body,0,-.12,-.14);
-    for(let i=0;i<12;i++){
-      const a=i*2.399;
-      const r=.39+(i%4)*.19;
+    if(frost)carveCloudEddies(k,bank,mobile);
+    else for(let i=0;i<12;i++){
+      const a=i*2.399,r=.39+(i%4)*.19;
       mesh(bank,'pearl',i%3===0?'deep':'mist',Math.sin(a)*r,-.02+(i%3)*.12,Math.cos(a)*r,.55,.21,.49);
     }
     body.userData.cloudBank=bank;
@@ -970,6 +926,7 @@ function coil(k,entry){
   serpentTail(body,k,entry);
   const arms=[];
   const necks=entry.family==='hydra'?5:1;
+  let winterRig;
   for(let index=0;index<necks;index++){
     const offset=index-(necks-1)/2;
     const neck=bone(body,offset*.45,.50,.33+Math.abs(offset)*.03);
@@ -987,7 +944,9 @@ function coil(k,entry){
       mesh(neck,'pearl','body',0,1.19,-.06,.45,.46,.30);
     }
     const head=bone(neck,0,1.38,.18);
-    face(k,head,{broad:entry.crest==='greed'?.55:.40,snout:.42,horns:entry.crest==='cobra'||entry.id==='m001'?0:2,reptile:true});
+    if(index===Math.floor(necks/2))body.userData.inspectionHead=head;
+    if(frost)winterRig=carveCloudDragon(k,head,mobile);
+    else face(k,head,{broad:entry.crest==='greed'?.55:.40,snout:.42,horns:entry.crest==='cobra'||entry.id==='m001'?0:2,reptile:true});
     if(cloudDragon){
       for(const side of [-1,1]){
         k.sculpt.sweep(head,'edge',[[side*.22,.20,.14,.135],[side*.31,.37,.02,.14],
@@ -1019,6 +978,7 @@ function coil(k,entry){
       cloudBank.rotation.y=beat*.11;cloudBank.scale.setScalar(1+Math.sin(beat*.66)*.085+wind*.12);
       dragonHead.rotation.x=wind*.19-strike*.39;
       dragonHead.rotation.z=Math.sin(beat*.72)*(.07+travel*.10);
+      if(winterRig)poseCloudDragon(winterRig,beat,wind,strike,travel);
     }:undefined};
 }
 
@@ -1061,82 +1021,6 @@ function serpentTail(body,k,entry){
     }
     mesh(body,'round','glow',.57,1.14,.95,.13,.133,.13);
   }
-}
-
-function serpentGuardian(k,tiamat){
-  const {root,mesh,bone,rod}=k;
-  const body=bone(root,0,.17,0);
-  const tail=bone(body,0,0,-.27);
-  const path=[[0,.60,.30],[.17,.36,-.42],[.66,.20,-.91],[1.25,.13,-1.13],[1.92,.08,-.91],[2.34,.11,-.51]];
-  for(let i=1;i<path.length;i++){
-    const before=path[i-1],after=path[i];
-    rod(tail,'body',before,after,.39-i*.045);
-    mesh(tail,'pearl','body',...after,.38-i*.052,.35-i*.049,.36-i*.048);
-    rod(tail,tiamat?'edge':'deep',[before[0],before[1]+.22,before[2]],[after[0],after[1]+.19,after[2]],.12,'horn');
-    if(tiamat)rod(tail,'edge',[after[0],after[1]+.17,after[2]],[after[0]+.05,after[1]+.42,after[2]-.16],.083,'horn');
-  }
-  mesh(tail,'scale','edge',2.36,.13,-.49,.24,.37,.49,PI*.44,-.28,-1.05);
-  mesh(body,'pearl','body',0,.73,.21,.51,.85,.48,-.22);
-  for(let band=0;band<7;band++){
-    mesh(body,'scale',band%3===0?'trim':'edge',0,.34+band*.17,.61-band*.011,
-      .43-band*.015,.26,.38,-.1,0,Math.sin(band)*.04);
-  }
-  const head=bone(body,0,1.67,.18);
-  mesh(head,'pearl','deep',0,.05,0,.33,.42,.35);
-  mesh(head,'scale','trim',0,-.02,.285,.42,.54,.87,0,0,PI);
-  if(tiamat){
-    mesh(head,'metal','deep',0,.43,-.045,.38,.23,.40);
-    mesh(head,'scale','trim',0,.48,.17,.28,.51,.85);
-    rod(head,'trim',[0,.34,0],[0,.89,-.10],.21,'horn');
-  }else{
-    mesh(head,'ring','edge',0,.19,-.14,.61,.70,.88);
-    mesh(head,'ring','glow',0,.18,-.11,.49,.59,.36);
-  }
-  for(let ray=0;!tiamat&&ray<14;ray++){
-    const angle=ray*TAU/14;
-    const x=Math.sin(angle),y=Math.cos(angle);
-    rod(head,'edge',[x*.54,.19+y*.60,-.12],[x*(.72+ray%2*.08),.19+y*.96,-.14],.045,'horn');
-  }
-  for(const side of [-1,1])mesh(head,'gem','glow',side*.108,.041,.339,.049,.035,.035);
-  const arms=[];
-  for(const side of [-1,1]){
-    if(tiamat){
-      for(const upper of [false,true]){
-        const arm=bone(body,side*(upper?.46:.38),upper?1.49:1.09,upper?-.13:.27);
-        const elbow=[side*.55,upper?.33:-.27,.07],palm=[side*.92,upper?.57:-.50,.29];
-        mesh(arm,'scale','trim',0,0,0,.40,.62,.87,0,side*.31,side*.57);
-        rod(arm,'body',[0,0,0],elbow,.147);
-        rod(arm,'trim',elbow,palm,.096);
-        for(let claw=0;claw<3;claw++){
-          const offset=(claw-1)*.11;
-          rod(arm,'edge',[palm[0],palm[1]+offset,palm[2]],[palm[0]+side*.32,palm[1]+offset-.23,palm[2]+.14],.045,'horn');
-        }
-        arms.push(arm);
-      }
-      continue;
-    }
-    const arm=bone(body,side*.51,1.25,.15);
-    mesh(arm,'scale','trim',0,0,0,.40,.67,.96,0,side*.32,side*.81);
-    mesh(arm,'ring','glow',0,.06,.11,.31,.25,1.36,.52,0,side*.42);
-    rod(arm,'body',[0,-.12,0],[side*.22,-.54,.20],.14);
-    mesh(arm,'scale','edge',side*.225,-.50,.19,.24,.33,.91,.34,0,side*.22);
-    const hand=bone(arm,side*.23,-.71,.23);
-    if(side>0){
-      hand.rotation.z=-.68;
-      markEnemyWeapon(hand,[0,1.69,.01],{width:.225});
-      rod(hand,'body',[0,-1.29,0],[0,1.37,0],.048);
-      for(let wrap=0;wrap<8;wrap++)mesh(hand,'ring','trim',0,-1.14+wrap*.28,0,.052,.056,.8,PI*.49,0,.31);
-      for(const tine of [-1,0,1]){
-        rod(hand,'trim',[0,1.03,0],[tine*.17,1.39,.02],.048);
-        mesh(hand,'scale','edge',tine*.20,1.49,.01,.13,.47+(tine===0?.16:0),.62,0,0,-tine*.23);
-      }
-    }else{
-      rod(hand,'edge',[0,0,.02],[side*.43,.31,.38],.11,'horn');
-      rod(hand,'glow',[0,0,.02],[side*.30,.21,.28],.025,'horn');
-    }
-    arms.push(arm);
-  }
-  return {body,head,arms,tail};
 }
 
 function star(k,entry) {
@@ -1230,40 +1114,74 @@ function bullOni(k){
       const path=[[.003,height+.18,z+.13],[width*.58,height+.062,z+.093],
         [width,height-.19,z+.043],[width*.91,height-.17,z-.161],
         [width*.53,height+.025,z-.27],[.006,height+.261,z-.31]].map(([x,y,Z])=>[x*side,y,Z]);
-      k.sculpt.plate(body,ridge%2?'iron':'body',path,.061,.02);
-      k.sculpt.sweep(body,'trim',path.slice(1,6).map(([x,y,Z])=>[x,y+.021,Z-.019,.023]),
-        {sides:7,steps:12,ridge:.24});
+      k.sculpt.plate(body,ridge%2?'iron':'oniCarapace',path,.082,.029);
+      k.sculpt.sweep(body,'oniPincerEdge',path.slice(1,6).map(([x,y,Z])=>[x,y+.021,Z-.019,.018]),
+        {sides:7,steps:12,ridge:.34});
+      k.sculpt.sweep(body,'oniCarapace',[[side*.035,height+.173,z+.108,.013],
+        [side*width*.43,height+.092,z+.039,.023],[side*width*.68,height-.036,z-.04,.060],
+        [side*width*.75,height-.071,z-.155,.053],[side*width*.68,height+.014,z-.268,.004]],
+        {sides:7,steps:13,ridge:.34});
     }
     k.sculpt.sweep(body,'edge',[[0,height+.19,z+.068,.030],[0,height+.271,z-.094,.039],
       [0,height+.348,z-.30,.004]],{sides:7,steps:9});
   }
   const head=bone(body,0,-.10,.75);
   mesh(head,'pearl','deep',0,.02,.10,.39,.32,.48);
-  mesh(head,'scale','iron',0,.02,.44,.73,.58,.69,-.17);
-  rod(head,'trim',[0,.26,.39],[0,-.19,.65],.054,'horn');
-  mesh(head,'pearl','body',0,-.22,.53,.23,.12,.20);
+  const jaw=bone(head,0,-.093,.423);
+  k.geometry(jaw,'oniCarapace',sculptVolume([[0,.053,-.086,.174,.073],[0,-.074,-.026,.161,.08],
+    [0,-.135,.111,.142,.067],[0,-.12,.202,.095,.04]],{rings:12,sides:13,section:3,ridge:.21}));
   for(const side of [-1,1]){
     const horn=[[side*.168,.185,.23,.085],[side*.266,.237,.241,.102],[side*.412,.324,.242,.090],
       [side*.561,.383,.361,.067],[side*.672,.474,.45,.038],[side*.697,.531,.59,.005]];
     k.sculpt.sweep(head,'edge',horn,{sides:11,steps:20,ridge:.27});
     k.sculpt.sweep(head,'iron',horn.slice(0,5).map(([x,y,z,r])=>[x,y+.012,z-.031,r*.61]),{sides:8,steps:16});
-    mesh(head,'gem','glow',side*.12,.02,.556,.094,.039,.046,0,0,-side*.19);
-    rod(head,'edge',[side*.21,-.11,.56],[side*.17,-.33,.61],.043,'horn');
+    const mir=path=>path.map(([x,...row])=>[side*x,...row]);
+    k.sculpt.plate(head,'oniPincer',mir([[.013,.247,.355],[.203,.27,.243],[.279,.142,.271],
+      [.263,-.06,.388],[.133,-.177,.613],[.038,-.152,.656],[.067,-.022,.574],[.027,.08,.579]]),.071,.021);
+    k.sculpt.sweep(head,'oniPincerEdge',mir([[.022,.153,.579,.021],[.111,.091,.604,.037],
+      [.178,.119,.552,.029],[.227,.164,.441,.039],[.269,.209,.31,.006]]),{steps:13,sides:7,ridge:.3});
+    k.sculpt.sweep(head,'glow',mir([[.075,.054,.597,.006],[.125,.042,.600,.014],[.157,.069,.566,.006]]),
+      {steps:6,sides:6});
+    k.sculpt.sweep(head,'oniPincerEdge',mir([[.208,-.049,.405,.049],[.221,-.101,.55,.038],
+      [.162,-.273,.647,.025],[.112,-.343,.662,.004]]),{steps:12,sides:8,ridge:.32});
+    k.sculpt.sweep(jaw,'oniPincerEdge',mir([[.127,-.052,.008,.035],[.143,-.043,.096,.031],
+      [.106,.034,.156,.019],[.079,.112,.171,.004]]),{steps:10,sides:8,ridge:.23});
   }
-  const arms=[],legs=[];
+  k.sculpt.sweep(head,'oniPincerEdge',[[0,.275,.321,.023],[0,.174,.516,.071],
+    [0,.067,.62,.043],[0,-.039,.687,.036],[0,-.127,.694,.007]],{steps:14,sides:8,ridge:.25});
+  const arms=[],legs=[],pincers=[];
   for(const side of [-1,1]){
     const shield=bone(body,side*.56,.10,.43);
-    markEnemyWeapon(shield,[0,.48,.10],{from:[0,-.48,.10],width:.23,aim:false});
     const mir=path=>path.map(([x,...row])=>[side*x,...row]);
-    const claw=mir([[.03,.19,.07],[.232,.39,.161],[.653,.345,.298],[.897,.09,.60],[1.068,-.187,.94],
-      [.687,-.238,.792],[.479,-.174,.55],[.297,-.132,.29],[.067,-.08,.17]]);
-    k.sculpt.plate(shield,'iron',claw,.084,.026);
-    k.sculpt.sweep(shield,'trim',claw.slice(0,7).map(([x,y,z])=>[x,y+.016,z+.022,.023]),{sides:8,steps:21,ridge:.24});
+    const fixed=bone(shield,0,0,0);
+    k.geometry(fixed,'oniPincer',sculptVolume(mir([[.035,.041,-.06,.11,.106],[.235,.166,.115,.24,.21],
+      [.48,.16,.34,.29,.205],[.691,.082,.537,.25,.148],[.892,-.067,.711,.117,.085],
+      [.89,-.118,.927,.059,.043],[.71,-.116,1.069,.006,.009]]),
+    {rings:22,sides:16,section:3.31,ridge:.22}));
+    k.sculpt.plate(fixed,'iron',mir([[.084,.255,.072],[.33,.398,.195],[.562,.365,.347],
+      [.737,.244,.598],[.818,.085,.770],[.682,.098,.708],[.457,.209,.559],
+      [.319,.229,.383],[.143,.217,.182]]),.063,.022);
     for(let i=0;i<3;i++){
-      const x=.13+i*.12,z=.22+i*.13;
-      k.sculpt.sweep(shield,i%2?'iron':'edge',mir([[x,.248,z,.036],[x+.171,.302,z+.16,.064],
-        [x+.421,.173,z+.29,.042],[x+.60,-.032,z+.53,.005]]),{sides:8,steps:12,ridge:.25});
+      const x=.14+i*.087,z=.139+i*.057;
+      k.sculpt.sweep(fixed,i%2?'oniCarapace':'oniPincerEdge',mir([[x,.281,z,.015],
+        [x+.138,.373,z+.103,.025],[x+.253,.339,z+.252,.030],
+        [x+.347,.172,z+.482,.017],[x+.332,.035,z+.619,.005]]),{sides:8,steps:12,ridge:.32});
+      k.sculpt.sweep(fixed,'oniPincerEdge',mir([[.537+i*.034,.089-i*.047,.681+i*.061,.021],
+        [.488+i*.037,.059-i*.045,.731+i*.061,.015],[.461+i*.045,.054-i*.044,.759+i*.058,.003]]),
+      {sides:7,steps:6});
     }
+    const hinge=bone(shield,side*.31,-.071,.292);
+    k.geometry(hinge,'oniPincer',sculptVolume(mir([[.011,.017,-.109,.18,.125],[.030,-.071,.156,.176,.126],
+      [.048,-.097,.330,.127,.088],[.069,-.103,.534,.081,.056],
+      [.171,-.098,.678,.051,.033],[.325,-.086,.702,.006,.008]]),
+    {rings:20,sides:15,section:3.17,ridge:.24}));
+    k.sculpt.sweep(hinge,'oniPincerEdge',mir([[.074,.040,.016,.029],[.101,.032,.161,.036],
+      [.136,-.014,.343,.026],[.177,-.055,.518,.022],[.315,-.080,.704,.004]]),
+    {sides:9,steps:16,ridge:.34});
+    markEnemyWeapon(hinge,[side*.325,-.09,.701],{from:[0,0,0],width:.19,aim:false});
+    mesh(shield,'ring','oniPincerEdge',side*.284,-.056,.264,.259,.278,.113,Math.PI/2,0,.46);
+    mesh(shield,'gem','trim',side*.284,-.009,.264,.083,.050,.078);
+    pincers.push({side,hinge});
     arms.push(shield);
     for(const [index,z] of [-.72,-.13,.39].entries()){
       const leg=bone(body,side*.48,-.02,z);
@@ -1275,7 +1193,13 @@ function bullOni(k){
       legs.push(leg);
     }
   }
-  return {body,head,arms,legs};
+  return {body,head,arms,legs,cataloguePose:({beat,wind,strike,stage})=>{
+    jaw.rotation.x=-wind*.34+strike*.23+Math.sin(beat*.73)*.07;
+    for(const {side,hinge} of pincers){
+      hinge.rotation.y=side*(-.19-wind*.40+strike*.49+Math.sin(beat+side)*.05);
+      hinge.rotation.z=side*(wind*.06-strike*.12-stage*.025);
+    }
+  }};
 }
 
 const nabataElements={m085:'fire',m086:'water',m087:'thunder',m088:'wind'};
@@ -1286,25 +1210,28 @@ const nabataArmor={
   wind:[.176,.510,.89,0x426149],
 };
 
-function nabataMage(k,element){
+function nabataMage(k,element,mobile){
   const {root,bone,mesh,rod}=k;
   const [brow,sweep,torso,lining]=nabataArmor[element];
   k.materials.deep.color.setHex(0x19222b).lerp(new T.Color(lining),.17);
   k.materials.body.color.setHex(0x2c3440).lerp(new T.Color(lining),.29);
-  k.materials.edge.color.setHex(0xc9a86b);
-  const body=bone(root,0,.92,0);
-  k.geometry(body,'deep',sculptVolume([[0,-.30,-.05,.226,.211],[0,-.075,-.067,.32,.24],
-    [0,.25,-.015,.34,.298],[0,.53,-.039,.416*torso,.27],[0,.717,-.024,.34,.217],[0,.855,.01,.16,.14]],
+  k.materials.edge.color.setHex(0xb3915a);
+  k.materials.edge.roughness=.59;
+  k.materials.edge.envMapIntensity=.59;
+  const body=bone(root,0,1.275,0);
+  k.geometry(body,'deep',sculptVolume([[0,-.30,-.026,.194,.137],[0,-.065,-.050,.247,.173],
+    [0,.25,-.015,.316,.226],[0,.53,-.039,.377*torso,.253],[0,.717,-.024,.322,.205],[0,.855,.01,.153,.129]],
     {sides:17,rings:21,section:2.54,ridge:.10}));
   for(const side of [-1,1])for(let i=0;i<4;i++){
-    const y=.64-i*.122,z=.32+i*.013;
-    const plate=[[.021,y+.103,z+.026],[.14,y+.155,z],[.355*torso,y+.127,z-.041],
-      [.373*torso,y+.023,z-.084],[.292*torso,y-.116,z-.116],[.11,y-.11,z+.008],[.028,y-.051,z+.046]];
-    k.sculpt.plate(body,i===0?'edge':'body',plate.map(([x,Y,Z])=>[side*x,Y,Z]),.048,.019);
-    k.sculpt.sweep(body,i===3?'glow':'trim',plate.slice(1,5).map(([x,Y,Z])=>[side*x,Y,Z+.024,.018]),
-      {sides:6,steps:10,ridge:.20});
+    const y=.64-i*.147,z=.269-i*.013,width=torso-i*.064;
+    const plate=[[.018,y+.044,z+.02],[.130,y+.116,z],[.341*width,y+.097,z-.066],
+      [.367*width,y+.003,z-.108],[.244*width,y-.083,z-.075],[.095,y-.054,z+.003],[.020,y-.032,z+.025]];
+    k.sculpt.plate(body,i===0?'edge':'body',plate.map(([x,Y,Z])=>[side*x,Y,Z]),.034,.011);
+    k.sculpt.sweep(body,'trim',plate.slice(1,5).map(([x,Y,Z],j)=>[side*x,Y,Z+.021,j===0?.016:.011]),
+      {sides:6,steps:9,ridge:.20});
   }
   const head=bone(body,0,1.08,.12);
+  head.name='納巴塔 · 鎏金顱盔';
   k.geometry(head,'deep',sculptVolume([[0,-.206,.018,.14,.10],[0,-.11,-.014,.204,.151],[0,.057,-.079,.226,.163],
     [0,.193,-.082,.208,.180],[0,.313,-.119,.143,.134],[0,.402,-.11,.048,.076]],
     {sides:17,rings:21,section:2.06,ridge:.16}));
@@ -1315,20 +1242,35 @@ function nabataMage(k,element){
     k.sculpt.plate(head,'edge',mirrored(guard),.041,.014);
     k.sculpt.sweep(head,'trim',mirrored([[.09,.151,.158,.028],[.165,.204,.098,.052],
       [brow,.191,-.066,.051],[.282,sweep,-.172,.038],[.205,sweep+.126,-.207,.004]]),{sides:9,steps:17});
-    k.sculpt.sweep(head,'glow',mirrored([[.033,.064,.226,.010],[.105,.064,.235,.017],[.174,.092,.166,.005]]),
-      {sides:7,steps:8});
+    const socket=mirrored([[.036,.092,.264],[.087,.105,.267],[.164,.118,.211],[.177,.080,.214],
+      [.131,.044,.245],[.064,.038,.267],[.038,.053,.269]]);
+    k.sculpt.plate(head,'deep',socket,.013,.004);
+    k.sculpt.sweep(head,'trim',socket.slice(0,4).map(([x,y,z],j)=>[x,y+.012,z+.012,j===1?.021:.009]),
+      {sides:7,steps:10,ridge:.23});
+    k.sculpt.sweep(head,'glow',mirrored([[.065,.067,.281,.005],[.102,.076,.272,.011],[.140,.088,.244,.003]]),
+      {sides:6,steps:8});
+    k.sculpt.sweep(head,'body',mirrored([[.187,-.025,.183,.016],[.149,-.073,.235,.032],
+      [.118,-.101,.264,.028],[.068,-.127,.258,.007]]),{sides:8,steps:11,ridge:.24});
+    for(let j=0;j<3;j++)k.sculpt.sweep(head,j===0?'edge':'trim',mirrored([[.035+j*.025,-.126,.263,.013],
+      [.044+j*.022,-.179,.242,.016],[.039+j*.027,-.207+j*.012,.205,.005]]),{sides:6,steps:7,ridge:.20});
     for(let i=0;i<4;i++){
       const y=.12-i*.071;
       k.sculpt.sweep(head,i%2?'trim':'edge',mirrored([[.17,y,.017,.015],[.208,y-.031,.128,.022],
         [.158,y-.057,.238,.020],[.107,y-.099,.245,.004]]),{sides:6,steps:9,ridge:.20});
     }
   }
-  k.sculpt.sweep(head,'edge',[[0,.22,.181,.042],[0,.133,.229,.057],[0,.024,.251,.039],[0,-.152,.243,.015]],
+  k.sculpt.sweep(head,'edge',[[0,.223,.162,.031],[0,.133,.225,.042],[0,.056,.282,.039],[0,-.059,.254,.011]],
     {sides:8,steps:11,ridge:.16});
-  const crest=bone(body,0,1.01,-.28);
-  mesh(crest,'ring','glow',0,.17,0,.66,.78,.29);
-  mesh(crest,'ring','body',0,.17,-.04,.75,.88,.46);
-  const arms=[],legs=[];
+  const circlet=bone(head,0,.185,-.021);
+  circlet.name='納巴塔 · 冠簇';
+  for(const side of [-1,1])k.sculpt.sweep(circlet,'trim',[[0,.063,.171,.023],
+    [side*.127,.073,.141,.032],[side*.224,.045,.046,.033],[side*.205,.031,-.119,.031],
+    [side*.112,.016,-.193,.020],[0,.021,-.164,.017]],{sides:7,steps:14,ridge:.17});
+  k.sculpt.plate(circlet,'body',[[-.061,.071,.158],[-.092,.183,.097],[-.016,.163,.14],
+    [.006,.227,.111],[.051,.156,.119],[.088,.17,.092],[.052,.077,.151]],.038,.012);
+  const crest=bone(body,0,1.13,-.235);
+  const halo=craftNabataRing(k,crest,element,mobile);
+  const arms=[],articulation=[];
   for(const side of [-1,1]){
     const arm=bone(body,side*.42,.63,.06);
     k.geometry(arm,'body',sculptVolume([[0,.18,-.032,.12,.14],[side*.105,.04,.012,.17,.18],
@@ -1339,43 +1281,53 @@ function nabataMage(k,element){
         [side*.28,y-.168,.065],[side*.117,y-.107,.139],[0,y-.045,.12]],.045,.016);
     }
     arms.push(arm);
-    const skirt=bone(body,side*.26,.30,-.14);
-    mesh(skirt,'mantle','deep',0,.11,0,side*.66,1.36,.93,.12,-side*.47,0);
-    mesh(skirt,'mantle','body',side*.03,.06,.15,side*.33,1.32,.79,.18,-side*.29,0);
-    rod(skirt,'trim',[side*.28,-.06,.08],[side*.60,-1.13,.12],.037);
-    legs.push(skirt);
+    const skirt=bone(body,side*.247,.039,-.12);
+    skirt.scale.set(.85,.78,.88);
+    nabataRegalia(k,{body,skirt,side,element,mobile,articulation});
   }
-  const staff=bone(arms[1],.08,-.35,.26);
-  rod(staff,'edge',[0,-1.03,0],[0,1.38,0],.047);
-  if(element==='fire'||element==='water'){
-    const fire=element==='fire',w=fire?.48:.297;
-    for(const side of fire?[-1,1]:[1]){
-      const blade=[[0,1.34,.052],[side*w*.40,1.48,.053],[side*w*.81,1.679,.047],
-        [side*w*.95,1.957,.017],[side*w*1.26,1.80,0],[side*w*1.28,1.496,.016],
-        [side*w*.98,1.221,.03],[side*w*.61,1.118,.053],[side*w*.42,1.196,.055]];
-      k.sculpt.plate(staff,'edge',blade,.053,.021);
-      k.sculpt.sweep(staff,'glow',blade.slice(1,6).map(([x,y,z])=>[x*.96,y,z+.064,.023]),
-        {sides:7,steps:17,ridge:.19});
-      if(!fire)k.sculpt.sweep(staff,'glow',[[0,1.41,.058],[-.092,1.28,.08],[-.10,1.14,.06]]
-        .map(p=>[...p,.020]),{sides:7,steps:8});
-    }
-    mesh(staff,'gem','glow',0,1.426,.061,.075,.113,.040);
-  }else if(element==='thunder'){
-    k.sculpt.sweep(staff,'edge',[[0,1.10,.012,.076],[-.05,1.38,.02,.119],
-      [-.294,1.54,.011,.109],[-.48,1.429,-.02,.056],[-.53,1.30,-.01,.018]],{sides:12,steps:21,ridge:.22});
-    k.sculpt.sweep(staff,'glow',[[0,1.31,.111,.029],[-.19,1.47,.103,.052],
-      [-.381,1.522,.063,.040],[-.505,1.381,.034,.014]],{sides:6,steps:16,ridge:.21});
-    mesh(staff,'gem','glow',-.095,1.475,.111,.075,.079,.046);
-  }else{
-    const blade=[[0,2.22,0],[.187,1.857,.024],[.177,1.64,.042],[.104,1.56,.035],
-      [.075,1.212,.042],[0,1.128,.062],[-.075,1.212,.042],[-.104,1.56,.035],
-      [-.177,1.64,.042],[-.187,1.857,.024]];
-    k.sculpt.plate(staff,'edge',blade,.064,.024);
-    k.sculpt.sweep(staff,'glow',[[0,1.19,.081,.029],[.007,1.57,.083,.043],
-      [.012,1.88,.063,.032],[0,2.17,.021,.006]],{sides:8,steps:16,ridge:.20});
-    for(const side of [-1,1]){
-      k.sculpt.sweep(staff,'trim',[[0,1.48,0,.053],[side*.197,1.43,.021,.043],
-        [side*.263,1.59,-.036,.036],[side*.237,1.716,-.071,.004]],{sides:7,steps:14});
+  const vestments=nabataVestments(k,body,arms,element,mobile);
+  const poles=[];
+  for(const side of element==='thunder'?[-1,1]:[-1]){
+    const staff=bone(arms[side<0?0:1],side*.142,-.406,.209);
+    staff.name=element==='thunder'?'納巴塔 · 雷鐮 '+(side<0?'左':'右'):'納巴塔 · 元素長杖';
+    poles.push({staff,side});
+    const tip={fire:[-.65,1.69,.017],water:[0,2.059,.015],thunder:[side*.57,1.42,.025],wind:[0,2.22,.015]}[element];
+    markEnemyWeapon(staff,tip,{from:[0,-.62,0],aim:false,width:.15,kind:'focus'});
+    rod(staff,'deep',[0,-1.05,0],[0,1.40,0],.052);
+    for(const y of [-.89,-.50,-.11,.15,.73,1.19])rod(staff,'edge',[0,y-.029,0],[0,y+.066,0],.060);
+    if(element==='fire'||element==='water'){
+      const fire=element==='fire';
+      const blades=fire?[[-.15,1.44,.034,.084],[-.43,1.35,.02,.11],[-.65,1.47,.006,.115],
+        [-.72,1.71,.017,.113],[-.62,1.91,.007,.088],[-.39,2.03,.014,.026],[-.18,1.99,.008,.004]]:
+        [[0,1.306,.025,.063],[-.28,1.45,.012,.068],[-.361,1.64,.036,.072],[-.30,1.885,.012,.042],[-.18,2.00,0,.004]];
+      for(const mirror of fire?[1]:[-1,1]){
+        const blade=blades.map(([x,y,z,r])=>[x*mirror,y,z,r]);
+        k.sculpt.sweep(staff,'edge',blade,{sides:8,steps:20,ridge:.20});
+        k.sculpt.sweep(staff,'glow',blade.map(([x,y,z,r])=>[x,y,z+r*.65,r*.32]),{sides:6,steps:16,ridge:.14});
+      }
+      const spine=fire?[[-.54,1.46,.04,.034],[-.54,1.65,.07,.051],[-.397,1.82,.085,.049],[-.21,1.86,.04,.003]]:
+        [[0,1.27,.02,.047],[.005,1.58,.07,.041],[.004,1.82,.065,.044],[.005,2.059,.015,.003]];
+      k.sculpt.sweep(staff,'trim',spine,{sides:8,steps:16,ridge:.15});
+      mesh(staff,'gem','glow',0,1.426,.061,.075,.113,.040);
+    }else if(element==='thunder'){
+      const arc=[[0,1.16,.02,.063],[side*.114,1.42,.034,.097],[side*.383,1.534,.025,.080],
+        [side*.57,1.421,.017,.051],[side*.691,1.216,-.016,.004]];
+      k.sculpt.sweep(staff,'edge',arc,{sides:10,steps:23,ridge:.24});
+      k.sculpt.sweep(staff,'glow',arc.map(([x,y,z,r])=>[x,y+.036,z+r*.67,r*.37]),{sides:6,steps:17,ridge:.18});
+      k.sculpt.sweep(staff,'trim',[[0,1.34,.018,.067],[side*.009,1.62,.029,.054],
+        [side*.025,1.80,.008,.006]],{sides:8,steps:13});
+      mesh(staff,'gem','glow',side*.12,1.46,.105,.064,.075,.041);
+    }else{
+      const blade=[[0,2.22,0],[.187,1.857,.024],[.177,1.64,.042],[.104,1.56,.035],
+        [.075,1.212,.042],[0,1.128,.062],[-.075,1.212,.042],[-.104,1.56,.035],
+        [-.177,1.64,.042],[-.187,1.857,.024]];
+      k.sculpt.plate(staff,'edge',blade,.064,.024);
+      k.sculpt.sweep(staff,'glow',[[0,1.19,.081,.029],[.007,1.57,.083,.043],
+        [.012,1.88,.063,.032],[0,2.17,.021,.006]],{sides:8,steps:16,ridge:.20});
+      for(const side of [-1,1]){
+        k.sculpt.sweep(staff,'trim',[[0,1.48,0,.053],[side*.197,1.43,.021,.043],
+          [side*.263,1.59,-.036,.036],[side*.237,1.716,-.071,.004]],{sides:7,steps:14});
+      }
     }
   }
   const reredos=bone(body,0,.56,-.35);
@@ -1394,14 +1346,7 @@ function nabataMage(k,element){
         spirit.map(([x,y,z,r])=>[side*(x+shift*.83),y-.27-shift*.34,z-shift,r*(1-i*.18)]),
         {sides:8,steps:10,ridge:.18});
     }
-    for(let row=0;row<5;row++){
-      const y=.38-row*.20,w=.11+row*.081;
-      k.sculpt.plate(reredos,row%2?'body':'edge',[
-        [0,y+.09,-.09],[side*w,y+.17,-.081],[side*(w+.10),y-.094,-.15],
-        [side*(w*.64),y-.23,-.189],[0,y-.17,-.137],
-      ],.035,.013);
-      rod(reredos,'trim',[side*w*.42,y-.064,-.165],[side*(w+.055),y+.08,-.143],.018);
-    }
+    nabataBackplate(k,reredos,side,element,mobile);
     for(let index=0;index<4;index++){
       const z=-.02-index*.079;
       k.sculpt.sweep(body,index%2?'body':'trim',
@@ -1415,40 +1360,30 @@ function nabataMage(k,element){
     mesh(idol,element==='water'?'pearl':element==='fire'?'horn':'gem',i%3?'trim':'glow',
       Math.cos(a)*radial,Math.sin(a)*radial,-.10,.061,element==='water'?.085:.139,.071,0,.19,a);
   }
-  return {body,head,arms,legs,sourceCrest:crest,catalogueSculpt:'nabata-'+element,
-    cataloguePose:({beat,headtime,wind,strike,stage})=>{
+  const {legs,dress}=vestments;
+  const tint={fire:0xff7924,water:0x44acff,thunder:0xffda4b,wind:0x6fdb58}[element];
+  return {body,head,inspectionHead:head,arms,legs,sourceCrest:crest,crest:bone(body,0,0,0),
+    catalogueSculpt:'nabata-'+element,sourceSculpt:true,sourceDress:dress,disposeRig:halo.dispose,pattern:'duel',
+    polishEnergy:{tint,shape:{fire:'embers',water:'mist',thunder:'bolts',wind:'ribbons'}[element],anchor:head,
+      offset:[0,.19,-.085],span:[.62,.50,.38],emissionScale:.49,weaponWidth:.62},
+    cataloguePose:pose=>{
+      const {beat,headtime,wind,strike,stage,travel}=pose;
       const speed={water:-.55,fire:.89,thunder:1.62,wind:-1.12}[element];
       idol.rotation.z=headtime*speed+stage*.25+strike*.73;
-      reredos.rotation.y=Math.sin(beat*.72+speed)*(.13+wind*.21);
-      reredos.rotation.x=-wind*.25+strike*.42;
-      staff.rotation.z=wind*.39-strike*.57;
+      reredos.rotation.y=Math.sin(beat*.72+speed)*(.085+wind*.11);
+      reredos.rotation.x=-wind*.12+strike*.22;
+      crest.rotation.x=wind*.12-strike*.14;
+      crest.rotation.z=Math.sin(beat*.40)*.055+strike*.15;
+      for(const {staff,side} of poles){
+        const arm=arms[side<0?0:1];
+        arm.rotation.x-=wind*.45+travel*Math.sin(beat*.67)*.068;
+        arm.rotation.z=side*(.16+wind*.51-strike*.24);
+        staff.rotation.set(.11+wind*.22-strike*.46,side*(.075+wind*.29),side*(-.15-wind*.16+strike*.60));
+      }
+      vestments.pose(pose);
+      nabataRegaliaPose(articulation,pose);
+      halo.update(pose);
     }};
-}
-
-function asuraDisciple(k,entry){
-  const {mesh,bone,rod}=k;
-  const parts=humanoid(k,{...entry,crest:'sunwheel'});
-  const {body,head,arms}=parts;
-  mesh(head,'pearl','edge',0,.31,-.01,.34,.28,.29);
-  const crest=bone(body,0,1.2,-.26);
-  mesh(crest,'ring','trim',0,.16,0,.75,.73,.70);
-  for(let ray=0;ray<12;ray++){
-    const angle=ray*TAU/12;
-    const x=Math.cos(angle),y=Math.sin(angle);
-    rod(crest,'trim',[x*.65,y*.65+.16,0],[x*.87,y*.87+.16,0],.066,'horn');
-  }
-  for(const side of [-1,1]){
-    const arm=bone(body,side*.24,.79,-.17);
-    mesh(arm,'bar','body',side*.34,.18,0,.128,.68,.16,0,0,side*-1.20);
-    mesh(arm,'bar','body',side*.70,.46,.05,.116,.43,.15,.42,0,side*.37);
-    mesh(arm,'gem','trim',side*.73,.65,.075,.109,.135,.10);
-    mesh(arm,'scale','edge',side*.79,.73,.15,.46,.20,.37,.83,0,side*1.18);
-    arms.push(arm);
-    const sash=bone(body,side*.24,.53,-.19);
-    mesh(sash,'mantle','glow',0,.06,0,side*.37,.88,.67,-.32,-side*.66,0);
-    if(side===1)body.userData.train=sash;
-  }
-  return {...parts,sourceCrest:crest};
 }
 
 function scarab(k){
@@ -1600,64 +1535,79 @@ function forestDetails(k,entry,parts){
 }
 
 export function mountBestiary(scene,entry,height,mobile=false,spec={}){
+  const beastRelic=relicBeastSource(spec.relicWeapon);
+  const deityRelic=relicDeitySource(spec.relicWeapon);
+  const relicLook=beastRelic??deityRelic;
+  if(relicLook)entry={...relicLook,name:spec.name??entry.name};
   if(entry.source==='kuanglu15')entry={...entry,family:'rider'};
   const root=new T.Group(),materials=buildMaterials(entry);
   const k=kit(root,materials);
   if(!paoForms.has(entry.id))k.sculpt=sculptPao(k);
-  const authored=buildCampaignSculpt(k,entry,mobile,spec.relicWeapon)??catalogueSculpt(k,entry,mobile)
+  const authored=buildCampaignSculpt(k,entry,mobile,spec.relicWeapon)??sculptGateSteed(k,entry,mobile,trialType(entry.id),trialWeapon)
+    ??bossSculptors[entry.id]?.(k,entry,mobile)
+    ??sculptDevaSerpent(k,entry,mobile)??catalogueSculpt(k,entry,mobile)
     ??sculptA(k,entry,mobile)??sculptB(k,entry,mobile)??sculptC(k,entry,mobile);
   let parts;
   if(authored)parts=authored;
   else if(paoForms.has(entry.id))parts=buildPao(k,entry,mobile);
-  else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id]);
+  else if(nabataElements[entry.id])parts=nabataMage(k,nabataElements[entry.id],mobile);
   else if(entry.id==='m114'||entry.id==='m115')parts=carveRoyalPair(k,mobile,entry.id==='m115');
-  else if(entry.id==='m117')parts=asuraDisciple(k,entry);
   else if(entry.id==='m122')parts=carveVaruna(k,mobile);
   else if(entry.id==='m133')parts=carveJadeEmperor(k,mobile);
   else if(entry.id==='m150')parts=carveImperialTurtle(k,mobile);
   else if(entry.id==='m154')parts=bullOni(k);
   else if(entry.id==='m155')parts=carveEggGhost(k,mobile);
   else if(entry.crest==='scarab')parts=scarab(k);
-  else if(entry.id==='m124'||entry.id==='m125')parts=serpentGuardian(k,entry.id==='m124');
-  else if(entry.id==='m106')parts=coil(k,entry);
-  else if(entry.id==='m005')parts=sculptWhiteBear(k);
+  else if(entry.id==='m106')parts=coil(k,entry,mobile);
+  else if(entry.id==='m005')parts=sculptWhiteBear(k,mobile);
   else if(entry.id==='m014')parts=sculptKirin(k,mobile);
   else if(entry.id==='m015')parts=sculptPhoenix(k);
   else if(entry.id==='m027')parts=sculptDestroyer(k);
-  else if(['m090','m091','m092'].includes(entry.id))parts=quadruped(k,{...entry,family:'rider'});
   else switch(entry.family){
-    case 'turtle':case 'beast':case 'rider':parts=quadruped(k,entry);break;
+    case 'turtle':case 'beast':case 'rider':parts=quadruped(k,entry,mobile);break;
     case 'dragon':case 'bird':case 'wasp':parts=flyer(k,entry);break;
-    case 'serpent':case 'hydra':parts=coil(k,entry);break;
+    case 'serpent':case 'hydra':parts=coil(k,entry,mobile);break;
     case 'star':case 'eggs':parts=star(k,entry);break;
     case 'spider':parts=spider(k,entry.id==='m121');break;
     default:parts=humanoid(k,entry);break;
   }
-  finishSpecialBoss(k,parts,entry.id,mobile);
+  if(!parts.asuraCarved&&!parts.gateRider&&!parts.devaCarved)finishSpecialBoss(k,parts,entry.id,mobile);
   const dedicatedSilhouette=['m114','m115','m122','m133','m150','m154'].includes(entry.id);
   const crest=parts.crest??parts.sourceCrest??(dedicatedSilhouette?k.bone(root,0,0,0):
     entry.palette?forestDetails(k,entry,parts):ornaments(k,entry,parts));
-  const detail=parts.pao||parts.catalogueSculpt||parts.campaign?null:detailCreature(k,entry,parts,mobile);
-  const skin=bossSkin(k,mobile,tools=>entry.field?refineCreature(k,parts,entry,mobile,tools):
-    refineBossA(k,parts,entry,mobile,tools)||refineBossB(k,parts,entry,mobile,tools)
-    ||refineBossC(k,parts,entry,mobile,tools)||refineGuardian(k,parts,entry,mobile,tools)
-    ||refineCreature(k,parts,entry,mobile,tools));
-  if(!entry.field)polishBossA(k,parts,entry,mobile)||polishBossB(k,parts,entry,mobile)
+  const detail=parts.pao||parts.catalogueSculpt||parts.campaign||parts.gateRider?null:detailCreature(k,entry,parts,mobile);
+  const bespokeWard=parts.sourceSculpt||parts.twinGuardian||parts.earthRelic||parts.wraithHunter||parts.mythRelic||
+    parts.venomHunter||parts.relicDress||parts.gateRider||parts.heavenKing||parts.coastalDragon;
+  const skin=bossSkin(k,mobile,tools=>{
+    if(parts.sourceDress)return parts.sourceDress(tools);
+    if(parts.gateDress)return parts.gateDress(tools);
+    if(parts.heavenDress)return parts.heavenDress(tools);
+    if(parts.relicDress)return parts.relicDress(tools);
+    if(bespokeWard)return false;
+    if(entry.field)return refineCreature(k,parts,entry,mobile,tools);
+    return refineBossA(k,parts,entry,mobile,tools)||refineBossB(k,parts,entry,mobile,tools)
+      ||refineBossC(k,parts,entry,mobile,tools)||refineGuardian(k,parts,entry,mobile,tools)
+      ||refineCreature(k,parts,entry,mobile,tools);
+  });
+  if(entry.field)polishCreature(k,parts,entry,mobile);
+  else if(!bespokeWard)polishBossA(k,parts,entry,mobile)||polishBossB(k,parts,entry,mobile)
     ||polishBossC(k,parts,entry,mobile)||polishGuardian(k,parts,entry,mobile)
     ||polishCreature(k,parts,entry,mobile);
-  else polishCreature(k,parts,entry,mobile);
-  if(!entry.field){
+  if(!entry.field&&!bespokeWard){
     masterworkA(k,parts,entry,mobile)||masterworkB(k,parts,entry,mobile)||
       masterworkC(k,parts,entry,mobile)||masterworkGuardian(k,parts,entry,mobile);
     masterworkHunt(k,parts,entry,spec.relicWeapon,mobile);
   }
+  if(beastRelic)sculptBeastRelic(k,parts,spec.relicWeapon,mobile);
+  else if(deityRelic)sculptDeityRelic(k,parts,spec.relicWeapon,mobile);
   k.sculpt?.finish(k.geometry);
   k.finish();
   const box=new T.Box3().setFromObject(root);
   const weapons=enemyWeapons(root,parts);
   const palette=colors(entry);
-  const tint=parts.polishEnergy?.tint??palette[3];
-  const weaponEmission=entry.field?null:armWeaponEmission(weapons,materials,tint);
+  const currentPalette=relicLook?[...palette.slice(0,3),spec.relicWeapon.tone]:palette;
+  const tint=parts.polishEnergy?.tint??currentPalette[3];
+  const weaponEmission=entry.field||parts.rangedRelic||parts.polearmRelic?null:armWeaponEmission(weapons,materials,tint);
   const aura=enemyCurrent(root,box,{tint,shape:parts.polishEnergy?.shape,profile:parts.polishEnergy,
     body:parts.body,effect:spec.effect??entry.tone,field:!!entry.field,pao:!!parts.pao,mobile,weapons});
   const reference=KoreanBossArt[entry.id];
@@ -1666,10 +1616,10 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   const dimensions=entry.proportions??(parts.pao?[1,1,1]:[width,1,1+(width-1)*.36]);
   scene.add(root);
   const pattern=parts.pao?'hover':parts.mount?'gallop':entry.id==='m005'?'slam':entry.crest==='scarab'||entry.id==='m154'?'crawl':
-    entry.id==='m106'?'coil':entry.id==='m124'?'duel':['m114','m115','m133','m155'].includes(entry.id)?'hover':poses[entry.family];
+    entry.id==='m106'?'coil':['m114','m115','m133','m155'].includes(entry.id)?'hover':poses[entry.family];
   const footed=!!(parts.legs?.length||parts.feet?.length||parts.grounded);
   const floor=footed?T.MathUtils.clamp(box.min.y,0,.36):0;
-  return {root,materials,entry,crest,dimensions,palette,bounce:reference?Math.min(.39,reference[3])*.13:0,
+  return {root,materials,entry,crest,dimensions,palette:currentPalette,bounce:reference?Math.min(.39,reference[3])*.13:0,
     scale:height*.87/Math.max(1.7,box.max.y*dimensions[1]),pattern,detail,aura,skin,weapons,weaponEmission,footed,floor,...parts};
 }
 
@@ -1762,7 +1712,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
   if(model.signature?.type==='kirin')poseKirin(model,time,step,{wind,strike,travel,fall,stage});
   else if(model.signature)poseSignatureBeast(model,time,beat,{wind,strike,travel,fall});
-  model.cataloguePose?.({beat,headtime:time,wind,strike,travel,fall,step,stage});
+  model.cataloguePose?.({beat,headtime:time,wind,strike,travel,fall,step,stage,attackPattern:patternAtContact});
   for(const {root:wing,elbow,hand,side,membranous} of model.flight??[]){
     const pulse=Math.sin(beat-.59);
     wing.rotation.y=side*(.035+wind*.22-strike*.34);
@@ -1835,7 +1785,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     legs[1].rotation.x-=lift;
     legs[3].rotation.x-=lift;
   }
-  model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall});
+  model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall,turn:T.MathUtils.clamp(turn,-1,1),dt:spec.dt});
   aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,
     heading:spec.targetHeading??model.heading,fall,frame:!attack&&spec.targetHeading===undefined?root.parent:null});
   model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
@@ -1848,7 +1798,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     uniforms.weaponRelease.value=strike*(1-fall)*subdued;
     uniforms.weaponStage.value=Math.min(2,stage);
     uniforms.weaponIdlePulse.value=Math.max(...energy.idlePulse.value);
-    uniforms.weaponLive.value=(1-fall)*(spec.subdued?.77:1);
+    uniforms.weaponLive.value=(1-fall)*(spec.subdued?.77:1)*(model.polishEnergy?.emissionScale??1);
   }
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);

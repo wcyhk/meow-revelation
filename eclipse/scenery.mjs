@@ -1,4 +1,4 @@
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-sculpt-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';

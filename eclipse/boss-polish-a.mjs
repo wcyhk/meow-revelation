@@ -355,11 +355,16 @@ function beastFace(k,parts,mobile,model,id){
 }
 
 export function polishBossA(k,parts,entry,mobile){
+  if(parts.moonSourceRig)return true;
+  if(parts.wootaiElderSculpt)return true;
+  if(parts.tombBeastRig)return true;
   const helm=helms[entry.id],beast=beasts[entry.id];
   if(helm&&parts.head){
-    cheekRelief(k,parts.head,mobile,helm,entry.id);
-    const torso=entry.family==='rider'?parts.head.parent:parts.body;
-    rearScapula(k,torso,mobile,helm,parts.head.position.y*(entry.id==='m027'?.75:.64));
+    if(!parts.rancourGarments&&!parts.commanderGarments){
+      if(!parts.head.userData.gandharvaSculpt)cheekRelief(k,parts.head,mobile,helm,entry.id);
+      const torso=entry.family==='rider'?parts.head.parent:parts.body;
+      if(!parts.gorgeArmour&&!parts.relicGarments)rearScapula(k,torso,mobile,helm,parts.head.position.y*(entry.id==='m027'?.75:.64));
+    }
   }else if(beast)beastFace(k,parts,mobile,beast,entry.id);
   else return false;
   if(entry.id==='m003')oniBindings(k,parts,mobile);

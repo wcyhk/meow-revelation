@@ -93,7 +93,7 @@ function courtModel(k,parts,entry,mobile,design){
   const frame=material(k,'bMetal','body'),rim=gold(k),shadow=oxide(k);
   const tooth=material(k,'bBone','edge');
   const ridge=seal==='crack'?'glow':rim;
-  for(const s of sides){
+  if(!parts.templePortrait)for(const s of sides){
     const temple=mirror(s,[[width*.47,.195,.151],[width*.79,.253,.09],[width*1.06,.206,-.067],
       [width*1.24,.129,-.175],[width*1.04,-.024,-.218],[width*.83,-.116,-.115],
       [width*.88,-.064,.021],[width*.62,.051,.153]]);
@@ -135,7 +135,7 @@ function courtModel(k,parts,entry,mobile,design){
       emboss(k,head,material(k,'bFlesh','edge'),cheek.map(([x,y,z])=>[x+s*.015,y-.012,z+.012]),.014);
     }
   }
-  if(ceremonial){
+  if(ceremonial&&!parts.templePortrait){
     const brim=[[-width,.65*cap,-.22],[0,.75*cap,-.276],[width,.65*cap,-.22],
       [width*1.22,cap*.82,-.152],[0,cap+.026,-.236],[-width*1.22,cap*.82,-.152]];
     bevel(k,head,frame,brim,.036);
@@ -143,6 +143,10 @@ function courtModel(k,parts,entry,mobile,design){
     for(let i=-1;i<=1;i++)pin(k,head,i===0?'glow':rim,width*.42*i,cap*.82,-.266,.019);
   }
   const back=-.315-neck*.30, high=head.position.y*.64;
+  parts.polishEnergy={tint,anchor:torso,offset:[0,high,back],
+    shape:seal==='crack'?'bolts':seal==='water'?'mist':seal==='bones'?'embers':'sigils',
+    span:[neck*1.52,.49,.39]};
+  if(parts.fittedPalace||parts.relicGarments||parts.orochiThrall||parts.votiveTailoring)return;
   const crest=k.bone(torso,0,high,back);
   const scale=neck*.67+.09;
   const spine=[[-scale*.71,.145,.003],[-scale*.36,.274,.012],[0,.314,-.003],
@@ -168,9 +172,6 @@ function courtModel(k,parts,entry,mobile,design){
     crest.rotation.x=Math.sin(beat*.68)*.027+wind*.06-strike*.11+fall*.09;
     crest.rotation.y=(wind-strike)*.06+Math.sin(beat)*.016;
   });
-  parts.polishEnergy={tint,anchor:torso,offset:[0,high,back],
-    shape:seal==='crack'?'bolts':seal==='water'?'mist':seal==='bones'?'embers':'sigils',
-    span:[neck*1.52,.49,.39]};
 }
 
 const spiritMasks={
@@ -188,7 +189,7 @@ const spiritMasks={
     tint:0xf6cd6d,shape:'bolts'},
 };
 
-function birdSpirit(k,{head,body},id,mobile){
+function birdSpirit(k,{head,body,votiveTailoring},id,mobile){
   const {fork,guard}=spiritMasks[id];
   for(const s of sides){
     bevel(k,head,'bOxide',mirror(s,guard),.033);
@@ -196,6 +197,7 @@ function birdSpirit(k,{head,body},id,mobile){
     const paths=mirror(s,fork.map(([x,y,z],i)=>[x,y,z,[.034,.042,.034,.021,.002][i]]));
     edge(k,head,'bMetal',paths);
     edge(k,head,'bInlay',paths.map(([x,y,z,r])=>[x,y,z+.028,r*.39]));
+    if(votiveTailoring)continue;
     const root=[s*.232,.65,-.34];
     const plates=mobile?3:4;
     for(let i=0;i<plates;i++){
@@ -430,6 +432,8 @@ function evilDragon(k,parts,_entry,mobile){
 
 function hydra(k,parts,_entry,mobile){
   const {body}=parts;
+  parts.polishEnergy={tint:0xe56f4c,shape:'embers',anchor:body,offset:[0,.91,.46],span:[1.38,.88,.98]};
+  if(parts.orochiRig)return;
   const heads=body.children.map(node=>node.children.find(child=>child.position.y>.50)).filter(Boolean);
   for(const [i,head] of heads.entries()){
     const p=i%3;
@@ -454,7 +458,6 @@ function hydra(k,parts,_entry,mobile){
     bevel(k,body,i%2?'bMetal':'bOxide',guard,.042);
     emboss(k,body,i%3?'bInlay':'bTrim',[guard[0],guard[1],guard[2]].map(([x,y,z])=>[x,y+.034,z+.010]),.022);
   }
-  parts.polishEnergy={tint:0xe56f4c,shape:'embers',anchor:body,offset:[0,.91,.46],span:[1.38,.88,.98]};
 }
 
 function seaStar(k,parts,entry,mobile){
@@ -510,14 +513,16 @@ function frozen(k,parts,_entry,mobile){
 function beast(k,parts,entry,mobile){
   const {body,head}=parts,tiger=entry.id==='m108';
   for(const s of sides){
-    const a=tiger?.99:1.19;
-    const cheek=mirror(s,[[.047,.073,.283],[.132,.157,.241],[.25*a,.147,.095],[.308*a,.050,-.019],
-      [.286*a,-.099,.02],[.161*a,-.171,.181],[.111,-.119,.250]]);
-    bevel(k,head,tiger?'bOxide':'bMetal',cheek,.046);
-    emboss(k,head,'bBone',cheek.slice(1,6).map(([x,y,z])=>[x,y,z+.031]),.013);
-    const brow=mirror(s,[[.05,.129,.302,.033],[.142,.172,.305,.048],[.236,.172,.22,.058],
-      [.304,.124,.107,.031],[.318,.061,.041,.004]]);
-    edge(k,head,tiger?'bFur':'bBone',brow);
+    if(!parts.bullPortrait){
+      const a=tiger?.99:1.19;
+      const cheek=mirror(s,[[.047,.073,.283],[.132,.157,.241],[.25*a,.147,.095],[.308*a,.050,-.019],
+        [.286*a,-.099,.02],[.161*a,-.171,.181],[.111,-.119,.250]]);
+      bevel(k,head,tiger?'bOxide':'bMetal',cheek,.046);
+      emboss(k,head,'bBone',cheek.slice(1,6).map(([x,y,z])=>[x,y,z+.031]),.013);
+      const brow=mirror(s,[[.05,.129,.302,.033],[.142,.172,.305,.048],[.236,.172,.22,.058],
+        [.304,.124,.107,.031],[.318,.061,.041,.004]]);
+      edge(k,head,tiger?'bFur':'bBone',brow);
+    }
     for(let i=0;i<(mobile?3:4);i++){
       const y=.56-i*.115,w=.44+i*.023,z=tiger?-.45:-.53;
       const keel=mirror(s,[[.09,y+.126,z+.022],[.331,y+.095,z-.038],[w,y+.014,z+.009],
@@ -526,20 +531,36 @@ function beast(k,parts,entry,mobile){
       emboss(k,body,tiger?'bBone':'bTrim',keel.slice(1,6).map(([x,y,z])=>[x,y,z-.031]),.026);
     }
   }
-  parts.polishEnergy={tint:tiger?0x8bdaff:0xf88b6e,shape:tiger?'ribbons':'embers',anchor:head,
-    offset:[0,.05,-.18],span:[.72,.48,.55]};
+  parts.polishEnergy={tint:tiger?0x8bdaff:0xf88b6e,shape:tiger?'ribbons':'embers',anchor:parts.bullPortrait?body:head,
+    offset:parts.bullPortrait?[0,.38,-.31]:[0,.05,-.18],span:[.72,.48,.55]};
 }
 
 const specials={m057:tomb,m058:tomb,m085:nabata,m086:nabata,m087:nabata,m088:nabata,
   m095:seaStar,m096:seaStar,m098:frozen,m103:hydra,m106:evilDragon,m107:pirate,m108:beast,m111:beast};
 
 export function polishBossB(k,parts,entry,mobile){
+  if(parts.templeSculpt||parts.valleyFigure)return true;
   const special=specials[entry.id],profile=court[entry.id];
   if(!special&&!profile)return false;
   // Pao's base mesh is already merged with its own sculpt queue.
   const sculpt=k.sculpt??sculptPao(k);
   const work=k.sculpt?k:{...k,sculpt};
-  if(special)special(work,parts,entry,mobile);
+  if(parts.strongConstellation){
+    const shape={m069:'ribbons',m070:'embers',m071:'mist',m072:'sigils'}[entry.id];
+    parts.polishEnergy=entry.id==='m070'?
+      {tint:0xed7550,shape,anchor:parts.body,offset:[-.03,.53,-.37],span:[.56,.60,.44],weaponWidth:.29,emissionScale:.24}:
+      {tint:profile[6],shape,anchor:parts.body,offset:[0,.52,-.28],span:[.61,.62,.47]};
+  }else if(parts.imperialRegalia){
+    const war=entry.id==='m068';
+    parts.polishEnergy={tint:war?0xfeb655:0xffe3a2,shape:war?'embers':'sigils',anchor:parts.body,
+      offset:[0,.61,-.44],span:[.74,.42,.37]};
+  }else if(parts.carvedThunder){
+    parts.polishEnergy={tint:0xffd38b,shape:'bolts',anchor:parts.body,offset:[0,.50,.035],span:[.90,1.06,.43]};
+  }else if(parts.frenzyTiger){
+    parts.polishEnergy={tint:0x8bdaff,shape:'ribbons',anchor:parts.head,offset:[0,.079,-.219],span:[.81,.60,.56]};
+  }else if(parts.predatorForge){
+    parts.polishEnergy={tint:0xffb05b,shape:'embers',anchor:parts.body,offset:[0,.38,-.29],span:[.81,.57,.49]};
+  }else if(special)special(work,parts,entry,mobile);
   else{
     courtModel(work,parts,entry,mobile,profile);
     if(entry.id in spiritMasks){

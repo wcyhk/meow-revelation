@@ -2,7 +2,30 @@ import * as T from '../three.min.mjs';
 import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import {featherVane,sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {fitGuardianCollar,sculptGuardianHead} from './campaign-guardian-armour.mjs?v=maskwork-1';
+import {boarPaws,buildKilnBack,buildLedgerBack,dressFoxGuardian,fitFoxHood,goatHooves,paceSiegeLegs} from './campaign-siege-wardrobe.mjs?v=siege-wardrobe-1';
 import {detailBossVariant,detailForestGuardian} from './enemy-sculpt.mjs?v=turnaround-2';
+import {carveVaultTurtle} from './vault-turtle-sculpt.mjs?v=vaultwork-1';
+import {forgeSalamanderHead,forgeSalamanderLimb,forgeSalamanderTail,forgeSalamanderWard} from './forge-salamander.mjs?v=slag-2';
+import {vaultArm,vaultLeg,vaultDrive} from './campaign-vault-ward.mjs?v=foundry-1';
+import {clockArm,clockLeg,clockBlade} from './campaign-clock-sculpt.mjs?v=clockwork-1';
+import {craftRiverScales,ferryPaddle} from './campaign-river-craft.mjs?v=rivercraft-1';
+import {armoredRelicHunter} from './relic-hunter-sculpts.mjs?v=hunter-armour-1';
+import {astralRelicHunter} from './relic-astral-sculpts.mjs?v=hunter-astral-1';
+import {twinGuardianSculpt} from './twin-guardians.mjs?v=twin-sculpt-1';
+import {sculptNetherKing} from './nether-king-sculpts.mjs?v=nether-kings-1';
+import {orbRelicHunter} from './relic-orb-sculpts.mjs?v=hunter-orbs-1';
+import {sculptEarthRelicHunter} from './relic-earth-sculpts.mjs?v=hunter-earth-1';
+import {duelRelicHunter} from './relic-duel-sculpts.mjs?v=hunter-duel-1';
+import {sculptRangedRelic} from './ranged-relic-sculpts.mjs?v=marksmen-1';
+import {wraithRelicHunter} from './relic-wraith-sculpts.mjs?v=hunter-wraith-1';
+import {templeRelicHunter} from './relic-temple-sculpts.mjs?v=hunter-temple-1';
+import {arcaneRelicHunter} from './relic-arcane-sculpts.mjs?v=hunter-arcane-1';
+import {sculptPolearmRelic} from './polearm-relic-sculpts.mjs?v=polearms-1';
+import {mythRelicHunter} from './relic-myth-sculpts.mjs?v=hunter-myth-1';
+import {venomRelicHunter} from './relic-venom-sculpts.mjs?v=hunter-venom-1';
+import {sculptFrontlineHunter} from './relic-frontline-sculpts.mjs?v=hunter-frontline-1';
+import {sculptFinalWarden} from './final-warden-sculpt.mjs?v=sovereign-1';
+import {sculptBurialCore,sculptBurialWing,sculptRelicCore,sculptRelicWing,sculptSporeLeg,sculptSporeStag,widowBody} from './guardian-atelier.mjs?v=ward-foundry-2';
 
 const TAU=Math.PI*2;
 const opposite=(side,points)=>points.map(([x,...rest])=>[x*side,...rest]);
@@ -94,6 +117,32 @@ function bell(k,joint,size){
   }
 }
 
+function frostChimes(k,back,flaps,mobile){
+  const yoke=k.bone(back,0,.494,-.244);
+  yoke.name='鳴霜角將 · 雙鐘背架';
+  const keel=[[0,.237,-.053],[.179,.171,-.026],[.206,-.056,-.007],[.122,-.291,-.05],
+    [0,-.405,-.132],[-.122,-.291,-.05],[-.206,-.056,-.007],[-.179,.171,-.026]];
+  plate(k,yoke,'deep',keel,.079);
+  seam(k,yoke,'edge',[...keel,keel[0]],.022);
+  jewel(k,yoke,'glow',0,-.137,-.101,.053,.156,.037);
+  for(const side of [-1,1]){
+    const fan=p=>opposite(side,p);
+    k.sculpt.sweep(yoke,'trim',fan([[.034,.234,-.011,.042],[.192,.195,-.037,.056],
+      [.344,.146,-.069,.049],[.392,.064,-.089,.038]]),{steps:mobile?9:14,sides:8,ridge:.15});
+    const cheek=fan([[.078,.127,-.061],[.236,.134,-.051],[.316,.058,-.123],[.275,-.041,-.143],
+      [.127,-.189,-.123],[.081,-.114,-.095]]);
+    plate(k,yoke,'edge',cheek,.043);
+    seam(k,yoke,'trim',cheek.slice(0,5),.015);
+    const hinge=k.bone(yoke,side*.39,.047,-.085);
+    hinge.name='鳴霜角將 · 背鐘 '+side;
+    k.mesh(hinge,'ring','trim',0,0,0,.064,.083,.72,0,side*.24);
+    const hanging=k.bone(hinge,0,-.179,-.013);
+    bell(k,hanging,.376);
+    flaps.push({joint:hinge,axis:'z',amp:.28,bias:side*.13,seed:side*.79});
+    flaps.push({joint:hanging,axis:'x',amp:.18,bias:.027,seed:side*1.37});
+  }
+}
+
 function hookedBlade(k,joint,{length=1.1,breadth=.24,tear=.05}={}){
   markEnemyWeapon(joint,[breadth*.70,length,.44],{from:[0,0,.17],width:breadth*.85});
   shape(k,joint,'deep',[[0,-.47,0,.061,.055],[0,-.255,.08,.069,.057],[0,.01,.17,.083,.079]]);
@@ -144,17 +193,25 @@ function cloak(k,body,layout,flaps,colors=['deep','body','edge']){
   }
 }
 
+const guardianLimbs={
+  bank:{arm:vaultArm,leg:vaultLeg,pose:vaultDrive},
+  clock:{arm:clockArm,leg:clockLeg},
+  goat:{leg:goatHooves,pose:paceSiegeLegs},
+  boar:{leg:boarPaws,pose:paceSiegeLegs},
+};
+
 function fighter(k,profile){
   const {root,bone,mesh}=k;
   const {broad=.46,neck=.77,ground=.90,armLength=.69,helmet='helmet',height=1.05,legs=true,
-    style='duel',finish='body',weapon,headwear,guardianType,mobile=false}=profile;
+    style='duel',finish='body',weapon,headwear,portrait,guardianType,mobile=false}=profile;
   const body=bone(root,0,ground,0),head=bone(body,0,neck,.053);
   const flaps=[],arms=[],feet=[],joints=[];
+  const sculpt=guardianLimbs[guardianType],drives=[];
   shape(k,body,finish,[[0,-.31,-.03,broad*.54,broad*.49],[0,-.11,-.066,broad*.74,broad*.67],
     [0,.20,-.037,broad*.89,broad*.70],[0,.45,-.016,broad,broad*.77],
     [0,.59,-.036,broad*.73,broad*.66],[0,neck-.031,-.021,broad*.32,broad*.38]],
   {sides:16,rings:19,section:2.86,ridge:.16});
-  const jaw=guardianType?sculptGuardianHead(k,head,guardianType,mobile):
+  const jaw=portrait?portrait(k,head):guardianType?sculptGuardianHead(k,head,guardianType,mobile):
     face(k,head,{width:broad*.55,z:broad*.51,style:helmet,length:.27+height*.078});
   if(guardianType)fitGuardianCollar(k,body,guardianType,broad,mobile);
   const back=bone(body,0,.22,-broad*.54);
@@ -167,34 +224,40 @@ function fighter(k,profile){
     grips.push(grip);
     arms.push(arm);
     joints.push({joint:elbow,side});
-    shape(k,arm,finish,fan([[0,.15,-.02,.087,.089],[.031,.016,-.02,.167,.151],[.042,-armLength*.26,.017,.151,.135],
-      [.037,-armLength*.54,.014,.103,.111]]),{sides:10,rings:11,section:2.45,ridge:.18});
-    shape(k,elbow,'deep',fan([[.01,.04,.014,.101,.116],[.05,-.10,.031,.136,.128],[.031,-armLength*.36,.085,.110,.095],
-      [.013,-armLength*.48,.129,.079,.091]]),{sides:8,rings:10,section:2.6,ridge:.15});
-    shape(k,grip,'edge',fan([[.013,.045,-.008,.077,.079],[.024,-.023,.009,.105,.112],
-      [.04,-.132,.044,.083,.068],[.035,-.171,.059,.011,.016]]),low);
-    if(style==='duel'||style==='heavy'){
-      for(let i=0;i<3;i++){
-        const y=.13-i*.094;
-        plate(k,arm,i===0?'edge':'body',fan([[-.086,y+.104,-.10],[.13,y+.137,-.117],[.294,y+.031,-.03],
-          [.21,y-.097,.15],[.042,y-.123,.169],[-.095,y-.042,.103]]),.043);
-        seam(k,arm,'trim',fan([[.042,y+.087,.152],[.155,y+.061,.167],[.235,y-.03,.101]]),.019);
+    if(sculpt?.arm)sculpt.arm(k,{arm,elbow,grip,side,length:armLength},mobile,drives);
+    else{
+      shape(k,arm,finish,fan([[0,.15,-.02,.087,.089],[.031,.016,-.02,.167,.151],[.042,-armLength*.26,.017,.151,.135],
+        [.037,-armLength*.54,.014,.103,.111]]),{sides:10,rings:11,section:2.45,ridge:.18});
+      shape(k,elbow,'deep',fan([[.01,.04,.014,.101,.116],[.05,-.10,.031,.136,.128],[.031,-armLength*.36,.085,.110,.095],
+        [.013,-armLength*.48,.129,.079,.091]]),{sides:8,rings:10,section:2.6,ridge:.15});
+      shape(k,grip,'edge',fan([[.013,.045,-.008,.077,.079],[.024,-.023,.009,.105,.112],
+        [.04,-.132,.044,.083,.068],[.035,-.171,.059,.011,.016]]),low);
+      if(style==='duel'||style==='heavy'){
+        for(let i=0;i<3;i++){
+          const y=.13-i*.094;
+          plate(k,arm,i===0?'edge':'body',fan([[-.086,y+.104,-.10],[.13,y+.137,-.117],[.294,y+.031,-.03],
+            [.21,y-.097,.15],[.042,y-.123,.169],[-.095,y-.042,.103]]),.043);
+          seam(k,arm,'trim',fan([[.042,y+.087,.152],[.155,y+.061,.167],[.235,y-.03,.101]]),.019);
+        }
+        for(let i=0;i<2;i++)plate(k,elbow,i%2?'trim':'edge',fan([[-.10,-.039-i*.12,.083],[.11,-.05-i*.12,.106],
+          [.16,-.142-i*.12,.091],[.068,-.27-i*.09,.12],[-.074,-.209-i*.12,.103]]),.044);
       }
-      for(let i=0;i<2;i++)plate(k,elbow,i%2?'trim':'edge',fan([[-.10,-.039-i*.12,.083],[.11,-.05-i*.12,.106],
-        [.16,-.142-i*.12,.091],[.068,-.27-i*.09,.12],[-.074,-.209-i*.12,.103]]),.044);
     }
     if(legs){
       const hip=bone(root,side*broad*.59,ground-.212,.04);
       const knee=bone(hip,side*.017,-ground*.39,.033);
       feet.push(hip);
       flaps.push({joint:knee,axis:'x',amp:.072,bias:-.06,seed:side*.86,stride:true});
-      shape(k,hip,'deep',fan([[0,.097,0,.14,.143],[.02,-.125,-.01,.172,.151],
-        [.02,-ground*.42,.032,.113,.131]]),{sides:10,rings:12,section:2.55,ridge:.11});
-      shape(k,knee,finish,fan([[.02,.032,0,.11,.113],[.03,-.144,.043,.13,.149],[.045,-ground*.36,.118,.113,.114],
-        [.04,-ground*.46,.13,.086,.118]]),{sides:10,rings:12,section:2.55,ridge:.13});
-      for(let i=-1;i<=1;i++)
-        shape(k,knee,'edge',[[i*.076,-ground*.40,.13,.062,.065],[i*.078,-ground*.44,.26,.055,.055],
-          [i*.092,-ground*.487,.34,.014,.012]],low);
+      if(sculpt?.leg)sculpt.leg(k,{hip,knee,side,ground},mobile,drives);
+      else{
+        shape(k,hip,'deep',fan([[0,.097,0,.14,.143],[.02,-.125,-.01,.172,.151],
+          [.02,-ground*.42,.032,.113,.131]]),{sides:10,rings:12,section:2.55,ridge:.11});
+        shape(k,knee,finish,fan([[.02,.032,0,.11,.113],[.03,-.144,.043,.13,.149],[.045,-ground*.36,.118,.113,.114],
+          [.04,-ground*.46,.13,.086,.118]]),{sides:10,rings:12,section:2.55,ridge:.13});
+        for(let i=-1;i<=1;i++)
+          shape(k,knee,'edge',[[i*.076,-ground*.40,.13,.062,.065],[i*.078,-ground*.44,.26,.055,.055],
+            [i*.092,-ground*.487,.34,.014,.012]],low);
+      }
     }
   }
   const collar=bone(head,0,-.195,-.12);
@@ -202,17 +265,17 @@ function fighter(k,profile){
   if(headwear)headwear(k,head,collar);
   if(weapon)weapon(k,body,back,head,grips,flaps);
   return {body,head,crest:bone(body,0,.10,0),arms,legs:feet,pattern:style==='heavy'?'slam':style==='shade'?'hover':'duel',
-    campaign:{flaps,joints,jaw},back};
+    campaign:{flaps,joints,jaw,drives,poseDrives:sculpt?.pose},back};
 }
 
-function vest(k,body,broad,height,flaps){
+function vest(k,body,broad,height,flaps,withRear=true){
   for(let i=0;i<3;i++){
     const y=.49-i*.168;
     hardshell(k,body,y,broad*.68,broad*(.81-i*.03),height*.36,i%2?'body':'edge',i);
-    hardshell(k,body,y,-broad*.62,broad*(.72-i*.05),height*.31,'body',i+1);
+    if(withRear)hardshell(k,body,y,-broad*.62,broad*(.72-i*.05),height*.31,'body',i+1);
     jewel(k,body,'trim',0,y-.057,broad*.79,.067,.088,.028);
   }
-  cloak(k,body,[[-broad*.67,-broad*.55,.18,1.18,-.37],[-.13,-broad*.71,.19,1.25,-.31],
+  if(withRear)cloak(k,body,[[-broad*.67,-broad*.55,.18,1.18,-.37],[-.13,-broad*.71,.19,1.25,-.31],
     [.13,-broad*.70,.19,1.19,-.28],[broad*.66,-broad*.51,.18,1.15,-.33]],flaps);
 }
 
@@ -470,42 +533,24 @@ function shellRift(k,body,z){
   jewel(k,body,'glow',.018,.089,z+.113,.061,.18,.061);
 }
 
-function quadruped(k,variant){
+function quadruped(k,variant,mobile=false){
   const {root,bone}=k;
   const forge=variant==='forgeBeast';
-  const armored=['salamander','forgeBeast','vaultTurtle'].includes(variant);
+  const armored=['salamander','forgeBeast'].includes(variant);
   const long=variant==='salamander'||forge;
   const antlered=variant==='stag';
-  const length=variant==='vaultTurtle'?1.28:antlered?1.37:forge?1.52:long?1.20:1.08;
-  const hip=variant==='vaultTurtle'?.46:antlered?.96:forge?.72:long?.53:.62;
-  const girth=variant==='vaultTurtle'?.72:antlered?.35:forge?.46:long?.28:.345;
+  const length=antlered?1.37:forge?1.52:long?1.20:1.08;
+  const hip=antlered?.96:forge?.72:long?.53:.62;
+  const girth=antlered?.35:forge?.46:long?.28:.345;
   const body=bone(root,0,hip,0),head=bone(body,0,antlered?.39:.11,length*.70);
   const tail=bone(body,0,0,-length*.74);
   const legs=[],joints=[],flaps=[];
-  shape(k,body,'body',[[0,.029,-length*.89,girth*.54,girth*.53],[0,.06,-length*.58,girth*.85,girth*.77],
-    [0,.07,-.09,girth*.94,girth*(antlered?.94:1.14)],[0,.11,length*.31,girth*.76,girth*.98],
+  if(antlered)sculptSporeStag(k,body,head,mobile,flaps);
+  else shape(k,body,'body',[[0,.029,-length*.89,girth*.54,girth*.53],[0,.06,-length*.58,girth*.85,girth*.77],
+    [0,.07,-.09,girth*.94,girth*1.14],[0,.11,length*.31,girth*.76,girth*.98],
     [.012,.12,length*.68,girth*.61,girth*.82],[0,.14,length*.83,girth*.41,girth*.53]],
   {sides:17,rings:23,section:2.52,ridge:armored?.18:.10});
-  if(variant==='vaultTurtle'){
-    shape(k,body,'body',[[0,.02,0,girth,.98],[0,.194,0,girth*1.23,1.08],[0,.38,-.06,girth,1.03],
-      [0,.68,-.11,girth*.74,.78],[0,.82,-.09,girth*.59,.64]],{sides:18,rings:21,section:2.68,ridge:.14});
-    for(let i=0;i<5;i++){
-      const y=.39+i*.09,w=(.54-i*.065)*1.18;
-      for(const side of [-1,1]){
-        const fan=points=>opposite(side,points);
-        plate(k,body,i%2?'trim':'edge',fan([[0,y+.089,-.65],[w,y,-.91],[w+.058,y-.117,-.64],
-          [w+.056,y-.134,.21],[w*.78,y-.057,.53],[0,y+.093,.49]]),.064);
-        seam(k,body,'trim',fan([[w+.055,y-.117,-.64],[w+.065,y-.134,-.13],[w+.005,y-.067,.26]]),.026);
-      }
-    }
-    const seal=k.bone(body,0,.84,-.20);
-    seal.rotation.x=-Math.PI*.15;torque(k,seal,.42,'trim',16);
-    jewel(k,seal,'glow',0,0,.109,.139,.135,.091);
-    for(const side of [-1,1]){
-      const lamp=lantern(k,body,side*.69,.48,side*.52,.60);
-      flaps.push({joint:lamp,axis:'z',amp:.12,bias:side*.12,seed:side});
-    }
-  }else if(variant==='hound'){
+  if(variant==='hound'){
     for(let i=0;i<7;i++){
       const z=(i-3)*.224,y=.27+Math.cos(i*.83)*.033;
       for(const side of [-1,1])shape(k,body,'edge',opposite(side,[[.053,y,z,.039],
@@ -529,14 +574,15 @@ function quadruped(k,variant){
       shelfMushroom(k,body,side*(.17+i%3*.065),.32+(i%4)*.089,z,.09+i%4*.046,side*.51+i*.49);
     }
   }
-  const jaw=k.bone(head,0,-.166,.12),broad=variant==='vaultTurtle'?.28:antlered?.19:forge?.36:.265;
-  shape(k,head,variant==='hound'?'edge':'body',[[0,-.12,.015,broad*.66,.11],[0,-.089,.171,broad*.91,.23],
+  const jaw=k.bone(head,0,-.166,.12),broad=antlered?.19:forge?.36:.265;
+  if(!antlered&&!forge)shape(k,head,variant==='hound'?'edge':'body',[[0,-.12,.015,broad*.66,.11],[0,-.089,.171,broad*.91,.23],
     [0,.036,.045,broad,.217],[0,.19,-.069,broad*.83,.183],[0,.29,-.23,broad*.53,.10]],{sides:13,rings:16,section:2.46,ridge:.19});
-  shape(k,jaw,'edge',[[0,-.088,.251,broad*.67,.103],[0,-.045,.193,broad*.92,.191],
+  if(!forge)shape(k,jaw,'edge',[[0,-.088,.251,broad*.67,.103],[0,-.045,.193,broad*.92,.191],
     [0,.029,.012,broad*.97,.16],[0,.078,-.09,broad*.64,.08]],{sides:11,rings:11,section:2.3});
-  const teeth=variant==='hound'?8:variant==='vaultTurtle'?5:6;
+  const teeth=variant==='hound'?8:6;
   if(antlered)antlers(k,head,{span:.62,reach:.86,prongs:3,finish:'trim',width:.070});
   if(forge) {
+    flaps.push(...forgeSalamanderHead(k,head,jaw,mobile));
     for(const side of [-1,1]){
       const fan=points=>opposite(side,points);
       const chimney=bone(body,side*.37,.38,-.49);
@@ -545,24 +591,22 @@ function quadruped(k,variant){
         [0,.37,0,.185,.185],[0,.46,0,.19,.19]],{sides:12,rings:16,section:2.44,ridge:.14});
       k.mesh(chimney,'ring','trim',0,.47,0,.175,.175,.63,Math.PI*.5);
       jewel(k,chimney,'glow',0,.448,0,.116,.015,.116);
-      shape(k,head,'edge',fan([[.24,.108,-.06,.14],[.418,.279,-.227,.14],[.53,.46,-.365,.088],
-        [.55,.595,-.441,.04],[.48,.73,-.50,.009]]),{sides:9,rings:15,section:2.12,ridge:.22});
       const shoulder=fan([[.28,.42,.43],[.48,.52,.40],[.63,.37,.51],[.67,.12,.39],[.49,-.02,.30],[.31,.15,.45]]);
       plate(k,body,'edge',shoulder,.10);
       seam(k,body,'trim',shoulder,.025);
       studs(k,body,[shoulder[1],shoulder[3],shoulder[4]],.040);
-      shape(k,jaw,'trim',fan([[.253,.047,.21,.104],[.375,.069,.345,.102],[.39,.18,.442,.063],
-        [.327,.315,.495,.039],[.275,.392,.451,.006]]),{sides:9,rings:14,section:1.98,ridge:.19});
     }
   }
   for(const side of [-1,1]){
     const fan=points=>opposite(side,points);
-    seam(k,head,'trim',fan([[.047,.156,.272],[broad*.86,.119,.193],[broad*1.14,.045,.034]]),.036);
-    jewel(k,head,'glow',side*broad*.68,.05,.244,.064,.047,.051,side*.18);
-    for(let i=0;i<teeth;i++){
-      const shift=i*.045;
-      shape(k,jaw,'trim',fan([[broad*.56,-.019,.34-shift,.032],[broad*(.74-i*.026),.074,.33-shift,.023],
-        [broad*(.67-i*.023),.128+(i%2)*.044,.366-shift,.004]]));
+    if(!forge){
+      seam(k,head,'trim',fan([[.047,.156,.272],[broad*.86,.119,.193],[broad*1.14,.045,.034]]),.036);
+      jewel(k,head,'glow',side*broad*.68,.05,.244,.064,.047,.051,side*.18);
+      for(let i=0;i<teeth;i++){
+        const shift=i*.045;
+        shape(k,jaw,'trim',fan([[broad*.56,-.019,.34-shift,.032],[broad*(.74-i*.026),.074,.33-shift,.023],
+          [broad*(.67-i*.023),.128+(i%2)*.044,.366-shift,.004]]));
+      }
     }
     if(variant==='hound'){
       shape(k,head,'edge',fan([[.15,.157,-.008,.109],[.238,.331,-.123,.103],[.195,.458,-.21,.054],[.185,.569,-.25,.006]]));
@@ -571,12 +615,20 @@ function quadruped(k,variant){
     }
     for(const front of [true,false]){
       const z=front?length*.64:-length*.56;
-      const shift=antlered?.11:variant==='vaultTurtle'?.29:.19;
+      const shift=antlered?.11:.19;
       const upper=bone(body,side*(girth*.56+shift),.045,z);
       const shin=bone(upper,side*.045,-hip*.48,front?.15:-.12);
       const foot=bone(shin,side*.029,-hip*.51,front?-.08:.09);
       legs.push(upper);
       joints.push({joint:shin,side,leg:true,step:front?1:0});
+      if(antlered){
+        sculptSporeLeg(k,{upper,shin,foot,side,hip,front},mobile,flaps);
+        continue;
+      }
+      if(forge){
+        forgeSalamanderLimb(k,{upper,shin,foot,side,hip,front},mobile,flaps);
+        continue;
+      }
       shape(k,upper,'body',fan([[.013,.109,0,girth*.43,girth*.46],[.08,-hip*.144,.029,girth*.5,girth*.53],
         [.07,-hip*.40,.086,girth*.35,girth*.38],[.052,-hip*.51,.126,girth*.29,girth*.30]]),{sides:10,rings:13,section:2.42,ridge:.12});
       shape(k,shin,'edge',fan([[.012,.032,.012,girth*.34,girth*.34],[.036,-hip*.21,.062,girth*.31,girth*.32],
@@ -586,14 +638,15 @@ function quadruped(k,variant){
         [i*girth*.44,-.091,.32,.007]]);
     }
   }
-  const span=antlered?.48:variant==='vaultTurtle'?.53:long?1.26:1.01;
-  shape(k,tail,long?'edge':'body',[[0,.016,.16,girth*.41],[.07,.10,-.11,girth*.36],[.13,.15,-span*.44,girth*.32],
+  const span=antlered?.48:long?1.26:1.01;
+  if(forge)flaps.push(...forgeSalamanderTail(k,tail,mobile),...forgeSalamanderWard(k,body,legs,mobile));
+  else shape(k,tail,long?'edge':'body',[[0,.016,.16,girth*.41],[.07,.10,-.11,girth*.36],[.13,.15,-span*.44,girth*.32],
     [.31,.34,-span*.74,girth*.20],[.21,.37,-span*.92,.007]],{sides:12,rings:19,section:1.91,ridge:.18});
-  if(long) for(let i=0;i<5;i++){
+  if(long&&!forge) for(let i=0;i<5;i++){
     const z=-.146-i*.19,x=i*.038;
     shape(k,tail,i%2?'glow':'trim',[[x,.13+i*.039,z,.066],[x+.085,.31+i*.051,z-.055,.061],[x+.151,.385+i*.055,z-.177,.008]]);
   }
-  return {body,head,tail,legs,crest:bone(body,0,0,0),pattern:variant==='vaultTurtle'?'bulwark':'gallop',
+  return {body,head,tail,legs,crest:bone(body,0,0,0),pattern:'gallop',
     campaign:{flaps,joints,jaw,baseJaw:.03}};
 }
 
@@ -603,7 +656,8 @@ function weaver(k,variant,mobile){
   const head=bone(body,0,queen?.32:-.022,beetle?.67:.53);
   const legs=[],joints=[],flaps=[];
   const w=queen?.63:beetle?.41:.4;
-  shape(k,body,'body',[[0,.08,-1.27,w*.36,.19],[0,.26,-1.06,w*.81,.41],[0,.25,-.73,w,.52],
+  if(queen)widowBody(k,{body,head,flaps},mobile);
+  else shape(k,body,'body',[[0,.08,-1.27,w*.36,.19],[0,.26,-1.06,w*.81,.41],[0,.25,-.73,w,.52],
     [0,.18,-.41,w*.96,.46],[0,.056,-.03,w*.75,.31],[0,.032,.26,w*.44,.24]],
   {sides:18,rings:22,section:beetle?2.84:2.39,ridge:.14});
   if(queen){
@@ -616,14 +670,14 @@ function weaver(k,variant,mobile){
   }
   for(const side of [-1,1]){
     const fan=points=>opposite(side,points);
-    for(let i=0;i<4;i++){
+    for(let i=0;i<(queen?0:4);i++){
       const z=-1.09+i*.236,y=.429+Math.sin(i*.63)*.19;
       plate(k,body,i%2?'edge':'body',fan([[.054,y,z-.122],[w*.69,y-.084,z-.156],[w*1.03,y-.252,z+.032],
         [w*.97,y-.325,z+.157],[w*.36,y-.11,z+.208],[.047,y-.069,z+.155]]),.047);
       seam(k,body,'trim',fan([[.071,y-.04,z+.106],[w*.69,y-.07,z+.157],[w*.87,y-.23,z+.29]]),.022);
     }
     if(beetle)jewel(k,body,'glow',side*.171,.758,-.52,.19,.097,.25,side*.25);
-    else for(let i=0;i<6;i++){
+    else for(let i=0;i<(queen?0:6);i++){
       const x=.091+(i%3)*.048,y=.617-(i%2)*.083,z=-.87+i*.126;
       seam(k,body,'edge',fan([[x,y,z],[x+.085,y-.068,z+.093],[x+.155,y-.172,z+.103]]),.016);
     }
@@ -649,9 +703,11 @@ function weaver(k,variant,mobile){
       if(!mobile)seam(k,shin,'glow',fan([[.062,.018,.051],[width*.18,-.11,.11],[width*.23,tip*.54,.198]]),.015);
     }
   }
-  const abdomen=bone(body,0,.041,-.90);
-  shape(k,abdomen,'trim',[[0,0,.24,.095],[0,.018,-.006,.129],[0,-.039,-.262,.071],[0,-.076,-.41,.009]]);
-  flaps.push({joint:abdomen,axis:'x',amp:.21,bias:-.13,seed:6});
+  if(!queen){
+    const abdomen=bone(body,0,.041,-.90);
+    shape(k,abdomen,'trim',[[0,0,.24,.095],[0,.018,-.006,.129],[0,-.039,-.262,.071],[0,-.076,-.41,.009]]);
+    flaps.push({joint:abdomen,axis:'x',amp:.21,bias:-.13,seed:6});
+  }
   return {body,head,legs,crest:bone(body,0,0,0),pattern:'crawl',campaign:{flaps,joints}};
 }
 
@@ -697,10 +753,14 @@ function owlMantle(k,body,mobile){
 function winged(k,variant,mobile){
   const {root,bone}=k;
   const moth=['moth','kite','glass'].includes(variant),owl=variant==='owl',dragon=variant==='rootDragon';
+  const relic=variant==='moth'||variant==='glass';
+  const burial=variant==='paper';
   const paper=variant==='crane'||variant==='paper';
   const body=bone(root,0,1.02,0),head=bone(body,0,dragon?.64:.52,dragon?.32:owl?.31:.139);
   const flaps=[],flight=[],legs=[],arms=[];
-  shape(k,body,moth?'deep':'body',[[0,-.46,-.15,.158,.19],[0,-.26,-.094,.309,.293],[0,-.006,-.03,.338,.316],
+  if(burial)sculptBurialCore(k,body,head,mobile,flaps);
+  else if(relic)sculptRelicCore(k,variant,body,head,mobile,flaps);
+  else shape(k,body,moth?'deep':'body',[[0,-.46,-.15,.158,.19],[0,-.26,-.094,.309,.293],[0,-.006,-.03,.338,.316],
     [0,.236,.062,.277,.258],[0,.416,.124,.198,.208],[0,.558,.185,.113,.114]],
   {sides:16,rings:16,section:2.53,ridge:.14});
   let jaw;
@@ -713,7 +773,7 @@ function winged(k,variant,mobile){
     const eye=bone(head,0,.069,.201);
     plate(k,eye,'deep',[[0,.351,.021],[.337,.171,.079],[.245,-.19,.096],[0,-.466,.18],[-.225,-.21,.064],[-.329,.15,.08]],.061);
     torque(k,eye,.19,'trim',8);jewel(k,eye,'glow',0,0,.194,.089,.049,.037);
-  }else{
+  }else if(!relic&&!burial){
     face(k,head,{style:owl?'owl':paper?'beak':moth?'hood':'mask',width:owl?.29:paper?.18:.228,
       z:paper?.209:owl?.269:.225,length:owl?.287:paper?.45:.37});
     if(owl){
@@ -737,7 +797,11 @@ function winged(k,variant,mobile){
     arms.push(hinge);
     shape(k,hinge,'body',fan([[0,.008,.015,.112],[.238,.184,-.058,.107],[owl?.46:.59,.253,-.085,.092]]));
     shape(k,elbow,'trim',fan([[0,.012,.01,.077],[.339,.223,-.119,.079],[.653,.24,-.179,.067]]));
-    if(moth||paper||dragon){
+    if(burial){
+      sculptBurialWing(k,elbow,wrist,side,mobile,flaps);
+    }else if(relic){
+      sculptRelicWing(k,variant,elbow,wrist,side,mobile,flaps);
+    }else if(moth||paper||dragon){
       const upper=moth?[[0,.024,.036],[.348,.41,.077],[.951,.50,-.12],[1.28,.337,-.24]]:
         [[0,.052,.017],[.443,.465,-.011],[.88,.515,-.153],[1.12,.372,-.288]];
       plate(k,elbow,'body',fan([...upper,[1.09,.04,-.249],[.89,-.26,-.319],[.70,-.22,-.276],
@@ -754,15 +818,6 @@ function winged(k,variant,mobile){
           const eye=bone(part,side*x,y,z);
           torque(k,eye,w,'trim',7);
           jewel(k,eye,'glow',0,0,.069,w*.35,w*.61,w*.25);
-        }
-        if(variant==='glass')for(let shard=0;shard<4;shard++){
-          const x=.38+shard*.216,y=.379-shard*.153;
-          const splinter=bone(elbow,side*x,y,-.067-shard*.038);
-          const point=shard%2?.23:.37;
-          plate(k,splinter,shard%2?'deep':'edge',fan([[0,-.133,-.049],[.113,.041,.016],
-            [.145,point,-.147],[.053,point+.04,-.213],[-.104,.034,-.031]]),.061);
-          seam(k,splinter,'glow',fan([[.062,-.044,.008],[.122,.10,.002],[.14,point,-.061]]),.013);
-          flaps.push({joint:splinter,axis:'x',amp:.119,bias:0,seed:shard*1.28});
         }
       }else for(let i=0;i<4;i++){
         const x=.13+i*.173,y=.22-i*.096;
@@ -812,10 +867,10 @@ function winged(k,variant,mobile){
     torque(k,crest,.438,'trim',12);
     jewel(k,crest,'glow',0,.065,-.052,.19,.209,.050);
   }
-  return {body,head,arms,legs,tail,flight,crest,pattern:'wing',campaign:{flaps,joints:[],jaw}};
+  return {body,head,arms,legs,tail,flight,crest,burialRig:burial,pattern:'wing',campaign:{flaps,joints:[],jaw}};
 }
 
-function riverKeeper(k,type){
+function riverKeeper(k,type,mobile){
   const {root,bone}=k;
   const eclipse=type==='eclipse',body=bone(root,0,.12,0),tail=bone(body,0,.15,-.214);
   const neck=bone(body,0,.217,.43),head=bone(neck,0,1.06,.34);
@@ -825,14 +880,7 @@ function riverKeeper(k,type){
     [.693,.239,-.582,.155,.150],[.611,.302,-.235,.122,.106],[.454,.335,-.034,.083,.081],
     [.291,.361,-.198,.046,.054],[.242,.40,-.431,.009,.011]];
   shape(k,tail,'deep',path,{sides:17,rings:38,section:2.24,ridge:.178});
-  for(let i=0;i<(eclipse?13:18);i++){
-    const t=i/(eclipse?12:17),p=t*(path.length-1),j=Math.floor(p),rest=p-j;
-    const [x,y,z,r]=path[j].map((value,axis)=>T.MathUtils.lerp(value,path[Math.min(j+1,path.length-1)][axis],rest));
-    const crest=bone(tail,x,y+r*.39,z);
-    crest.rotation.y=Math.sin(t*TAU)*1.6;
-    k.mesh(crest,'scale',i%2?'edge':'body',0,r*.19,0,r*.87,r*.73,r*.81,Math.PI*.45,0,i*.04);
-    seam(k,crest,'trim',[[-r*.78,r*.16,.017],[0,r*.41,.024],[r*.65,r*.20,-.014]],.021);
-  }
+  craftRiverScales(k,tail,path,eclipse,mobile,flaps);
   shape(k,neck,'body',[[0,0,-.16,.318,.268],[0,.31,-.125,.315,.28],[0,.592,0,.24,.211],
     [0,.845,.123,.198,.181],[0,1.10,.291,.141,.16]],{sides:17,rings:21,section:2.73,ridge:.16});
   face(k,head,{style:eclipse?'mask':'hood',width:eclipse?.245:.20,z:.154,length:.28});
@@ -853,11 +901,7 @@ function riverKeeper(k,type){
     if(side===1&&!eclipse){
       const oar=bone(wrist,.334,-.393,.238);
       oar.rotation.z=-.64;
-      shape(k,oar,'trim',[[0,-.27,-.06,.038],[0,.43,.082,.052],[.018,1.02,.17,.039]]);
-      plate(k,oar,'edge',[[-.12,.60,.161],[.04,.67,.17],[.22,1.10,.193],[.14,1.37,.112],[-.13,1.36,.111],
-        [-.21,1.14,.17],[-.09,.80,.16]],.08);
-      for(const side of [1,-1])seam(k,oar,'glow',[[0,.677,.17+side*.039],[.055,.843,.16+side*.044],
-        [.041,1.21,.147+side*.057]],.021);
+      ferryPaddle(k,oar,mobile);
     }
   }
   const crest=bone(head,0,.34,-.417);
@@ -891,8 +935,9 @@ function guardian(k,type,mobile){
     clock:{broad:.43,ground:1.10,neck:.87,helmet:'helmet',style:'duel'},
     hangman:{broad:.46,ground:1.16,neck:.86,helmet:'blank',style:'duel'},
   };
-  return fighter(k,{...styles[type],height:1.22,guardianType:type,mobile,headwear(k,head,collar){
-    if(type==='lotus'||type==='fox'||type==='hangman')ritualCowl(k,head,collar,.37);
+  const siege=type==='goat'||type==='boar';
+  const model=fighter(k,{...styles[type],height:1.22,guardianType:type,mobile,headwear(k,head,collar){
+    if(type==='lotus'||type==='hangman')ritualCowl(k,head,collar,.37);
     if(type==='goat'||type==='boar'){
       for(const side of [-1,1]){
         const fan=points=>opposite(side,points);
@@ -908,14 +953,10 @@ function guardian(k,type,mobile){
         shape(k,head,i%3?'trim':'edge',[[x,y,.085],[x*1.26,y+.19,-.039,.080],[x*1.59,y+.35,-.14,.059],
           [x*1.73,y+.44-(i%3)*.05,-.218,.006]].map(p=>p.length===3?[...p,.089]:p));
       }
-    }else if(type==='fox'){
-      for(const side of [-1,1])plate(k,head,'edge',opposite(side,[[.071,.20,.183],[.333,.624,-.021],
-        [.361,.275,-.159],[.252,.156,.121],[.117,.119,.217]]),.079);
-    }
+    }else if(type==='fox')fitFoxHood(k,head,collar,mobile);
   },weapon(k,body,back,head,hands,flaps){
     const broad=styles[type].broad;
     if(type==='lotus'||type==='fox'){
-      tendrils(k,body,type==='lotus'?12:9,flaps,{width:.72,origin:.26,span:1.35,trail:.59,finish:'body'});
       for(const side of [-1,1]){
         const bloom=k.bone(body,side*.43,.303,.223);bloom.rotation.y=side*.37;
         const petals=type==='lotus'?9:5;
@@ -927,8 +968,10 @@ function guardian(k,type,mobile){
         jewel(k,bloom,'glow',0,.117,0,.098,.11,.084);
         flaps.push({joint:bloom,axis:'x',amp:.17,bias:side*.22,seed:4+side});
       }
-    }else if(type!=='crown')vest(k,body,broad,1.15,flaps);
+    }else if(type!=='crown')vest(k,body,broad,1.15,flaps,!siege);
+    if(type==='goat')buildLedgerBack(k,back,flaps,mobile);
     if(type==='boar'){
+      buildKilnBack(k,back,flaps,mobile);
       for(let i=0;i<7;i++){
         const x=(i-3)*.111;
         shape(k,back,i%3?'body':'glow',[[x,.59,-.047,.126],[x*1.19,.87,-.14,.129],[x*1.46,1.13,-.36,.057],
@@ -937,8 +980,7 @@ function guardian(k,type,mobile){
       for(const side of [-1,1])lantern(k,back,side*.415,.77,-.20,.49);
     }
     if(type==='frost'){
-      const bellJoint=k.bone(back,0,.59,-.33);bell(k,bellJoint,1.09);
-      flaps.push({joint:bellJoint,axis:'z',amp:.27,bias:.15,seed:9});
+      frostChimes(k,back,flaps,mobile);
     }
     if(type==='clock'||type==='bank'){
       const dial=k.bone(body,0,.374,.51);torque(k,dial,type==='bank'?.43:.33,'trim',14);
@@ -946,8 +988,9 @@ function guardian(k,type,mobile){
       seam(k,dial,'edge',[[0,0,.065],[-.179,-.13,.074],[-.244,-.092,.081]],.031);
       flaps.push({joint:dial,axis:'z',amp:.29,bias:.20,seed:2});
     }
-    if(type==='hangman'||type==='crown'||type==='clock'||type==='goat'||type==='boar')
-      hookedBlade(k,hands[1],{length:type==='hangman'?1.62:type==='clock'?1.33:1.14,breadth:type==='goat'?.32:.24});
+    if(type==='clock')clockBlade(k,hands[1],mobile);
+    else if(type==='hangman'||type==='crown'||type==='goat'||type==='boar')
+      hookedBlade(k,hands[1],{length:type==='hangman'?1.62:1.14,breadth:type==='goat'?.32:.24});
     if(type==='crown'||type==='hangman'){
       if(type==='crown'){
         const train=Array.from({length:9},(_,i)=>[(i-4)*.104,-.28-Math.abs(i-4)*.007,.13+Math.abs(i-4)*.017,
@@ -974,6 +1017,9 @@ function guardian(k,type,mobile){
       }
     }
   }});
+  if(type==='fox')model.sourceDress=tools=>dressFoxGuardian(tools,model.body);
+  if(siege)model.siegeRear=true;
+  return model;
 }
 
 const regular=archetypes();
@@ -995,15 +1041,15 @@ const campaignModels={
   'forest-2':(k,m)=>guardian(k,'fox',m),
   'forest-3':(k,m)=>guardian(k,'boar',m),
   'forest-4':(k,m)=>weaver(k,'queen',m),
-  'forest-5':k=>quadruped(k,'vaultTurtle'),
-  'forest-6':k=>riverKeeper(k,'eclipse'),
-  'forest-7':k=>quadruped(k,'stag'),
+  'forest-5':carveVaultTurtle,
+  'forest-6':(k,m)=>riverKeeper(k,'eclipse',m),
+  'forest-7':(k,m)=>quadruped(k,'stag',m),
   'forest-8':(k,m)=>winged(k,'moth',m),
-  'forest-9':(k,m)=>guardian(k,'crown',m),
+  'forest-9':sculptFinalWarden,
   'forest-10':(k,m)=>guardian(k,'goat',m),
-  'forest-11':k=>riverKeeper(k,'oar'),
+  'forest-11':(k,m)=>riverKeeper(k,'oar',m),
   'forest-12':(k,m)=>guardian(k,'frost',m),
-  'forest-13':k=>quadruped(k,'forgeBeast'),
+  'forest-13':(k,m)=>quadruped(k,'forgeBeast',m),
   'forest-14':(k,m)=>winged(k,'paper',m),
   'forest-15':(k,m)=>guardian(k,'bank',m),
   'forest-16':(k,m)=>guardian(k,'clock',m),
@@ -1185,15 +1231,31 @@ function guardianKeepsake(k,model,id,mobile){
   model.campaign.flaps.push({joint:offering,axis:'x',amp:.097,bias:-.032,seed:5.7});
 }
 
+const relicHunters=[
+  sculptRangedRelic,sculptPolearmRelic,sculptNetherKing,armoredRelicHunter,astralRelicHunter,orbRelicHunter,
+  sculptEarthRelicHunter,duelRelicHunter,templeRelicHunter,arcaneRelicHunter,mythRelicHunter,sculptFrontlineHunter,
+];
+
 export function buildCampaignSculpt(k,entry,mobile=false,weapon){
   if(!entry.palette)return null;
   const id=entry.artId??entry.id,build=campaignModels[id];
   if(!build)return null;
   finishCampaign(k,entry);
+  const twin=twinGuardianSculpt(k,entry,mobile);
+  if(twin)return twin;
+  if(weapon){
+    const creature=wraithRelicHunter(k,entry,weapon,mobile)??venomRelicHunter(k,entry,weapon,mobile);
+    if(creature)return creature;
+    for(const sculptHunter of relicHunters){
+      const hunter=sculptHunter(k,weapon,mobile,fighter);
+      if(hunter)return hunter;
+    }
+  }
   const model=build(k,mobile);
-  jointCuirass(k,model,entry,mobile);
-  if(id.startsWith('forest-')){
-    guardianKeepsake(k,model,id,mobile);
+  if(model.sourceSculpt)return model;
+  if(!model.vaultMechanism&&!model.siegeRear)jointCuirass(k,model,entry,mobile);
+  if(id.startsWith('forest-')&&!model.vaultMechanism){
+    if(!model.siegeRear)guardianKeepsake(k,model,id,mobile);
     detailForestGuardian(k,model,id,mobile);
   }
   if(!entry.field)detailBossVariant(k,model,entry,weapon,mobile);
@@ -1224,4 +1286,6 @@ export function poseCampaignSculpt(model,time,{stage,wind,strike,travel,fall,ste
   }
   if(jaw)jaw.rotation.x=baseJaw+wind*.29+strike*.42-fall*.03;
   body.rotation.x+=lean+travel*.075;
+  campaign.poseDrives?.(campaign.drives,time,{wind,strike,stage,step,travel});
+  model.vaultMechanism?.({beat,stage,wind,strike,step,travel,fall});
 }

@@ -176,7 +176,7 @@ const beasts={
   m134:{crest:'shell',head:[.34,.035,.744,.53],spine:[.83,.67,-.91,.57,.46],finishes:['rind','trim','edge'],light:[0x8bd4fa,'bolts',[0,.39,-.36],[1.13,.78,.94]]},
   m136:{crest:'plumes',head:[.19,.090,.350,.32],spine:[.35,.48,-.47,.44,.40],finishes:['rind','trim','edge'],light:[0xffa341,'embers',[0,.44,.06],[1.12,.87,.91]]},
   m138:{crest:'dragon',head:[.36,-.017,.456,.32],spine:[.55,1.40,.074,.49,.39],finishes:['rind','trim','edge'],light:[0x89eed7,'ribbons',[.16,1.17,.15],[.84,.87,.91]]},
-  m140:{crest:'tiger',head:[.29,.018,.336,.36],spine:[.37,.56,-.35,.52,.40],finishes:['rind','trim','edge'],light:[0xb7eaff,'ribbons',[0,.44,.06],[1.01,.57,.88]]},
+  m140:{light:[0xb7eaff,'ribbons',[0,.34,.10],[.94,.82,.62]]},
   m144:{crest:'inferno',head:[.401,.035,.429,.58],spine:[.42,.74,-.43,.56,.55],finishes:['rind','ember','edge'],light:[0xffa04d,'embers',[0,.48,.02],[.91,.80,.89]]},
   m145:{crest:'lightning',head:[.391,.006,.400,.48],spine:[.46,.70,-.48,.54,.51],finishes:['rind','trim','edge'],light:[0xffdb8b,'bolts',[0,.44,-.02],[.90,.75,.91]]},
   m148:{crest:'owl',head:[.24,.009,.383,.40],spine:[.23,.50,-.49,.48,.39],finishes:['rind','trim','edge'],light:[0x83c9fc,'mist',[0,.26,.09],[1.03,.73,.91]]},
@@ -361,6 +361,7 @@ function waterCourt(k,parts,mobile){
 }
 
 function shadowVeil(k,parts,mobile){
+  if(parts.shadowSculpt)return;
   const {head,body}=parts;
   mirrorCrown(k,head,'rind','deep',.273,.177,.214,mobile);
   for(const side of sides){
@@ -472,10 +473,10 @@ export function polishBossC(k,parts,entry,mobile){
     courtIdentity(k,parts,regal,mobile);
     affect(parts,regal.light);
   }else if(beast){
-    wildIdentity(k,parts,beast,mobile);
+    if(id!=='m152'&&!parts.snowTiger&&!parts.windTaowu&&!parts.desertKirin)wildIdentity(k,parts,beast,mobile);
     affect(parts,beast.light);
   }else if(special){
-    special.run(k,parts,mobile);
+    if(!parts.asuraCarved)special.run(k,parts,mobile);
     affect(parts,special.light);
   }else if(rider)trialIdentity(k,parts,rider,mobile);
   else return false;

@@ -294,6 +294,53 @@ export function carveJadeEmperor(k,mobile){
     catalogueSculpt:'jade-emperor',pattern:'hover'};
 }
 
+function imperialScutes(k,body,mobile){
+  const rows=mobile?5:6,segments=mobile?7:10;
+  const flanges=[];
+  for(let row=0;row<rows;row++){
+    const center=-1.04+row*(1.94/(rows-1));
+    for(const side of sides)for(let band=0;band<3;band++){
+      const phi=(.305+band*.445+(row%2)*.043)*side;
+      const shift=(band%2?-.10:.031)+(row===0?.048:0);
+      const zBase=center+shift;
+      const panel=band===2?k.bone(body,0,0,0):body;
+      if(panel!==body)flanges.push({panel,side,row});
+      const point=(u,v,reverse=0)=>{
+        const z=zBase+(u-.5)*(.428-Math.abs(center)*.045);
+        const a=phi+(.5-v)*(.521-.074*Math.abs(u-.5)*2);
+        const rise=.095*Math.sin(u*Math.PI)**.80*Math.sin(v*Math.PI)**.83;
+        const notch=.010*Math.sin(u*41+v*19+row+band);
+        const crown=.64-Math.pow(Math.abs(z+.11),1.81)*.22;
+        const radius=.943-Math.pow(Math.abs(z+.11),1.72)*.27;
+        const lip=band===2?.051:0;
+        const depth=rise+notch+lip+(reverse?-.046:0);
+        return [Math.sin(a)*(radius+depth),.322+Math.cos(a)*(crown+depth),z];
+      };
+      closedShellPanel(k,panel,point,band===1||row%3===0?'burntShell':'copper',band*5+row,mobile,segments);
+      for(const edge of [0,1]){
+        const track=Array.from({length:7},(_,i)=>{
+          const [x,y,z]=point(i/6,edge);
+          return [x*1.018,y+.010,z,.009+.012*Math.sin(i*.51)**2];
+        });
+        sweep(k,panel,'royalShell',track,6,10);
+      }
+      const crest=Array.from({length:7},(_,i)=>{
+        const t=i/6,[x,y,z]=point(t,.49+.081*Math.sin(t*7+row));
+        return [x*1.012,y+.019,z,.008+Math.sin(t*Math.PI)**2*.025];
+      });
+      sweep(k,panel,band===1?'copper':'royalShell',crest,6,10);
+      if(row%2===0||band%2===1){
+        const [x,y,z]=point(.45,.44);
+        sweep(k,panel,'copper',[[x,y+.018,z,.092],[x+side*band*.027,y+.130,z-.047,.084],
+          [x+side*(.045+band*.024),y+.237,z-.118,.046],[x+side*(.098+band*.035),y+.306,z-.184,.004]],8,11);
+        sweep(k,panel,'royalShell',[[x+side*.021,y+.055,z+.035,.031],[x+side*(.025+band*.025),y+.159,z-.026,.036],
+          [x+side*(.085+band*.032),y+.289,z-.162,.003]],6,9);
+      }
+    }
+  }
+  return flanges;
+}
+
 export function carveImperialTurtle(k,mobile){
   const {bone,root}=k;
   const body=bone(root,0,.69,0);
@@ -301,26 +348,7 @@ export function carveImperialTurtle(k,mobile){
     [0,.08,.43,.87,.433],[0,.12,.90,.66,.30],[0,.109,1.10,.37,.20]],23,18,2.6);
   carve(k,body,'copper',[[0,.28,-1.26,.34,.18],[0,.37,-.98,.74,.35],[0,.47,-.48,.90,.49],
     [0,.49,.15,.92,.47],[0,.40,.67,.78,.34],[0,.27,1.02,.53,.24]],23,17,2.83);
-  const rows=mobile?5:7;
-  for(let i=0;i<rows;i++){
-    const z=-1.02+i*2.01/(rows-1),y=.88-((z+.12)**2)*.27;
-    const w=.53-Math.abs(z)*.23;
-    const path=[[0,y+.13,z+.164],[w*.68,y+.032,z+.113],[w,y-.11,z+.018],
-      [w*.72,y-.049,z-.195],[0,y+.168,z-.260],[-w*.72,y-.049,z-.195],[-w,y-.11,z+.018],[-w*.68,y+.032,z+.113]];
-    plate(k,body,i%2?'copper':'burntShell',path,.071);
-    sweep(k,body,'royalShell',path.slice(0,5).map(([x,Y,Z])=>[x,Y+.021,Z,.026]),7,11);
-    sweep(k,body,'copper',[[0,y+.150,z-.044,.088],[.014,y+.317,z-.101,.071],
-      [.022,y+.43+(i%3)*.041,z-.233,.043],[.034,y+.50,z-.329,.004]],8,10);
-    for(const s of sides){
-      const x=.62+w*.32,Y=y-.206;
-      const flange=mirror(s,[[x-.208,Y+.135,z+.167],[x+.045,Y+.062,z+.153],
-        [x+.211,Y-.137,z+.12],[x+.177,Y-.27,z-.05],[x-.058,Y-.127,z-.185],[x-.21,Y-.013,z-.119]]);
-      plate(k,body,i%3?'burntShell':'body',flange,.055);
-      sweep(k,body,'royalShell',flange.slice(1,5).map(([X,h,Z])=>[X+s*.041,h-.014,Z,.027]),7,9);
-      sweep(k,body,'edge',mirror(s,[[x+.075,Y-.112,z-.002,.058],[x+.23,Y-.090,z-.039,.053],
-        [x+.34,Y-.020,z-.131,.033],[x+.39,Y+.079,z-.209,.004]]));
-    }
-  }
+  const scutes=imperialScutes(k,body,mobile);
   const neck=bone(body,0,-.074,.77);
   carve(k,neck,'body',[[0,-.122,-.051,.29,.253],[0,-.105,.236,.32,.257],
     [0,-.042,.47,.263,.226],[0,.043,.71,.223,.176]],19,14);
@@ -353,19 +381,184 @@ export function carveImperialTurtle(k,mobile){
     sweep(k,tail,'copper',[[t*.21,.129+t*.24,-t*.51,.068],[t*.26,.207+t*.27,-.091-t*.51,.059],
       [t*.26,.25+t*.31,-.147-t*.51,.010]],7,8);
   }
-  return {body,head,neck,jaws,legs,joints,tail,catalogueSculpt:'imperial-turtle',pattern:'bulwark'};
+  sweep(k,tail,'royalShell',[[.049,.14,-.151,.087],[.164,.271,-.392,.094],[.243,.377,-.603,.078],
+    [.210,.349,-.845,.036],[.202,.253,-1.005,.004]],8,15);
+  return {body,head,neck,jaws,legs,joints,tail,catalogueSculpt:'imperial-turtle',pattern:'bulwark',
+    cataloguePose({beat,strike,wind,stage}){
+      for(const {panel,side,row} of scutes){
+        panel.rotation.z=side*(Math.sin(beat*.65+row*.6)*.020+stage*.058+wind*.036-strike*.055);
+      }
+    },
+  };
+}
+
+function closedShellPanel(k,parent,shape,finish,index,mobile,resolution){
+  const rows=resolution??(mobile?14:20),columns=resolution??(mobile?11:16);
+  const span=columns+1,back=(rows+1)*span;
+  const coordinates=[],color=[],uv=[],faces=[];
+  for(let face=0;face<2;face++)for(let row=0;row<=rows;row++)for(let col=0;col<=columns;col++){
+    const u=row/rows,v=col/columns;
+    const point=shape(u,v,face);
+    coordinates.push(...point);
+    uv.push(u,v);
+    const grain=Math.cos(u*79+v*56)*Math.sin(v*56+u*26+index),cut=Math.min(u,v,1-u,1-v);
+    const ridge=Math.sin(v*47+u*8+index)*Math.sin(u*51-v*.47);
+    const tone=face?.45+.37*cut+grain*.05:.63+Math.sin(u*5)*.12+grain*.064+.10*ridge;
+    const ox=1-T.MathUtils.smoothstep(cut,.018,.14);
+    color.push(tone+ox*.14,tone+ox*.02,tone-ox*.05);
+    if(row===rows||col===columns)continue;
+    const a=face*back+row*span+col,b=a+span;
+    if(face)faces.push(a,b,a+1,a+1,b,b+1);
+    else faces.push(a,a+1,b,b,a+1,b+1);
+  }
+  const join=(a,b)=>faces.push(a,b,a+back,b,b+back,a+back);
+  for(let row=0;row<rows;row++){
+    join(row*span,(row+1)*span);
+    join((row+1)*span+columns,row*span+columns);
+  }
+  for(let col=0;col<columns;col++){
+    join(col+1,col);
+    join(rows*span+col,rows*span+col+1);
+  }
+  const geometry=new T.BufferGeometry().setIndex(faces);
+  geometry.setAttribute('position',new T.Float32BufferAttribute(coordinates,3));
+  geometry.setAttribute('color',new T.Float32BufferAttribute(color,3));
+  geometry.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+  geometry.computeVertexNormals();
+  k.geometry(parent,finish,geometry);
+}
+
+function sculptGhostShell(k,body,mobile){
+  const cheeks=[];
+  carve(k,body,'deep',[[0,-.77,-.08,.222,.253],[-.084,-.46,-.02,.52,.52],
+    [0,-.105,-.094,.587,.56],[-.038,.36,-.103,.441,.385],[.042,.69,-.098,.269,.349],
+    [0,.83,-.154,.034,.031]],27,16,2.25);
+  for(let index=0;index<8;index++){
+    const cardinal=index*tau/8;
+    const front=index===0||index===7;
+    const pivot=k.bone(body,0,-.27,-.108);
+    pivot.name='裂殼 '+(index+1);
+    const sections=front?[[.012,.322],[.535,.982]]:[[.013,.984]];
+    for(const [part,[bottom,top]] of sections.entries()){
+      const point=(u,v,face)=>{
+        const cut=front&&((part===0&&u>.69)||(part===1&&u<.31))?1.55:1;
+        const along=T.MathUtils.clamp(bottom+(top-bottom)*u+
+          (.024*Math.cos(14*v+index)+.014*Math.sin(47*v+part))*Math.abs(u-.5)*2*cut,.012,.989);
+        const a=cardinal+.042+v*.701+.035*Math.sin(u*16+index)-.05*Math.sin(u*5+v*5)*(Math.abs(v-.5)*2);
+        const pattern=.794*Math.sin(Math.PI*along)**.75*(1.13-along*.25);
+        const ridges=(.014*Math.sin(a*21+u*7)+.011*Math.sin(a*8-u*12))*Math.sin(Math.PI*u);
+        const radius=Math.max(.018,pattern+ridges-.003-index*.001-(face?.070:0));
+        return [Math.sin(a)*radius,1.795*along-.549,Math.cos(a)*radius-.055*along+Math.sin(a*3)*.023];
+      };
+      closedShellPanel(k,pivot,point,index%3===1?'shellScar':'shellIvory',index,mobile);
+      for(const x of [.06,.94]){
+        const edge=Array.from({length:9},(_,j)=>{
+          const [xPos,y,z]=point(j*.125,x,0);
+          return [xPos*1.015,y,z*1.012,.006+.011*Math.sin(j*.46)**2];
+        });
+        sweep(k,pivot,index%2?'shellScar':'redBinding',edge,6,11);
+      }
+      for(let crack=0;crack<(mobile?2:3);crack++){
+        const crackPath=Array.from({length:7},(_,j)=>{
+          const [x,y,z]=point(.15+j*.10,.29+crack*.187+Math.sin(j*.8+index)*.10,0);
+          return [x*1.022,y,z*1.022,.003+Math.sin(j*Math.PI/6)**2*.010];
+        });
+        sweep(k,pivot,(index+crack)%4===0?'glow':'shellScar',crackPath,5,9);
+      }
+    }
+    cheeks.push({pivot,index});
+  }
+  for(const side of sides)for(let i=0;i<6;i++){
+    const a=(i+.73)*.36,x=Math.sin(a)*.428,y=-.19+i*.067,z=.401+Math.cos(a)*.136;
+    const flap=[[x*.61,y+.033,z-.055,.044],[x,y+.017,z+.024,.069],[x*1.05,y-.061,z+.099,.040],
+      [x*.91,y-.149,z+.131,.008]];
+    sweep(k,body,i%2?'deep':'redBinding',mirror(side,flap),7,11);
+  }
+  return cheeks;
+}
+
+function eggGhostFace(k,body,mobile){
+  const core=k.bone(body,0,-.195,.542);
+  core.name='雞蛋怪 · 裂隙';
+  carve(k,core,'deep',[[0,-.144,-.025,.273,.063],[0,-.046,.004,.393,.088],[0,.101,.037,.403,.119],
+    [0,.198,.013,.310,.074],[0,.248,-.001,.199,.046]],16,20,2.61);
+  const jaws=[];
+  for(const side of sides){
+    const mirrorSide=path=>mirror(side,path);
+    const socket=k.bone(core,side*.189,.094,.119);
+    socket.name='雞蛋怪 · 血瞳';
+    socket.rotation.y=side*.37;
+    const brow=[[.014,.118,.008],[.116,.055,-.029],[.161,.109,-.044],[.145,.017,-.006],
+      [.163,-.073,-.028],[.091,-.047,.035],[-.003,-.081,.028],[-.102,-.027,-.017],[-.076,.059,.008]];
+    ridgePanel(k,socket,'shellScar',brow,.028,'redBinding');
+    carve(k,socket,'shellIvory',[[0,0,-.016,.057,.055],[0,0,.019,.084,.080],[0,0,.052,.080,.071],[0,0,.069,.047,.044]],
+      10,13,2.05);
+    carve(k,socket,'redBinding',[[.004,.006,.048,.031,.030],[.004,.006,.069,.053,.045],[.004,.008,.092,.038,.039]],
+      9,13,2.02);
+    carve(k,socket,'glow',[[.010,.006,.085,.026,.024],[.012,.009,.104,.034,.033],[.013,.009,.119,.021,.023]],
+      8,12,2);
+    carve(k,socket,'deep',[[.013,.011,.106,.016,.016],[.013,.011,.124,.020,.024],[.013,.012,.134,.012,.014]],
+      7,10,2.28);
+    k.mesh(socket,'gem','shellIvory',.002,.028,.132,.012,.014,.015);
+    const cut=mirrorSide([[.022,.141,.131],[.119,.095,.117],[.164,.144,.118],[.216,.142,.101],[.306,.225,.048],
+      [.333,.153,.057],[.412,.188,-.055],[.376,.064,-.055],[.423,.009,-.132]]);
+    sweep(k,core,'shellScar',cut.map(([x,y,z],i)=>[x,y,z,.029-i*.0018]),6,19);
+    const jaw=k.bone(core,side*.172,-.104,.085);
+    jaw.name='雞蛋怪 · 下頜裂殼';
+    const lip=mirrorSide([[-.162,.037,.073],[-.080,.059,.086],[.029,.051,.076],[.104,.121,.006],
+      [.182,.161,-.036],[.204,.073,-.054],[.259,.045,-.125],[.192,-.063,-.087],[.009,-.091,.073],[-.130,-.100,.083]]);
+    ridgePanel(k,jaw,'shellIvory',lip,.035,'shellScar');
+    sweep(k,jaw,'redBinding',lip.slice(0,7).map(([x,y,z],i)=>[x,y+.01,z+.02,[.013,.027,.020,.019,.013,.018,.003][i]]),6,18);
+    for(let chip=0;chip<(mobile?3:5);chip++){
+      const x=.062+chip*.070,y=.002+chip*.015,z=.127-chip*.026;
+      sweep(k,core,chip%2?'shellIvory':'shellScar',mirrorSide([[x,y-.033,z,.019],
+        [x+.013,y+.017,z+.021,.019],[x+.019,y+.056,z+.029,.003]]),6,8);
+    }
+    jaws.push({jaw,socket,side});
+  }
+  const palate=k.bone(core,0,-.060,.088);
+  carve(k,palate,'deep',[[0,-.034,-.056,.133,.040],[0,-.014,.009,.211,.058],[0,.027,.056,.151,.045],
+    [0,.045,.076,.074,.037]],13,13,2);
+  sweep(k,palate,'redBinding',[[-.091,.023,.060,.004],[-.043,.039,.091,.016],
+    [.007,.019,.141,.026],[.049,-.016,.115,.012],[.072,-.026,.088,.004]],6,10);
+  return {jaws,palate};
+}
+
+function eggGhostClaw(k,body,side,mobile){
+  const r=path=>mirror(side,path);
+  const arm=k.bone(body,side*.448,-.14,.156);
+  arm.name='雞蛋怪 · 煙臂';
+  const joint=k.bone(arm,side*.37,-.084,-.054);
+  const palm=k.bone(joint,side*.298,.202,.123);
+  carve(k,arm,'eggSteam',r([[.005,.011,-.026,.063,.053],[.138,-.032,-.045,.109,.089],[.286,-.078,-.054,.092,.083],
+    [.373,-.084,-.061,.078,.067]]),13,9,2.3);
+  carve(k,joint,'eggSteam',r([[.003,-.012,-.028,.078,.077],[.129,.045,.025,.092,.077],
+    [.244,.104,.068,.073,.061],[.298,.202,.123,.057,.063]]),13,10,2.3);
+  carve(k,palm,'eggSteam',r([[0,-.034,-.015,.062,.046],[.045,.039,.009,.112,.080],
+    [.069,.113,.033,.086,.065],[.046,.147,.061,.047,.044]]),10,10,2.45);
+  for(let finger=0;finger<4;finger++){
+    const x=-.028+finger*.040,z=.076+finger*.023,y=.132-Math.abs(finger-1.30)*.012;
+    sweep(k,palm,'eggSteam',r([[x,y-.036,z,.019],[x+.045,y+.025,z+.023,.023],
+      [x+.052,y+.052,z+.053,.016],[x+.026,y+.074,z+.071,.013]]),7,9);
+    sweep(k,palm,'redBinding',r([[x+.026,y+.074,z+.069,.016],[x+.012,y+.080,z+.097,.012],
+      [x+.001,y+.067,z+.125,.003]]),6,8);
+  }
+  const runs=mobile?2:3;
+  for(let i=0;i<runs;i++){
+    const offset=i*.038;
+    sweep(k,joint,i===1?'shellIvory':'eggSteam',r([[.058,.026,-.069+offset,.018],
+      [.124,.011,-.089+offset,.026],[.227,.052,-.080+offset,.033],[.303,.149,-.007+offset,.010]]),7,9);
+  }
+  return {arm,joint,palm,side};
 }
 
 export function carveEggGhost(k,mobile){
   const {bone,root}=k;
   const body=bone(root,0,1.10,0);
   const head=bone(body,0,.146,.026);
-  carve(k,body,'shellIvory',[[0,-.80,-.047,.258,.28],[0,-.59,-.062,.583,.55],
-    [0,-.27,-.105,.745,.705],[0,.069,-.091,.716,.697],[0,.444,-.123,.568,.538],
-    [0,.741,-.139,.382,.366],[0,.94,-.151,.133,.123],[0,.965,-.16,.015,.019]],31,23,2.25);
-  const hole=[[-.416,-.18,.522],[-.291,-.04,.556],[-.091,-.13,.642],[-.135,-.32,.659],
-    [.026,-.516,.643],[-.122,-.478,.658],[-.255,-.551,.566],[-.354,-.363,.543],[-.481,-.37,.447]];
-  plate(k,body,'deep',hole,.018);
+  k.materials.shellIvory.color.setHex(0xd2a16c);
+  k.materials.shellScar.color.setHex(0xaa744a);
+  const crackedEgg=sculptGhostShell(k,body,mobile);
   const shellFlaps=[];
   for(const s of sides){
     for(let i=0;i<3;i++){
@@ -409,17 +602,38 @@ export function carveEggGhost(k,mobile){
     sweep(k,hood,i%2?'deep':'body',[[x*.20,.026,z*.16,.118],[x*.382,-.067,z*.27,.126],
       [x*.559,-.158,z*.36,.115],[x*.68,-.175,z*.41,.061],[x*.74,-.079,z*.46,.006]],8,12);
   }
-  const eyes=bone(head,-.104,-.366,.603);
-  for(const s of sides){
-    rivet(k,eyes,'glow',s*.095,.016,.021,.029);
-    sweep(k,eyes,'deep',mirror(s,[[.027,.028,.007,.018],[.096,.067,.036,.025],[.164,.051,-.010,.008]]),6,8);
-  }
+  const steam=k.materials.edge.clone();
+  steam.color.setHex(0xb2bec4);steam.metalness=.04;steam.roughness=.83;
+  steam.emissive.setHex(0x778d91);steam.emissiveIntensity=.14;
+  k.materials.eggSteam=steam;
+  const {jaws,palate}=eggGhostFace(k,body,mobile);
+  const ghostArms=sides.map(side=>eggGhostClaw(k,body,side,mobile));
   const cataloguePose=({beat,wind,strike,stage})=>{
     band.rotation.x=Math.sin(beat*.55)*.073-wind*.15;
     for(const [i,slip] of charms.entries())slip.rotation.x=Math.sin(beat*.94+i)*.13-wind*.13+strike*.32;
     for(const {flap,s,i} of shellFlaps){
       flap.rotation.y=s*(stage*.25+wind*.15+strike*.37+Math.sin(beat*.8+i)*.032);
       flap.rotation.x=stage*.15+strike*.31;
+    }
+    for(const {pivot,index} of crackedEgg){
+      const a=(index+.5)*tau/8,spread=wind*.046+strike*.180+stage*.091+Math.sin(beat*.7+index)*.013;
+      pivot.rotation.x=Math.cos(a)*spread;
+      pivot.rotation.z=-Math.sin(a)*spread;
+      pivot.position.z=-.108+Math.cos(a)*(strike*.074+stage*.043);
+      pivot.position.x=Math.sin(a)*(strike*.068+stage*.063);
+    }
+    for(const {jaw,socket,side} of jaws){
+      jaw.rotation.x=-Math.sin(beat*.96+side*.7)*.09+wind*.24+strike*.48+stage*.18;
+      jaw.rotation.y=side*(-strike*.18-stage*.08);
+      socket.scale.setScalar(1.13+wind*.18+strike*.20);
+      socket.rotation.z=Math.sin(beat*.49+side)*.09;
+    }
+    palate.position.z=.088+strike*.092+stage*.037;
+    for(const {arm,joint,palm,side} of ghostArms){
+      arm.rotation.set(wind*-.19+strike*.34,side*(wind*.41-strike*.84),side*(Math.sin(beat*.65+side)*.145+wind*.47-strike*.22+stage*.12));
+      joint.rotation.set(Math.sin(beat*.88+side*.64)*.20+wind*.33-strike*.43,
+        side*strike*.30,side*(.14+wind*.26-strike*.27));
+      palm.rotation.z=side*(Math.cos(beat*1.15)*.15+wind*.37-strike*.31);
     }
     hood.rotation.y=beat*.106;
   };
@@ -628,28 +842,42 @@ export function carveRoyalPair(k,mobile,awakened){
           [x+.059,-.78,-.207,.014],[x+.041,-.975,-.188,.004]]),6,13);
       }
       const wing=k.bone(actor,s*.17,.493,-.207);
+      const plumes=[];
       if(awakened){
-        for(let i=0;i<(mobile?6:10);i++){
-          const t=i/(mobile?5:9),x=.337+t*.659,y=.31+(1-t)*.52;
-          const base=[s*.041,.04-i*.022,-.004],pivot=[s*x*.57,y*.52,-.136-t*.12],tip=[s*x,y,-.19-t*.23];
-          k.geometry(wing,i%3?'trim':'bronzeRib',featherVane(base,pivot,tip,.14-t*.054,i+side,mobile?8:11));
-          sweep(k,wing,'trim',[[...base,.021],[...pivot,.019],[...tip,.003]],6,9);
+        const inner=s!==side,feathers=mobile?7:10,reach=inner?.69:1;
+        for(let i=0;i<feathers;i++){
+          const t=i/(feathers-1),x=(.325+t*.689)*reach,y=(.20+(1-t)*.43)*reach;
+          const plume=k.bone(wing,s*(.023+i*.011),.03-i*.024,-.02-i*.028);
+          plume.name='雅瑪與亞彌 · 扇形金翎 '+(i+1);
+          const anchor=[s*.006,-.005,0],pivot=[s*x*.54,y*.34,-.116-t*.13],tip=[s*x,y+.135,-.164-t*.25];
+          k.geometry(plume,i%3?'trim':'bronzeRib',featherVane(anchor,pivot,tip,.202-t*.038,i+side,mobile?8:13));
+          const seam=[s*x*.87,y*.83+.101,-.134-t*.21];
+          sweep(k,plume,i%2?'royalIvory':'trim',[[...anchor,.012],[...pivot,.021],[...seam,.010],[...tip,.002]],6,9);
+          if(!mobile||i%2===0){
+            const spray=[s*x*.72,y*.45,-.176-t*.22];
+            k.geometry(plume,'bronzeRib',featherVane(anchor,pivot,spray,.099,i+91,mobile?6:9));
+          }
+          plumes.push(plume);
         }
       }else{
         sweep(k,wing,'royalIvory',p([[0,0,0,.037],[.232,.231,-.112,.058],[.357,.546,-.259,.049],
           [.243,.693,-.356,.038],[.055,.679,-.451,.014]]),9,17);
       }
-      dancers.push({side:s,actor,arm:shoulder,elbow,wing,train,jaw,emperor});
+      dancers.push({side:s,actor,arm:shoulder,elbow,wing,train,jaw,emperor,plumes});
     }
   }
   const cataloguePose=({beat,wind,strike,stage,fall})=>{
-    for(const {side,actor,arm,elbow,wing,train,jaw,emperor} of dancers){
+    for(const {side,actor,arm,elbow,wing,train,jaw,emperor,plumes} of dancers){
       actor.rotation.y=(emperor?-1:1)*(.08+wind*.20-strike*.18);
       actor.rotation.x=-wind*.13+strike*.22+Math.sin(beat*.49)*.027;
       arm.rotation.x=-wind*(side>0?.94:.45)+strike*(side>0?1.19:.58);
       elbow.rotation.z=side*(.14+strike*.48-wind*.12);
       wing.rotation.z=side*(Math.sin(beat*.91)*.14+stage*.17+wind*.19);
       wing.rotation.x=Math.sin(beat*.8-.61)*.12+strike*.15+fall*.35;
+      for(const [i,plume] of plumes.entries()){
+        plume.rotation.x=Math.sin(beat*.81-i*.41)*.122+wind*.15-strike*.28;
+        plume.rotation.y=side*(wind*.071-strike*.091+Math.sin(beat*.43-i*.53)*.050);
+      }
       train.rotation.x=Math.sin(beat*.68+side)*.057+strike*.16;
       if(jaw)jaw.rotation.x=wind*.22+strike*.34;
     }

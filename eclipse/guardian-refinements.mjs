@@ -57,12 +57,47 @@ function metalwork(k,parts,entry,tools,stitch){
   }
 }
 
+function lotusSilks(k,{body,arms},tools){
+  const hem=0xb1be8c;
+  const colors=[0x417e79,0x235b64,0x5c7e66,0x244f62,0x57958a];
+  for(let i=0;i<10;i++){
+    const angle=Math.PI*2*(i+.30)/10,x=Math.sin(angle),z=Math.cos(angle),curve=Math.sin(i*1.98);
+    const front=z>0,depth=(front?.19:.24),stride=.018*curve;
+    const length=(front?.96:1.30)+Math.cos(i*1.34)*.102;
+    const weave=colors[i%colors.length];
+    tools.silk(body,'沉蓮王妃 · 層瓣裙 '+(i+1),[
+      [x*.226,.206,z*depth,.076],[x*.249+stride,.027,z*(depth+.013),.119],
+      [x*.308+stride,-length*.27,z*(depth+.092)-.044,.143],
+      [x*.390+stride*2,-length*.53,z*(depth+.152)-.106,.141],
+      [x*.521+stride*3,-length*.83,z*(depth+.227)-.221,.097],
+      [x*.592+stride*3,-length,z*(depth+.278)-.345,.019],
+    ],{style:'woven',across:[z,.11*x,-x],phase:i*.62,flex:1.26+curve*.16,tint:weave,trim:hem,
+      lining:front?0x253f54:0x362941});
+  }
+  for(const [i,side] of sides.entries()){
+    const arm=arms[i],s=x=>side*x;
+    tools.silk(arm,'沉蓮王妃 · 流萍廣袖 '+side,[[s(.071),.078,.09,.046],[s(.126),-.039,.093,.091],
+      [s(.206),-.224,.021,.124],[s(.294),-.485,-.181,.131],
+      [s(.364),-.694,-.334,.089],[s(.396),-.870,-.523,.021]],
+    {style:'woven',across:[.93,.06,-side*.28],phase:side*1.07,flex:1.33,tint:0x386d77,trim:hem,lining:0x433554});
+    tools.silk(body,'沉蓮王妃 · 背後蓮脈 '+side,[[s(.160),.538,-.249,.042],[s(.238),.347,-.315,.078],
+      [s(.312),.077,-.375,.105],[s(.471),-.227,-.619,.102],[s(.534),-.560,-.792,.067],
+      [s(.610),-.937,-.923,.013]],
+    {style:'woven',across:[.85,.04,side*.37],phase:2.31+side*.76,flex:1.45,tint:0x5a9487,trim:hem,lining:0x243859});
+    const clasp=k.bone(body,s(.23),.317,-.201);
+    clasp.rotation.x=-.34;
+    k.mesh(clasp,'ring','trim',0,0,0,.085,.068,.62,0,side*.39);
+    k.mesh(clasp,'gem','glow',0,.023,.009,.032,.038,.024);
+  }
+}
+
 export function refineGuardian(k,parts,entry,mobile,tools){
   const id=entry.artId??entry.id,rag=garment[id],organ=organs[id],wings=pinions[id];
   if(rag){
     const [label,tint,trim,path]=rag;
     metalwork(k,parts,entry,tools,rag);
-    for(const s of sides)tools.silk(parts.body,label,mir(path,s),{tint,trim,phase:s*.78,flex:.98});
+    if(id==='forest-1')lotusSilks(k,parts,tools);
+    else for(const s of sides)tools.silk(parts.body,label,mir(path,s),{tint,trim,phase:s*.78,flex:.98});
   }
   if(organ){
     const [label,key,style,tint,trim,path,across]=organ;

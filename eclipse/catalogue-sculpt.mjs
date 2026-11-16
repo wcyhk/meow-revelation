@@ -1,8 +1,17 @@
+import {qiongFaceFinishes,qiongqiMask,qiongqiFoot,hornetRefitFinishes,sculptKingHornet} from './late-beast-refits.mjs?v=anatomy-1';
+import {sculptYetiJaw,sculptYetiFinger,carveYetiRuff,iceFur,fineYetiTuft,yetiAnatomyFinishes} from './ancient-yeti-anatomy.mjs?v=glacial-fur-2';
+import {bossSkin} from './boss-skin.mjs?v=boss-foundry-1';
 import * as T from '../three.min.mjs';
 import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=forgeburst-1';
 import {sculptVolume,featherVane} from './sculpt-volume.mjs?v=sculpted-1';
 import {carvedFace,demonicMempo,openHelm} from './catalogue-a-face.mjs?v=maskwork-1';
-import {legacyCDetail,legacyCFinishes} from './catalogue-c-legacy.mjs?v=maskwork-1';
+import {legacyCDetail,legacyCFinishes} from './catalogue-c-legacy.mjs?v=boss-foundry-1';
+import {relicFinishes,relicTailoring} from './relic-tailoring.mjs?v=relic-1';
+import {durgaFinishes,forgeDurga} from './durga-relic-sculpt.mjs?v=durga-1';
+import {sculptAsuraDisciple} from './late-disciple-kirin.mjs?v=primal-1';
+import {carveAbbotVotive} from './votive-tailoring.mjs?v=votive-1';
+
+import {carveThatchedWraith,thatchedWraithFinishes} from './thatched-wraith.mjs?v=boss-foundry-1';
 
 const PI=Math.PI,TAU=PI*2;
 const sides=[-1,1];
@@ -12,6 +21,45 @@ const swept=(k,part,finish,points,steps=13,sides=8,ridge=.24)=>
   k.sculpt.sweep(part,finish,points,{steps,sides,ridge});
 const plate=(k,part,finish,points,thick=.05,bevel=.016)=>k.sculpt.plate(part,finish,points,thick,bevel);
 const vector=point=>new T.Vector3(...point);
+
+function ventralScale(k,joint,span,row,evil,mobile){
+  const width=span*(evil?.90:.84);
+  const length=.054+Math.sin((row+1)*.72)*.007;
+  const rows=mobile?8:12,cols=mobile?8:12,layer=(rows+1)*(cols+1);
+  const xyz=[],uv=[],color=[],index=[];
+  for(let face=0;face<2;face++)for(let r=0;r<=rows;r++)for(let c=0;c<=cols;c++){
+    const t=r/rows,s=c/cols*2-1;
+    const wrap=Math.sqrt(1-s*s*.91),dip=(1-t)*(.012+wrap*.027);
+    const scallop=Math.sin(s*9+row*.69)*t**5*.004;
+    const x=s*width*(.86+Math.sin(t*Math.PI)*.18),y=t*length*2-length-dip+scallop;
+    const groove=Math.sin(s*45+t*10+row)*.010*t*wrap;
+    const z=wrap*(.021+.028*Math.sin(t*Math.PI))+.023+groove+Math.abs(s)*.015+(face?-.009:.009);
+    const seal=(.5+.5*Math.cos(s*(evil?14:17)+(row%3)*.2+t*6))**9;
+    const tint=.70+wrap*.19+seal*.15-(face?.19:0)-t**8*.064;
+    xyz.push(x,y,z);uv.push(c/cols,t);
+    color.push(tint*(evil?.87:1.05),tint*(evil?1.02:.99),tint*(evil?.86:1.03));
+    if(r&&c){
+      const d=face*layer+r*(cols+1)+c,b=d-cols-1,a=b-1;
+      if(face)index.push(a,d-1,b,b,d-1,d);
+      else index.push(a,b,d-1,b,d,d-1);
+    }
+  }
+  const sealEdge=(a,b)=>index.push(a,b,a+layer,a+layer,b,b+layer);
+  for(let i=0;i<cols;i++){
+    sealEdge(i+1,i);
+    sealEdge(rows*(cols+1)+i,rows*(cols+1)+i+1);
+  }
+  for(let i=0;i<rows;i++){
+    sealEdge(i*(cols+1),(i+1)*(cols+1));
+    sealEdge((i+1)*(cols+1)+cols,i*(cols+1)+cols);
+  }
+  const geo=new T.BufferGeometry();
+  geo.setAttribute('position',new T.Float32BufferAttribute(xyz,3));
+  geo.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+  geo.setAttribute('color',new T.Float32BufferAttribute(color,3));
+  geo.setIndex(index);geo.computeVertexNormals();
+  k.geometry(joint,'snakeBelly',geo);
+}
 
 function snake(k,entry,mobile){
   const evil=entry.id==='m002';
@@ -54,10 +102,7 @@ function snake(k,entry,mobile){
     const section=evil?(.218-.058*t):(.155-.037*t);
     const face=k.bone(spine,p.x+forward.x*section,p.y+forward.y*section,p.z+forward.z*section);
     face.rotation.x=Math.atan2(-forward.y,forward.z);
-    plate(k,face,i%4===1?'trim':'edge',[
-      [-section*.78,-.038,0],[0,-.056,.018],[section*.78,-.038,0],[section*.71,.043,-.014],
-      [0,.057,.013],[-section*.71,.043,-.014],
-    ],.024,.009);
+    ventralScale(k,face,section,i,evil,mobile);
     for(const side of sides)if(i%2===0) swept(k,face,'rind',[
       [side*section*.78,-.06,-.084,.036],[side*section*1.14,0,-.112,.029],[side*section*1.19,.079,-.165,.003],
     ],6,5,.22);
@@ -136,12 +181,32 @@ function snake(k,entry,mobile){
     }
     swept(k,head,'trim',[[f(.056),-.10,.25,.016],[f(.159),-.119,.31,.013],[f(.254),-.070,.356,.009],
       [f(.325),.041,.397,.0015]],11,6,.1);
+    for(let i=0;i<3;i++){
+      const s=.096+i*.044,y=.061+i*.043;
+      const hinge=[
+        [f(s),y,.238,.029],[f(s+.029),y+.05,.215,.036],[f(s+.082),y+.078,.102,.031],
+        [f(s+.110),y+.110,-.027,.008],
+      ];
+      swept(k,head,i===0?'snakeBelly':'rind',hinge,12,7);
+      if(i===1)swept(k,head,'glow',hinge.map(([x,y,z,r])=>[x,y+.019,z+.018,r*.24]),10,6);
+    }
+    const row=evil?4:3;
+    for(let i=0;i<row;i++){
+      const t=i/(row-1),spread=evil?.31:.215;
+      const spike=[[f(.104+t*.06),.166+t*.043,-.145,.058],[f(.18+t*.12),.222+t*.08,-.243,.075],
+        [f(.22+spread*t),.298+t*.13,-.352,.041],[f(.27+spread*t),.354+t*.178,-.470,.006]];
+      swept(k,head,i===0?'snakeBelly':'rind',spike,14,8,.28);
+      swept(k,head,i===row-1?'glow':'snakeBelly',spike.map(([x,y,z,r])=>[x,y+.022,z+.038,r*.38]),10,6);
+    }
+    const barb=evil?.043:.030;
+    swept(k,jaw,'rind',[[f(.139),-.062,-.072,.032],[f(.181),-.08,.069,.040],
+      [f(.131),-.038,.174,.026],[f(.075),.003,.198+barb,.003]],13,7);
   }
   shape(k,jaw,'edge',[[0,-.025,-.06,.135,.036],[0,-.045,.059,.129,.048],[0,-.062,.201,.062,.025]],13,11,2.5,.14);
   const orb=k.bone(head,.24,-.26,.42);
   k.mesh(orb,'round','glow',0,0,0,.053,.053,.053);
   k.mesh(orb,'ring','rind',0,0,0,.097,.097,.32,.7,.68);
-  return {body,pattern:'coil',crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,cataloguePose({travel,headtime,wind,strike,stage}) {
+  return {body,inspectionHead:head,pattern:'coil',crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,cataloguePose({travel,headtime,wind,strike,stage}) {
     spine.rotation.x=.04*Math.sin(headtime*1.84)-wind*.16+strike*.24;
     spine.rotation.z=Math.sin(headtime*2.34)*(.07+travel*.065);
     head.rotation.y=Math.sin(headtime*2.71)*.12+wind*.12-strike*.23;
@@ -245,9 +310,9 @@ function bell(k,joint,finish,scale=1){
   k.mesh(joint,'ring','trim',0,.242*scale,0,.032*scale,.038*scale,.45);
 }
 
-function garmentMotion({panels,skirt,arms},pose,motion={}){
+function garmentMotion({panels=[],skirt,arms},pose,motion={}){
   const {beat,wind,strike,travel}=pose;
-  skirt.rotation.x=travel*.14-wind*.085+strike*.11;
+  if(skirt)skirt.rotation.x=travel*.14-wind*.085+strike*.11;
   for(const [i,panel] of panels.entries()){
     panel.rotation.x=Math.sin(beat*.57+i*.94)*(.046+travel*.10)+strike*.06+wind*.044;
     panel.rotation.z=Math.cos(beat*.33+i*.75)*(.029+travel*.043);
@@ -398,52 +463,64 @@ function mailedLeg(k,hips,side,offset=.19){
   return {thigh,shin,side};
 }
 
-function knightRelic(k,entry){
-  const sun=entry.id==='m016';
+function relicGreave(k,{thigh,shin,side},yaksha){
+  const f=x=>side*x;
+  const bevel=path=>path.map(([x,...rest])=>[f(x),...rest]);
+  const rise=yaksha?.133:.086;
+  const knee=bevel([[-.110,.047,.100],[-.021,.082+rise,.151],[.113,.111+rise*.67,.098],
+    [.173,.017,.058],[.128,-.141,.141],[.042,-.198,.197],[-.081,-.127,.176]]);
+  plate(k,shin,yaksha?'crest':'rind',knee,.056,.021);
+  swept(k,shin,'trim',bevel([[-.093,.035,.157,.015],[.008,.099+rise,.173,.028],[.122,.093+rise*.52,.13,.027],
+    [.157,-.027,.11,.017],[.089,-.138,.179,.004]]),14,8,.17);
+  for(let row=0;row<3;row++){
+    const y=-.095-row*.081,z=-.106+row*.012;
+    const spur=yaksha?.14-row*.012:.065+row*.016;
+    const fin=bevel([[.063,y+.072,z+.085],[.144,y+.094,z+.001],[.141+spur,y+.042,z-.077],
+      [.113+spur,y-.062,z-.092],[.083,y-.092,z-.127],[.020,y-.04,z-.076]]);
+    plate(k,shin,row%2?'rind':yaksha?'brocade':'body',fin,.049,.018);
+    swept(k,shin,row===0&&yaksha?'edge':'trim',fin.slice(1,5).map(([x,h,p])=>[x+f(.013),h+.014,p-.014,.013]),11,7,.16);
+  }
+  const shoulder=bevel([[.027,-.105,.143],[.161,-.077,.081],[.203,-.165,-.025],
+    [.187,-.298,-.15],[.146,-.385,-.094],[.102,-.302,.082],[.041,-.284,.134]]);
+  plate(k,thigh,yaksha?'brocade':'rind',shoulder,.052,.017);
+  swept(k,thigh,yaksha?'crest':'trim',shoulder.slice(1,6).map(([x,y,z])=>[x+f(.019),y+.010,z,.018]),12,8);
+  for(let toe=0;toe<(yaksha?3:2);toe++){
+    const x=-.077+toe*(yaksha?.067:.14);
+    swept(k,shin,yaksha?'crest':'trim',bevel([[x,-.309,.176,.023],[x+.001,-.346,.284,.041],
+      [x+.010,-.395,.322,.027],[x+.027,-.432,yaksha?.378:.338,.004]]),10,7);
+  }
+}
+
+function knightRelic(k,entry,mobile){
   const yaksha=entry.id==='m109';
   const body=k.bone(k.root,0,1.00,0),head=k.bone(body,0,.94,.016);
-  const arms=sides.map(side=>arm(k,body,side,{wide:sun?.34:.30,y:.69,cloth:yaksha?'rind':'body'}));
+  const arms=sides.map(side=>arm(k,body,side,{wide:.30,y:.69,cloth:yaksha?'rind':'body'}));
   const legs=sides.map(side=>mailedLeg(k,k.root,side,yaksha?.18:.22));
-  for(const leg of legs)leg.thigh.position.y=.93;
-  shape(k,body,sun?'body':'edge',[[0,-.13,-.01,.279,.183],[0,.12,.007,.309,.202],[0,.36,.01,.332,.187],
+  for(const leg of legs){
+    leg.thigh.position.y=.93;
+    relicGreave(k,leg,yaksha);
+  }
+  const shell=yaksha?'relicCinnabar':'relicSoot';
+  shape(k,body,shell,[[0,-.13,-.01,.279,.183],[0,.12,.007,.309,.202],[0,.36,.01,.332,.187],
     [0,.67,-.02,.386,.218],[0,.823,-.035,.256,.182],[0,.90,0,.14,.12]],24,15,2.81);
   if(yaksha)face(k,head,{hair:'rind',skin:'brocade',human:false});
   else{
     const seated=k.bone(head,0,-.046,.059);
-    const {jaw}=carvedFace(k,seated,{style:sun?'soldier':'elder',finish:sun?'sculptStone':'sculptAsh',
-      width:sun?.355:.337,brow:'deep',dark:'deep',eye:'glow',lids:sun?'sculptStone':'sculptAsh'});
+    const {jaw}=carvedFace(k,seated,{style:'elder',finish:'sculptAsh',width:.337,
+      brow:'deep',dark:'deep',eye:'glow',lids:'sculptAsh'});
     jaw.rotation.x=.13;
-    openHelm(k,head,{material:'rind',trim:'trim',dark:'deep',crest:sun?.68:.48,
-      flare:sun?.87:.97,span:sun?1.06:.94,vent:sun?'teeth':'open'});
-    demonicMempo(k,seated,{face:'rind',trim:'trim',fang:'edge',opening:sun?.62:.93,jaw:sun});
+    openHelm(k,head,{material:'rind',trim:'trim',dark:'deep',crest:.48,flare:.97,span:.94,vent:'open'});
+    demonicMempo(k,seated,{face:'rind',trim:'trim',fang:'edge',opening:.93,jaw:false});
   }
   shape(k,head,'body',[[0,.010,-.089,.145,.122],[0,.153,-.055,.18,.155],
-    [0,.218,-.063,.155,.132],[0,sun?.436:.325,-.065,sun?.101:.112,.098]],16,15,sun?4.2:2.2,.11);
+    [0,.218,-.063,.155,.132],[0,.325,-.065,.112,.098]],16,15,2.2,.11);
   const mantle=k.bone(body,0,.65,-.21);
-  const cloth=sun?'brocade':'deep';
-  for(let i=0;i<13;i++){
-    const x=(i-6)*.047;
-    swept(k,mantle,i%4===0?'trim':cloth,[[x*.73,0,0,.041],[x*1.36,-.24,-.07,.052],
-      [x*1.56,-.66,-.16+x*.22,.054],[x*1.87,-1.16-.17*Math.cos(i*.79),-.39+x*.34,.037],
-      [x*1.95,-1.32-.12*Math.cos(i*.89),-.44+x*.34,.008]],14,7,.23);
-  }
+  const tailoring=relicTailoring(k,body,arms,legs,mantle,yaksha,mobile);
   for(const side of sides){
     for(let i=0;i<4;i++){
       const y=.71-i*.129,x=side*(.24-i*.017);
       plate(k,body,i%2===0?'rind':'trim',[[x*.40,y+.058,.216],[x*1.41,y+.066,.079],
         [x*1.55,y-.044,.116],[x*.88,y-.08,.232],[x*.40,y-.040,.267]],.043,.014);
-      plate(k,body,i%2?'rind':'deep',[[x*.19,y+.041,-.259],[x*1.04,y+.073,-.245],[x*1.48,y+.028,-.166],
-        [x*1.43,y-.099,-.151],[x*.86,y-.114,-.254],[x*.16,y-.102,-.267]],.042,.012);
-      swept(k,body,'trim',[[x*.34,y-.045,-.272,.025],[x*.895,y-.076,-.271,.024],[x*1.52,y-.041,-.175,.009]],9,6);
-      k.mesh(body,'gem','trim',x*.35,y+.01,-.279,.022,.023,.014);
-    }
-    const shoulder=arms[side===1?1:0].shoulder;
-    for(let i=0;i<4;i++){
-      const y=.105-i*.079;
-      plate(k,shoulder,i%3===0?'edge':'rind',[[side*.01,y+.063,-.176],[side*.212,y+.134,-.072],
-        [side*.285,y+.030,.026],[side*.182,y-.091,.211],[side*.049,y-.05,.193]],.049,.014);
-      swept(k,shoulder,i%3===0?'rind':'trim',[[side*.031,y+.061,-.178,.018],[side*.173,y+.111,-.099,.023],
-        [side*.268,y+.039,.028,.023],[side*.167,y-.064,.206,.004]],11,7);
     }
     for(let i=0;i<(yaksha?7:3);i++){
       const x=.054+i*.027,y=.17+i*.005;
@@ -452,29 +529,6 @@ function knightRelic(k,entry){
     }
     swept(k,head,'rind',[[side*.014,.139,.137,.028],[side*.106,.111,.176,.037],
       [side*.168,.019,.127,.032],[side*.169,-.143,.069,.024],[side*.128,-.21,.076,.004]],13,8);
-  }
-  if(sun){
-    const shoulder=arms[1].shoulder;
-    const disk=k.bone(arms[1].palm,.16,-.05,.18);
-    markEnemyWeapon(disk,[0,.43,.03],{from:[0,-.43,.03],width:.32,aim:false,kind:'ring'});
-    for(const [r,w,finish,d] of [[.34,.041,'edge',.025],[.294,.042,'trim',.045],[.213,.015,'rind',.054],[.074,.026,'trim',.116]]){
-      ring(k,disk,finish,r,w,36,0,d);
-    }
-    const face=new T.LatheGeometry([[0,0],[.275,0],[.292,.03],[.29,.085],[.25,.112],[.197,.137],[.08,.161],[0,.177]].map(v=>new T.Vector2(...v)),30);
-    face.rotateX(PI/2);k.geometry(disk,'brocade',face);
-    k.mesh(disk,'gem','glow',0,0,.174,.109,.109,.026);
-    for(let i=0;i<12;i++){
-      const a=i*TAU/12;
-      const ray=k.bone(disk,0,0,0);ray.rotation.z=a;
-      swept(k,ray,i%2?'edge':'trim',[[0,.285,.026,.031],[.052,.371,.055,.048],[.028,.451,.076,.031],
-        [-.018,.498-(i%2)*.044,.03,.004]],10,7,.23);
-    }
-    for(let i=0;i<3;i++){
-      const sleeve=k.bone(shoulder,.07,.04,-.152);sleeve.rotation.z=.24+i*.27;
-      swept(k,sleeve,i%2?'edge':'trim',[[0,0,0,.062],[-.041,.13,-.06,.079],[-.16,.239,-.096,.056],
-        [-.242,.443,-.182,.008]],11,7);
-    }
-    return finishKnight({k,entry,body,head,arms,legs,mantle,weapon:disk});
   }
   const mace=k.bone(arms[yaksha?0:1].palm,.035,-.05,.05);
   const shaftLength=yaksha?1.17:.76;
@@ -503,11 +557,12 @@ function knightRelic(k,entry){
     }
     for(const side of sides)ring(k,top,'rind',.161,.019,22,0,side*.154);
   }
-  return finishKnight({k,entry,body,head,arms,legs,mantle,weapon:top});
+  return finishKnight({k,entry,body,head,arms,legs,mantle,weapon:top,tailoring});
 }
 
-function finishKnight({k,entry,body,head,arms,legs,mantle,weapon}){
+function finishKnight({k,entry,body,head,arms,legs,mantle,weapon,tailoring}){
   return {body,head,arms:arms.map(s=>s.shoulder),legs:legs.map(s=>s.thigh),crest:k.bone(body,0,0,0),
+    relicGarments:tailoring?.garments,
     catalogueSculpt:entry.id,cataloguePose({wind,strike,beat,step,travel}){
       for(const {side,elbow,palm} of arms){
         elbow.rotation.x=-.26+wind*.63-strike*.78+Math.cos(beat+side)*.05;
@@ -517,36 +572,17 @@ function finishKnight({k,entry,body,head,arms,legs,mantle,weapon}){
       mantle.rotation.x=Math.sin(beat*.73)*.055+travel*.19+strike*.33;
       mantle.rotation.z=Math.sin(beat*.38)*.094+wind*.16;
       weapon.rotation.z=Math.sin(beat*.43)*.137+wind*.65-strike*.85;
+      tailoring?.motion({wind,strike,beat});
   }};
 }
 
-function abbot(k,entry){
+function abbot(k,entry,mobile){
   const body=k.bone(k.root,0,1.12,0),head=k.bone(body,0,1.02,.08);
-  const robe=longGarment(k,body,{inside:'edge',accent:'rind',cloth:'brocade'},
-    {length:1.26,waist:.34,panelW:.264,panels:10,seed:17});
-  shape(k,body,'brocade',[[0,.1,.01,.37,.27],[0,.34,.02,.384,.28],[0,.55,-.014,.412,.28],
-    [0,.77,-.035,.335,.24],[0,.88,-.03,.24,.19]],22,17,2.48);
+  const votive=carveAbbotVotive(k,body,mobile);
   shape(k,head,'deep',[[0,-.286,-.017,.194,.132],[0,-.11,-.035,.230,.218],[0,.069,-.071,.234,.225],
     [0,.213,-.106,.198,.175],[0,.35,-.115,.111,.094]],24,17,2.23,.12);
   face(k,head,{hair:'crest',human:false});
-  const mantle=k.bone(body,0,.76,-.032);
-  const layers=[ [.38,.18,.045],[.53,-.053,.056],[.61,-.26,.049],[.574,-.34,.031],[.54,-.403,.013] ];
-  folds(k,mantle,'deep',layers,{count:23,overlap:.99});
-  for(const y of [-.25,-.34]) {
-    const sweep=k.bone(mantle,0,y,-.02);sweep.scale.set(1.07,1,.85);sweep.rotation.x=PI/2;
-    ring(k,sweep,y===-.25?'brocade':'trim',.561,.020,44);
-  }
   const arms=sides.map(side=>arm(k,body,side,{wide:.38,y:.63,cloth:'brocade',shell:'edge',glove:'edge'}));
-  for(const side of sides){
-    const stole=[[side*.092,.80,.214,.052],[side*.218,.57,.287,.068],[side*.122,.31,.324,.050],
-      [side*.14,.028,.348,.047],[side*.077,-.47,.457,.014]];
-    swept(k,body,'edge',stole,15,8);
-    for(let i=0;i<6;i++){
-      const y=.58-i*.103;
-      swept(k,body,i%2?'trim':'rind',[[side*.07,y,.291,.019],[side*.149,y-.023,.341,.022],
-        [side*.249,y-.054,.253,.003]],7,6);
-    }
-  }
   const beadChain=k.bone(arms[1].palm,.07,-.12,.09);
   for(let i=0;i<17;i++){
     const a=i*TAU/17;
@@ -557,10 +593,10 @@ function abbot(k,entry){
   const talisman=k.bone(arms[0].palm,-.026,-.14,.11);
   plate(k,talisman,'brocade',[[-.142,-.131,.01],[.141,-.131,0],[.108,.112,.011],[-.092,.122,.017]],.05,.019);
   swept(k,talisman,'glow',[[-.095,-.074,.04],[.065,-.074,.042],[.065,.075,.041],[-.082,.074,.043]],9,6,.12);
-  return {body,head,arms:arms.map(s=>s.shoulder),crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,cataloguePose(pose){
-    garmentMotion({...robe,arms},pose,{reach:.76,stroke:.58});
+  return {body,head,arms:arms.map(s=>s.shoulder),crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,votiveTailoring:votive.silks,cataloguePose(pose){
+    garmentMotion({arms},pose,{reach:.76,stroke:.58});
+    votive.pose(pose);
     const {beat,wind,strike}=pose;
-    mantle.rotation.x=Math.sin(beat*.35)*.06+strike*.16;
     beadChain.rotation.set(Math.sin(beat*1.1)*.17-wind*.52+strike*.60,wind*.44,Math.cos(beat*.7)*.18+strike*.49);
     talisman.scale.setScalar(.83+wind*.37+strike*.77);
   }};
@@ -654,97 +690,47 @@ function captain(k,entry){
   }};
 }
 
-function hornet(k,entry){
-  const body=k.bone(k.root,0,1.16,.08),head=k.bone(body,0,.38,.23);
-  shape(k,body,'rind',[[0,-.26,-.10,.14,.13],[0,-.093,-.006,.297,.261],[0,.113,-.008,.33,.29],
-    [0,.27,-.042,.262,.195],[0,.423,-.054,.11,.106]],21,15,2.48,.17);
-  shape(k,head,'trim',[[0,-.22,.013,.172,.12],[0,-.107,.045,.239,.165],[0,.026,.038,.254,.197],
-    [0,.142,.013,.206,.146],[0,.233,-.033,.122,.119]],17,14,2.36,.19);
-  const abdomen=k.bone(body,0,-.09,-.15);
-  const sections=[
-    [0,.145,-.123,.15,.151],[0,.011,-.227,.235,.201],[0,-.215,-.296,.286,.272],
-    [0,-.485,-.286,.266,.256],[0,-.711,-.184,.192,.144],[0,-.854,-.019,.086,.071],
-  ];
-  shape(k,abdomen,'body',sections,23,16,2.26,.18);
-  for(let i=0;i<6;i++){
-    const y=-.081-i*.122,z=-.26+Math.max(0,i-2)*.058;
-    const tier=k.bone(abdomen,0,y,z);
-    tier.rotation.x=PI/2+(i-2)*.105;
-    ring(k,tier,i%2?'trim':'deep',(.96-(i%2)*.031)*(.24-.028*Math.max(0,i-2)),.048-i*.003,26,0,.014);
-  }
-  swept(k,abdomen,'brocade',[[0,-.68,-.11,.117],[0,-.833,.006,.104],[.004,-.953,.144,.060],
-    [.019,-1.04,.291,.004]],16,9,.25);
-  const antennae=[],mandibles=[],wings=[],legs=[];
-  for(const side of sides){
-    k.mesh(head,'round','deep',side*.144,-.042,.190,.131,.185,.095,.09,side*.30,-side*.27);
-    for(let i=0;i<3;i++)for(let j=0;j<2;j++){
-      k.mesh(head,'gem',i===1&&j===0?'glow':'rind',side*(.112+j*.075),.001+(i-1)*.073,.261-j*.024,.045,.047,.023,
-        .04,side*.36,-side*.15);
-    }
-    const antenna=k.bone(head,side*.103,.114,.137);
-    swept(k,antenna,'trim',[[0,0,0,.026],[side*.08,.13,.098,.034],[side*.125,.278,.126,.022],
-      [side*.077,.445,.154,.009],[side*.003,.491,.191,.003]],16,7,.18);
-    antennae.push(antenna);
-    const jaw=k.bone(head,side*.153,-.135,.10);
-    swept(k,jaw,'edge',[[0,0,0,.055],[side*.082,-.074,.083,.059],[side*.083,-.167,.207,.040],
-      [side*.011,-.190,.265,.019],[-side*.057,-.143,.263,.003]],14,8,.24);
-    mandibles.push(jaw);
-    for(let i=0;i<3;i++){
-      const leg=k.bone(body,side*(.188+.019*i),.201-i*.16,.11-i*.15);
-      const knee=k.bone(leg,side*(.252+.062*i),-.064-i*.036,.122-i*.07);
-      swept(k,leg,i===1?'rind':'trim',[[0,0,0,.072],[side*.131,.026,.118-i*.03,.069],
-        [side*(.245+i*.062),-.064-i*.036,.115-i*.07,.042]],12,8);
-      swept(k,knee,'deep',[[0,0,0,.048],[side*.151,-.135,.083-i*.03,.04],
-        [side*.168,-.296,.166-i*.06,.020],[side*.091,-.388,.167-i*.09,.003]],12,7);
-      k.mesh(knee,'ring','trim',side*.078,-.062,.028,.049,.049,.56,-.47,0,side*.6);
-      legs.push({leg,knee,side,i});
-    }
-    for(let i=0;i<2;i++){
-      const flank=k.bone(body,side*.244,.248-i*.105,-.091-i*.124);
-      const length=i===0?1.58:1.07;
-      const blade=featherVane([0,0,0],[side*length*.58,.12,-.13],[side*length,.388-i*.22,-.29-i*.09],i===0?.31:.205,7+i,17);
-      k.geometry(flank,'silk',blade);
-      for(let j=0;j<5;j++){
-        const t=(j+1)/6;
-        swept(k,flank,j%2?'edge':'trim',[[0,0,0,.011],
-          [side*length*t*.58,.20+j*.014,-.12-j*.021,.009],
-          [side*length*t,.34+.03*j,-.20-j*.029,.002]],10,6,.08);
-      }
-      swept(k,flank,'rind',[[0,0,0,.025],[side*length*.40,.235,-.103,.027],[side*length*.75,.297,-.225,.013],
-        [side*length,.388-i*.22,-.29-i*.09,.0015]],15,6,.12);
-      wings.push({flank,side,i});
-    }
-  }
-  return {body,head,pattern:'flutter',crest:k.bone(k.root,0,0,0),
-    catalogueSculpt:entry.id,cataloguePose({headtime,wind,strike,travel,stage}){
-      abdomen.rotation.x=.20+Math.sin(headtime*5.8)*.081+wind*.31-strike*.68;
-      abdomen.rotation.z=Math.sin(headtime*2.1)*.16;
-      for(const [i,antenna] of antennae.entries())antenna.rotation.x=Math.sin(headtime*5.5+i*.88)*.13-wind*.19;
-      for(const [i,jaw] of mandibles.entries())jaw.rotation.y=(i?-1:1)*(.14+wind*.59+strike*.63);
-      for(const {flank,side,i} of wings){
-        const t=headtime*(19+stage*2.3)-i*.46;
-        flank.rotation.z=side*(.36+Math.sin(t)*(.58+i*.104+travel*.21));
-        flank.rotation.y=side*(.15+Math.sin(t+.62)*.21);
-      }
-      for(const {leg,knee,side,i} of legs){
-        leg.rotation.x=Math.sin(headtime*5-i*.43)*.16+wind*.37;
-        knee.rotation.z=side*(.12+strike*.38+Math.cos(headtime*4.9-i*.62)*.12);
-      }
-  }};
-}
-
 function shadowReaper(k,entry){
   const body=k.bone(k.root,0,1.13,0),head=k.bone(body,0,1.07,.012);
   const cloak=k.bone(body,0,.87,-.115);
   shape(k,body,'deep',[[0,-.68,-.064,.13,.101],[0,-.42,-.05,.24,.184],[0,-.10,-.024,.35,.237],
     [0,.28,-.018,.29,.25],[0,.69,-.028,.36,.214],[0,.951,0,.194,.129]],24,16,2.3,.25);
-  shape(k,head,'deep',[[0,-.212,.02,.17,.122],[0,-.038,-.002,.227,.165],[0,.105,-.03,.223,.193],
-    [0,.264,-.021,.166,.155],[0,.40,-.153,.142,.114],[.021,.49,-.23,.018,.026]],23,17,2.25,.23);
-  face(k,head,{hair:'deep',skin:'rind',human:false});
+  shape(k,head,'shadowIron',[[0,-.237,.071,.119,.133],[0,-.038,.035,.232,.177],[0,.130,-.039,.276,.24],
+    [0,.267,-.124,.225,.225],[.019,.403,-.272,.123,.133],[.033,.482,-.378,.018,.026]],23,17,2.25,.23);
+  shape(k,head,'deep',[[0,-.155,.146,.105,.077],[0,-.059,.183,.173,.093],
+    [0,.072,.15,.20,.11],[0,.143,.135,.143,.087]],15,11,2.3,.13);
+  const ribs=[];
+  for(const side of sides){
+    const reflect=points=>points.map(([x,...rest])=>[side*x,...rest]);
+    const cheek=reflect([[.044,.16,.192],[.172,.221,.133],[.247,.147,.037],[.258,.024,-.020],
+      [.188,-.104,.072],[.117,-.215,.16],[.067,-.167,.213],[.105,-.068,.229],[.032,.041,.262]]);
+    plate(k,head,'shadowIvory',cheek,.033,.016);
+    swept(k,head,'shadowIron',reflect([[.031,.149,.233,.028],[.139,.214,.182,.038],[.226,.173,.087,.039],
+      [.259,.075,.011,.024],[.289,-.071,-.079,.006]]),15,8);
+    swept(k,head,'glow',reflect([[.037,.066,.264,.006],[.092,.088,.253,.011],[.155,.099,.222,.014],
+      [.179,.097,.190,.004]]),10,6);
+    swept(k,head,'trim',reflect([[.071,-.159,.206,.010],[.124,-.116,.205,.016],[.211,-.030,.122,.015],
+      [.247,.025,.079,.005]]),11,6);
+    for(let i=0;i<5;i++){
+      const root=k.bone(cloak,side*(.13+i*.073),.085-i*.071,-.117-i*.055);
+      root.name='黑影 · 脊骨裂翼 '+(i+1);
+      const peak=.57-i*.086,span=.38+i*.048;
+      shape(k,root,'shadowIron',reflect([[.004,.027,.009,.058,.082],[.082,.208,-.084,.102,.084],
+        [.162,peak*.81,-.198,.112,.066],[span*.83,peak,-.284,.072,.041],
+        [span,peak-.038,-.376,.033,.024],[span+.058,peak-.176,-.433,.006,.005]]),15,11,2.36,.23,side*i*1.6);
+      plate(k,root,i%3===1?'brocade':'deep',reflect([[.069,.10,-.068],[.157,peak*.81,-.20],[span*.80,peak,-.29],
+        [span+.012,peak-.04,-.367],[span+.064,peak-.183,-.422],[span+.016,-.29,-.543],
+        [span-.07,-.17,-.537],[span-.15,-.443,-.57],[span-.213,-.289,-.50],[.048,-.09,-.25]]),.044,.018);
+      swept(k,root,i===1?'veilEdge':'shadowIvory',reflect([[.141,peak*.71,-.23,.019],[span*.74,peak-.015,-.315,.023],
+        [span+.010,peak-.11,-.405,.024],[span+.043,-.037,-.48,.019],
+        [span-.031,-.23,-.539,.007]]),13,6);
+      ribs.push({root,side,i});
+    }
+  }
   const arms=sides.map(side=>arm(k,body,side,{wide:.35,y:.77,cloth:'deep',shell:'rind',glove:'rind'}));
   const veils=[];
-  for(let i=0;i<14;i++){
-    const a=i*TAU/14, x=Math.sin(a),z=Math.cos(a),hem=.91+Math.sin(i*1.7)*.25;
+  for(let i=0;i<10;i++){
+    const a=i*TAU/10, x=Math.sin(a),z=Math.cos(a),hem=.94+Math.sin(i*1.7)*.24;
     const flap=k.bone(cloak,0,0,0);flap.rotation.y=a;
     veils.push(flap);
     plate(k,flap,i%4===1?'brocade':'deep',[
@@ -773,7 +759,12 @@ function shadowReaper(k,entry){
   swept(k,scythe,'glow',[[.29,1.07,.128,.016],[.51,.960,.141,.019],[.71,.941,.166,.017],
     [.953,.924,.196,.012],[1.14,.808,.231,.006],[1.216,.734,.238,.0015]],23,6,.14);
   ring(k,scythe,'trim',.14,.019,21,0,.103);
-  return {body,head,arms:arms.map(s=>s.shoulder),crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,cataloguePose({beat,wind,strike,travel}){
+  return {body,head,arms:arms.map(s=>s.shoulder),crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,shadowSculpt:true,
+    cataloguePose({beat,wind,strike,travel,stage}){
+    for(const {root,side,i} of ribs){
+      root.rotation.y=side*(.085+stage*.07+Math.sin(beat*.59-i*.44)*.093+strike*.26);
+      root.rotation.x=travel*.21+wind*.18-strike*.32+Math.cos(beat*.74-i*.47)*.043;
+    }
     for(const [i,flap] of veils.entries()){
       flap.rotation.x=Math.sin(beat*.75+i*.67)*.12+travel*.31+wind*.11-strike*.18;
       flap.rotation.z=Math.sin(beat*.43+i*.45)*(.08+travel*.055);
@@ -788,51 +779,101 @@ function shadowReaper(k,entry){
 
 function qiongqi(k,entry,mobile){
   const body=k.bone(k.root,0,1.03,-.02),head=k.bone(body,0,.52,.68);
-  shape(k,body,'body',[[0,-.19,-.79,.15,.117],[0,-.11,-.39,.215,.239],[0,.05,-.13,.32,.304],
-    [0,.19,.18,.301,.257],[0,.36,.51,.224,.212],[0,.49,.63,.146,.155]],29,19,2.15,.3);
-  shape(k,head,'rind',[[0,-.052,-.27,.21,.184],[0,.043,-.071,.232,.186],[0,.01,.126,.194,.133],
-    [0,-.05,.271,.127,.090],[0,-.076,.385,.111,.059],[0,-.067,.431,.051,.029]],23,16,2.38,.21);
-  const jaw=k.bone(head,0,-.113,.002);
-  shape(k,jaw,'deep',[[0,-.027,0,.118,.067],[0,-.061,.176,.105,.053],[0,-.039,.374,.064,.025]],13,11);
+  shape(k,body,'body',[[0,-.19,-.79,.16,.128],[0,-.11,-.39,.243,.259],[0,.05,-.13,.35,.323],
+    [0,.19,.18,.331,.297],[0,.36,.51,.242,.235],[0,.51,.63,.156,.159]],29,19,2.15,.3);
+  const {jaw,crown}=qiongqiMask(k,head,mobile);
+  head.scale.setScalar(1.23);
+  const frostVane=(parent,finish,root,arch,end,width,seed,sections)=>{
+    const geometry=featherVane(root,arch,end,width,seed,sections);
+    const {position,color,uv}=geometry.attributes;
+    const curve=new T.CatmullRomCurve3([root,arch,end].map(p=>new T.Vector3(...p)));
+    const frames=Array.from({length:sections+1},(_,i)=>{
+      const t=i/sections;
+      return {center:curve.getPoint(t),tangent:curve.getTangent(t)};
+    });
+    const point=new T.Vector3();
+    for(let i=0;i<color.count;i++){
+      const t=uv.getY(i),s=uv.getX(i)*2-1,edge=Math.abs(s);
+      const sheath=Math.sin(Math.PI*t)**.64;
+      const serration=Math.sin(t*sections*Math.PI+seed*.43+Math.sign(s)*.75);
+      const branch=Math.sin(t*sections*2.40+edge*3.8+s*.63+seed*.73);
+      const ruffle=branch*.012*sheath*Math.sin(Math.PI*edge);
+      const {center,tangent}=frames[Math.round(t*sections)];
+      point.fromBufferAttribute(position,i).sub(center);
+      point.multiplyScalar(1-Math.max(0,serration)*.29*edge**3*sheath);
+      point.add(center).addScaledVector(tangent,.036*serration*sheath*edge**2);
+      point.z+=ruffle;
+      position.setXYZ(i,point.x,point.y,point.z);
+      const midBand=Math.max(0,Math.sin((t+.01)*Math.PI*4.2+seed*.19))**1.8;
+      const frost=Math.min(1,t**3*.55+midBand*.24+edge*.11);
+      const tone=color.getX(i)*(.84+frost*.64+branch*.22*sheath*edge);
+      color.setXYZ(i,tone*(.82+frost*.12),tone*(.92+frost*.08),tone*(1.13-frost*.06));
+    }
+    geometry.computeVertexNormals();
+    k.geometry(parent,finish,geometry);
+  };
   const wings=[],legs=[],tail=[];
   for(const side of sides){
     const x=a=>side*a;
-    swept(k,head,'rind',[[x(.093),.107,.297,.021],[x(.158),.15,.213,.05],[x(.201),.163,.02,.048],
-      [x(.190),.226,-.168,.040],[x(.161),.252,-.252,.004]],14,8);
-    plate(k,head,'edge',[[x(.071),.048,.21],[x(.178),.089,.162],[x(.231),.093,.02],[x(.239),.013,-.138],
-      [x(.129),-.104,.157],[x(.123),-.071,.203]],.028,.01);
-    k.mesh(head,'gem','ember',x(.163),.109,.185,.04,.019,.035,-.055,x(.36),-x(.20));
-    for(let i=0;i<5;i++){
-      const length=.21+i*.047;
-      swept(k,head,i<3?'trim':'rind',[[x(.089+i*.025),.135,-.037-i*.032,.049],
-        [x(.122+i*.026),.257+i*.017,-.143-i*.045,.039],[x(.131+i*.021),.19+length*.66,-.228-i*.075,.003]],13,8);
-      swept(k,jaw,'edge',[[x(.036+i*.012),.01,.347-i*.051,.014],[x(.04+i*.013),.051,.339-i*.05,.012],
-        [x(.036+i*.013),.084-(i%2)*.015,.327-i*.050,.002]],7,5);
-    }
     for(let i=0;i<8;i++){
       const gradient=i/8;
-      k.geometry(body,i%3?'body':'edge',featherVane([x(.124+gradient*.073),.467-gradient*.52,.54],
-        [x(.233+gradient*.08),.42-gradient*.49,.20],
-        [x(.30+gradient*.08),.28-gradient*.46,-.116-gradient*.092],.078+gradient*.025,13+i,11));
+      frostVane(body,i%3?'qiongFeather':'qiongIce',[x(.124+gradient*.073),.467-gradient*.52,.577],
+        [x(.248+gradient*.08),.409-gradient*.49,.267],
+        [x(.345+gradient*.08),.26-gradient*.46,-.132-gradient*.104],.10+gradient*.031,13+i,mobile?10:13);
+      swept(k,body,i%2?'qiongFeather':'qiongIce',[[x(.104+gradient*.118),.47-gradient*.43,.552,.013],
+        [x(.252+gradient*.093),.411-gradient*.45,.304,.021],
+        [x(.339+gradient*.09),.302-gradient*.41,-.075-gradient*.11,.006]],11,7);
+    }
+    for(let i=0;i<5;i++){
+      const spread=i*.034;
+      k.geometry(head,i%2?'qiongIce':'qiongFeather',featherVane([x(.122+spread),.116-i*.042,.160-i*.037],
+        [x(.253+spread),.038-i*.041,.031-i*.029],
+        [x(.291+spread),-.043-i*.058,-.242-i*.043],.060-i*.003,89+i,mobile?8:12));
     }
     for(let i=0;i<2;i++){
       const fore=i===0;
       const leg=k.bone(body,x(fore?.225:.169),fore?.081:-.083,fore?.263:-.521);
       const knee=k.bone(leg,x(.045),fore?-.46:-.34,fore?-.082:-.172);
       const heel=k.bone(knee,x(.019),fore?-.36:-.39,fore?.077:.134);
-      shape(k,leg,'body',[[0,.085,0,.143,.122],[x(.023),-.047,-.033,.168,.123],
-        [x(.055),-.201,fore?.029:-.103,.112,.101],[x(.045),fore?-.44:-.35,fore?-.073:-.162,.057,.068]],18,13,2.32,.33);
-      shape(k,knee,'rind',[[0,.041,0,.065,.072],[x(.012),-.15,.014,.061,.055],
-        [x(.019),-.34,fore?.072:.123,.045,.047]],12,10,2.20,.21);
-      for(let j=0;j<3;j++)swept(k,heel,j===1?'edge':'trim',[
-        [(j-1)*.044,.028,0,.034],[(j-1)*.056,-.027,.09,.030],[(j-1)*.058,-.044,.19,.004],
-      ],8,6);
+      shape(k,leg,'body',[[0,.085,0,.143,.122],[x(.023),-.047,-.033,fore?.167:.185,fore?.123:.148],
+        [x(.055),-.195,fore?.029:-.093,fore?.117:.139,fore?.102:.128],
+        [x(.049),fore?-.31:-.257,fore?-.022:-.131,.084,.097],
+        [x(.045),fore?-.44:-.35,fore?-.073:-.162,.061,.074]],18,13,2.32,.33);
+      shape(k,knee,'rind',[[0,.054,-.016,.069,.076],[x(.017),-.022,.016,.076,.073],
+        [x(.012),-.147,.027,.063,.061],[x(.019),-.34,fore?.072:.123,.045,.047]],12,10,2.20,.21);
+      for(let row=0;row<3;row++){
+        const y=.105-row*.086,z=fore?.027:-.07;
+        plate(k,leg,row%2?'qiongFeather':'rind',[[x(.030),y+.021,z+.114],[x(.127),y+.023,z+.129],
+          [x(.183),y-.027,z+.015],[x(.152),y-.102,z-.073],[x(.079),y-.147,z-.055],
+          [x(.096),y-.071,z+.076]],.041,.014);
+        frostVane(leg,row%2?'qiongIce':'qiongPale',[x(.091),y+.022,z+.129],[x(.157),y-.053,z+.113],
+          [x(.131),y-.209-(fore?.082:.030),z-.123],.047,136+row,mobile?7:10);
+      }
+      for(let branch=0;branch<3;branch++){
+        const t=branch*.039;
+        swept(k,knee,branch%2?'qiongFeather':'qiongRuff',[[x(.032+t*.46),.028-t,.038-t*.47,.009],
+          [x(.082-t*.22),-.039-t,.048-t*.83,.016],[x(.076-t*.19),-.106-t,.067-t,.014],
+          [x(.051-t*.35),-.229-t,.082-t,.002]],8,6,.19);
+      }
+      qiongqiFoot(k,heel,side,fore,mobile);
       legs.push({leg,knee,heel,side,i});
     }
     const wing=k.bone(body,x(.252),.259,-.083);
     const wrist=k.bone(wing,x(.673),.41,-.025);
     const back=k.bone(wrist,x(.524),.018,-.129);
     swept(k,wing,'rind',[[0,0,0,.133],[x(.25),.27,.069,.148],[x(.489),.408,.039,.103],[x(.674),.413,-.022,.074]],20,12);
+    for(let i=0;i<(mobile?4:6);i++){
+      const t=i/(mobile?3:5),reach=.20+t*.30;
+      shape(k,wing,i%2?'qiongPelt':'qiongRuff',[[x(-.038+t*.094),.032+t*.17,.076,.053,.048],
+        [x(.115+t*.117),.111+t*.16,.119,.089,.071],[x(.220+t*.193),.111+t*.161,.020,.077,.058],
+        [x(.257+t*.184),.047+t*.128,-reach,.037,.026],[x(.228+t*.179),-.088+t*.145,-reach-.211,.004,.006]],
+      11,8,2.26,.39,i+49);
+    }
+    for(let i=0;i<4;i++){
+      const t=i/4;
+      frostVane(wing,i%2?'qiongMantle':'qiongIce',[x(.042+t*.38),.15+t*.28,.101],
+        [x(.171+t*.44),.24+t*.221,-.02],[x(.233+t*.50),.066+t*.14,-.55+t*.021],.116-t*.032,i+189,mobile?9:12);
+    }
     swept(k,wrist,'rind',[[0,0,0,.093],[x(.312),.105,-.038,.091],[x(.534),.016,-.132,.079]],16,12);
     swept(k,back,'trim',[[0,0,0,.109],[x(.276),-.061,-.171,.11],[x(.529),-.151,-.261,.072],
       [x(.673),-.255,-.268,.002]],16,10);
@@ -842,7 +883,7 @@ function qiongqi(k,entry,mobile){
       const origin=[x(.616*t),-.085+t*.121,-.049-.155*t];
       const mid=[x(.63*t+.21),-.31+t*.22,-.39-length*.24];
       const tip=[x(.33+.63*t+.475*t*t),-.66+t*.45,-.49-length*.54];
-      k.geometry(back,i%3===0?'trim':i%2?'rind':'brocade',featherVane(origin,mid,tip,.146-.021*t,451+i,19));
+      frostVane(back,i%3===0?'qiongMantle':i%2?'rind':'qiongQuill',origin,mid,tip,.146-.021*t,451+i,19);
       swept(k,back,i%2?'glow':'edge',[[origin[0],origin[1]+.025,origin[2],.014],
         [mid[0],mid[1]+.047,mid[2],.013],[tip[0],tip[1]+.009,tip[2],.002]],16,6,.10);
     }
@@ -851,31 +892,52 @@ function qiongqi(k,entry,mobile){
       const a=[x(offset+(i%5)*.088),.052+t*.13,.013];
       const b=[x(offset+(i%5)*.11+.026),-.102+t*.20,-.29];
       const c=[x(offset+(i%5)*.125+.073),-.36+t*.29,-.78+t*.054];
-      k.geometry(pivot,i%3?'rind':'body',featherVane(a,b,c,.127,320+i,13));
-      k.geometry(pivot,i%2?'edge':'trim',featherVane([a[0],a[1]+.095,.030],
-        [b[0]-x(.022),b[1]+.075,-.142],[c[0]-x(.008),c[1]+.13,c[2]+.24],.073,i,11));
+      frostVane(pivot,i%3?'qiongQuill':'rind',a,b,c,.127,320+i,13);
+      frostVane(pivot,i%2?'qiongMantle':'qiongIce',[a[0],a[1]+.095,.030],
+        [b[0]-x(.022),b[1]+.075,-.142],[c[0]-x(.008),c[1]+.13,c[2]+.24],.073,i,11);
+    }
+    for(let i=0;i<5;i++){
+      const t=i/4,y=.425-t*.093;
+      frostVane(body,i%2?'qiongMantle':'qiongFeather',[x(.041+t*.041),y,.17-t*.12],
+        [x(.133+t*.045),y+.025,-.11-t*.09],[x(.263+t*.025),y-.12,-.43-t*.084],.105-t*.015,i+57,mobile?9:13);
     }
     wings.push({wing,wrist,back,side});
   }
   let joint=k.bone(body,0,-.099,-.69);
   for(let i=0;i<8;i++){
-    const t=i/8;
-    const r=.116*(1-t)+.026;
-    shape(k,joint,i%3?'body':'rind',[[0,.01,.024,r,r*.81],[.011,-.02,-.086,r*.90,r*.77],
-      [.014,-.024,-.211,r*.87,r*.70]],10,9,2.21,.23,i);
-    swept(k,joint,i%2?'trim':'edge',[[0,r*.62,-.031,r*.56],[.021,r*.98,-.093,r*.49],
-      [.032,r*1.52,-.168,.001]],8,7);
+    const t=i/8,r=.082*(1-t)+.013,x=.018*Math.sin(i*.62),y=-.045+Math.sin(t*4.3)*.011,z=-.17;
+    shape(k,joint,i%3?'qiongRuff':'qiongPale',[[0,.010,.027,r,r*.86],[x*.55,y*.40,z*.47,r*.93,r*.78],
+      [x,y,z,r*.78,r*.65]],10,9,2.38,.23,i);
+    for(const side of sides)swept(k,joint,i%3?'qiongPale':'qiongIce',[[side*.027,.031,.025,.019],
+      [x+side*r*.61,y+.062,z*.50,.023],[x+side*r*.77,y+.026,z*.93,.017],
+      [x+side*r*.92,y+.011,z-.063,.003]],9,7);
     tail.push(joint);
-    joint=k.bone(joint,.014,-.024,-.195);
+    joint=k.bone(joint,x,y,z);
   }
-  for(let i=-2;i<3;i++)k.geometry(joint,i%2?'brocade':'edge',featherVane([0,0,0],[i*.041,.044,-.21],
-    [i*.089,(.1-Math.abs(i)*.039),-.469+Math.abs(i)*.09],.058,i+4,12));
-  return {body,head,pattern:'wing',crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,
+  for(let i=-1;i<=1;i++)k.geometry(joint,i%2?'qiongPale':'qiongRuff',featherVane([0,0,0],[i*.031,-.067,-.144],
+    [i*.057,-.112,-.255],.034,i+4,9));
+  const skin=bossSkin(k,mobile,tools=>{
+    for(const {back,wing,side} of wings){
+      tools.silk(back,entry.name+' · 柔翎',[[side*.156,-.065,-.087,.064],[side*.36,-.211,-.303,.103],
+        [side*.506,-.442,-.609,.096],[side*.491,-.654,-.819,.011]],
+      {tint:0x374469,trim:0x89abc4,phase:side*.71,style:'mane',flex:1.16,across:[1,.16,.18]});
+      tools.silk(wing,entry.name+' · 腋羽',[[side*.110,.079,.040,.038],[side*.242,.114,-.111,.074],
+        [side*.325,.023,-.383,.085],[side*.450,-.191,-.671,.011]],
+      {tint:0x465568,trim:0x86b3c6,phase:side*.87,style:'mane',flex:1.12,across:[1,.23,.18]});
+    }
+    return true;
+  });
+  const litQuills=k.materials.qiongQuill;
+  litQuills.emissive.setHex(0x39798e);
+  return {body,head,pattern:'wing',crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,sourceSculpt:true,skin,
+    polishEnergy:{tint:0x82cef6,shape:'mist',anchor:body,offset:[0,.28,.03],span:[1.04,.72,.87]},
     cataloguePose({headtime,wind,strike,travel,stage,step}){
       const flop=Math.sin(headtime*(5.2+stage*.8));
       head.rotation.x=-wind*.31+strike*.55+Math.sin(headtime*4.2)*.09;
       head.rotation.y=Math.sin(headtime*1.85)*.13+wind*.11;
-      jaw.rotation.x=wind*.25+strike*.47;
+      jaw.rotation.x=wind*.25+strike*.59;
+      crown.rotation.x=.031*Math.sin(headtime*4.7)+wind*.122-strike*.194;
+      litQuills.emissiveIntensity=.07+wind*.14+strike*.29+stage*.12;
       for(const {side,wing,wrist,back} of wings){
         wing.rotation.z=side*(.25+flop*(.345+travel*.38)+wind*.62-strike*.64);
         wing.rotation.y=side*(.16+wind*.54-strike*.29);
@@ -896,118 +958,18 @@ function qiongqi(k,entry,mobile){
   }};
 }
 
-function strawIdol(k,entry,mobile){
-  const body=k.bone(k.root,0,1.13,.02),head=k.bone(body,.016,.44,.31);
-  head.scale.setScalar(.73);
-  shape(k,body,'deep',[[0,-.719,0,.446,.353],[0,-.489,-.012,.466,.361],[0,-.11,-.028,.401,.316],
-    [0,.192,-.018,.331,.259],[0,.478,.013,.251,.200],[0,.61,.04,.144,.105]],22,15,2.31,.3);
-  const hanging=[];
-  for(let tier=0;tier<4;tier++){
-    const count=mobile?11:24,radius=.23+tier*.123;
-    const girdle=k.bone(body,0,.406-tier*.325,0);
-    girdle.rotation.x=PI/2+.08*Math.sin(tier*2.7);
-    girdle.scale.y=.83;
-    ring(k,girdle,'edge',radius+.08,.024,42);
-    ring(k,girdle,'trim',radius+.092,.018,42,0,.042);
-    ring(k,girdle,'brocade',radius+.061,.022,37,0,-.042);
-    for(let i=0;i<count;i++){
-      const a=i*TAU/count+tier*.102, x=Math.sin(a),z=Math.cos(a);
-      const root=k.bone(body,x*radius,.476-tier*.316,z*radius*.83);
-      root.rotation.y=a;
-      const curl=Math.sin(i*.99+tier*1.78);
-      hanging.push({root,i,tier});
-      plate(k,root,i%5===0?'body':'rind',[
-        [-.044,.068,0],[.059,.069,.013],[.087,-.17,.153],[.072+curl*.019,-.38,.188],
-        [.045,-.49-curl*.058,.191],[-.005,-.43,.192],[-.028,-.65+curl*.081,.228],[-.062,-.48,.192],
-        [-.083,-.19,.113],
-      ],.029,.009);
-      if(!mobile||i%2===0)swept(k,root,i%3?'brocade':'edge',[[.024,.053,.009,.011],[.041,-.15,.139,.014],
-        [-.007,-.332,.191,.013],[-.025+curl*.014,-.53,.219,.004]],mobile?7:11,6);
-      if(tier>0&&i%(mobile?6:5)===1)swept(k,root,i%2?'talon':'charm',[[.015,-.081,.122,.021],
-        [.03,-.192,.177,.028],[-.012,-.31,.23,.018],[-.023,-.376,.243,.005]],8,6);
-    }
-  }
-  shape(k,head,'rind',[[0,-.186,.039,.13,.14],[0,-.117,.027,.21,.179],[0,.03,.008,.226,.198],
-    [0,.158,-.01,.209,.183],[0,.269,-.068,.139,.109]],17,14,2.42,.34);
-  const arms=[],legs=[];
-  for(const side of sides){
-    const x=a=>side*a;
-    const arm=k.bone(body,x(.441),.351,.008);
-    arm.scale.setScalar(.77);
-    const elbow=k.bone(arm,x(.294),-.29,.026);
-    const fingers=k.bone(elbow,x(.07),-.369,.113);
-    const leg=k.bone(body,x(.186),-.632,-.003);
-    leg.scale.setScalar(.72);
-    const boot=k.bone(leg,x(.059),-.293,.039);
-    for(let i=0;i<7;i++){
-      swept(k,arm,i%3?'brocade':'trim',[[x(.032),.061,i*.029-.092,.039],
-        [x(.173),-.106,i*.033-.097,.050],[x(.294),-.29,i*.024-.064,.033]],15,6);
-      swept(k,elbow,i%2?'rind':'brocade',[[x(.018),.002,i*.027-.075,.039],
-        [x(.071),-.168,i*.029-.027,.046],[x(.108),-.338,i*.027+.012,.026]],14,6);
-      swept(k,leg,i%2?'body':'rind',[[x(.026),.049,i*.02-.059,.037],
-        [x(.041),-.15,i*.025-.078,.045],[x(.07),-.301,i*.026-.044,.028]],13,7);
-    }
-    for(let i=0;i<5;i++){
-      swept(k,fingers,i%2?'rind':'edge',[[x(.01+i*.028),.01,.03+i*.021,.025],
-        [x(.027+i*.032),-.15+.01*i,.109+i*.018,.022],
-        [x(.019+i*.034),-.242+.014*i,.17+i*.024,.002]],10,6);
-    }
-    shape(k,boot,'deep',[[0,.043,0,.079,.061],[0,-.087,.047,.097,.081],[x(.01),-.119,.18,.123,.062],
-      [x(.012),-.115,.232,.077,.034]],15,13,2.44,.31);
-    for(let i=0;i<4;i++){
-      swept(k,head,i%2?'edge':'trim',[[x(.036+i*.041),.228,.009,.030],
-        [x(.069+i*.043),.319+i*.015,-.086,.030],[x(.103+i*.049),.39+i*.028,-.16-i*.036,.002]],13,6);
-    }
-    k.mesh(head,'gem','deep',x(.111),.026,.183,.086,.069,.045,.05,x(.38),x(.35));
-    k.mesh(head,'gem','glow',x(.114),.025,.219,.051,.014,.024,-.02,x(.37),x(.41));
-    for(let i=0;i<3;i++)swept(k,head,'deep',[[x(.013+i*.035),-.038,.209,.009],
-      [x(.012+i*.039),-.093+(i%2)*.006,.218,.012],[x(.023+i*.044),-.137,.168,.003]],7,5);
-    const strawBraid=k.bone(elbow,x(.051),-.264,.099);
-    strawBraid.rotation.x=PI/2+.07;
-    ring(k,strawBraid,'edge',.098,.022,19);
-    for(let i=0;i<2;i++)ring(k,strawBraid,'trim',.104,.011,18,0,.030+i*.024);
-    arms.push({arm,elbow,fingers,side});
-    legs.push({leg,boot,side});
-  }
-  const halo=k.bone(head,0,.1,-.239);
-  for(let i=0;i<6;i++){
-    const angle=i*TAU/6;
-    const reed=k.bone(halo,Math.sin(angle)*.228,Math.cos(angle)*.167,0);
-    reed.rotation.z=-angle;
-    bell(k,reed,i%3?'trim':'brocade',.4);
-    swept(k,reed,'rind',[[-.011,0,-.011,.026],[-.042,.181,-.088,.026],
-      [-.086,.277,-.159,.014],[-.169,.337,-.209,.002]],12,6);
-  }
-  return {body,head,crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,pattern:'slam',
-    cataloguePose({headtime,wind,strike,travel,step}){
-      head.rotation.y=Math.sin(headtime*2.15)*.117+wind*.22;
-      head.rotation.x=-wind*.31+strike*.58;
-      for(const {arm,elbow,fingers,side} of arms){
-        const pace=Math.cos(step+side*PI*.5)*travel;
-        arm.rotation.x=.24+pace*.37-wind*.89+strike*.90;
-        arm.rotation.z=side*(.14+wind*.5-strike*.19);
-        elbow.rotation.x=-.31+wind*.25-strike*.63;
-        fingers.rotation.x=Math.sin(headtime*3.4+side)*.13+.3*wind;
-      }
-      for(const {leg,boot,side} of legs){
-        leg.rotation.x=Math.cos(step+side*PI*.5)*travel*.71-strike*.15;
-        boot.rotation.x=-leg.rotation.x*.57+wind*.07;
-      }
-      for(const {root,i,tier} of hanging){
-        root.rotation.x=Math.sin(headtime*4.3+i*.69)*.078+travel*.12-wind*.067+strike*tier*.052;
-        root.rotation.z=Math.sin(headtime*3.1+i*.45+tier*.47)*.077+strike*.1;
-      }
-  }};
-}
-
 function frozenLord(k,entry,mobile){
   const body=k.bone(k.root,0,1.1,.006),head=k.bone(body,0,.96,.069);
+  const jaw=k.bone(head,0,-.096,.07);
+  jaw.name='冰之骷髏君主 · 冰結下顎';
   const robe=longGarment(k,body,{inside:'deep',accent:'rind',cloth:'brocade'},
     {length:1.17,waist:.275,panelW:.20,panels:7,seed:10});
   shape(k,body,'body',[[0,.095,-.02,.257,.178],[0,.303,.02,.277,.216],[0,.466,.008,.317,.22],
     [0,.637,.011,.363,.191],[0,.836,-.027,.290,.169],[0,.92,-.018,.15,.127]],22,15,2.48,.22);
-  shape(k,head,'skull',[[0,-.175,.038,.11,.10],[0,-.103,.039,.144,.135],[0,.025,.048,.195,.147],
-    [0,.151,.042,.213,.156],[0,.216,-.03,.184,.114]],16,13,2.75,.25);
+  shape(k,head,'skull',[[0,-.105,.077,.108,.126],[0,-.051,.039,.159,.146],[0,.025,.048,.195,.147],
+    [0,.151,.042,.213,.156],[0,.216,-.03,.184,.114]],17,14,2.75,.25);
+  shape(k,jaw,'skull',[[0,-.116,.021,.089,.077],[0,-.076,.085,.119,.103],
+    [0,-.035,.142,.138,.105],[0,.007,.075,.101,.093]],15,12,2.48,.22);
   plate(k,head,'rind',[[-.172,.147,.126],[.01,.244,.135],[.183,.137,.131],
     [.09,.139,.196],[.006,.093,.225],[-.083,.147,.197]],.045,.012);
   swept(k,head,'deep',[[0,-.047,.192,.022],[0,-.09,.210,.031],[-.011,-.108,.193,.009]],11,7);
@@ -1021,8 +983,13 @@ function frozenLord(k,entry,mobile){
     eye.rotation.y=x(.25);
     k.mesh(eye,'gem','deep',0,0,.034,.073,.053,.051);
     k.mesh(eye,'gem','glow',0,.006,.078,.047,.019,.012,0,0,x(.15));
-    for(let j=0;j<4;j++)swept(k,head,'deep',[[x(.018+j*.017),-.128,.172,.008],
-      [x(.018+j*.02),-.161,.174,.008],[x(.02+j*.018),-.167,.153,.003]],6,5);
+    swept(k,head,'skull',[[x(.041),-.030,.195,.026],[x(.089),-.037,.203,.038],
+      [x(.151),-.029,.173,.038],[x(.183),.025,.10,.027],[x(.202),.112,.041,.004]],13,9);
+    for(let j=0;j<4;j++){
+      const at=x(.017+j*.027),z=.157-j*j*.002;
+      swept(k,head,'frostEdge',[[at,-.075,z+.047,.013],[at,-.109,z+.066,.019],[at,-.127,z+.058,.007]],7,6);
+      swept(k,jaw,'skull',[[at,-.052,z-.017,.017],[at,-.023,z+.015,.018],[at,-.003,z+.009,.006]],7,6);
+    }
     for(let i=0;i<5;i++){
       swept(k,head,'rind',[[x(.091+i*.020),.10,.09-i*.032,.053],
         [x(.167+i*.037),.23+i*.047,-.032-i*.023,.045],[x(.229+i*.042),.34+i*.051,-.154-i*.031,.002]],13,7,.12);
@@ -1044,6 +1011,15 @@ function frozenLord(k,entry,mobile){
       swept(k,body,'trim',[[x(.044),.64-i*.093,.219,.017],[x(.194),.645-i*.08,.206,.025],
         [x(.307),.649-i*.077,.049,.003]],9,6);
     }
+    const nape=k.bone(head,x(.137),.131,-.129);
+    for(let i=0;i<5;i++){
+      const w=.093+i*.022,h=.16-i*.069;
+      plate(k,nape,i%3?'rind':'mica',[[x(.009),h+.041,-.023],[x(w*.49),h+.092,-.096],
+        [x(w),h+.069,-.181],[x(w*1.07),h-.047,-.257],[x(w*.64),h-.123,-.222],
+        [x(.008),h-.092,-.069]],.031,.014);
+      swept(k,nape,'frostEdge',[[x(.033),h+.050,-.064,.013],[x(w*.61),h+.071,-.144,.019],
+        [x(w*.94),h-.027,-.233,.014],[x(w*.97),h-.08,-.247,.004]],9,7);
+    }
   }
   const blade=k.bone(arms[1].palm,.025,-.037,.026);
   markEnemyWeapon(blade,[.037,1.418,-.036],{width:.155});
@@ -1055,10 +1031,11 @@ function frozenLord(k,entry,mobile){
   for(const side of sides)swept(k,blade,'edge',[[side*.055,.14,.012,.032],[side*.204,.135,.013,.045],
     [side*.278,.345,.012,.030],[side*.26,.423,-.023,.003]],11,7);
   return {body,head,arms:arms.map(s=>s.shoulder),legs:legs.map(s=>s.thigh),crest:k.bone(body,0,0,0),
-    catalogueSculpt:entry.id,cataloguePose(pose){
+    catalogueSculpt:entry.id,frozenMandible:true,cataloguePose(pose){
       const {beat,headtime,wind,strike,step,travel,stage}=pose;
       garmentMotion({...robe,arms},pose,{reach:.73,stroke:1.02});
       head.rotation.y=Math.sin(beat*.46)*.079-wind*.22;
+      jaw.rotation.x=.028+wind*.26+strike*.48+stage*.028;
       blade.rotation.y=-wind*.58+strike*.87;
       blade.rotation.z=.19+wind*.86-strike*1.37;
       for(const {shin,side} of legs)shin.rotation.x=Math.sin(step+side*PI*.52)*travel*.45;
@@ -1067,6 +1044,34 @@ function frozenLord(k,entry,mobile){
         fragment.rotation.x=Math.cos(beat*.54+t*3.9)*.098+strike*.15;
       }
   }};
+}
+
+function mandrillLeg(k,body,side,mobile){
+  const p=points=>points.map(([x,...rest])=>[side*x,...rest]);
+  const thigh=k.bone(body,side*.218,.05,.015),shin=k.bone(thigh,side*.065,-.41,.063);
+  shape(k,thigh,'mandrillLeather',p([[-.015,.064,-.057,.158,.142],[.034,-.066,-.031,.178,.146],
+    [.064,-.227,.045,.144,.121],[.061,-.421,.070,.113,.107]]),17,14,2.42,.25);
+  shape(k,shin,'mandrillHide',p([[0,.056,-.044,.111,.107],[.033,-.066,-.013,.131,.112],
+    [.044,-.245,.043,.104,.092],[.036,-.377,.086,.091,.072]]),16,13,2.55,.24);
+  const toe=k.bone(shin,side*.041,-.381,.112);
+  shape(k,toe,'mandrillHide',p([[0,.021,-.047,.071,.054],[.013,-.018,.024,.103,.062],
+    [.025,-.045,.096,.112,.058],[.023,-.057,.166,.072,.026]]),13,10,2.41,.26);
+  for(let i=0;i<4;i++){
+    const x=(i-1.4)*.044,z=.117+Math.sin(i*.88)*.021;
+    swept(k,toe,'mandrillIvory',p([[x,-.034,z,.026],[x+.008,-.051,z+.047,.024],
+      [x+.019,-.070,z+.073,.003]]),9,7);
+  }
+  const kneecap=p([[-.117,.077,.084],[.029,.156,.098],[.117,.086,.023],[.135,-.009,.026],
+    [.103,-.131,.145],[.038,-.156,.172],[-.096,-.062,.143]]);
+  plate(k,shin,'mandrillLeather',kneecap,.041,.013);
+  swept(k,shin,'mandrillIvory',kneecap.slice(1,6).map(([x,y,z])=>[x,y+.011,z+.02,.014]),10,7);
+  for(let row=0;row<(mobile?3:4);row++){
+    const y=-.13-row*.073,edge=p([[.052,y+.049,.12],[.126,y+.030,.091],[.152,y-.056,.021],
+      [.093,y-.094,-.067],[.030,y-.046,-.046],[.035,y-.006,.079]]);
+    plate(k,shin,row%2?'mandrillLeather':'rind',edge,.030,.011);
+    swept(k,shin,'trim',edge.slice(0,5).map(([x,y,z])=>[x,y+.011,z,.010]),9,7);
+  }
+  return {thigh,shin,toe,side};
 }
 
 function mandrill(k,entry,mobile){
@@ -1086,23 +1091,45 @@ function mandrill(k,entry,mobile){
   const jaw=k.bone(head,0,-.151,.131);
   shape(k,jaw,'rind',[[0,-.096,.028,.112,.081],[0,-.004,.079,.153,.075],
     [0,.06,.095,.153,.064]],14,12,2.49,.15);
-  const legs=sides.map(side=>mailedLeg(k,body,side,.213)),arms=[];
+  const legs=sides.map(side=>mandrillLeg(k,body,side,mobile)),arms=[];
   for(const side of sides){
     const x=a=>side*a;
     const shoulder=k.bone(body,x(.449),.529,.014);
     const elbow=k.bone(shoulder,x(.24),-.32,-.022);
     const palm=k.bone(elbow,x(.04),-.39,.06);
     arms.push({shoulder,elbow,palm,side});
-    shape(k,shoulder,'hide',[[0,.123,-.01,.145,.149],[x(.11),-.002,.029,.227,.194],
-      [x(.16),-.155,.02,.192,.183],[x(.241),-.324,-.019,.128,.12]],20,16,2.3,.28);
-    shape(k,elbow,'hide',[[0,.042,0,.124,.131],[x(.04),-.096,-.026,.187,.168],
-      [x(.031),-.277,.054,.158,.128],[x(.046),-.41,.079,.109,.105]],18,14,2.37,.28);
-    shape(k,palm,'hide',[[0,.068,0,.104,.085],[x(.013),-.032,.035,.143,.117],
-      [x(.038),-.11,.08,.119,.08]],12,13,2.54,.28);
+    shape(k,shoulder,'mandrillHide',[[x(-.119),.101,-.053,.121,.130],[x(-.014),.107,-.042,.163,.142],
+      [x(.106),.046,-.021,.197,.159],[x(.177),-.067,.041,.170,.148],
+      [x(.215),-.193,.03,.140,.123],[x(.237),-.332,-.028,.128,.120]],20,16,2.3,.29);
+    shape(k,elbow,'mandrillHide',[[x(-.024),.097,-.074,.106,.090],[0,.019,-.034,.129,.111],
+      [x(.025),-.092,-.022,.162,.145],[x(.052),-.225,.023,.143,.130],[x(.043),-.324,.060,.122,.115],
+      [x(.041),-.420,.099,.100,.087]],18,14,2.37,.32);
+    shape(k,palm,'mandrillHide',[[0,.068,0,.104,.085],[x(.013),-.032,.035,.143,.117],
+      [x(.038),-.11,.08,.105,.065]],12,13,2.54,.28);
+    shape(k,shoulder,'hide',[[x(.007),.111,-.075,.066,.073],[x(.073),.071,-.109,.116,.078],
+      [x(.149),-.022,-.155,.106,.064],[x(.193),-.172,-.119,.073,.061],[x(.219),-.247,-.083,.028,.022]],18,13,2.6,.22);
+    shape(k,elbow,'rind',[[x(.002),.078,-.031,.057,.049],[x(.046),.014,-.120,.092,.062],
+      [x(.073),-.096,-.158,.112,.062],[x(.068),-.209,-.101,.078,.051],[x(.040),-.332,-.037,.028,.019]],16,14,2.7,.26);
+    const tattoo=Array.from({length:20},(_,i)=>{
+      const t=i/19,r=.111*(1-t*.92),a=(.17+t*1.39)*TAU;
+      return [x(.103+Math.cos(a)*r),.023+Math.sin(a)*r*.84,.176+.029*Math.sin(t*Math.PI),.015-t*.009];
+    });
+    swept(k,shoulder,'mandrillInk',tattoo,22,7,.16);
+    const chestEdge=[[x(.023),.538,.241,.015],[x(.130),.527,.288,.023],[x(.278),.482,.279,.030],
+      [x(.386),.391,.187,.029],[x(.471),.336,.072,.017],[x(.518),.278,-.021,.003]];
+    swept(k,body,'mandrillInk',chestEdge,16,7,.13);
+    const wrist=[[x(-.093),-.139,.131],[x(.030),-.106,.170],[x(.148),-.141,.159],
+      [x(.161),-.290,.115],[x(.067),-.361,.134],[x(-.093),-.322,.152]];
+    plate(k,elbow,'mandrillLeather',wrist,.051,.016);
+    swept(k,elbow,'mandrillIvory',[...wrist,wrist[0]].map(([x,y,z])=>[x,y,z+.030,.019]),18,8,.18);
+    for(let j=0;j<3;j++)swept(k,elbow,'mandrillIvory',[[x(-.070+j*.043),-.278,.183,.008],
+      [x(-.044+j*.040),-.217,.196,.014],[x(-.022+j*.041),-.168,.196,.010]],8,6);
     for(let i=0;i<4;i++){
       const dx=x((i-1.5)*.059);
-      swept(k,palm,'rind',[[dx,-.057,.102,.034],[dx+x(.017),-.113,.174,.038],
-        [dx+x(.028),-.175,.156,.023]],9,7);
+      shape(k,palm,'mandrillHide',[[dx,-.052,.093,.037,.034],[dx+x(.017),-.114,.165,.039,.039],
+        [dx+x(.026),-.160,.177,.029,.032],[dx+x(.028),-.184,.149,.016,.018]],12,8,2.25,.29,i);
+      swept(k,palm,'mandrillInk',[[dx-x(.015),-.104,.150,.005],[dx+x(.007),-.128,.192,.009],
+        [dx+x(.029),-.127,.175,.005]],8,7,.18);
       swept(k,jaw,'edge',[[x(.022+i*.036),.019,.136,.012],[x(.026+i*.038),.064,.135,.011],
         [x(.025+i*.044),.085+i*.007,.118,.002]],7,6);
       swept(k,head,'rind',[[x(.012+i*.022),-.022+i*.04,.185,.022],[x(.107+i*.015),.045+i*.031,.207,.037],
@@ -1142,93 +1169,201 @@ function mandrill(k,entry,mobile){
         elbow.rotation.z=side*(.07+wind*.39-strike*.27);
       }
       bat.rotation.x=-.37-wind*.50+strike*.21;
-      for(const {shin,side} of legs)shin.rotation.x=Math.sin(step+side*PI*.5)*travel*.37;
+      for(const {shin,toe,side} of legs){
+        shin.rotation.x=Math.sin(step+side*PI*.5)*travel*.37;
+        toe.rotation.x=-shin.rotation.x*.41+wind*.07-strike*.08;
+      }
   }};
 }
 
 function ancientYeti(k,entry,mobile){
-  const body=k.bone(k.root,0,.98,-.019),head=k.bone(body,0,.48,.31);
-  shape(k,body,'hide',[[0,-.28,-.103,.559,.36],[0,.022,-.11,.666,.438],
-    [0,.337,-.087,.735,.497],[0,.62,-.134,.558,.461],[0,.834,-.172,.364,.328],
-    [0,.925,-.28,.22,.201]],26,21,2.44,.33);
-  shape(k,head,'body',[[0,-.198,.032,.20,.147],[0,-.082,.019,.245,.178],[0,.083,.024,.214,.184],
-    [0,.216,-.055,.182,.127],[0,.316,-.129,.133,.106]],22,16,2.63,.33);
-  shape(k,head,'rind',[[0,-.126,.187,.131,.056],[0,-.070,.230,.153,.069],[0,.039,.165,.145,.065],
-    [0,.141,.139,.107,.057],[0,.251,.078,.093,.033]],16,12,3.15,.23);
-  const ribs=[],arms=[],legs=[];
+  const body=k.bone(k.root,0,.94,-.019),head=k.bone(body,0,.473,.469);
+  const pelt=(part,finish,path,seed,section=2.2,resolution={})=>k.geometry(part,finish,sculptVolume(path,
+    {sides:mobile?7:10,rings:mobile?9:13,section,ridge:.24,fur:true,seed,...resolution}));
+  pelt(body,'yetiShade',[[0,-.278,-.103,.392,.32],[0,.022,-.11,.570,.416],
+    [0,.337,-.087,.675,.465],[0,.62,-.134,.546,.461],[0,.834,-.172,.350,.328],
+    [0,.925,-.28,.22,.201]],15,2.44,{sides:mobile?19:25,rings:mobile?21:27});
+  const jaw=sculptYetiJaw(k,head,mobile);
+  const ribs=[],arms=[],legs=[],ruff=k.bone(body,0,.345,.26);
+  const coatCount=mobile?4:6;
+  for(const [face,count] of [[1,coatCount],[-1,coatCount+1]])for(const side of sides){
+    for(let i=0;i<count;i++){
+      const t=i/(count-1),wave=Math.sin(i*2.3+side*.24);
+      const x=side*(.055+t*.47),y=(face>0?.64:.743)-t*.26,z=face>0?.373-.064*t:-(.53-.05*t);
+      const width=.066+Math.sin(t*2.7)*.044,tip=.31-.078*t+wave*.040;
+      const coat=i%3===1?'yetiFrost':i%3===2?'hide':'yetiWool';
+      iceFur(k,body,coat,[[x,y,z-face*.06,width*.62,.041],
+        [x*1.02,y-tip*.21,z+face*.067,width,.065],
+        [x+side*.059,y-tip*.60,z+face*.087,width*.81,.052],
+        [x+side*.084,y-tip,z+face*.075,.004,.008]],mobile,i+side*2);
+      const split=x+side*(.021+width*.27),drop=tip*.49,z2=z+face*.065;
+      pelt(body,i%2?'yetiWool':'yetiFrost',[[split,y-.20,z2-face*.018,width*.44,.031],
+        [split+side*.015,y-.23-drop*.28,z2+face*.047,width*.59,.039],
+        [split+side*.043,y-.29-drop*.51,z2+face*.059,width*.41,.031],
+        [split+side*.050,y-.31-drop*.84,z2+face*.072,.003,.005]],i*1.31+side);
+    }
+  }
   for(const side of sides){
     const x=a=>side*a;
-    const horn=k.bone(head,x(.129),.104,.122);
-    const points=[[0,-.065,.037,.078],[x(.060),.121,.045,.087],[x(.157),.304,.00,.077],
-      [x(.251),.487,-.06,.056],[x(.265),.651,-.113,.022],[x(.237),.72,-.123,.002]];
-    shape(k,horn,'rind',points.map(([a,b,c,r])=>[a,b,c,r,r*.77]),19,10,3.1,.29);
+    for(let i=0;i<(mobile?5:7);i++){
+      const t=i/(mobile?4:6),spread=.092+t*.42,phase=Math.sin(i*2.68)*.027;
+      carveYetiRuff(k,body,[[spread-.018,.325-t*.110,-.506+phase,.050,.039],
+        [spread+.032,.196-t*.094,-.572+phase,.071,.053],
+        [spread+.077,.054-t*.037,-.563+phase,.068,.048],
+        [spread+.089,-.147+t*.093,-.479+phase,.019,.026],
+        [spread+.061,-.187+t*.073,-.453+phase,.004,.006]],mobile,side,i+86);
+      if(i<4){
+        const t=i/3,y=.131-t*.082,n=.108+t*.107;
+        fineYetiTuft(k,body,i%2?'yetiWool':'hide',[[x(n-.008),y+.115,.295,.055,.042],
+          [x(n+.038),y+.051,.393,.074,.047],[x(n+.098),y-.048,.402,.063,.038],
+          [x(n+.136),y-.122,.370,.029,.027],[x(n+.151),y-.153,.357,.004,.005]],mobile,side,i+97);
+      }
+    }
+    const horn=k.bone(head,x(.121),.088,.094);
+    const points=[[0,-.070,.013,.082],[x(.058),.096,.007,.086],[x(.143),.251,-.037,.074],
+      [x(.230),.399,-.088,.054],[x(.271),.545,-.158,.025],[x(.282),.626,-.182,.003]];
+    shape(k,horn,'yetiHorn',points.map(([a,b,c,r])=>[a,b,c,r,r*.77]),20,10,3.1,.29);
     const curve=new T.CatmullRomCurve3(points.map(([a,b,c])=>vector([a,b,c])));
     for(let i=0;i<7;i++){
       const t=(i+.68)/8;
       const p=curve.getPointAt(t);
-      const band=k.bone(horn,p.x,p.y,p.z);
-      band.rotation.x=PI/2+.26;
-      band.rotation.y=x(.24);
-      ring(k,band,i%3===1?'copper':'deep',.075-t*.051,.013,15,0,.008);
+      const r=.074-t*.048;
+      const crest=[[p.x-x(r*.59),p.y-.037,p.z+r*.45],[p.x-x(r*.32),p.y+.008,p.z+r*.80],
+        [p.x+x(r*.48),p.y+.017,p.z+r*.62],[p.x+x(r*.72),p.y-.026,p.z+r*.14],
+        [p.x+x(r*.24),p.y-.047,p.z+r*.42]];
+      plate(k,horn,i%4?'yetiHornLight':'copper',crest,.022,.006);
     }
-    k.mesh(head,'gem','glow',x(.105),.011,.211,.032,.018,.021,-.05,x(.36),-x(.26));
-    swept(k,head,'deep',[[x(.018),-.113,.226,.015],[x(.077),-.119,.238,.018],
-      [x(.133),-.096,.217,.017],[x(.154),-.058,.182,.007]],12,6);
-    const shoulder=k.bone(body,x(.524),.429,.025);
-    const elbow=k.bone(shoulder,x(.438),-.194,.046);
-    const paw=k.bone(elbow,x(.173),-.421,.148);
-    shape(k,shoulder,'hide',[[x(-.048),.098,-.049,.234,.232],[x(.139),.083,.008,.357,.289],
-      [x(.312),-.065,.039,.304,.262],[x(.442),-.205,.040,.192,.141]],19,17,2.59,.34);
-    shape(k,elbow,'hide',[[0,.05,0,.183,.179],[x(.075),-.137,.053,.25,.216],
-      [x(.128),-.27,.106,.226,.179],[x(.166),-.441,.149,.16,.126]],21,15,2.46,.32);
-    shape(k,paw,'edge',[[0,.092,-.012,.151,.112],[0,-.037,.054,.196,.145],
-      [x(.018),-.156,.151,.177,.132],[x(.016),-.221,.213,.123,.086]],17,15,2.7,.26);
-    const thigh=k.bone(body,x(.357),-.321,-.107);
+    const shoulder=k.bone(body,x(.488),.441,.034);
+    const elbow=k.bone(shoulder,x(.417),-.238,.071);
+    const paw=k.bone(elbow,x(.178),-.449,.173);
+    pelt(shoulder,'yetiShade',[[x(-.175),.096,-.082,.202,.187],[x(-.029),.132,-.057,.233,.218],
+      [x(.139),.099,-.021,.282,.228],[x(.286),-.021,.017,.247,.202],
+      [x(.367),-.106,.031,.197,.163],[x(.427),-.220,.042,.155,.143]],19,2.39,
+    {rings:18,sides:mobile?15:19});
+    pelt(elbow,'yetiShade',[[x(-.048),.094,-.062,.142,.133],[0,.015,-.008,.168,.153],
+      [x(.058),-.115,.034,.183,.172],[x(.127),-.236,.097,.169,.147],
+      [x(.172),-.420,.157,.136,.119]],21,2.39,{rings:17,sides:mobile?15:19});
+    pelt(paw,'hide',[[0,.097,-.045,.136,.104],[x(.029),.018,.039,.171,.133],
+      [x(.047),-.099,.097,.161,.111],[x(.037),-.192,.169,.108,.078]],24,2.49,
+    {rings:14,sides:mobile?12:16});
+    for(let i=0;i<(mobile?4:6);i++){
+      const t=i/(mobile?3:5),z=-.130+t*.261,y=.191+Math.sin(t*Math.PI)*.065;
+      carveYetiRuff(k,shoulder,[[-.125+t*.051,y-.019,z-.071,.058,.047],
+        [.066+t*.066,y+.041,z-.025,.086,.058],[.218+t*.089,y+.016,z+.051,.086,.055],
+        [.332+t*.107,y-.098,z+.094,.046,.037],[.357+t*.084,y-.216,z+.139,.004,.007]],mobile,side,i+103);
+    }
+    for(let i=0;i<5;i++){
+      const t=i*.2,z=-.217+t*.113,y=.189-t*.076;
+      const scapula=[[x(-.163+t*.071),y+.097,z-.03],[x(.023+t*.083),y+.103,z-.09],
+        [x(.169+t*.127),y+.073,z-.138],[x(.280+t*.147),y-.126,z-.129],
+        [x(.352+t*.107),y-.233,z-.036]];
+      const lock=scapula.map(([x,y,z],j)=>[x,y,z,[.048,.081,.085,.061,.004][j],[.037,.055,.062,.048,.005][j]]);
+      carveYetiRuff(k,shoulder,lock.map(([x,y,z,w,d])=>[x*side,y,z,w,d]),mobile,side,i+32);
+      carveYetiRuff(k,body,[[.029+t*.079,.578-t*.189,-.340-t*.080,.069,.043],
+        [.263+t*.051,.44-t*.19,-.488-t*.053,.087,.057],[.408+t*.106,.308-t*.180,-.541+t*.042,.064,.046],
+        [.522+t*.043,.212-t*.236,-.512+t*.11,.004,.006]],mobile,side,i+12);
+    }
+    for(let i=0;i<(mobile?5:7);i++){
+      const t=i/(mobile?4:6),lean=Math.cos(t*PI)*.061;
+      const flank=.12+t*.22,top=.117-t*.063,front=.145+t*.071;
+      const tone=i%3===0?'yetiFrost':i%3===1?'yetiWool':'hide';
+      iceFur(k,shoulder,tone,[[x(flank-.033),top,front-.073,.052,.038],
+        [x(flank+.033),top-.085,front+.023,.071,.058],
+        [x(flank+.112),top-.19,front+.071,.049,.049],
+        [x(flank+.177),top-.29+lean,front+.033,.004,.005]],mobile,1.9+i);
+      const bend=.066+t*.129,armZ=-.018+t*.333;
+      fineYetiTuft(k,elbow,tone,[[x(bend-.016),-.041,armZ-.015,.055,.041],
+        [x(bend+.087),-.160,armZ+.041,.063,.049],
+        [x(bend+.133),-.303,armZ+.090,.060,.041],
+        [x(bend+.151),-.367,armZ+.113,.036,.029],
+        [x(bend+.162),-.479+lean,armZ+.149,.003,.004]],mobile,side,i+4.1);
+      if(i%2===0)pelt(paw,i%4?'yetiFrost':'yetiWool',[[x(-.09+t*.135),.034,.105,.036,.026],
+        [x(-.08+t*.168),-.047,.175,.039,.029],
+        [x(-.04+t*.19),-.139,.240,.021,.019],[x(.012+t*.181),-.20,.269,.003,.004]],12+i);
+    }
+    const thigh=k.bone(body,x(.357),-.301,-.107);
     const calf=k.bone(thigh,x(.098),-.322,.116);
-    shape(k,thigh,'hide',[[0,.05,-.04,.229,.181],[x(.069),-.116,.009,.23,.171],
-      [x(.103),-.318,.103,.137,.128]],17,13,2.70,.29);
-    shape(k,calf,'body',[[0,.035,.028,.129,.129],[x(.029),-.159,.042,.143,.107],
-      [x(.033),-.234,.19,.174,.106],[x(.031),-.245,.291,.133,.068]],19,12,2.56,.29);
+    const foot=k.bone(calf,x(.034),-.232,.142);
+    pelt(thigh,'yetiShade',[[x(-.057),.139,-.143,.174,.136],[x(.006),.062,-.078,.213,.165],
+      [x(.032),-.074,-.028,.209,.162],[x(.071),-.204,.043,.168,.142],
+      [x(.091),-.331,.101,.117,.113]],56,2.46,{rings:16,sides:mobile?12:15});
+    pelt(calf,'hide',[[0,.071,-.051,.117,.118],[x(.013),.012,-.041,.143,.134],[x(.035),-.079,.000,.156,.128],
+      [x(.046),-.209,.082,.131,.115],[x(.037),-.260,.148,.100,.079]],56,2.56,{rings:15,sides:mobile?13:17});
+    pelt(foot,'yetiShade',[[0,.033,-.032,.087,.073],[x(.025),-.002,.035,.141,.081],
+      [x(.034),-.027,.119,.148,.068],[x(.027),-.051,.186,.091,.035]],61);
+    for(let i=0;i<5;i++){
+      const t=i/4;
+      pelt(thigh,i%2?'yetiFrost':'yetiWool',[[x(.037+t*.104),.059-t*.047,-.112+t*.055,.071,.046],
+        [x(.087+t*.141),-.045-t*.038,-.151+t*.051,.078,.063],
+        [x(.145+t*.129),-.186-t*.035,-.098+t*.073,.053,.042],
+        [x(.185+t*.07),-.312-t*.056,.017+t*.047,.005,.006]],65+i);
+      pelt(calf,i%3?'yetiWool':'yetiFrost',[[x(.034+t*.071),.053-t*.014,-.105+t*.058,.043,.033],
+        [x(.101+t*.064),-.032-t*.016,-.141+t*.079,.063,.045],
+        [x(.151+t*.036),-.127-t*.038,-.080+t*.092,.047,.036],
+        [x(.160+t*.024),-.219-t*.034,.012+t*.086,.004,.005]],69+i);
+    }
     const fingers=[];
     for(let i=0;i<4;i++){
       const dy=(i-1.5)*.041, finger=k.bone(paw,x((i-1.5)*.073),-.142+dy,.112+(i===1?.041:0));
-      shape(k,finger,'hide',[[0,.03,.041,.050,.041],[x(.023),-.11,.084,.045,.045],
-        [x(.034),-.188,.118,.032,.034]],13,10,2.29,.34);
-      swept(k,finger,'deep',[[x(.034),-.154,.121,.032],[x(.043),-.241,.155,.030],
-        [x(.022),-.273,.209,.004]],10,8);
-      swept(k,calf,'rind',[[x((i-1.5)*.053),-.21,.221,.039],[x((i-1.5)*.06),-.24,.294,.042],
-        [x((i-1.5)*.07),-.254,.354,.003]],9,7,.23);
+      sculptYetiFinger(k,finger,side,mobile);
+      const toe=.029+(i-1.5)*.063,z=.108-Math.abs(i-1.7)*.019;
+      pelt(foot,i%2?'yetiWool':'hide',[[x(toe),-.021,z,.040,.041],[x(toe+.012),-.039,z+.069,.040,.035],
+        [x(toe+.025),-.049,z+.121,.026,.018]],78+i);
+      swept(k,foot,'yetiClaw',[[x(toe+.022),-.040,z+.106,.032],[x(toe+.033),-.052,z+.147,.023],
+        [x(toe+.028),-.078,z+.207,.003]],11,7,.23);
       fingers.push(finger);
     }
-    const count=mobile?9:12;
+    const count=mobile?6:8;
     for(let i=0;i<count;i++){
       const t=i/(count-1);
       const tuft=k.bone(shoulder,x(.11+t*.26),.21-t*.11,-.17+t*.36);
       ribs.push({tuft,i,side});
-      k.geometry(tuft,i%2?'edge':'hide',featherVane([0,-.052,.025],
-        [x(.125+t*.045),.051+t*.036,-.091],[x(.39+t*.12),.047+t*.08,-.225-t*.08],
-        .104+.014*t,31+i,15));
-      if(i%3===0)swept(k,tuft,'copper',[[x(.051),.052,-.071,.041],[x(.131),.133,-.128,.035],
-        [x(.178),.252,-.144,.002]],10,6);
+      carveYetiRuff(k,tuft,[[0,-.052,.025,.060,.047],[.125+t*.045,.051+t*.026,-.091,.099,.056],
+        [.255+t*.088,-.011+t*.071,-.192-t*.055,.071,.047],[.347+t*.11,-.036+t*.076,-.258-t*.082,.006,.007]],mobile,side,31+i);
+      swept(k,tuft,i%2?'yetiHorn':'yetiHornLight',[[x(.051),.032,-.071,.036],[x(.110),.13,-.124,.028],
+        [x(.158),.221,-.187,.003]],11,7);
       const r=.36+.07*Math.sin(t*PI);
-      k.geometry(body,i%4?'hide':'edge',featherVane([x(.14+t*.11),.78-t*.19,-.271-t*.15],
-        [x(.29+t*.15),.9-t*.43,-.401-t*.10],[x(r+t*.24),.89-t*.64,-.60-t*.16],.096,51+i,13));
+      iceFur(k,body,i%4?'yetiWool':'yetiShade',[[x(.14+t*.11),.78-t*.19,-.271-t*.15,.056,.045],
+        [x(.29+t*.15),.9-t*.43,-.401-t*.10,.082,.053],[x(r+t*.18),.85-t*.60,-.58-t*.15,.048,.040],
+        [x(r+t*.24),.82-t*.73,-.64-t*.18,.004,.008]],mobile,51+i);
     }
     arms.push({shoulder,elbow,paw,fingers,side});
-    legs.push({thigh,calf,side});
+    legs.push({thigh,calf,foot,side});
   }
-  const mane=k.bone(head,0,.15,-.17);
-  for(let i=-5;i<=5;i++){
-    const t=i/5;
-    k.geometry(mane,i%2?'body':'edge',featherVane([t*.115,-.06,.128],[t*.179,.189,-.051],
-      [t*.369,.603-Math.abs(t)*.19,-.333-Math.abs(t)*.069],.096-Math.abs(t)*.013,i+62,18));
+  const mane=k.bone(head,0,.19,-.14);
+  for(let i=-2;i<=2;i++){
+    const q=i*.059;
+    iceFur(k,body,i%2?'yetiRib':'hide',[[q,.626,-.091,.046,.053],[q*1.38,.819,-.182,.083,.059],
+      [q*1.81,.928-Math.abs(i)*.023,-.325,.063,.042],[q*1.90,1.083-Math.abs(i)*.051,-.485,.004,.007]],mobile,i+110);
   }
-  return {body,head,crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,pattern:'crawl',
-    cataloguePose({beat,headtime,wind,strike,travel,step}){
-      body.rotation.x=.075+wind*.17-strike*.25+Math.sin(beat*.47)*.047;
-      head.rotation.x=-wind*.34+strike*.42;
+  for(let i=-4;i<=4;i++){
+    const t=i/4,w=.069-Math.abs(t)*.015;
+    iceFur(k,mane,i%2?'yetiWool':'yetiFrost',[[t*.112,-.026,.134,w*.61,.039],[t*.166,.147,-.061,w,.051],
+      [t*.225,.285-Math.abs(t)*.075,-.167,w*.76,.043],
+      [t*.320,.425-Math.abs(t)*.175,-.349-Math.abs(t)*.066,.006,.007]],mobile,i+62);
+  }
+  return {body,head,crest:k.bone(body,0,0,0),catalogueSculpt:entry.id,pattern:'crawl',sourceSculpt:true,grounded:true,
+    sourceDress(tools){
+      for(const side of sides){
+        const x=value=>side*value;
+        tools.silk(ruff,entry.name+' · 垂霜胸鬃',[[x(.086),.116,.044,.059],[x(.127),-.005,.105,.084],
+          [x(.202),-.152,.143,.064],[x(.226),-.297,.110,.009]],
+        {tint:0x83919e,trim:0xb6c5ca,phase:side*.62,style:'mane',flex:1.12,across:[.88,.19,.26]});
+        const arm=arms.find(arm=>arm.side===side);
+        tools.silk(arm.elbow,entry.name+' · 肘雪絨',[[x(.097),-.095,-.084,.047],[x(.189),-.204,-.030,.075],
+          [x(.263),-.344,.055,.070],[x(.285),-.471,.153,.008]],
+        {tint:0x758595,trim:0xb0b8c1,phase:side*.85,style:'mane',flex:.94,across:[.15,.49,.73]});
+      }
+      return true;
+    },
+    polishEnergy:{tint:0xb6d0d8,shape:'mist',anchor:body,offset:[0,.27,.04],span:[.87,.60,.80]},
+    cataloguePose({beat,headtime,wind,strike,travel,step,stage}){
+      body.rotation.x=.197+wind*.21-strike*.30+Math.sin(beat*.47)*.047;
+      head.rotation.x=-.10-wind*.39+strike*.46;
       head.rotation.y=Math.sin(headtime*2.8)*.085+wind*.15-strike*.27;
+      jaw.rotation.x=.30+Math.sin(beat*.83)*.049+wind*.36+strike*.69+stage*.08;
       mane.rotation.x=Math.sin(beat*.62)*.052+travel*.11+strike*.25;
+      ruff.rotation.x=Math.sin(beat*.84)*.041-wind*.19+strike*.32;
       for(const {shoulder,elbow,paw,fingers,side} of arms){
         const pace=Math.sin(step+side*PI*.5)*travel;
         shoulder.rotation.x=pace*.56-wind*.67+strike*.82;
@@ -1237,22 +1372,23 @@ function ancientYeti(k,entry,mobile){
         paw.rotation.x=.11-wind*.36+strike*.49;
         for(const [i,finger] of fingers.entries())finger.rotation.x=Math.cos(beat*.8+i*.7)*.071+wind*.27-strike*.37;
       }
-      for(const {thigh,calf,side} of legs){
+      for(const {thigh,calf,foot,side} of legs){
         const pace=Math.cos(step+side*PI*.5)*travel;
         thigh.rotation.x=-.11+pace*.35+wind*.13;
         calf.rotation.x=Math.max(0,pace)*.27+wind*.17-strike*.22;
+        foot.rotation.x=-.47*calf.rotation.x-strike*.079;
       }
       for(const {tuft,i,side} of ribs)tuft.rotation.z=side*(Math.sin(beat+i*.34)*.052+wind*.12-strike*.16);
   }};
 }
 
 export const catalogueFinishes={
-  m001:{rind:[0x75437c,.47,.45,'iron']},
-  m002:{rind:[0x922577,.22,.43,'hide']},
+  m001:{rind:[0x75437c,.47,.45,'iron'],snakeBelly:[0xbca594,.18,.66,'bone']},
+  m002:{rind:[0x922577,.22,.43,'hide'],snakeBelly:[0xb4a879,.18,.60,'hide']},
   m008:{rind:[0x1d7051,.42,.43,'iron'],brocade:[0x355b32,.11,.66,'cloth'],complexion:[0x977462,.06,.70,'hide']},
-  m016:{rind:[0x9e7c4c,.64,.54,'iron'],brocade:[0xb85b37,.08,.64,'cloth'],crest:[0xbcb1a2,.35,.6,'bone'],
+  m016:{...durgaFinishes,rind:[0x9e7c4c,.64,.54,'iron'],brocade:[0xb85b37,.08,.64,'cloth'],crest:[0xbcb1a2,.35,.6,'bone'],
     sculptStone:[0x988270,.12,.67,'stone']},
-  m017:{rind:[0x673d23,.62,.46,'iron'],brocade:[0xb26b23,.15,.57,'cloth'],crest:[0x968476,.40,.57,'iron'],
+  m017:{...relicFinishes,rind:[0x673d23,.62,.46,'iron'],brocade:[0xb26b23,.15,.57,'cloth'],crest:[0x968476,.40,.57,'iron'],
     sculptAsh:[0x898681,.09,.68,'stone']},
   m021:{rind:[0x458f97,.47,.42,'iron'],brocade:[0x8f261a,.17,.58,'cloth'],crest:[0xcbd1cd,.05,.78,'bone'],
     porcelain:[0xcac2ad,.09,.65,'bone']},
@@ -1260,27 +1396,36 @@ export const catalogueFinishes={
     skull:[0x8baba6,.23,.62,'bone']},
   m101:{rind:[0x9d3c08,.22,.52,'stone'],brocade:[0xa54a20,.10,.66,'cloth'],crest:[0x99704c,.06,.86,'hide']},
   m107:{rind:[0x49372f,.52,.53,'iron'],brocade:[0x772f26,.14,.58,'cloth']},
-  m109:{rind:[0xb46f2c,.52,.49,'bronze'],brocade:[0xa44524,.16,.56,'cloth'],crest:[0xddd3b3,.14,.58,'bone']},
-  m148:{rind:[0x2a3d52,.46,.51,'iron'],brocade:[0x15336a,.47,.46,'hide'],ember:[0xdf8c4d,.14,.37,'bone'],
-    trim:[0x416781,.41,.52,'iron']},
-  m151:{rind:[0x605a17,.53,.46,'iron'],brocade:[0x422016,.46,.47,'iron'],silk:[0xa69d5c,.04,.7,'hide']},
-  m153:{rind:[0x282c4e,.54,.48,'iron'],brocade:[0x33213b,.14,.69,'cloth']},
-  m156:{rind:[0x936037,.08,.79,'hide'],brocade:[0x4e271e,.09,.88,'cloth'],
-    talon:[0xb94316,.24,.57,'bronze'],charm:[0x3445a7,.23,.54,'cloth']},
+  m109:{...relicFinishes,rind:[0xb46f2c,.52,.49,'bronze'],brocade:[0xa44524,.16,.56,'cloth'],crest:[0xddd3b3,.14,.58,'bone']},
+  m117:{asuraRed:[0x853e31,.08,.73,'hide'],asuraGold:[0x9b6e43,.66,.44,'bronze'],
+    asuraNavy:[0x26344c,.11,.72,'cloth'],asuraIvory:[0xc3b6a0,.28,.58,'bone'],
+    asuraTrim:[0xceb285,.68,.42,'bronze']},
+  m148:{...qiongFaceFinishes,rind:[0x2d3f54,.42,.52,'iron'],brocade:[0x15336a,.38,.49,'hide'],ember:[0xcd7850,.14,.49,'bone'],
+    trim:[0x4c6a84,.39,.55,'iron'],qiongFeather:[0x495775,.10,.71,'hide'],
+    qiongIce:[0x9db8ca,.14,.59,'bone'],qiongQuill:[0x568eae,.23,.45,'hide'],
+    qiongMantle:[0x8099b6,.25,.46,'hide']},
+  m151:{...hornetRefitFinishes},
+  m153:{rind:[0x282c4e,.54,.48,'iron'],brocade:[0x33213b,.14,.69,'cloth'],
+    shadowIron:[0x363846,.67,.46,'iron'],shadowIvory:[0x746e72,.44,.56,'bone']},
+  m156:thatchedWraithFinishes,
   m157:{rind:[0x9e4d41,.21,.5,'hide'],brocade:[0x862d36,.24,.57,'cloth'],hide:[0xa55654,.09,.69,'hide'],
-    hair:[0x2a2728,.10,.72,'hide']},
-  m158:{rind:[0x633324,.51,.52,'bronze'],copper:[0xa4543d,.46,.51,'bronze'],hide:[0xa4a9a9,.14,.7,'hide']},
+    hair:[0x2a2728,.10,.72,'hide'],mandrillHide:[0x9d544d,.05,.78,'hide'],
+    mandrillLeather:[0x543438,.14,.68,'hide'],mandrillIvory:[0xc0a585,.21,.58,'bone'],
+    mandrillInk:[0x4e2632,.04,.82,'hide']},
+  m158:{...yetiAnatomyFinishes,rind:[0x633324,.41,.56,'bronze'],copper:[0xa4543d,.42,.51,'bronze'],hide:[0x758491,.06,.85,'hide'],
+    yetiWool:[0x91a6ae,.06,.84,'cloth'],yetiFrost:[0xb5c7c8,.03,.79,'cloth'],
+    yetiShade:[0x58636f,.04,.86,'hide']},
 };
 for(const [id,finishes] of Object.entries(legacyCFinishes))Object.assign(catalogueFinishes[id],finishes);
 
 const sculpts={
-  m001:snake,m002:snake,m008:royalMedium,m016:knightRelic,m017:knightRelic,m021:royalMedium,
-  m097:frozenLord,m101:abbot,m107:captain,m109:knightRelic,m148:qiongqi,m151:hornet,m153:shadowReaper,
-  m156:strawIdol,m157:mandrill,m158:ancientYeti,
+  m001:snake,m002:snake,m008:royalMedium,m016:forgeDurga,m017:knightRelic,m021:royalMedium,
+  m097:frozenLord,m101:abbot,m107:captain,m109:knightRelic,m117:sculptAsuraDisciple,m148:qiongqi,m151:sculptKingHornet,m153:shadowReaper,
+  m156:carveThatchedWraith,m157:mandrill,m158:ancientYeti,
 };
 
 export function catalogueSculpt(kit,entry,mobile){
   const parts=sculpts[entry.id]?.(kit,entry,mobile);
-  if(parts)legacyCDetail(kit,entry,parts,mobile);
+  if(parts&&entry.id!=='m156'&&!['m148','m151','m158'].includes(entry.id))legacyCDetail(kit,entry,parts,mobile);
   return parts;
 }

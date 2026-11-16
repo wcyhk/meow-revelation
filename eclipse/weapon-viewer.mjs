@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
-import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-sculpt-1';
+import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
@@ -13,7 +13,7 @@ import {clientSpriteGuide,jushangImage,jushangReference,koreanTrialReference} fr
 import {spriteReferenceView} from './sprite-reference-view.mjs?v=forgelight-4';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
 import {paoForms} from './pao-model.mjs?v=forgeburst-1';
-import {monsterCatalogue} from './monster-catalogue.mjs?v=bestiary-1';
+import {monsterCatalogue} from './monster-catalogue.mjs?v=boss-foundry-1';
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -41,6 +41,7 @@ const drillKeys={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',Ar
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const bronzePao=monsterCatalogue.find(entry=>entry.id==='m025');
 const previewSize=new T.Vector2(),previewFocus=new T.Vector3();
+const previewRotation=new T.Matrix4();
 
 function studioBounds(root){
   const bounds=new T.Box3();
@@ -63,8 +64,30 @@ function studioRig(scene,rig){
   const pivot=new T.Group();
   pivot.add(centered);
   pivot.scale.setScalar(1.84/Math.max(size.x,size.y,size.z));
+  pivot.userData.studioSize=size.multiplyScalar(pivot.scale.x);
   scene.add(pivot);
   return pivot;
+}
+
+function projectedStudioSize(pivot){
+  const {x,y,z}=pivot.userData.studioSize;
+  const m=previewRotation.makeRotationFromEuler(pivot.rotation).elements;
+  return [Math.abs(m[0])*x+Math.abs(m[4])*y+Math.abs(m[8])*z,
+    Math.abs(m[1])*x+Math.abs(m[5])*y+Math.abs(m[9])*z];
+}
+
+function elongatedStudioFrame(pivot,root,mobile,raisedCrown){
+  const rotation=[pivot.rotation.x,pivot.rotation.y,pivot.rotation.z].map(angle=>Math.round(angle*12)).join('/');
+  const fitted=pivot.userData.fitted;
+  if(fitted?.rotation===rotation)return fitted;
+  root.updateWorldMatrix(true,true);
+  const bounds=studioBounds(root);
+  const center=bounds.getCenter(new T.Vector3());
+  const size=bounds.getSize(new T.Vector3());
+  const tallOnMobile=mobile&&size.y>1.30;
+  const headroom=raisedCrown?.91:tallOnMobile?.55:.36;
+  return pivot.userData.fitted={rotation,center,width:Math.max(.78,size.x+.26),
+    height:Math.max(1.10,size.y+headroom),lift:raisedCrown?.115:tallOnMobile?.095:.05};
 }
 
 function fit(camera,width,height,viewWidth,viewHeight){
@@ -422,7 +445,8 @@ export class WeaponViewer {
     this.viewAngles.hidden=this.mode!=='model';
     fit(inspectCamera,width,height,pao?2.03:this.wideModel?2.82:2.30,pao?1.98:2.24);
     const arena=['phase','drill'].includes(this.mode);
-    const battleWidth=arena?23:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
+    const vault=this.boss?.model?.artId==='forest-5';
+    const battleWidth=arena?23:vault?17.2:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
     const jade=this.boss?.bestiary?.id==='m133';
     const battleHeight=arena?13:pao?10.3:jade?9.9:this.boss?8.4:7.6;
     fit(battleCamera,width,height,battleWidth,battleHeight);
@@ -434,7 +458,7 @@ export class WeaponViewer {
     this.yaw+=dx;
     this.pitch=T.MathUtils.clamp(this.pitch+dy,-1.55,1.55);
     this.model.rotation.set(this.pitch,this.yaw,this.boss?-.04:-tilt);
-    this.renderModel();
+    this.renderModel(true);
   }
 
   resetRotation(){
@@ -466,8 +490,9 @@ export class WeaponViewer {
     this.showModel(enable);
   }
 
-  renderModel(){
+  renderModel(refreshEnergy=false){
     if(!this.paoStudio){
+      if(refreshEnergy)this.bossRig?.aura.update(this.modelTime,0,0,0,0,0);
       this.renderer.render(this.scene,inspectCamera);
       return;
     }
@@ -478,16 +503,28 @@ export class WeaponViewer {
     if(left<1||size.y<1)return;
     pivot.rotation.copy(this.model.rotation);
     pivot.rotation.y+=this.bossRig.heading-rig.heading;
+    if(refreshEnergy){
+      this.bossRig.aura.update(this.modelTime,0,0,0,0,0);
+      rig.aura.update(this.modelTime,0,0,0,0,0);
+    }
+    const measured=closeUp?null:[projectedStudioSize(this.model),projectedStudioSize(pivot)];
+    const viewWidth=closeUp?.93:Math.max(2.06,Math.max(measured[0][0],measured[1][0])+.32);
+    const viewHeight=closeUp?1.57:Math.max(2.58,Math.max(measured[0][1],measured[1][1])+.32);
     camera.zoom=inspectCamera.zoom;
     renderer.setScissorTest(true);
     try {
       for(const [subject,model,x,width] of [[this.scene,this.bossRig,0,left],[scene,rig,left,size.x-left]]){
-        const focus=model.mount?.helm??model.head??model.heads?.[0]??model.body.userData.dragonHead??model.body;
+        const focus=model.portraitHead??model.mount?.helm??model.inspectionHead??model.head??model.heads?.[0]??model.body.userData.inspectionHead??model.body.userData.dragonHead??model.body;
         if(closeUp){
           focus.getWorldPosition(previewFocus);
           camera.position.set(previewFocus.x,previewFocus.y+.045,8);
         }else camera.position.set(0,0,8);
-        fit(camera,width,size.y,closeUp?.93:2.06,closeUp?1.57:2.58);
+        const longBody=model.entry.id==='m152'||
+          (model.pattern==='coil'&&!!(model.inspectionHead??model.body.userData.inspectionHead));
+        const framed=!closeUp&&model===this.bossRig&&longBody?elongatedStudioFrame(this.model,model.root,this.main.mobile,
+          this.main.mobile&&model.entry.id==='m126'):null;
+        if(framed)camera.position.set(framed.center.x,framed.center.y+framed.lift,8);
+        fit(camera,width,size.y,framed?.width??viewWidth,framed?.height??viewHeight);
         renderer.setViewport(x,0,width,size.y);
         renderer.setScissor(x,0,width,size.y);
         renderer.render(subject,camera);
@@ -503,6 +540,7 @@ export class WeaponViewer {
     if(this.boss&&!model){this.playBoss({portrait:true},this.inspect);return;}
     this.clearScene();
     this.mode='model';
+    this.modelTime=0;
     this.stage.dataset.preview='model';
     this.setActive(this.inspect);
     this.hint.textContent=withPao?'拖動可同步旋轉':'拖動旋轉';
@@ -576,10 +614,13 @@ export class WeaponViewer {
       const update=now=>{
         if(!this.open||this.mode!=='model'||!this.displayActor||reducedMotion.matches)return;
         if(!this.main.mobile||now-frame>=(this.paoStudio?61:27)){
+          const dt=(now-frame)/1000;
           frame=now;
-          poseBestiary(this.bossRig,this.displayActor,{phase:0},(now-start)/1000,0,0);
+          const clock=(now-start)/1000;
+          this.modelTime=clock;
+          poseBestiary(this.bossRig,this.displayActor,{phase:0,dt},clock,0,0);
           if(this.paoStudio){
-            poseBestiary(this.paoStudio.rig,this.displayActor,{phase:0},(now-start)/1000,0,0);
+            poseBestiary(this.paoStudio.rig,this.displayActor,{phase:0,dt},clock,0,0);
           }
           this.renderModel();
         }
@@ -659,8 +700,9 @@ export class WeaponViewer {
     this.canvas.setAttribute('aria-label',action.drill?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽');
     const name=action.motion?this.motionNames[action.motion]:this.moveNames[action.pattern??this.boss.finishing];
     this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
+    const phaseDetail=name?`變身後出招 · ${name}`:'變身預覽';
     this.detail.textContent=action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
-      :action.phase?`變身後出招 · ${name}`:action.portrait?this.description:name;
+      :action.phase?phaseDetail:action.portrait?this.description:name;
     const view=this.makeStage();
     const seed=this.bossSeed??=Math.floor(Math.random()*0x100000000);
     this.practice=this.makeBossPractice(view,this.dossier,{seed,...action},{

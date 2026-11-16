@@ -256,6 +256,7 @@ function courtCarving(k,parts,mobile,design,expression){
   const frame=available(k,design.finish,'body'),rim=available(k,design.rim,'trim'),dark=available(k,'bOxide','deep');
   if(expression)exposedFace(k,parts,mobile,expression);
   else faceProfiles(k,head,design,mobile);
+  if(parts.fittedPalace||parts.relicGarments||parts.orochiThrall||parts.votiveTailoring)return true;
   const [reach,y,z,span]=design.side,base=head.parent?.isGroup?head.parent:body;
   const back=name(k.bone(base,0,head.position.y*.45+y*.34,z),'Engraved dorsal cuirass');
   for(const side of sides){
@@ -356,9 +357,56 @@ function livingBeast(k,parts,mobile,tiger){
       if(tiger)crest(k,body,bone,[s(w*.58),.55,z+.07],[s(w*.75),.582,z-.1],[s(w*.91),.42,z-.23],.086,i+66,mobile);
     }
   }
+  if(tiger)fangMantle(k,parts,mobile,false);
+}
+
+function fangMantle(k,parts,mobile,spirit){
+  const {body,head}=parts;
+  const neck=name(k.bone(body,0,.48,.15),spirit?'Tiger spirit collar':'White tiger shoulder mane');
+  const fur=available(k,'bFur','body'),dark=available(k,'bOxide','deep'),bone=available(k,'bBone','edge');
+  const fans=[];
+  for(const side of sides){
+    const f=p=>mirror(side,p);
+    const x=spirit?.42:.49,front=spirit?.320:.328;
+    const upper=f([[.018,.588,front+.061,.043,.036],[.088,.632,front+.051,.065,.047],
+      [.218,.682,front+.048,.082,.052],[x*.81,.664,front-.014,.067,.040],
+      [x,.573,front-.102,.040,.038],[x*1.09,.473,front-.180,.006,.005]]);
+    relief(k,body,spirit?'bFlesh':bone,upper,mobile,2.34);
+    sweep(k,body,spirit?'bTrim':dark,upper.map(([px,y,z,r])=>[px,y-.024,z+.026,r*.42]),9);
+    for(let i=0;i<3;i++){
+      const y=.485-i*.113,w=x*(1-i*.123),z=front-i*.016;
+      const ribs=f([[.023,y+.056,z+.019],[w*.46,y+.091,z+.034],[w*.76,y+.058,z+.008],
+        [w*1.18,y-.029,z-.116],[w*.96,y-.109,z-.162],[w*.40,y-.069,z+.023],[.028,y-.047,z+.043]]);
+      die(k,body,i%2===0?fur:dark,spirit?'bTrim':bone,ribs,mobile,{camber:.047,depth:.031,compact:true,scar:1.22});
+    }
+    const spline=name(k.bone(neck,side*.142,.211,-.361),'Layered mane at scapula');
+    for(let i=0;i<(mobile?5:8);i++){
+      const v=i*.067,dx=(i%2)*.028;
+      crest(k,spline,i%3===1?fur:bone,[side*(.021+v*.36),.09-v*.46,-.027],
+        [side*(.115+v*.84),.026-v*.52,-.07-dx],
+        [side*(.21+v*.73),-.09-v*.60,-.18-dx-v*.17],.052+(i%3)*.017,i+67,mobile);
+    }
+    fans.push({spline,side});
+    if(spirit){
+      const brow=f([[.028,.068,.249,.014,.014],[.072,.103,.249,.035,.028],
+        [.135,.091,.214,.038,.029],[.182,.074,.147,.022,.017],[.186,.017,.097,.004,.004]]);
+      relief(k,head,'bBone',brow,mobile,2.64);
+      sweep(k,head,'glow',brow.slice(1,4).map(([x,y,z,r])=>[x,y-.023,z+.021,r*.40]),7);
+      const cheek=f([[.058,-.048,.281],[.135,-.025,.228],[.194,.005,.134],[.205,-.075,.111],
+        [.194,-.174,.164],[.113,-.195,.251],[.072,-.137,.272]]);
+      die(k,head,fur,bone,cheek,mobile,{camber:.039,depth:.024,compact:true});
+      sweep(k,head,bone,f([[.068,-.123,.283,.025],[.085,-.178,.309,.027],
+        [.077,-.218,.318,.018],[.051,-.248,.299,.003]]),9);
+    }
+  }
+  bind(parts,({beat,wind,strike})=>{
+    neck.rotation.x=Math.sin(beat*.55)*.036+wind*.053-strike*.097;
+    for(const {spline,side} of fans)spline.rotation.z=side*(wind*.083-strike*.142);
+  });
 }
 
 function eightNecks(k,parts,mobile){
+  if(parts.orochiRig)return true;
   const {body}=parts;
   const heads=body.children.map(n=>n.children.find(c=>c.position.y>.55&&c.position.z>.35)).filter(Boolean);
   for(const [index,head] of heads.entries()){
@@ -508,8 +556,13 @@ const singular={
 };
 
 export function masterworkB(k,parts,entry,mobile){
+  if(parts.frenzyTiger||parts.asuraCarved||parts.predatorForge||parts.templeSculpt||parts.bullPortrait||parts.valleyFigure)return true;
   const run=singular[entry.id],design=court[entry.id];
   if(run)return run(k,parts,mobile)!==false;
+  if(parts.carvedThunder&&entry.id==='m104'){
+    faceProfiles(k,parts.head,design,mobile);
+    return true;
+  }
   if(design)return courtCarving(k,parts,mobile,design,exposedFaces[entry.id]);
   return false;
 }

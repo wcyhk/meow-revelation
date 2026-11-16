@@ -423,7 +423,7 @@ function varuna(k,parts,tools){
 
 function reaper(k,parts,tools){
   const {head,body}=parts;
-  helmetRelief(k,head,{face:'veil',iron:'rind',rim:'rind'});
+  if(!parts.shadowSculpt)helmetRelief(k,head,{face:'veil',iron:'rind',rim:'rind'});
   for(let i=0;i<5;i++){
     const a=Math.PI*.54+i*.44,x=Math.sin(a),z=Math.cos(a);
     tools.silk(body,'黑影 · 裂帷',[[x*.30,.72,z*.29,.109],[x*.58,.38,z*.47,.151],
@@ -491,7 +491,7 @@ const trials={
 
 function trial(k,parts,spec,tools){
   const {body,head,mount:{knight,helm}}=parts;
-  helmetRelief(k,helm,{face:spec.mask,iron:'body',rim:'edge'});
+  if(!parts.gateRider)helmetRelief(k,helm,{face:spec.mask,iron:'body',rim:'edge'});
   for(const side of sides){
     const {tint,trim,name,cut}=spec;
     tools.silk(knight,name+' · 馬背旗',reflect(side,[[.14,.77,-.22,.062],[.27,.56,-.48,.107],
@@ -510,7 +510,30 @@ function trial(k,parts,spec,tools){
 
 export function refineBossC(k,parts,entry,mobile,tools){
   const {id}=entry;
-  if(champions[id])champion(k,parts,champions[id],tools);
+  if(parts.asuraCarved){
+    for(const side of sides)tools.silk(parts.body,'阿修羅金襟',reflect(side,[
+      [.116,.096,.174,.068],[.199,-.066,.236,.087],[.241,-.341,.262,.092],
+      [.281,-.558,.196,.070],[.313,-.749,.057,.011]
+    ]),{tint:0x304563,trim:0xc7ad7e,style:'woven',phase:side*.66,flex:1.11});
+  }else if(parts.desertKirin){
+    for(const side of sides)tools.silk(parts.head,'沙漠麒麟頸鬣',reflect(side,[
+      [.115,.045,.078,.065],[.237,-.055,-.063,.093],[.341,-.153,-.228,.080],[.386,-.241,-.448,.009]
+    ]),{tint:0x726049,trim:0xb99b7c,style:'mane',phase:side*.83,flex:1.19,across:[.15,.91,.32*side]});
+  }else if(parts.snowTiger){
+    for(const side of sides)tools.silk(parts.body,'白虎護帶',reflect(side,[
+      [.216,.089,-.114,.055],[.331,-.114,-.205,.104],[.413,-.341,-.267,.089],[.476,-.566,-.255,.015]
+    ]),{tint:0x27374f,trim:0x9a7347,phase:side*.84,flex:1.15});
+  }else if(parts.windTaowu){
+    for(const side of sides)tools.silk(parts.head,'檮杌風鬣',reflect(side,[
+      [.174,-.063,.033,.056],[.334,-.141,-.142,.098],[.435,-.213,-.281,.083],
+      [.453,-.296,-.533,.011]
+    ]),{tint:0x536b70,trim:0xa5bfc1,style:'mane',phase:.54*side,flex:1.15,across:[.10,.88,.37*side]});
+  }else if(parts.khanRider){
+    animalAnatomy(k,parts,beasts[id],mobile,tools);
+    for(const side of sides)tools.silk(parts.khanRider,'大罕披帛',reflect(side,[
+      [.147,.749,-.176,.049],[.246,.600,-.318,.077],[.297,.436,-.487,.086],[.356,.307,-.639,.020]
+    ]),{tint:0x293e54,trim:0x8e7956,phase:side*1.13,flex:1.18});
+  }else if(champions[id])champion(k,parts,champions[id],tools);
   else if(beasts[id])animalAnatomy(k,parts,beasts[id],mobile,tools);
   else if(fliers[id])flying(k,parts,fliers[id],mobile,tools);
   else if(trials[id])trial(k,parts,trials[id],tools);

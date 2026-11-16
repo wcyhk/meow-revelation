@@ -1,12 +1,12 @@
 import * as T from '../three.min.mjs';
-import {paintedFinish} from './painted-finish.mjs?v=guard-forge-1';
+import {paintedFinish} from './painted-finish.mjs?v=guard-forge-2';
 import {KoreanBossArt} from './korean-art.mjs?v=pao-1';
 import {buildPao,paoForms,posePao} from './pao-model.mjs?v=forgeburst-1';
 import {paoMaterials,forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.mjs?v=sculpted-1';
-import {enemyCurrent} from './enemy-current.mjs?v=guard-forge-1';
-import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=guard-forge-1';
-import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=guard-forge-1';
+import {enemyCurrent} from './enemy-current.mjs?v=guard-forge-2';
+import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=guard-forge-2';
+import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=guard-forge-2';
 import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=night-current-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=night-current-1';
@@ -1827,7 +1827,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
     legs[3].rotation.x-=lift;
   }
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall});
-  aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading:spec.targetHeading??model.heading,fall});
+  aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,
+    heading:spec.targetHeading??model.heading,fall,frame:!attack&&spec.targetHeading===undefined?root.parent:null});
   model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
   if(model.weaponEmission){
     const uniforms=model.weaponEmission;

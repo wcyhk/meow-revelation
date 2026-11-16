@@ -187,7 +187,8 @@ function separateGrip(weapon){
   hand.position.add(offset);
 }
 
-export function aimEnemyWeapons(weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading,fall}){
+export function aimEnemyWeapons(weapons,attack,wind,strike,{thrust,sweep,crush,travel,heading,fall,frame}){
+  if(weapons.length)frame?.updateWorldMatrix(true,false);
   for(const weapon of weapons){
     for(const {joint,position,rotation} of weapon.pose){
       position.copy(joint.position);
@@ -200,6 +201,7 @@ export function aimEnemyWeapons(weapons,attack,wind,strike,{thrust,sweep,crush,t
     const lift=weapon.kind==='bow'?.02:attack?(thrust?.075:sweep?.11:crush?(strike?-.21:1.05):.45):.58+wind*.30-travel*.22;
     const dx=attack?.dx??Math.sin(heading),dz=attack?.dz??Math.cos(heading);
     aimDirection.set(dx*c+dz*s,lift,dz*c-dx*s).normalize();
+    if(frame)aimDirection.transformDirection(frame.matrixWorld);
     const directed=weapon.aim&&fall<.65;
     const amount=(attack?.pattern?.startsWith('lance')||strike>.30)?.99:.91;
     if(directed)pointWeapon(weapon,aimDirection,amount);

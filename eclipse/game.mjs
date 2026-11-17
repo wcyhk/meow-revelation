@@ -3,7 +3,7 @@ import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=bos
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
 import {WeaponViewer} from './weapon-viewer.mjs?v=solo-preview-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=giant-gates-1';
+import {Scenery} from './scenery.mjs?v=boss-camera-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
@@ -720,7 +720,7 @@ export class Game {
       guardOpen:0,reaction:null,motion:null,frozen:0,
       visual:this.view.createActor(spec.frame,spec.height),
     };
-    if (kind==='boss'||spec.model||spec.bestiary) this.view.prepareBoss(unit.visual,spec);
+    if (kind==='boss'||spec.model||spec.bestiary) this.view.prepareBoss(unit.visual,spec,kind==='boss');
     else if(spec.effigy)this.view.prepareEffigy(unit.visual,spec.effigy);
     this.bound(unit);
     const clearance=.45*bodyScale;
@@ -1942,7 +1942,7 @@ export class Game {
     const drag=this.input.spellGesture?.drag;
     const aiming=drag&&this.state==='play'&&!this.discovery&&this.hero.spellCool<=0;
     this.view.previewAim(aiming?skillFootprint(this,this.skillAim(drag)):null,this.weapon.tone);
-    this.view.render(dt,this.hero,this.state!=='play'&&this.state!=='falling',freezeWarnings&&this.state==='play');
+    this.view.render(dt,this.hero,this.state!=='play'&&this.state!=='falling',freezeWarnings&&this.state==='play',this.enemies);
     this.branchCombat.render(this);
     this.updateMissionPins();
   }

@@ -156,7 +156,8 @@ export class LanternArt {
     }
     const fall=hero.reaction?.kind==='fall';
     const beam=lanternRadius(stage)*(fall?.83:1);
-    const sx=this.view.height/(this.view.camera.top-this.view.camera.bottom);
+    const {top,bottom,zoom}=this.view.camera;
+    const sx=this.view.height*zoom/(top-bottom);
     const screen=this.view.project(hero.x,.32,hero.z);
     const flicker=Math.sin(time*10.7)*.010+Math.sin(time*16.4)*.007;
     const extinguished=hero.lanternOut>0;

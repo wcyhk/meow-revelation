@@ -9,7 +9,7 @@ import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
-import {LanternArt} from './lantern-art.mjs?v=giant-gates-1';
+import {LanternArt} from './lantern-art.mjs?v=boss-camera-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
@@ -90,7 +90,24 @@ const handPalm=new T.SphereGeometry(.58,8,6);
 const handFinger=new T.CapsuleGeometry(.13,.39,3,5);
 const floorPose = new T.Quaternion().setFromEuler(new T.Euler(-PI/2,0,0));
 const sceneAngle = new T.Vector3(0, 13.65, 23.5).normalize();
+const followHeight=1.04;
 const wristMask=(value)=>1-T.MathUtils.smoothstep(value,.07,.25);
+
+function fitZoom(min,max,half,before,after,leadBefore,leadAfter) {
+  return Math.min(half*(before+after)/(max-min),
+    half*(before+leadBefore)/-min,half*(after+leadAfter)/max);
+}
+
+function fitLead(min,max,half,before,after,leadBefore,leadAfter) {
+  const lower=max-half*after,upper=min+half*before;
+  const lead=lower>upper?(lower+upper)*.5:Math.max(lower,Math.min(0,upper));
+  return T.MathUtils.clamp(lead,-half*leadBefore,half*leadAfter);
+}
+
+function easeFrame(value,target,speed,dt) {
+  const next=T.MathUtils.damp(value,target,speed,dt);
+  return Math.abs(next-target)<.001?target:next;
+}
 
 function texture(canvas) {
   const result = new T.CanvasTexture(canvas);
@@ -266,6 +283,8 @@ export class Scenery {
     this.camera.lookAt(unit);
     this.focus = new T.Vector3(0, 0, 1);
     this.cameraUp = new T.Vector3(0, sceneAngle.z, -sceneAngle.y);
+    this.bossFrame={zoom:1,x:0,y:0};
+    this.framePoint=new T.Vector3();
     this.feedback=new CombatFeedback(this,document.getElementById('elemental-surge'));
     this.halo = radialTexture([[0,'#ffffe7ff'],[.19,'#fff4ceb0'],[.44,'#ffd89e47'],[1,'#ffe1bd00']]);
     this.smoke = radialTexture([[0,'#fffffff0'],[.3,'#ffffff80'],[.65,'#ffffff24'],[1,'#ffffff00']]);
@@ -356,6 +375,7 @@ export class Scenery {
 
   setStage(stage) {
     this.stage = stage;
+    this.bossFrame={zoom:1,x:0,y:0};
     this.feedback.clear();
     this.spellLighting.reset();
     this.sigilPreview.visible=this.sigilBurst.visible=false;
@@ -550,11 +570,23 @@ export class Scenery {
     return {art,shade,rim,height,hitFlash,footPhase:null};
   }
 
-  prepareBoss(visual,spec) {
+  prepareBoss(visual,spec,frameBoss=false) {
     const model=spec.bestiary??spec.model;
     if(model){
       visual.bestiary=mountBestiary(this.scene,model,spec.height,this.mobile,spec);
       for(const material of Object.values(visual.bestiary.materials))addHitSurface(material,visual.hitFlash);
+      if(frameBoss){
+        const {root,aura}=visual.bestiary;
+        const bounds=new T.Box3();
+        for(const child of root.children)if(child!==aura?.mesh)bounds.expandByObject(child);
+        if(!bounds.isEmpty()){
+          const {min,max}=bounds;
+          visual.frameCorners=[];
+          for(const x of [min.x,max.x])for(const y of [min.y,max.y])for(const z of [min.z,max.z]){
+            visual.frameCorners.push(new T.Vector3(x,y,z));
+          }
+        }
+      }
       visual.art.visible=false;
     }else{
       visual.form=nightmareForm(spec);
@@ -1715,7 +1747,53 @@ export class Scenery {
     return {x:(point.x + 1) * .5 * this.width, y:(1 - point.y) * .5 * this.height};
   }
 
-  render(dt, hero, paused=false, freezeWarnings=false) {
+  frameBosses(hero,enemies,dt) {
+    const frame=this.bossFrame,up=this.cameraUp,point=this.framePoint;
+    const halfWidth=(this.camera.right-this.camera.left)*.5;
+    const halfHeight=(this.camera.top-this.camera.bottom)*.5;
+    let minX=-1.15,maxX=1.15,minY=-1.20,maxY=1.35,count=0;
+    for(const enemy of enemies){
+      if(enemy.kind!=='boss'||enemy.hp<=0)continue;
+      count++;
+      const {bestiary,frameCorners,height}=enemy.visual;
+      const x=enemy.x-hero.x,z=(enemy.z-hero.z)*up.z;
+      const pad=.45+height*.045;
+      if(frameCorners&&bestiary.root.visible){
+        const root=bestiary.root;
+        root.updateMatrix();
+        for(const corner of frameCorners){
+          point.copy(corner).applyMatrix4(root.matrix);
+          const px=point.x-hero.x,py=(point.y-followHeight)*up.y+(point.z-hero.z)*up.z;
+          minX=Math.min(minX,px-pad);
+          maxX=Math.max(maxX,px+pad);
+          minY=Math.min(minY,py-pad);
+          maxY=Math.max(maxY,py+pad);
+        }
+      }else{
+        minX=Math.min(minX,x-height*.45-pad);
+        maxX=Math.max(maxX,x+height*.45+pad);
+        minY=Math.min(minY,z-followHeight*up.y-pad);
+        maxY=Math.max(maxY,z+(height-followHeight)*up.y+pad);
+      }
+    }
+    // Keep the hero in the middle of the view while leaving space for the HUD.
+    const side=.89,bottom=.70;
+    const top=this.height<=470?.46:this.width<=650?.52:.68;
+    const leadX=.40,leadDown=.28,leadUp=.43;
+    let zoom=1;
+    if(count){
+      zoom=Math.max(.48,Math.min(count>1?.77:.89,
+        fitZoom(minX,maxX,halfWidth,side,side,leadX,leadX),
+        fitZoom(minY,maxY,halfHeight,bottom,top,leadDown,leadUp)));
+    }
+    frame.zoom=easeFrame(frame.zoom,zoom,zoom<frame.zoom?8:3.8,dt);
+    const x=count?fitLead(minX,maxX,halfWidth/frame.zoom,side,side,leadX,leadX):0;
+    const y=count?fitLead(minY,maxY,halfHeight/frame.zoom,bottom,top,leadDown,leadUp):0;
+    frame.x=easeFrame(frame.x,x,count?8:4.5,dt);
+    frame.y=easeFrame(frame.y,y,count?8:4.5,dt);
+  }
+
+  render(dt, hero, paused=false, freezeWarnings=false, enemies=[]) {
     if (!paused) this.time += dt;
     this.feedback.update(dt);
     const time = this.time;
@@ -1730,17 +1808,19 @@ export class Scenery {
       this.shroudElement.style.setProperty('--omen',String(this.shroud));
     }
     if (hero) {
-      this.focus.set(hero.x,1.04,hero.z);
+      this.focus.set(hero.x,followHeight,hero.z);
+      this.frameBosses(hero,enemies,dt);
+      const frame=this.bossFrame;
       this.shake *= Math.exp(-dt * 12);
-      const zoom=this.feedback.subdued?1:1+this.shake*.055;
+      const zoom=frame.zoom*(this.feedback.subdued?1:1+this.shake*.055);
       if(Math.abs(zoom-this.camera.zoom)>.0004||zoom===1&&this.camera.zoom!==1){
         this.camera.zoom=zoom;
         this.camera.updateProjectionMatrix();
       }
       this.camera.position.copy(sceneAngle).multiplyScalar(28).add(this.focus);
       const {x,y}=this.feedback.offset;
-      this.camera.position.x+=x;
-      this.camera.position.addScaledVector(this.cameraUp,y);
+      this.camera.position.x+=frame.x+x;
+      this.camera.position.addScaledVector(this.cameraUp,frame.y+y);
       this.camera.updateMatrixWorld();
       this.cutaway.place(hero.x,hero.z,sceneAngle);
       this.landscape.tick(time,hero,darkness,paused?0:dt);

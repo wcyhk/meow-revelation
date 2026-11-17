@@ -2,12 +2,119 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#151716">
+  <meta name="description" content="《貓貓啟示錄：緋月之森》原創黑暗童話動作冒險。">
   <title>貓貓啟示錄 · 緋月之森</title>
-  <link rel="canonical" href="./eclipse/">
-  <meta http-equiv="refresh" content="0; url=./eclipse/">
+  <base href="./eclipse/">
+  <link rel="canonical" href="https://wcy.hk/meow-revelation/">
+  <link rel="preload" href="./art/moon-gate.webp" as="image">
+  <link rel="stylesheet" href="./style.css?v=world-3d-1">
+  <link rel="stylesheet" href="./dialogue.css?v=story-portraits-1">
+  <link rel="stylesheet" href="./gilded.css?v=gilded-1">
+  <link rel="stylesheet" href="./touch.css?v=sigils-1">
+  <link rel="stylesheet" href="./relic-interface.css?v=armory-art-1">
+  <link rel="stylesheet" href="./weapon-viewer.css?v=solo-preview-1">
+  <link rel="stylesheet" href="./afterglow.css?v=afterglow-1">
+  <link rel="stylesheet" href="./ascendant.css?v=golden-veil-1">
+  <link rel="stylesheet" href="./title-menu.css?v=golden-veil-1">
+  <script type="module" src="./game.mjs?v=solo-preview-1"></script>
 </head>
 <body>
-  <p><a href="./eclipse/">進入《貓貓啟示錄：緋月之森》</a></p>
+  <main id="game" aria-label="貓貓啟示錄">
+    <canvas id="world" aria-label="戰鬥場景"></canvas>
+    <div id="lantern-dark" aria-hidden="true" hidden></div>
+    <div id="boss-shroud" aria-hidden="true"></div>
+    <div id="elemental-surge" aria-hidden="true"></div>
+    <div id="enemy-radar" aria-hidden="true" hidden></div>
+    <div id="eye-marks" aria-hidden="true" hidden></div>
+    <div id="damage-vignette" aria-hidden="true"></div>
+    <section id="cover" aria-label="遊戲主畫面">
+      <div class="title-posters" aria-hidden="true">
+        <img src="./art/moon-gate.webp" alt="" fetchpriority="high">
+        <img class="awakened-poster" src="./art/lantern-ascendant.webp" alt="">
+      </div>
+      <div class="cover-frame" aria-hidden="true"></div>
+      <div class="title-menu">
+        <header class="title-group">
+          <span class="title-subtitle">緋月之森</span>
+          <h1><button id="cover-title" type="button" aria-label="貓貓啟示錄。連續按三下切換無敵測試模式" aria-pressed="false">貓貓啟示錄</button></h1>
+          <p>王座吞下了妹妹的名字。提燈闖過百層，在時間再次碎裂之前，把小燈帶回家。</p>
+        </header>
+        <nav class="title-actions" aria-label="遊戲選單">
+          <button class="primary" id="begin" disabled><span class="title-icon" aria-hidden="true">✦</span><span>進入緋月之森</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="secondary" id="bestiary" disabled><span class="title-icon" aria-hidden="true">◇</span><span>練習場</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="secondary" id="training" disabled><span class="title-icon" aria-hidden="true">✧</span><span>訓練所</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="secondary" id="records" disabled><span class="title-icon" aria-hidden="true">☽</span><span>個人紀錄</span><span class="title-chevron" aria-hidden="true">›</span></button>
+        </nav>
+        <div id="load-note" role="status">正在點亮森林的燭火⋯⋯</div>
+      </div>
+      <div class="cover-footer">
+        <span id="entry-gold">金幣 0</span>
+        <span id="test-mode-status" role="status" class="test-mode-status" hidden></span>
+      </div>
+      <div id="title-flare" aria-hidden="true"><i></i><b></b></div>
+    </section>
+    <section id="hud" hidden aria-label="戰鬥資訊">
+      <div class="health-hud"><div class="portrait"></div><div class="health-info">
+        <div class="hero-name">守燈貓 <span id="hp-number"></span></div>
+        <div class="health-track" role="meter" aria-label="生命" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"><div id="hp-fill"></div></div>
+        <div class="hero-loadout"><span id="equipped"></span><button id="relic-icons" type="button" aria-label="已獲得的祝福" hidden></button></div>
+        <span id="field-support" hidden></span>
+      </div></div>
+      <div class="route-hud"><div id="route-name"></div><div id="route-floor"></div><div id="route-dots"></div><div class="run-counters"><span>擊倒 <b id="run-kills">0</b></span><span>時間 <b id="run-time">0:00</b></span><span>金幣 <b id="run-gold">0</b></span></div></div>
+      <div class="utility"><button id="practice-edit" type="button" hidden>換配搭</button><button id="journal" aria-label="探索手記" title="探索手記（L）">▤</button><button id="mute" aria-label="靜音" aria-pressed="false">♫</button><button id="pause" aria-label="暫停">Ⅱ</button></div>
+      <section id="practice-damage" aria-label="即時傷害統計" hidden></section>
+      <div id="boss-hud" hidden>
+        <div id="boss-primary">
+          <div><i aria-hidden="true">◆</i> <span id="boss-name"></span> <i aria-hidden="true">◆</i></div>
+          <div class="boss-track"><div id="boss-fill"></div></div>
+          <div id="boss-arena-hint"></div>
+          <div id="boss-weakness" hidden></div>
+        </div>
+        <div id="boss-echo" hidden>
+          <div><i aria-hidden="true">◇</i> <span id="boss-echo-name"></span> <i aria-hidden="true">◇</i></div>
+          <div class="boss-track"><div id="boss-echo-fill"></div></div>
+        </div>
+      </div>
+      <div id="mission-status" hidden>
+        <strong id="mission-title"></strong>
+        <span id="mission-text"></span>
+        <div id="mission-track" hidden><div id="mission-fill"></div></div>
+      </div>
+      <div id="mission-pins" aria-hidden="true"></div>
+      <div id="school-toast" role="status" hidden></div>
+      <div id="objective"></div>
+      <button id="inspect" hidden><i aria-hidden="true">◇</i><span></span><kbd>E</kbd></button>
+      <div id="announce" aria-live="polite"><small id="announce-kicker"></small><strong id="announce-title"></strong><p id="announce-line"></p></div>
+      <div class="inputs">
+        <div id="stick" aria-hidden="true" hidden><i></i></div>
+        <div id="touch-cast" aria-hidden="true" hidden><i></i><b></b></div>
+        <div class="touch-guide">
+          <span id="touch-skill-status"></span>
+          <span>拖動移動 · 點按普攻 · 快撥翻滾</span>
+          <span>長按 · 拖到神器紋章後放手</span>
+        </div>
+        <div class="keys"><kbd>W A S D</kbd> 移動 <kbd>Esc</kbd> 暫停</div>
+        <div class="actions">
+          <button id="dodge" class="action" aria-label="翻滾"><span>»</span><em>翻滾</em><kbd>Space</kbd></button>
+          <button id="spell" class="action" aria-label="月輪"><span>☾</span><em>月輪</em><kbd>Q</kbd><i id="skill-link" aria-hidden="true" hidden></i></button>
+          <button id="strike" class="action attack" aria-label="斬擊"><span>✦</span><em>斬擊</em><i class="combo-pips" aria-hidden="true"><b></b><b></b><b></b></i><kbd>J</kbd></button>
+        </div>
+      </div>
+    </section>
+    <div id="time-fracture" aria-hidden="true" hidden><div class="fracture-clock"><b></b><b></b><b></b><b></b></div></div>
+    <section id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="panel">
+        <span id="modal-mark" aria-hidden="true">✧</span>
+        <div id="modal-kicker"></div>
+        <h2 id="modal-title"></h2>
+        <p id="modal-copy"></p>
+        <div id="modal-content"></div>
+        <div id="modal-actions"></div>
+      </div>
+    </section>
+    <noscript>請開啟 JavaScript 以遊玩《貓貓啟示錄》。</noscript>
+  </main>
 </body>
 </html>

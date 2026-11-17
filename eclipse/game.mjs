@@ -8,7 +8,7 @@ import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
 import {Audio} from './audio.mjs?v=afterglow-1';
-import {Input} from './input.mjs?v=bestiary-1';
+import {Input} from './input.mjs?v=skill-button-1';
 import {arms} from './armory.mjs?v=emberlight-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
@@ -130,7 +130,7 @@ export class Game {
       'relic-icons','route-name','route-floor','route-dots','boss-name','damage-vignette','announce','announce-kicker','announce-title','announce-line',
       'mission-status','mission-title','mission-text','mission-track','mission-fill','mission-pins','school-toast','boss-arena-hint','boss-weakness','skill-link',
       'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','bestiary','time-fracture',
-      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','touch-skill-status','practice-edit',...actionIds].map(id=>[id,$(id)]));
+      'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','spell-cooldown','practice-edit',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
     this.input = new Input(view.canvas,action=>{if(!this.weaponViewer.open)(action==='journal'?this.showJournal():this.togglePause());},()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
@@ -1831,6 +1831,7 @@ export class Game {
     const linkState=ready?'ready':queued?'queued':h.linkFlash>0?'cast':'';
     const spell=this.ui.spell, hint=this.ui['skill-link'];
     const fusion=ready?this.fusionForLink(ready):linkState==='cast'?h.linkFusion:null;
+    const name=fusion?.name??skillLinks[this.weapon.id].name;
     if (spell.dataset.link!==linkState||spell.dataset.fusion!==(fusion?.id??'')) {
       spell.dataset.link=linkState;
       spell.dataset.fusion=fusion?.id??'';
@@ -1838,20 +1839,24 @@ export class Game {
       if (fusion) spell.style.setProperty('--fusion-ink',fusion.ink);
       else spell.style.removeProperty('--fusion-ink');
       hint.hidden=!linkState;
-      const name=fusion?.name??skillLinks[this.weapon.id].name;
-      spell.setAttribute('aria-label',ready?'接技：'+name:this.weapon.skill);
       const marks=resonanceMarks(h.resonance);
       const suffix=fusion?' '+fusion.mark:marks?' '+marks:'';
       if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name+suffix:name+'！'+suffix;
     }
     if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/ready.window*360)+'deg');
-    if(this.input.touchMode) {
-      const label=this.ui['touch-skill-status'];
-      const seconds=Math.ceil(Math.max(0,h.spellCool));
-      const text=ready?(hint.textContent||'接技就緒'):this.weapon.skill+(seconds?' · '+seconds+' 秒':' · 可用');
-      if(label.textContent!==text) label.textContent=text;
-      label.classList.toggle('link-ready',!!ready);
-      this.input.touch.prompt.dataset.cooldown=String(!!seconds&&!ready);
+    const seconds=Math.ceil(Math.max(0,h.spellCool));
+    const hideSpell=this.state!=='play'||!!this.discovery;
+    const disabled=String(hideSpell||seconds>0);
+    const countdown=this.ui['spell-cooldown'];
+    const count=seconds?String(seconds):'';
+    const spellLabel=ready?'接技：'+name:this.weapon.skill+(seconds?'，冷卻 '+seconds+' 秒':'');
+    if(spell.hidden!==hideSpell) spell.hidden=hideSpell;
+    if(spell.getAttribute('aria-disabled')!==disabled) spell.setAttribute('aria-disabled',disabled);
+    if(spell.getAttribute('aria-label')!==spellLabel) spell.setAttribute('aria-label',spellLabel);
+    if(countdown.textContent!==count) {
+      countdown.textContent=count;
+      countdown.hidden=!seconds;
+      this.input.touch.prompt.dataset.cooldown=String(!!seconds);
     }
     actionIds.forEach((id,index)=>this.ui[id].style.setProperty('--cool',Math.round(Math.max(0,cooldowns[index])*360)+'deg'));
     this.ui['damage-vignette'].style.opacity=String(this.damageFlash);
@@ -2221,7 +2226,7 @@ export class Game {
     if(content)pauseContent.append(content);
     pauseContent.append(setting);
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
-      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。長按後向上滑到神器紋章，放手施法。點「調查」可同場景互動。'
+      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。點發光嘅神器紋章就可以施技，亦可長按後拖到紋章再放手。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',
       content:pauseContent,
       buttons});

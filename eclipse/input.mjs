@@ -36,8 +36,9 @@ export class Input {
     addEventListener('blur', () => this.reset());
     for (const action of ['strike','spell','dodge']) {
       const button = $(action);
+      const available = () => running() && button.getAttribute('aria-disabled') !== 'true';
       button.addEventListener('pointerdown',event => {
-        if (event.button !== 0 || !running()) return;
+        if (event.button !== 0 || !available()) return;
         event.preventDefault();
         button.setPointerCapture(event.pointerId);
         this.actions.add(action);
@@ -47,7 +48,7 @@ export class Input {
         button.addEventListener(name,event => this.hold.delete(event.pointerId));
       }
       button.addEventListener('click',event => {
-        if (event.detail === 0 && running()) this.actions.add(action);
+        if (event.detail === 0 && available()) this.actions.add(action);
       });
     }
     world.addEventListener('pointerdown',event => {

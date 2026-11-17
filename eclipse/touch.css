@@ -1,4 +1,10 @@
 .touch-guide {display:none}
+#hud {
+  --spell-size:66px;
+  --spell-bottom:max(30px,calc(env(safe-area-inset-bottom) + 25px));
+  --spell-top:calc(var(--spell-bottom) + var(--spell-size));
+}
+#hud.touch-controls {--spell-bottom:max(76px,calc(env(safe-area-inset-bottom) + 67px))}
 .touch-controls :is(.actions,.keys,#inspect kbd) {display:none}
 .touch-controls .touch-guide {
   position:absolute;
@@ -13,23 +19,71 @@
   text-align:center;
   letter-spacing:.055em;
 }
-#touch-skill-status {
+#spell {
+  --spell-ink:var(--fusion-ink,var(--skill-color,#ffd88d));
+  position:absolute;
+  z-index:1;
+  left:50%;
+  bottom:var(--spell-bottom);
+  translate:-50% 0;
+  width:var(--spell-size);
+  height:var(--spell-size);
+  grid-template:1fr / 1fr;
+  border-color:#b48f7375;
+  background:radial-gradient(circle at 50% 45%,#44364b,#16111e 76%);
+}
+#spell[aria-disabled=false] {
+  border-color:var(--spell-ink);
+  background:radial-gradient(circle at 50% 43%,color-mix(in srgb,var(--spell-ink) 35%,#291f35),#1b1326 74%);
+  box-shadow:inset 0 0 0 3px #1e1628,inset 0 0 11px color-mix(in srgb,var(--spell-ink) 38%,transparent),
+    0 0 0 3px #130f1de0,0 0 18px color-mix(in srgb,var(--spell-ink) 68%,transparent),0 5px 13px #0b0717b5;
+}
+#spell>span {
+  grid-area:1/1;
+  width:78%;
+  height:78%;
+  color:transparent;
+  text-shadow:none;
+  background:var(--skill-icon) center/contain no-repeat;
+}
+#spell[aria-disabled=false]>span {
+  filter:drop-shadow(0 0 4px var(--spell-ink));
+  animation:spell-ready .38s ease-out;
+}
+@keyframes spell-ready {
+  from {filter:brightness(1.6) drop-shadow(0 0 8px var(--spell-ink))}
+}
+@media (prefers-reduced-motion:reduce) {
+  #spell[aria-disabled=false]>span {animation:none}
+}
+#spell[aria-disabled=true]>span {opacity:.36;filter:saturate(.56)}
+#spell[aria-disabled=true]:active {transform:none;filter:none}
+#spell-cooldown {
+  grid-area:1/1;
+  z-index:1;
+  color:#fff1d7;
+  font-size:23px;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 1px 4px #100a15,0 0 6px #100a15;
+}
+.spell-caption {
+  position:absolute;
+  left:50%;
+  top:calc(100% + 5px);
+  translate:-50% 0;
   display:flex;
   align-items:center;
   gap:5px;
-  padding:1px 10px 1px 3px;
-  margin-bottom:2px;
-  border:1px solid #d1a77476;
-  border-radius:16px;
-  background:#1a1422db;
-  color:#ffe2b4;
+  padding:2px 6px;
+  background:#181320f2;
+  border:1px solid #ae8a6649;
+  border-radius:4px;
+  pointer-events:none;
 }
-#touch-skill-status::before,#spell>span {
-  background:var(--skill-icon) center/contain no-repeat;
-}
-#touch-skill-status::before {content:'';width:25px;height:25px;flex:none}
-#spell>span {color:transparent!important;width:1.42em;height:1.42em}
-#touch-skill-status.link-ready {color:#ffe0f2;border-color:#e1a6cc;box-shadow:0 0 13px #e99bc14f}
+#spell .spell-caption em {margin:0;color:#ffe8c7;font-size:11px}
+#spell .spell-caption kbd {position:static;transform:none}
+.touch-controls #spell kbd {display:none}
 .touch-controls #objective {bottom:max(87px,calc(env(safe-area-inset-bottom) + 76px))}
 .touch-controls #inspect {
   bottom:max(126px,calc(env(safe-area-inset-bottom) + 115px));
@@ -92,7 +146,14 @@
   .touch-controls #boss-hud,.touch-controls #mission-status {top:max(140px,calc(env(safe-area-inset-top) + 126px))}
 }
 @media (max-height:470px) and (orientation:landscape) {
+  #hud,#hud.touch-controls {
+    --spell-size:56px;
+    --spell-bottom:max(28px,calc(env(safe-area-inset-bottom) + 24px));
+  }
   .touch-controls .touch-guide {bottom:max(8px,env(safe-area-inset-bottom));justify-items:end;padding-right:max(12px,env(safe-area-inset-right))}
   .touch-controls #objective {bottom:max(14px,env(safe-area-inset-bottom));max-width:55%}
   .touch-controls #inspect {bottom:max(46px,calc(env(safe-area-inset-bottom) + 32px))}
 }
+#hud:has(#spell:not([hidden])) #objective {bottom:calc(var(--spell-top) + 31px)}
+#hud:has(#spell:not([hidden])) #inspect {bottom:calc(var(--spell-top) + 70px)}
+#hud:has(#spell:not([hidden])) #school-toast {bottom:calc(var(--spell-top) + 117px)}

@@ -12,13 +12,13 @@
   <link rel="stylesheet" href="./style.css?v=world-3d-1">
   <link rel="stylesheet" href="./dialogue.css?v=story-portraits-1">
   <link rel="stylesheet" href="./gilded.css?v=gilded-1">
-  <link rel="stylesheet" href="./touch.css?v=sigils-1">
+  <link rel="stylesheet" href="./touch.css?v=skill-button-1">
   <link rel="stylesheet" href="./relic-interface.css?v=armory-art-1">
   <link rel="stylesheet" href="./weapon-viewer.css?v=solo-preview-1">
   <link rel="stylesheet" href="./afterglow.css?v=afterglow-1">
   <link rel="stylesheet" href="./ascendant.css?v=golden-veil-1">
   <link rel="stylesheet" href="./title-menu.css?v=golden-veil-1">
-  <script type="module" src="./game.mjs?v=solo-preview-1"></script>
+  <script type="module" src="./game.mjs?v=skill-button-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -91,14 +91,18 @@
         <div id="stick" aria-hidden="true" hidden><i></i></div>
         <div id="touch-cast" aria-hidden="true" hidden><i></i><b></b></div>
         <div class="touch-guide">
-          <span id="touch-skill-status"></span>
           <span>拖動移動 · 點按普攻 · 快撥翻滾</span>
-          <span>長按 · 拖到神器紋章後放手</span>
+          <span>撳發光紋章施技 · 亦可長按拖放</span>
         </div>
         <div class="keys"><kbd>W A S D</kbd> 移動 <kbd>Esc</kbd> 暫停</div>
+        <button id="spell" type="button" class="action" aria-label="月輪" aria-disabled="true" hidden>
+          <span aria-hidden="true">☾</span>
+          <b id="spell-cooldown" aria-hidden="true" hidden></b>
+          <small class="spell-caption" aria-hidden="true"><em>月輪</em><kbd>Q</kbd></small>
+          <i id="skill-link" aria-hidden="true" hidden></i>
+        </button>
         <div class="actions">
           <button id="dodge" class="action" aria-label="翻滾"><span>»</span><em>翻滾</em><kbd>Space</kbd></button>
-          <button id="spell" class="action" aria-label="月輪"><span>☾</span><em>月輪</em><kbd>Q</kbd><i id="skill-link" aria-hidden="true" hidden></i></button>
           <button id="strike" class="action attack" aria-label="斬擊"><span>✦</span><em>斬擊</em><i class="combo-pips" aria-hidden="true"><b></b><b></b><b></b></i><kbd>J</kbd></button>
         </div>
       </div>

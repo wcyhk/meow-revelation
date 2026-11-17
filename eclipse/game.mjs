@@ -3,18 +3,18 @@ import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=bos
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
 import {WeaponViewer} from './weapon-viewer.mjs?v=solo-preview-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=boss-foundry-1';
+import {Scenery} from './scenery.mjs?v=giant-gates-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
 import {Audio} from './audio.mjs?v=afterglow-1';
-import {Input} from './input.mjs?v=skill-button-1';
+import {Input} from './input.mjs?v=skill-aim-1';
 import {arms} from './armory.mjs?v=emberlight-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
 import {blessingRankCap, blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ascendant-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=world-3d-1';
-import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, strikeTravel, strikeWith} from './combat.mjs?v=ledger-1';
+import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, skillFootprint, strikeTravel, strikeWith} from './combat.mjs?v=giant-gates-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=ascendant-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
 import {BossArena} from './boss-arena.mjs?v=ledger-1';
@@ -28,7 +28,7 @@ import {clearUltimates, launchUltimate, updateUltimates} from './ultimate-combat
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
 import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
-import {lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=world-3d-1';
+import {inExitThreshold,lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=giant-gates-1';
 import {actorMotion} from './actor-kinetics.mjs?v=forgelight-4';
 import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle,training} from './progression.mjs?v=last-bell-1';
 import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
@@ -37,7 +37,7 @@ import {storyDialogue} from './dialogue-scenes.mjs?v=story-portraits-1';
 import {dialoguePanel} from './dialogue.mjs?v=story-portraits-1';
 import {endingFor} from './endings.mjs?v=story-portraits-1';
 import {RelicHunt} from './relic-hunt.mjs?v=world-3d-1';
-import {relicCounter} from './relic-cast.mjs?v=ledger-1';
+import {relicCounter} from './relic-cast.mjs?v=giant-gates-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 
@@ -120,7 +120,7 @@ export class Game {
     this.startDelay = Infinity;
     this.clearDelay = 0;
     this.kills = 0;
-    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.previousTime = performance.now();
     this.storyDepth=new StoryDepth(view.canvas);
     this.syncEffects=()=>view.canvas.parentElement.classList.toggle('subdued-effects',view.feedback.subdued);
@@ -458,7 +458,7 @@ export class Game {
     this.kills = 0;
     this.hitstop = 0;
     this.damageFlash = 0;
-    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.level = 0;
     this.wave = 0;
     this.equip(weapon);
@@ -633,7 +633,7 @@ export class Game {
       this.readClue();
       return;
     }
-    if(this.escape?.ready){this.useExit();return;}
+    if(this.escape?.ready)return;
     const arenaPoint=this.bossArena?.nearby(this.hero);
     if(arenaPoint)this.bossArena.interact(arenaPoint);
   }
@@ -706,14 +706,16 @@ export class Game {
   }
 
   spawn(kind,x,z,omen=null,override=null) {
-    const spec = override??enemySpec(this.stage,kind);
+    const bodyScale=kind==='boss'?2:1;
+    const base=override??enemySpec(this.stage,kind);
+    const spec=bodyScale>1||omen?{...base,height:base.height*bodyScale}:base;
     if(omen){
       spec.hp=Math.round(spec.hp*1.22);spec.tint=omen.tint;spec.name=spec.name+' · '+omen.name;
       if(omen.id==='husk')spec.guard=true;
       if(omen.id==='hunt'){spec.speed*=1.16;spec.hurt*=1.12;}
     }
     const unit = {
-      kind,spec,x,z,omen,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
+      kind,spec,bodyScale,x,z,omen,hp:spec.hp,face:x>0?-1:1,phase:random(0,TAU),attack:null,cool:random(.55,1.22),
       kx:0,kz:0,stun:0,flash:0,age:0,step:0,recover:0,move:0,chill:0,exposed:0,bossPhase:0,phaseGuard:0,summons:0,morale:0,
       guardOpen:0,reaction:null,motion:null,frozen:0,
       visual:this.view.createActor(spec.frame,spec.height),
@@ -721,14 +723,15 @@ export class Game {
     if (kind==='boss'||spec.model||spec.bestiary) this.view.prepareBoss(unit.visual,spec);
     else if(spec.effigy)this.view.prepareEffigy(unit.visual,spec.effigy);
     this.bound(unit);
-    if (this.isBlocked(unit,.45)) {
+    const clearance=.45*bodyScale;
+    if (this.isBlocked(unit,clearance)) {
       const angle=this.stage.bearing;
       for (let index=0;index<8;index++) {
         const turn=angle+index*TAU/8;
         unit.x=x+Math.cos(turn)*2.05;
         unit.z=z+Math.sin(turn)*2.05;
         this.bound(unit);
-        if (!this.isBlocked(unit,.45)) break;
+        if (!this.isBlocked(unit,clearance)) break;
       }
     }
     this.enemies.push(unit);
@@ -782,7 +785,7 @@ export class Game {
         this.ui['boss-echo'].hidden=false;
         this.ui['boss-echo-name'].textContent=extra.name;
         this.view.bossCue(echo,'entrance');
-        this.objective('擊敗兩名頭目 · 封住出口嘅路障可擊破');
+        this.objective('擊敗兩名頭目 · 全數擊倒後出口會打開');
       }
       this.view.bossCue(head,'entrance');
       this.audio.boss(guardian.effect);
@@ -790,22 +793,48 @@ export class Game {
     }
   }
 
+  screenDirection(x,y,center=this.view.project(this.hero.x,.8,this.hero.z)) {
+    const h = this.hero;
+    const right=this.view.project(h.x+1,.8,h.z);
+    const down=this.view.project(h.x,.8,h.z+1);
+    const rx=right.x-center.x,ry=right.y-center.y,zx=down.x-center.x,zy=down.y-center.y;
+    const det=rx*zy-ry*zx;
+    if(Math.abs(det)<=.01)return null;
+    const dx=(x*zy-y*zx)/det,dz=(rx*y-ry*x)/det;
+    const length=Math.hypot(dx,dz);
+    return length>0?[dx/length,dz/length]:null;
+  }
+
+  skillAim(drag) {
+    const h=this.hero, range=h.spellRadius;
+    let direction,reach=range;
+    if(drag){
+      direction=this.screenDirection(drag.x,drag.y);
+      reach*=drag.strength;
+    }else{
+      let nearest=Infinity;
+      for(const enemy of this.enemies){
+        if(enemy.hp<=0||enemy.age<.23)continue;
+        const x=enemy.x-h.x,z=enemy.z-h.z,gap=Math.hypot(x,z);
+        if(gap<=.03||gap>range+(enemy.kind==='boss'?.65*(enemy.bodyScale??1):.22)||gap>=nearest)continue;
+        nearest=gap;
+        direction=[x/gap,z/gap];
+        reach=Math.min(gap,range);
+      }
+    }
+    const [dx,dz]=direction??this.aim({},range);
+    const center={x:h.x+dx*reach,z:h.z+dz*reach};
+    this.bound(center);
+    return {dx,dz,center};
+  }
+
   aim(input, range=this.hero.reach+.86) {
     const h = this.hero;
-    if (input.aim) {
-      const center = this.view.project(h.x,.8,h.z);
-      const x=input.aim.x-center.x, y=input.aim.y-center.y;
-      if(Math.hypot(x,y)>7){
-        const right=this.view.project(h.x+1,.8,h.z);
-        const down=this.view.project(h.x,.8,h.z+1);
-        const rx=right.x-center.x, ry=right.y-center.y, zx=down.x-center.x, zy=down.y-center.y;
-        const det=rx*zy-ry*zx;
-        if(Math.abs(det)>.01){
-          const dx=(x*zy-y*zx)/det, dz=(rx*y-ry*x)/det;
-          const length=Math.hypot(dx,dz);
-          if(length>0)return [dx/length,dz/length];
-        }
-      }
+    if(input.aim){
+      const center=this.view.project(h.x,.8,h.z);
+      const x=input.aim.x-center.x,y=input.aim.y-center.y;
+      const direction=Math.hypot(x,y)>7?this.screenDirection(x,y,center):null;
+      if(direction)return direction;
     }
     let nearest = null;
     let shortest = Infinity;
@@ -813,7 +842,7 @@ export class Game {
     for (const foe of [...anchors,...this.enemies,...this.breakables()]) {
       const d = distance(h,foe);
       const priority=foe.kind==='arenaAnchor'?.50:foe.kind==='breakable'?1.35:1;
-      if (foe.hp>0 && d*priority<shortest && d<range+(foe.kind==='boss'?.65:0)) {
+      if (foe.hp>0 && d*priority<shortest && d<range+(foe.kind==='boss'?.65*(foe.bodyScale??1):0)) {
         nearest = foe;
         shortest = d*priority;
       }
@@ -898,13 +927,16 @@ export class Game {
       this.moveUnit(h,h.vx*dt,h.vz*dt,.38);
       const canFight=!this.discovery;
       while (h.slash?.timing&&h.attackAge>=h.slash.timing.hits[h.slash.next].at) this.landSlash();
-      const ready=this.readyLink();
-      const waitForHit=h.link?.pending&&!h.link.contacts.length;
-      const queuesFinisher=!ready&&h.combo===2&&h.comboLeft>0&&h.atk<=.12&&this.buffered.strike>0;
+      const spellAim=this.buffered.spellAim;
+      const manual=this.buffered.spell>0&&!!spellAim?.drag;
+      const ready=manual?null:this.readyLink();
+      const waitForHit=!manual&&h.link?.pending&&!h.link.contacts.length;
+      const queuesFinisher=!manual&&!ready&&h.combo===2&&h.comboLeft>0&&h.atk<=.12&&this.buffered.strike>0;
       const cast=canFight&&!h.slash&&this.buffered.spell>0&&h.spellCool<=0&&!waitForHit&&!queuesFinisher;
       if (cast) {
         this.buffered.spell=0;
-        this.cast(input,ready);
+        this.buffered.spellAim=null;
+        this.cast({...input,spellAim},ready);
       } else if (canFight && !h.slash && this.buffered.strike>0 && h.atk<=0
           && !(waitForHit&&this.buffered.spell>0&&h.spellCool<=0)) {
         this.buffered.strike=0;
@@ -923,9 +955,7 @@ export class Game {
       return;
     }
     if(this.escape?.ready){
-      const open=this.exitOpen()&&distance(h,this.escape)<1.78;
-      this.ui.inspect.hidden=!open;
-      if(open){this.ui.inspect.querySelector('span').textContent='穿過出口';if(input.interact)this.useExit();}
+      this.ui.inspect.hidden=true;
       return;
     }
     const arenaPoint=this.bossArena?.nearby(h);
@@ -1069,8 +1099,9 @@ export class Game {
 
   cast(input,link=this.readyLink()) {
     const h = this.hero;
+    const aim=input.spellAim&&!link?this.skillAim(input.spellAim.drag):null;
     this.view.releaseSigil(h);
-    this.view.castElements(h,this.weapon,this.aim(input,Math.max(h.reach+.8,h.spellRadius+.55)));
+    this.view.castElements(h,this.weapon,aim?[aim.dx,aim.dz]:this.aim(input,Math.max(h.reach+.8,h.spellRadius+.55)));
     h.spellCool = h.spellTime;
     h.link=null;
     if (link) {
@@ -1093,7 +1124,7 @@ export class Game {
       this.audio.link(this.weapon.id,true);
       giftCast(this,link);
     } else {
-      invokeArm(this,input);
+      invokeArm(this,input,aim);
       if (!h.rush) heroAction(h,'cast');
       h.atk=Math.max(h.atk,.16);
       this.audio.arm(this.weapon.id);
@@ -1369,7 +1400,9 @@ export class Game {
       if (arena?.counters.stagger>0||arena?.counters.moveCharge(dt)) continue;
       const lunging=unit.motion?.pattern==='pounce'&&unit.motion.age<.31;
       const old=lunging?{x:unit.x,z:unit.z}:null;
-      this.moveUnit(unit,unit.kx*dt,unit.kz*dt,.35);
+      const bodyScale=unit.bodyScale??1;
+      const clearance=.35*bodyScale;
+      this.moveUnit(unit,unit.kx*dt,unit.kz*dt,clearance);
       if (old) this.view.motion.enemyTrail(old,unit);
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
@@ -1399,9 +1432,10 @@ export class Game {
       for (const other of this.enemies) {
         if (unit===other || other.hp<=0) continue;
         const between=distance(unit,other);
-        if (between>.02 && between<1.30) {
-          sx+=(unit.x-other.x)/between*(1.30-between)*2.3;
-          sz+=(unit.z-other.z)/between*(1.30-between)*2.3;
+        const spacing=.65*(bodyScale+(other.bodyScale??1));
+        if (between>.02 && between<spacing) {
+          sx+=(unit.x-other.x)/between*(spacing-between)*2.3;
+          sz+=(unit.z-other.z)/between*(spacing-between)*2.3;
         }
       }
       const boss=unit.kind==='boss';
@@ -1410,12 +1444,12 @@ export class Game {
       const aggression = (1+unit.bossPhase*.17)*Math.min(chilled,marked)*(unit.morale>0?1.31:1)
         *(unit.omen?.id==='hunt'&&unit.hp<unit.spec.hp*.5?1.31:1);
       const advance=direction*spec.speed*aggression*dt;
-      const traveled=this.moveUnit(unit,dx*advance+sx*dt,dz*advance+sz*dt,.35);
+      const traveled=this.moveUnit(unit,dx*advance+sx*dt,dz*advance+sz*dt,clearance);
       if (direction && traveled<Math.abs(advance)*.38) {
         const side=unit.phase>Math.PI?-1:1;
         const sidestep=Math.abs(advance)*side;
-        if (this.moveUnit(unit,-dz*sidestep,dx*sidestep,.35)<Math.abs(sidestep)*.35) {
-          this.moveUnit(unit,dz*sidestep,-dx*sidestep,.35);
+        if (this.moveUnit(unit,-dz*sidestep,dx*sidestep,clearance)<Math.abs(sidestep)*.35) {
+          this.moveUnit(unit,dz*sidestep,-dx*sidestep,clearance);
         }
       }
       unit.move=Math.min(1,unit.move+Math.abs(direction)*dt*9);
@@ -1525,19 +1559,27 @@ export class Game {
     this.view.setBossArena(null);
     this.setupMissionPins();
     this.ui.hud.dataset.mission='escape';
-    this.escape.ready=true;
-    this.escape.message=message;
-    this.escape.found||=this.hero.lanternOut<=0&&distance(this.hero,this.escape)<lanternRadius(this.stage)*.96;
-    this.announce('封印解除','尋找出口','留意北面拱門。黑暗入面仲有嘢跟住你。',1.95);
+    const exit=this.escape;
+    exit.ready=true;
+    exit.opening=.24;
+    exit.message=message;
+    exit.found||=this.hero.lanternOut<=0&&distance(this.hero,exit)<lanternRadius(this.stage)*.96;
+    for(const gate of exit.barricades){
+      if(!gate.gate||gate.hp<=0)continue;
+      gate.hp=0;
+      this.view.lanternArt.smash(gate);
+      this.view.spark(gate.x,.42,gate.z,exit.frame.light,8,.85,'flare');
+    }
+    this.announce('封印解除','出口已開','行入北面拱門就可以前往下一層。',1.95);
     this.updateEscape(0);
   }
 
   exitOpen() {
-    return this.escape?.ready&&!this.escape.passed&&this.escape.barricades.every(item=>!item.gate||item.hp<=0);
+    return this.escape?.ready&&!this.escape.passed;
   }
 
   useExit() {
-    if(this.state!=='play'||!this.exitOpen()||distance(this.hero,this.escape)>=1.78)return false;
+    if(this.state!=='play'||!this.exitOpen()||this.escape.opening>0||!inExitThreshold(this.hero,this.escape))return false;
     this.escape.passed=true;
     this.clearThreats();this.rituals.length=0;this.clearActors();
     this.ui.inspect.hidden=true;
@@ -1561,11 +1603,12 @@ export class Game {
 
   updateEscape(dt) {
     const exit=this.escape;
-    const gateLeft=exit.barricades.filter(item=>item.gate&&item.hp>0).length;
+    exit.opening=Math.max(0,exit.opening-dt);
+    if(this.useExit())return;
     exit.searchTime+=dt;
     const dx=exit.x-this.hero.x,dz=exit.z-this.hero.z;
     const compass=(Math.abs(dx)>2?(dx<0?'西':'東'):'')+(Math.abs(dz)>2?(dz<0?'北':'南'):'');
-    this.objective(exit.found?(gateLeft?'找到出口 · 擊破路障 '+(2-gateLeft)+'/2':'出口已開 · '+(compass||'靠近拱門'))
+    this.objective(exit.found?('出口已開 · '+(compass?'往'+compass:'行入拱門'))
       :'提燈找出口 · '+(exit.searchTime>7&&compass?'往'+compass:'沿北面牆搜尋'));
     if(exit.found)return;
     exit.clock-=dt;
@@ -1747,6 +1790,7 @@ export class Game {
     const h=this.hero;
     const finishing=h.link?.pending||(h.combo===2&&h.comboLeft>0&&h.atk<.14&&(input.strike||this.buffered.strike>0));
     this.buffered.spell = input.spell ? (finishing?.96:.35) : this.buffered.spell-(this.hitstop>0?0:dt);
+    if(input.spell)this.buffered.spellAim=input.spellAim??null;
     this.buffered.strike = input.strike ? Math.max(.23,this.hero.atk+.09) : this.buffered.strike-dt;
     if (this.hitstop>0) {
       this.hitstop-=dt;
@@ -1895,6 +1939,9 @@ export class Game {
       this.audio.update();
     }
     this.view.previewSkill(this.hero,this.state==='play'?this.input.touch.preview:0,dt);
+    const drag=this.input.spellGesture?.drag;
+    const aiming=drag&&this.state==='play'&&!this.discovery&&this.hero.spellCool<=0;
+    this.view.previewAim(aiming?skillFootprint(this,this.skillAim(drag)):null,this.weapon.tone);
     this.view.render(dt,this.hero,this.state!=='play'&&this.state!=='falling',freezeWarnings&&this.state==='play');
     this.branchCombat.render(this);
     this.updateMissionPins();
@@ -1903,7 +1950,7 @@ export class Game {
   openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
     if(this.weaponViewer.open)this.weaponViewer.dialog.close();
     this.input.reset();
-    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.ui['modal-mark'].textContent=mark;
     this.ui['modal-kicker'].textContent=kicker;
     this.ui['modal-title'].textContent=title;
@@ -2226,7 +2273,7 @@ export class Game {
     if(content)pauseContent.append(content);
     pauseContent.append(setting);
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
-      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。點發光嘅神器紋章就可以施技，亦可長按後拖到紋章再放手。點「調查」可同場景互動。'
+      copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。點神器紋章會自動瞄準，拖住紋章可以手動瞄準，放手施技。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',
       content:pauseContent,
       buttons});

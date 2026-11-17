@@ -22,6 +22,35 @@ export class Input {
       if(action==='dodge') this.dodgeDirection=direction;
       this.actions.add(action);
     });
+    this.spellButton=$('spell');
+    const canCast=()=>running()&&this.spellButton.getAttribute('aria-disabled')==='false';
+    this.spellButton.addEventListener('pointerdown',event=>{
+      if(event.button!==0||this.spellGesture||!canCast())return;
+      event.preventDefault();
+      this.spellButton.setPointerCapture(event.pointerId);
+      this.spellGesture={id:event.pointerId,x:event.clientX,y:event.clientY,drag:null,dragged:false};
+    });
+    this.spellButton.addEventListener('pointermove',event=>this.aimSpell(event));
+    this.spellButton.addEventListener('pointerup',event=>{
+      const gesture=this.aimSpell(event);
+      if(!gesture)return;
+      if(canCast()&&(!gesture.dragged||gesture.drag)){
+        this.spellRelease={drag:gesture.drag};
+        this.actions.add('spell');
+      }
+      this.cancelSpell();
+    });
+    for(const type of ['pointercancel','lostpointercapture']){
+      this.spellButton.addEventListener(type,event=>{
+        if(this.spellGesture?.id===event.pointerId)this.cancelSpell();
+      });
+    }
+    this.spellButton.addEventListener('click',event=>{
+      if(event.detail===0&&canCast()){
+        this.spellRelease={drag:null};
+        this.actions.add('spell');
+      }
+    });
     const bindings = new Map([['KeyJ','strike'],['KeyQ','spell'],['Space','dodge'],['KeyE','interact']]);
     addEventListener('keydown', event => {
       const {code,repeat} = event;
@@ -34,11 +63,10 @@ export class Input {
     });
     addEventListener('keyup', event => this.keys.delete(event.code));
     addEventListener('blur', () => this.reset());
-    for (const action of ['strike','spell','dodge']) {
+    for (const action of ['strike','dodge']) {
       const button = $(action);
-      const available = () => running() && button.getAttribute('aria-disabled') !== 'true';
       button.addEventListener('pointerdown',event => {
-        if (event.button !== 0 || !available()) return;
+        if (event.button !== 0 || !running()) return;
         event.preventDefault();
         button.setPointerCapture(event.pointerId);
         this.actions.add(action);
@@ -48,7 +76,7 @@ export class Input {
         button.addEventListener(name,event => this.hold.delete(event.pointerId));
       }
       button.addEventListener('click',event => {
-        if (event.detail === 0 && available()) this.actions.add(action);
+        if (event.detail === 0 && running()) this.actions.add(action);
       });
     }
     world.addEventListener('pointerdown',event => {
@@ -68,6 +96,25 @@ export class Input {
     document.addEventListener('contextmenu',event => event.preventDefault());
   }
 
+  aimSpell(event) {
+    const gesture=this.spellGesture;
+    if(gesture?.id!==event.pointerId)return;
+    const x=event.clientX-gesture.x,y=event.clientY-gesture.y;
+    const distance=Math.hypot(x,y);
+    const travel=y>0?Math.max(24,Math.min(80,innerHeight-gesture.y-8)):80;
+    gesture.drag=distance>=10?{x,y,strength:Math.min(1,distance/travel)}:null;
+    gesture.dragged ||= !!gesture.drag;
+    this.spellButton.toggleAttribute('data-aiming',!!gesture.drag);
+    return gesture;
+  }
+
+  cancelSpell() {
+    const id=this.spellGesture?.id;
+    this.spellGesture=null;
+    this.spellButton.removeAttribute('data-aiming');
+    if(id!==undefined&&this.spellButton.hasPointerCapture(id))this.spellButton.releasePointerCapture(id);
+  }
+
   read() {
     const k = this.keys;
     let x = Number(k.has('KeyD')||k.has('ArrowRight'))-Number(k.has('KeyA')||k.has('ArrowLeft'))+this.touch.x;
@@ -79,9 +126,11 @@ export class Input {
       x,z, dodge:this.actions.has('dodge'), dodgeDirection:this.dodgeDirection, spell:this.actions.has('spell'), interact:this.actions.has('interact'),
       strike:this.actions.has('strike')||k.has('KeyJ')||this.hold.size>0,
       aim:this.mouseAim,
+      spellAim:this.spellRelease,
     };
     this.actions.clear();
     this.dodgeDirection=null;
+    this.spellRelease=null;
     if (!this.hold.size) this.mouseAim = null;
     return input;
   }
@@ -92,6 +141,8 @@ export class Input {
     this.actions.clear();
     this.mouseAim = null;
     this.dodgeDirection=null;
+    this.spellRelease=null;
+    this.cancelSpell();
     this.touch.reset();
   }
 }

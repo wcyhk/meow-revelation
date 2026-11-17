@@ -175,7 +175,7 @@ export class LanternArt {
     this.light.intensity=extinguished?0:(27+flicker*72)*this.gain;
     this.glow.material.opacity=.72+flicker*5;
     if(this.route){
-      const open=this.route.ready&&this.route.barricades.every(item=>!item.gate||item.hp<=0);
+      const open=this.route.ready;
       this.threshold.visible=open&&this.route.found;
       this.exit.tick(open,time,dt);
       if(this.threshold.visible)this.threshold.material.opacity=.29+Math.sin(time*2.3)*.045;

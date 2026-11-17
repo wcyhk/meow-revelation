@@ -5,6 +5,7 @@ const TAU=Math.PI*2;
 const offset=(point,angle,reach)=>({x:point.x+Math.cos(angle)*reach,z:point.z+Math.sin(angle)*reach});
 const height=(point,y=.64)=>({x:point.x,y,z:point.z});
 const live=unit=>unit.hp>0&&unit.age>=.23;
+const hitMargin=(unit,boss,other)=>unit.kind==='boss'?boss*(unit.bodyScale??1):other;
 
 function closest(game,point,range,visited=new Set()){
   let target;
@@ -16,13 +17,17 @@ function closest(game,point,range,visited=new Set()){
   return target;
 }
 
+export function relicSpellRadius(weapon,rank,linked=false){
+  return weapon.spell.radius*(weapon.blessing.augment==='wide'?1+rank*.14:1)*(linked?1.12:1);
+}
+
 export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHit){
   const {hero,weapon,view}=game;
-  const {action,hits,radius:baseRadius,interval,look}=weapon.spell;
+  const {action,hits,interval,look}=weapon.spell;
   const rank=Math.min(3,game.ranks.get(weapon.blessing.id)??0);
   const boon=rank?weapon.blessing.augment:null;
   const bearing=Math.atan2(dz,dx);
-  const radius=baseRadius*(boon==='wide'?1+rank*.14:1)*(linked?1.12:1);
+  const radius=relicSpellRadius(weapon,rank,linked);
   const damage=power*relicPower(rank)*(linked?1.23:1);
   const pulse=weapon.sigil%3;
   const position=(point,angle,dist)=>{const next=offset(point,angle,dist);game.bound(next);return next;};
@@ -73,7 +78,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
   function burst(point,size,scale=1,index=0,accent=true,force=.72,credit=castSource){
     if(accent)view.relicPulse(weapon,point,size,index);
     for(const unit of [...game.enemies,...game.breakables(),...(game.bossArena?.targets??[])]){
-      if(unit.hp>0&&gap(unit,point)<=size+(unit.kind==='boss'?.58:.12))strike(unit,point,scale,force,true,credit);
+      if(unit.hp>0&&gap(unit,point)<=size+hitMargin(unit,.58,.12))strike(unit,point,scale,force,true,credit);
     }
   }
 
@@ -85,7 +90,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
     if(weapon.id!=='zhurong-axe')view.relicPulse(weapon,offset(point,angle,length*.72),width+.55,index);
     for(const unit of [...game.enemies,...game.breakables(),...(game.bossArena?.targets??[])]){
       const x=unit.x-point.x,z=unit.z-point.z,along=x*tx+z*tz;
-      if(along>=-.35&&along<=length+.32&&Math.abs(x*tz-z*tx)<width+(unit.kind==='boss'?.6:.2)){
+      if(along>=-.35&&along<=length+hitMargin(unit,.32,.32)&&Math.abs(x*tz-z*tx)<width+hitMargin(unit,.6,.2)){
         strike(unit,point,scale,returning?-.55:1.12);
       }
     }
@@ -230,7 +235,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
               if(!live(foe))continue;
               const x=foe.x-shot.origin.x,z=foe.z-shot.origin.z;
               const along=x*shot.dx+z*shot.dz;
-              const size=foe.kind==='boss'?.85:.42;
+              const size=hitMargin(foe,.85,.42);
               if(along<-size||along>shot.reach*section/sections+size||along>=nearest
                 ||along<shot.reach*(section-1)/sections-size||Math.abs(x*shot.dz-z*shot.dx)>size)continue;
               nearest=along;contact=foe;

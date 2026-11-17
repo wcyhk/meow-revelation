@@ -29,6 +29,7 @@
   width:var(--spell-size);
   height:var(--spell-size);
   grid-template:1fr / 1fr;
+  touch-action:none;
   border-color:#b48f7375;
   background:radial-gradient(circle at 50% 45%,#44364b,#16111e 76%);
 }
@@ -84,6 +85,8 @@
 #spell .spell-caption em {margin:0;color:#ffe8c7;font-size:11px}
 #spell .spell-caption kbd {position:static;transform:none}
 .touch-controls #spell kbd {display:none}
+#spell[data-aiming] #skill-link,#spell[data-aiming] .spell-caption>* {display:none}
+#spell[data-aiming] .spell-caption::after {content:'放手施放';white-space:nowrap;color:#defbf0;font-size:11px}
 .touch-controls #objective {bottom:max(87px,calc(env(safe-area-inset-bottom) + 76px))}
 .touch-controls #inspect {
   bottom:max(126px,calc(env(safe-area-inset-bottom) + 115px));

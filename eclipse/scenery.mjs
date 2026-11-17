@@ -9,7 +9,7 @@ import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
-import {LanternArt} from './lantern-art.mjs?v=afterglow-1';
+import {LanternArt} from './lantern-art.mjs?v=giant-gates-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
@@ -204,6 +204,38 @@ function warningMaterial() {
     `});
 }
 
+function skillAimMaterial(round) {
+  return new T.ShaderMaterial({
+    transparent:true,depthWrite:false,
+    uniforms:{ink:{value:new T.Color()},circular:{value:round?1:0}},
+    vertexShader:`varying vec2 tex; void main(){tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`
+      varying vec2 tex;
+      uniform vec3 ink;
+      uniform float circular;
+      void main(){
+        vec2 p=2.*tex-1.;
+        float edge,mark;
+        if(circular>.5){
+          float radius=length(p);
+          if(radius>=1.)discard;
+          edge=smoothstep(.925,.978,radius)*(1.-smoothstep(.982,1.,radius));
+          float crosshair=1.-smoothstep(.013,.039,min(abs(p.x),abs(p.y)));
+          mark=crosshair*max(smoothstep(.68,.87,radius),1.-smoothstep(.10,.18,radius));
+        }else{
+          float frame=max(abs(p.x),abs(p.y));
+          edge=smoothstep(.92,.975,frame)*(1.-smoothstep(.986,1.,frame));
+          float chevron=abs(fract(tex.x*4.+abs(p.y)*.41)-.52);
+          mark=(1.-smoothstep(.035,.09,chevron))*(1.-smoothstep(.44,.57,abs(p.y)));
+        }
+        vec3 border=mix(ink,vec3(.50,.92,.82),.56);
+        gl_FragColor=vec4(mix(ink,border,max(edge,mark)),.15 + edge*.66 + mark*.38);
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+}
+
 const weather = {
   leaves:{dx:-.54,dy:.42,mist:.055,scale:1},
   mist:{dx:.42,dy:.22,mist:.12,scale:1.08},
@@ -282,6 +314,14 @@ export class Scenery {
       sigil.visible=false;
       this.scene.add(sigil);
     }
+    this.skillAimLane=new T.Mesh(plane,skillAimMaterial(false));
+    this.skillAimArea=new T.Mesh(plane,skillAimMaterial(true));
+    for(const mark of [this.skillAimLane,this.skillAimArea]){
+      mark.rotation.x=-PI/2;
+      mark.renderOrder=32;
+      mark.visible=false;
+      this.scene.add(mark);
+    }
     this.sigilTime=0;
   }
 
@@ -319,6 +359,7 @@ export class Scenery {
     this.feedback.clear();
     this.spellLighting.reset();
     this.sigilPreview.visible=this.sigilBurst.visible=false;
+    this.previewAim(null);
     this.sigilPreview.material.opacity=0;
     this.sigilTime=0;
     this.landscape.set(stage);
@@ -798,6 +839,24 @@ export class Scenery {
       this.sigilBurst.scale.setScalar(3.7+2.0*progress);
       this.sigilBurst.material.opacity=.94*(1-progress)**1.45;
       this.sigilBurst.visible=this.sigilTime>0;
+    }
+  }
+
+  previewAim(footprint,tint) {
+    const lane=footprint?.lane,area=footprint?.area;
+    const strip=this.skillAimLane,stamp=this.skillAimArea;
+    strip.visible=!!lane;
+    stamp.visible=!!area;
+    if(lane){
+      strip.position.set(lane.x,.093,lane.z);
+      strip.rotation.z=-Math.atan2(lane.dz,lane.dx);
+      strip.scale.set(lane.length,lane.width*2,1);
+      strip.material.uniforms.ink.value.setHex(tint);
+    }
+    if(area){
+      stamp.position.set(area.x,.097,area.z);
+      stamp.scale.set(area.radius*2,area.radius*2,1);
+      stamp.material.uniforms.ink.value.setHex(tint);
     }
   }
 

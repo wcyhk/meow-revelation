@@ -26,6 +26,13 @@ const doorways={
 
 export const backdropSpan=34;
 
+export function inExitThreshold(hero,exit) {
+  const dx=hero.x-exit.x,dz=hero.z-exit.z;
+  const yaw=exit.frame.yaw??0,cos=Math.cos(yaw),sin=Math.sin(yaw);
+  const across=dx*cos-dz*sin,through=dx*sin+dz*cos;
+  return Math.abs(across)<=1.02&&through>=-.9&&through<=.85;
+}
+
 export function routeLayout(stage,seed) {
   let value=(seed^Math.imul(stage.floor,0x9e3779b9))>>>0;
   const draw=()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
@@ -44,7 +51,7 @@ export function routeLayout(stage,seed) {
     const hp=19+stage.floor*.32;
     barricades.push({kind:'breakable',style:i%2?'urn':'crate',key:'room-'+i,x,z,radius:i%2?.61:.72,hp,maxHp:hp,chill:0});
   }
-  return {...exit,barricades,ready:false,found:false,passed:false,clock:1.25,searchTime:0,prowls:0,seed:draw()*Math.PI*2};
+  return {...exit,barricades,ready:false,found:false,passed:false,opening:0,clock:1.25,searchTime:0,prowls:0,seed:draw()*Math.PI*2};
 }
 
 const twins={

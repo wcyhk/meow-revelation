@@ -1,8 +1,9 @@
 import {comboMove} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
-import {castRelic} from './relic-cast.mjs?v=ledger-1';
+import {castRelic,relicSpellRadius} from './relic-cast.mjs?v=giant-gates-1';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
+const hitMargin=(unit,boss,other=0)=>unit.kind==='boss'?boss*(unit.bodyScale??1):other;
 const active = game => {
   const foes=game.enemies.filter(foe=>foe.hp>0 && foe.age>=.23);
   const anchors=game.bossArena?.targets;
@@ -26,7 +27,7 @@ function closest(units,from,limit) {
 function lineTargets(units,origin,dx,dz,range,width,start=0) {
   return units.filter(unit=>{
     const x=unit.x-origin.x, z=unit.z-origin.z;
-    const margin=unit.kind==='boss'?.69:.22;
+    const margin=hitMargin(unit,.69,.22);
     const along=x*dx+z*dz;
     return along>=Math.max(-.29,start-margin)&&along<=range+margin&&Math.abs(-x*dz+z*dx)<width+margin;
   });
@@ -37,7 +38,7 @@ function arcTargets(units,origin,dx,dz,reach,halfAngle,all=false) {
   return units.filter(unit=>{
     const x=unit.x-origin.x,z=unit.z-origin.z;
     const gap=Math.hypot(x,z);
-    return gap<=reach+(unit.kind==='boss'?.73:.22)
+    return gap<=reach+hitMargin(unit,.73,.22)
       && (all||gap<.89||(x*dx+z*dz)/Math.max(.03,gap)>=edge);
   });
 }
@@ -207,11 +208,64 @@ function targetCenter(game,dx,dz,range) {
   return target ? {x:target.x,z:target.z} : end;
 }
 
+export function skillFootprint(game,{dx,dz,center}) {
+  const {hero,weapon,ranks}=game;
+  const range=hero.spellRadius;
+  const lane=(width,length=range)=>({lane:{x:hero.x+dx*length/2,z:hero.z+dz*length/2,dx,dz,length,width}});
+  const area=(point,radius)=>({area:{x:point.x,z:point.z,radius}});
+  const endpoint={x:hero.x+dx*range,z:hero.z+dz*range};
+  game.bound(endpoint);
+  if(weapon.spell){
+    const {action,hits,look}=weapon.spell;
+    const radius=relicSpellRadius(weapon,Math.min(3,ranks.get(weapon.blessing.id)??0));
+    switch(action){
+      case 'guard': return area(hero,radius);
+      case 'morph':
+      case 'buff': return area(hero,radius*1.2);
+      case 'return': return lane(radius+range*Math.sin((hits-1)*.085));
+      case 'wave': return lane(radius*(1+(hits-1)*.18),range+radius);
+      case 'spikes': return lane(radius,1+range*hits/(hits+1)+radius);
+      case 'beam': return look==='overhead'?area(center,radius*1.54):lane(
+        look==='electric-wheel'?radius+range*.16:radius*.64+range*Math.sin((hits-1)*.065));
+      case 'blink': return {...lane(.28),...area(endpoint,radius)};
+      case 'rain': return area(center,radius*(hits>1?1.60:1));
+      case 'storm': return area(center,radius*(look==='three-vortices'?1.83:look==='snowfall'?1.57:1));
+      case 'wall': return {lane:{...center,dx:-dz,dz:dx,length:(hits-1)*.92+radius*2,width:radius}};
+      case 'volley': return area(center,radius*1.6);
+      case 'minion': {
+        if(weapon.id!=='western-rifle'&&weapon.id!=='zhurong-axe')return area(center,radius);
+        const bearing=Math.atan2(dz,dx)+Math.PI*.67;
+        const spawn={x:hero.x+Math.cos(bearing)*1.08,z:hero.z+Math.sin(bearing)*1.08};
+        game.bound(spawn);
+        return area(spawn,radius);
+      }
+      default: return area(center,radius);
+    }
+  }
+  switch(weapon.id){
+    case 'tiger': return lane(.86);
+    case 'phoenix': return lane(1.17);
+    case 'stormbow': return lane(2.05,range);
+    case 'fangs': return {...lane(.86),...area(endpoint,2.8)};
+    case 'reaper': return area(hero,4.38);
+    case 'turtle':
+    case 'windhalberd':
+    case 'chakra': return area(hero,range);
+    case 'dragon': return area(center,range*.31);
+    case 'qilin': return area(center,range*.76);
+    case 'flameblade': return area(center,3.32);
+    case 'frostlute': return area(center,3.22);
+    case 'bell': return area(center,3.23);
+    case 'cannon': return area(center,3.37);
+    default: return area(center,range);
+  }
+}
+
 function nightSkill(game,source,dx,dz,center,hit,release,linked) {
   const {hero:h,weapon:arm,view}=game;
   const tint=arm.tone;
   const shock=(p,r,effect='void')=>view.threatImpact({...p,kind:'circle',radius:r,tint,effect,pattern:'burst'});
-  const each=(p,r,fn)=>{for(const foe of active(game)) if(distance(foe,p)<r+(foe.kind==='boss'?.54:.15)) fn(foe);};
+  const each=(p,r,fn)=>{for(const foe of active(game)) if(distance(foe,p)<r+hitMargin(foe,.54,.15)) fn(foe);};
   switch (arm.id) {
     case 'reaper':
       release(()=>{
@@ -271,16 +325,17 @@ function nightSkill(game,source,dx,dz,center,hit,release,linked) {
   }
 }
 
-export function invokeArm(game,input) {
+export function invokeArm(game,input,aim=null) {
   const {hero:h,view,weapon:arm}=game;
-  const [dx,dz]=game.aim(input,Math.max(h.reach+.8,h.spellRadius+.55));
+  const [dx,dz]=aim?[aim.dx,aim.dz]:game.aim(input,Math.max(h.reach+.8,h.spellRadius+.55));
   const origin={x:h.x,z:h.z};
   const range=h.spellRadius, power=h.spellDamage;
+  const target=()=>aim?.center??targetCenter(game,dx,dz,range);
   h.dx=dx; h.dz=dz;
   if (Math.abs(dx)>.12) h.face=Math.sign(dx);
   h.attackAge=0;
   if(arm.spell){
-    const center=targetCenter(game,dx,dz,range);
+    const center=target();
     game.bound(center);
     castRelic(game,origin,dx,dz,center,power,range);
     return;
@@ -298,19 +353,19 @@ export function invokeArm(game,input) {
       view.sealFx(h.x,h.z,arm.tone,1.24,.38);
       break;
     case 'dragon': {
-      const aim=targetCenter(game,dx,dz,range);
+      const landing=target();
       const struck=new Set();
       for (let pulse=0;pulse<3;pulse++) {
         game.schedule(.09+pulse*.27,()=>{
           const enemies=active(game);
-          const focus=closest(enemies.filter(foe=>!struck.has(foe)),aim,range*.68)
-            || closest(enemies,aim,range*.68) || aim;
+          const focus=closest(enemies.filter(foe=>!struck.has(foe)),landing,range*.68)
+            || closest(enemies,landing,range*.68) || landing;
           struck.add(focus);
           view.bolt(point(focus,7.0),point(focus,.28),arm.tone,2.45);
           view.shock(focus.x,focus.z,arm.tone,range*.31,.84);
           view.sealFx(focus.x,focus.z,arm.tone,range*.28,.56);
           for (const foe of enemies) {
-            if (distance(foe,focus)<range*.31+.25) game.hit(foe,power,focus,.71);
+            if (distance(foe,focus)<range*.31+hitMargin(foe,.25,.25)) game.hit(foe,power,focus,.71);
           }
         });
       }
@@ -333,14 +388,14 @@ export function invokeArm(game,input) {
       view.shock(h.x,h.z,arm.tone,range,.76);
       view.sealFx(h.x,h.z,arm.tone,range*.92,.67);
       for (const foe of active(game)) {
-        if (distance(h,foe)<range+.22) {
+        if (distance(h,foe)<range+hitMargin(foe,.22,.22)) {
           game.hit(foe,power*.72,h,.97);
           foe.chill=2.6;
         }
       }
       break;
     case 'qilin': {
-      const center=targetCenter(game,dx,dz,range);
+      const center=target();
       game.bound(center);
       h.surge=2.6;
       for (let pulse=0;pulse<5;pulse++) {
@@ -349,7 +404,7 @@ export function invokeArm(game,input) {
           view.vortex(center.x,center.z,radius,arm.tone);
           for (const foe of active(game)) {
             const d=distance(foe,center);
-            if (d>radius+.23) continue;
+            if (d>radius+hitMargin(foe,.23,.23)) continue;
             game.hit(foe,power,center,-2.25);
             foe.chill=Math.max(foe.chill,.55);
           }
@@ -358,7 +413,7 @@ export function invokeArm(game,input) {
       break;
     }
     case 'flameblade': {
-      const center=targetCenter(game,dx,dz,range);
+      const center=target();
       game.bound(center);
       for (let pulse=0;pulse<3;pulse++) {
         const angle=pulse*Math.PI*2/3;
@@ -366,7 +421,7 @@ export function invokeArm(game,input) {
         view.motion.bladefall(point.x,point.z,arm.tone,.12+pulse*.24,pulse);
         game.schedule(.12+pulse*.24,()=>{
           view.threatImpact({...point,kind:'circle',radius:2.52,tint:arm.tone,effect:'fire',pattern:'burst'});
-          for (const enemy of active(game)) if (distance(enemy,point)<2.69) game.hit(enemy,power,point,.87);
+          for (const enemy of active(game)) if (distance(enemy,point)<2.52+hitMargin(enemy,.17,.17)) game.hit(enemy,power,point,.87);
         });
       }
       break;
@@ -388,12 +443,12 @@ export function invokeArm(game,input) {
       for (let pulse=0;pulse<3;pulse++) game.schedule(.07+pulse*.24,()=>{
         view.vortex(h.x,h.z,range,arm.tone);
         for (const enemy of active(game)) {
-          if (distance(h,enemy)<range+.26) game.hit(enemy,power,h,pulse===2?2.54:.95);
+          if (distance(h,enemy)<range+hitMargin(enemy,.26,.26)) game.hit(enemy,power,h,pulse===2?2.54:.95);
         }
       });
       break;
     case 'frostlute': {
-      const center=targetCenter(game,dx,dz,range);
+      const center=target();
       game.bound(center);
       for (let pulse=0;pulse<3;pulse++) game.schedule(.12+pulse*.42,()=>{
         view.sealFx(center.x,center.z,arm.tone,2.12+pulse*.24,.52);
@@ -418,7 +473,7 @@ export function invokeArm(game,input) {
       });
       break;
     default:
-      nightSkill(game,origin,dx,dz,targetCenter(game,dx,dz,range),(foe,n,from,force)=>game.hit(foe,power*n,from,force,arm.tone),
+      nightSkill(game,origin,dx,dz,target(),(foe,n,from,force)=>game.hit(foe,power*n,from,force,arm.tone),
         (fn,delay)=>game.schedule(.05+delay,fn),false);
   }
 }
@@ -449,7 +504,7 @@ function frostLance(game,center,power,fusion) {
   view.threatImpact({...center,kind:'circle',radius,tint:fusion.tint,effect:'ice',pattern:'icicles'});
   game.audio.weave(fusion.id);
   for (const unit of game.enemies) {
-    if (!resonanceTarget(game,unit)||distance(unit,center)>radius+(unit.kind==='boss'?.40:0)) continue;
+    if (!resonanceTarget(game,unit)||distance(unit,center)>radius+hitMargin(unit,.40)) continue;
     if (!game.hit(unit,power*(.30+fusion.rank*.06),center,.26,fusion.tint,'light',undefined,'blessing')||unit.hp<=0||unit.phaseGuard>0) continue;
     unit.chill=Math.max(unit.chill,1.85+fusion.rank*.28);
     if (unit.kind==='boss') continue;
@@ -602,7 +657,7 @@ export function invokeLinkedArm(game,link,wind,fusion) {
   const release=(callback,after=0)=>game.schedule(wind+after,callback);
   const impact=(center,radius,effect,pattern)=>view.threatImpact({x:center.x,z:center.z,kind:'circle',radius,tint:tone,effect,pattern});
   const area=(center,radius,callback)=>{
-    for (const foe of active(game)) if (distance(foe,center)<=radius+(foe.kind==='boss'?.42:.15)) callback(foe);
+    for (const foe of active(game)) if (distance(foe,center)<=radius+hitMargin(foe,.42,.15)) callback(foe);
   };
   if(arm.spell){
     release(()=>{

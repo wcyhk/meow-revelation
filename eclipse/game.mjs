@@ -7,8 +7,9 @@ import {Scenery} from './scenery.mjs?v=clear-sight-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
-import {Audio} from './audio.mjs?v=requiem-1';
-import {Input} from './input.mjs?v=requiem-1';
+import {Audio} from './audio.mjs?v=loop-music-1';
+import {Input} from './input.mjs?v=loop-music-1';
+import {Soundtrack} from './soundtrack.mjs?v=loop-music-1';
 import {arms} from './armory.mjs?v=emberlight-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
@@ -120,8 +121,7 @@ export class Game {
     this.startDelay = Infinity;
     this.clearDelay = 0;
     this.kills = 0;
-    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null,strikeBeat:false};
-    this.rhythmUntil=0;
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.previousTime = performance.now();
     this.storyDepth=new StoryDepth(view.canvas);
     this.syncEffects=()=>view.canvas.parentElement.classList.toggle('subdued-effects',view.feedback.subdued);
@@ -133,8 +133,6 @@ export class Game {
       'boss-primary','boss-echo','boss-echo-name','boss-echo-fill','run-kills','run-time','run-gold','entry-gold','training','records','bestiary','time-fracture',
       'modal-kicker','modal-title','modal-copy','modal-mark','modal-content','modal-actions','journal','inspect','equipped','field-support','spell-cooldown','practice-edit',...actionIds].map(id=>[id,$(id)]));
     this.meter = this.ui['hp-fill'].parentElement;
-    this.beatMeter=$('beat-meter');
-    this.beatLabel=this.beatMeter.querySelector('span');
     this.input = new Input(view.canvas,action=>{if(!this.weaponViewer.open)(action==='journal'?this.showJournal():this.togglePause());},()=>this.state==='play');
     this.ui.begin.addEventListener('click',()=>this.prepare());
     this.flashTitle=titleFlare($('title-flare'));
@@ -146,7 +144,16 @@ export class Game {
     this.paintDamage=damageHud($('practice-damage'));
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
-    this.ui.mute.addEventListener('click',()=>this.ui.mute.setAttribute('aria-pressed',String(audio.toggle())));
+    this.soundtrack=new Soundtrack(audio,()=>{
+      this.input.reset();
+      this.view.resize();
+    });
+    this.soundtrack.bind($('soundtrack-open'));
+    this.ui.mute.addEventListener('click',()=>{
+      const muted=audio.toggle();
+      this.ui.mute.setAttribute('aria-pressed',String(muted));
+      if(muted)this.soundtrack.close();
+    });
     this.ui.inspect.addEventListener('click',()=>this.interact());
     this.ui.journal.addEventListener('click',()=>this.showJournal());
     this.ui['relic-icons'].addEventListener('click',()=>this.showRunBlessings());
@@ -461,8 +468,7 @@ export class Game {
     this.kills = 0;
     this.hitstop = 0;
     this.damageFlash = 0;
-    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null,strikeBeat:false};
-    this.rhythmUntil=0;
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.level = 0;
     this.wave = 0;
     this.equip(weapon);
@@ -944,8 +950,7 @@ export class Game {
       } else if (canFight && !h.slash && this.buffered.strike>0 && h.atk<=0
           && !(waitForHit&&this.buffered.spell>0&&h.spellCool<=0)) {
         this.buffered.strike=0;
-        this.attack(input,this.buffered.strikeBeat);
-        this.buffered.strikeBeat=false;
+        this.attack(input);
       }
     }
     this.bound(h);
@@ -1020,7 +1025,7 @@ export class Game {
     return {origin,dx,dz,reach};
   }
 
-  attack(input,onBeat=false) {
+  attack(input) {
     const h = this.hero;
     h.projectileAim=null;
     const [dx,dz] = this.aim(input);
@@ -1033,8 +1038,7 @@ export class Game {
     h.comboLeft=timing.cycle+.57;
     h.atk=h.atkTotal=timing.cycle;
     h.attackAge = 0;
-    h.slash={dx,dz,move,timing,next:0,step:h.combo,confirmed:false,onBeat};
-    if(onBeat)this.rhythmUntil=this.t+.67;
+    h.slash={dx,dz,move,timing,next:0,step:h.combo,confirmed:false};
     if (h.combo===3) {
       h.link={pending:true,until:0,window:linkWindow+linkResonances.wind.window[h.resonance.wind],contacts:[],dx,dz};
       h.slash.link=h.link;
@@ -1062,9 +1066,7 @@ export class Game {
       strike.confirmed=true;
     };
     this.audio.attack(this.weapon.id,step,'release',index);
-    if(strike.onBeat&&index===0)this.audio.beatStrike(final);
-    const power=(pulse?.power??1)*(strike.onBeat?1.15:1);
-    confirm(strikeWith(this,dx,dz,move,power,confirm,link?(unit,kind)=>{
+    confirm(strikeWith(this,dx,dz,move,pulse?.power??1,confirm,link?(unit,kind)=>{
       this.confirmLink(link,unit,kind);
       giftFinisher(this,strike,unit,kind);
     }:undefined));
@@ -1799,8 +1801,6 @@ export class Game {
     const finishing=h.link?.pending||(h.combo===2&&h.comboLeft>0&&h.atk<.14&&(input.strike||this.buffered.strike>0));
     this.buffered.spell = input.spell ? (finishing?.96:.35) : this.buffered.spell-(this.hitstop>0?0:dt);
     if(input.spell)this.buffered.spellAim=input.spellAim??null;
-    if(input.strikeAt!=null)this.buffered.strikeBeat=this.audio.beatAt(input.strikeAt)?.onBeat??false;
-    else if(this.buffered.strike<=0)this.buffered.strikeBeat=false;
     this.buffered.strike = input.strike ? Math.max(.23,this.hero.atk+.09) : this.buffered.strike-dt;
     if (this.hitstop>0) {
       this.hitstop-=dt;
@@ -1934,7 +1934,6 @@ export class Game {
     if(!this.ui.cover.hidden)return;
     if(!this.hero)return;
     this.audio.active=this.state==='play';
-    this.updateBeatMeter();
     if(this.storyDepth.render(this.view.renderer,dt,this.view.feedback.subdued))return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
@@ -1959,23 +1958,10 @@ export class Game {
     this.updateMissionPins();
   }
 
-  updateBeatMeter() {
-    const meter=this.beatMeter,beat=this.audio.beatAt();
-    const hidden=!beat;
-    if(meter.hidden!==hidden)meter.hidden=hidden;
-    if(!beat)return;
-    const status=this.rhythmUntil>this.t?'踩拍 +15%':'節拍';
-    if(this.beatLabel.textContent!==status)this.beatLabel.textContent=status;
-    if(meter.dataset.beat!==String(beat.beat))meter.dataset.beat=beat.beat;
-    meter.toggleAttribute('data-ready',beat.onBeat);
-    meter.toggleAttribute('data-hit',status!=='節拍');
-    meter.style.setProperty('--beat-position',Math.round(beat.phase*100)+'%');
-  }
-
   openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
     if(this.weaponViewer.open)this.weaponViewer.dialog.close();
     this.input.reset();
-    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null,strikeBeat:false};
+    this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.ui['modal-mark'].textContent=mark;
     this.ui['modal-kicker'].textContent=kicker;
     this.ui['modal-title'].textContent=title;
@@ -2296,7 +2282,11 @@ export class Game {
     setting.append(checkbox,'減少閃光與震動');
     const pauseContent=document.createElement('div');
     if(content)pauseContent.append(content);
-    pauseContent.append(setting);
+    const musicButton=document.createElement('button');
+    musicButton.type='button';
+    musicButton.className='soundtrack-toggle';
+    this.soundtrack.bind(musicButton);
+    pauseContent.append(setting,musicButton);
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。點神器紋章會自動瞄準，拖住紋章可以手動瞄準，放手施技。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',

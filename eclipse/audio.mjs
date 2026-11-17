@@ -1,5 +1,5 @@
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
-import {PulseScore} from './score.mjs?v=requiem-1';
+import {PulseScore} from './score.mjs?v=loop-music-1';
 
 const attackVoices={
   tiger:{noise:2160,pitch:219,shape:'triangle'},
@@ -19,6 +19,7 @@ const attackVoices={
 export class Audio {
   constructor() {
     this.muted = false;
+    this.externalMusic=false;
     this.score = new PulseScore();
     this.score.preload();
     this.active = false;
@@ -57,14 +58,9 @@ export class Audio {
     this.update();
   }
 
-  beatAt(stamp) {return this.score.beatAt(stamp);}
-
-  beatStrike(heavy) {
-    if(!this.context||this.muted)return;
-    const now=this.context.currentTime;
-    const pitch=heavy?659:880;
-    this.note(pitch,pitch*.99,now,.13,.11,'sine',.003);
-    this.note(pitch*1.5,pitch*1.48,now+.025,.16,.044,'triangle',.009);
+  useExternalMusic(enabled) {
+    this.externalMusic=enabled;
+    this.update();
   }
 
   toggle() {
@@ -390,6 +386,6 @@ export class Audio {
   }
 
   update() {
-    this.score.mix(this.active,this.danger);
+    this.score.mix(this.active&&!this.externalMusic,this.danger);
   }
 }

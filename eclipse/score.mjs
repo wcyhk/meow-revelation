@@ -1,14 +1,5 @@
-const beatSeconds=60/135;
-const loopSeconds=beatSeconds*64;
-const beatWindow=.095;
+const loopSeconds=64*60/135;
 const stems=['requiem-grove','requiem-pressure'].map(name=>new URL('./audio/'+name+'.mp3',import.meta.url));
-
-export function readBeat(seconds) {
-  if(seconds<0)return null;
-  const beats=seconds/beatSeconds;
-  const phase=beats-Math.floor(beats);
-  return {phase,beat:Math.floor(beats)%4,onBeat:Math.min(phase,1-phase)*beatSeconds<=beatWindow};
-}
 
 export class PulseScore {
   preload() {
@@ -37,14 +28,14 @@ export class PulseScore {
     this.combat.gain.value=0;
     this.bus.connect(destination);
     this.combat.connect(this.bus);
-    this.epoch=context.currentTime+.07;
+    const startTime=context.currentTime+.07;
     for(const [buffer,target] of [[grove,this.bus],[pressure,this.combat]]){
       const source=context.createBufferSource();
       source.buffer=buffer;
       source.loop=true;
       source.loopEnd=Math.min(buffer.duration,loopSeconds);
       source.connect(target);
-      source.start(this.epoch);
+      source.start(startTime);
     }
     this.context=context;
   }
@@ -60,16 +51,5 @@ export class PulseScore {
       this.danger=danger;
       this.combat.gain.setTargetAtTime(danger?.64:.06,now,.13);
     }
-  }
-
-  beatAt(stamp=performance.now()) {
-    const context=this.context;
-    if(!this.active||context?.state!=='running')return null;
-    if(stamp>performance.timeOrigin)stamp-=performance.timeOrigin;
-    const output=context.getOutputTimestamp?.();
-    const time=output?.performanceTime>0
-      ?output.contextTime+(stamp-output.performanceTime)/1000
-      :context.currentTime-(context.baseLatency||0)-(context.outputLatency||0)+(stamp-performance.now())/1000;
-    return readBeat(time-this.epoch);
   }
 }

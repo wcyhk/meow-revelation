@@ -1,10 +1,11 @@
-import {TouchCombat} from './touch-combat.mjs?v=requiem-1';
+import {TouchCombat} from './touch-combat.mjs?v=weapon-audit-1';
 
 const $ = id => document.getElementById(id);
 const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','KeyL','Escape']);
 
 export class Input {
   constructor(world, dispatch, running) {
+    this.world=world;
     this.keys = new Set();
     this.hold = new Set();
     this.actions = new Set();
@@ -18,9 +19,9 @@ export class Input {
     addEventListener('pointerdown',event=>{
       if(event.pointerType==='touch'&&!this.touchMode) touchLayout(true);
     },{capture:true,passive:true});
-    this.touch=new TouchCombat(world,running,(action,direction,stamp)=>{
+    this.touch=new TouchCombat(world,running,(action,direction)=>{
       if(action==='dodge') this.dodgeDirection=direction;
-      this.enqueue(action,stamp);
+      this.actions.add(action);
     });
     this.spellButton=$('spell');
     const canCast=()=>running()&&this.spellButton.getAttribute('aria-disabled')==='false';
@@ -57,7 +58,7 @@ export class Input {
       if (event.target.closest?.('dialog[open]')||!gameplay.has(code)||(!running()&&code!=='Escape')) return;
       event.preventDefault();
       this.keys.add(code);
-      if (!repeat && bindings.has(code)) this.enqueue(bindings.get(code),event.timeStamp);
+      if (!repeat && bindings.has(code)) this.actions.add(bindings.get(code));
       if (!repeat && code === 'Escape') dispatch('pause');
       if (!repeat && code === 'KeyL') dispatch('journal');
     });
@@ -69,14 +70,14 @@ export class Input {
         if (event.button !== 0 || !running()) return;
         event.preventDefault();
         button.setPointerCapture(event.pointerId);
-        this.enqueue(action,event.timeStamp);
+        this.actions.add(action);
         if (action === 'strike') this.hold.add(event.pointerId);
       });
       for (const name of ['pointerup','pointercancel','lostpointercapture']) {
         button.addEventListener(name,event => this.hold.delete(event.pointerId));
       }
       button.addEventListener('click',event => {
-        if (event.detail === 0 && running()) this.enqueue(action,event.timeStamp);
+        if (event.detail === 0 && running()) this.actions.add(action);
       });
     }
     world.addEventListener('pointerdown',event => {
@@ -84,7 +85,7 @@ export class Input {
       event.preventDefault();
       world.setPointerCapture(event.pointerId);
       this.mouseAim = {x:event.clientX,y:event.clientY};
-      this.enqueue('strike',event.timeStamp);
+      this.actions.add('strike');
       this.hold.add(event.pointerId);
     });
     world.addEventListener('pointermove',event => {
@@ -96,17 +97,12 @@ export class Input {
     document.addEventListener('contextmenu',event => event.preventDefault());
   }
 
-  enqueue(action,stamp) {
-    if(action==='strike')this.strikeAt=stamp;
-    this.actions.add(action);
-  }
-
   aimSpell(event) {
     const gesture=this.spellGesture;
     if(gesture?.id!==event.pointerId)return;
     const x=event.clientX-gesture.x,y=event.clientY-gesture.y;
     const distance=Math.hypot(x,y);
-    const travel=y>0?Math.max(24,Math.min(80,innerHeight-gesture.y-8)):80;
+    const travel=y>0?Math.max(24,Math.min(80,this.world.getBoundingClientRect().bottom-gesture.y-8)):80;
     gesture.drag=distance>=10?{x,y,strength:Math.min(1,distance/travel)}:null;
     gesture.dragged ||= !!gesture.drag;
     this.spellButton.toggleAttribute('data-aiming',!!gesture.drag);
@@ -130,12 +126,10 @@ export class Input {
     const input = {
       x,z, dodge:this.actions.has('dodge'), dodgeDirection:this.dodgeDirection, spell:this.actions.has('spell'), interact:this.actions.has('interact'),
       strike:this.actions.has('strike')||k.has('KeyJ')||this.hold.size>0,
-      strikeAt:this.strikeAt,
       aim:this.mouseAim,
       spellAim:this.spellRelease,
     };
     this.actions.clear();
-    this.strikeAt=null;
     this.dodgeDirection=null;
     this.spellRelease=null;
     if (!this.hold.size) this.mouseAim = null;
@@ -146,7 +140,6 @@ export class Input {
     this.keys.clear();
     this.hold.clear();
     this.actions.clear();
-    this.strikeAt=null;
     this.mouseAim = null;
     this.dodgeDirection=null;
     this.spellRelease=null;

@@ -1,4 +1,4 @@
-import {TouchCombat} from './touch-combat.mjs?v=weapon-audit-1';
+import {TouchCombat} from './touch-combat.mjs?v=requiem-1';
 
 const $ = id => document.getElementById(id);
 const gameplay = new Set(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyJ','KeyQ','Space','KeyE','KeyL','Escape']);
@@ -18,9 +18,9 @@ export class Input {
     addEventListener('pointerdown',event=>{
       if(event.pointerType==='touch'&&!this.touchMode) touchLayout(true);
     },{capture:true,passive:true});
-    this.touch=new TouchCombat(world,running,(action,direction)=>{
+    this.touch=new TouchCombat(world,running,(action,direction,stamp)=>{
       if(action==='dodge') this.dodgeDirection=direction;
-      this.actions.add(action);
+      this.enqueue(action,stamp);
     });
     this.spellButton=$('spell');
     const canCast=()=>running()&&this.spellButton.getAttribute('aria-disabled')==='false';
@@ -57,7 +57,7 @@ export class Input {
       if (event.target.closest?.('dialog[open]')||!gameplay.has(code)||(!running()&&code!=='Escape')) return;
       event.preventDefault();
       this.keys.add(code);
-      if (!repeat && bindings.has(code)) this.actions.add(bindings.get(code));
+      if (!repeat && bindings.has(code)) this.enqueue(bindings.get(code),event.timeStamp);
       if (!repeat && code === 'Escape') dispatch('pause');
       if (!repeat && code === 'KeyL') dispatch('journal');
     });
@@ -69,14 +69,14 @@ export class Input {
         if (event.button !== 0 || !running()) return;
         event.preventDefault();
         button.setPointerCapture(event.pointerId);
-        this.actions.add(action);
+        this.enqueue(action,event.timeStamp);
         if (action === 'strike') this.hold.add(event.pointerId);
       });
       for (const name of ['pointerup','pointercancel','lostpointercapture']) {
         button.addEventListener(name,event => this.hold.delete(event.pointerId));
       }
       button.addEventListener('click',event => {
-        if (event.detail === 0 && running()) this.actions.add(action);
+        if (event.detail === 0 && running()) this.enqueue(action,event.timeStamp);
       });
     }
     world.addEventListener('pointerdown',event => {
@@ -84,7 +84,7 @@ export class Input {
       event.preventDefault();
       world.setPointerCapture(event.pointerId);
       this.mouseAim = {x:event.clientX,y:event.clientY};
-      this.actions.add('strike');
+      this.enqueue('strike',event.timeStamp);
       this.hold.add(event.pointerId);
     });
     world.addEventListener('pointermove',event => {
@@ -94,6 +94,11 @@ export class Input {
       world.addEventListener(name,event => {this.hold.delete(event.pointerId); if(!this.actions.has('strike')) this.mouseAim=null;});
     }
     document.addEventListener('contextmenu',event => event.preventDefault());
+  }
+
+  enqueue(action,stamp) {
+    if(action==='strike')this.strikeAt=stamp;
+    this.actions.add(action);
   }
 
   aimSpell(event) {
@@ -125,10 +130,12 @@ export class Input {
     const input = {
       x,z, dodge:this.actions.has('dodge'), dodgeDirection:this.dodgeDirection, spell:this.actions.has('spell'), interact:this.actions.has('interact'),
       strike:this.actions.has('strike')||k.has('KeyJ')||this.hold.size>0,
+      strikeAt:this.strikeAt,
       aim:this.mouseAim,
       spellAim:this.spellRelease,
     };
     this.actions.clear();
+    this.strikeAt=null;
     this.dodgeDirection=null;
     this.spellRelease=null;
     if (!this.hold.size) this.mouseAim = null;
@@ -139,6 +146,7 @@ export class Input {
     this.keys.clear();
     this.hold.clear();
     this.actions.clear();
+    this.strikeAt=null;
     this.mouseAim = null;
     this.dodgeDirection=null;
     this.spellRelease=null;

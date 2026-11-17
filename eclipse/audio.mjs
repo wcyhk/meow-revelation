@@ -1,7 +1,6 @@
-const chords = [[45,52,57,60],[43,50,55,62],[41,48,53,57],[40,47,55,59]];
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
+import {PulseScore} from './score.mjs?v=requiem-1';
 
-const hz = note => 440 * 2 ** ((note - 69) / 12);
 const attackVoices={
   tiger:{noise:2160,pitch:219,shape:'triangle'},
   dragon:{noise:3010,pitch:291,shape:'sawtooth'},
@@ -20,16 +19,27 @@ const attackVoices={
 export class Audio {
   constructor() {
     this.muted = false;
+    this.score = new PulseScore();
+    this.score.preload();
     this.active = false;
-    this.step = 0;
     this.danger = false;
     this.dread = 0;
     this.lastImpact = Object.create(null);
   }
 
+  get active() {return this.playing;}
+
+  set active(value) {
+    if(this.playing===value)return;
+    this.playing=value;
+    this.update();
+  }
+
   async start() {
     if (this.context) {
       if (this.context.state === 'suspended') await this.context.resume();
+      await this.score.connect(this.context,this.master);
+      this.update();
       return;
     }
     const Context = window.AudioContext || window.webkitAudioContext;
@@ -43,7 +53,18 @@ export class Audio {
     const data = this.noise.getChannelData(0);
     for (let index=0; index<data.length; index++) data[index] = Math.random() * 2 - 1;
     await context.resume();
-    this.next = context.currentTime;
+    await this.score.connect(context,master);
+    this.update();
+  }
+
+  beatAt(stamp) {return this.score.beatAt(stamp);}
+
+  beatStrike(heavy) {
+    if(!this.context||this.muted)return;
+    const now=this.context.currentTime;
+    const pitch=heavy?659:880;
+    this.note(pitch,pitch*.99,now,.13,.11,'sine',.003);
+    this.note(pitch*1.5,pitch*1.48,now+.025,.16,.044,'triangle',.009);
   }
 
   toggle() {
@@ -369,33 +390,6 @@ export class Audio {
   }
 
   update() {
-    if (!this.active || !this.context || this.context.state !== 'running') return;
-    const now = this.context.currentTime;
-    if (this.next < now - .15) this.next = now;
-    if (this.next > now + .12) return;
-    const step = this.step++;
-    const chord = chords[Math.floor(step / 8) % chords.length];
-    const beat = step % 8;
-    if (beat === 0) {
-      this.note(hz(chord[0]-12),hz(chord[0]-12),this.next,3.2,.085,'sine',.44);
-      this.note(hz(chord[1]),hz(chord[1]),this.next+.12,2.8,.042,'sine',.50);
-      if (this.dread>.2) {
-        const dissonance=hz(chord[0]-6);
-        this.note(dissonance*1.012,dissonance,this.next+.11,2.75,.058*this.dread,'triangle',.46);
-      }
-    }
-    if ([0,2,3,5,7].includes(beat)) {
-      const pitch = hz(chord[beat % 3 + 1] + (beat === 5 ? 12 : 0));
-      this.note(pitch,pitch,this.next,1.27,.038,'triangle',.016);
-      this.note(pitch*2.01,pitch*2,this.next,.41,.020,'sine',.013);
-    }
-    if (this.danger && (beat === 0 || beat === 4)) {
-      this.note(76,34,this.next,.41,.15,'triangle');
-    }
-    if(this.dread>.54&&(beat===1||beat===6)){
-      this.note(62+beat*2,31,this.next,.64,.042*Math.min(1.3,this.dread),'triangle',.10);
-      if(beat===6)this.rasp(this.next+.09,.39,.032,410);
-    }
-    this.next += this.danger ? .32-this.dread*.039 : .45-this.dread*.028;
+    this.score.mix(this.active,this.danger);
   }
 }

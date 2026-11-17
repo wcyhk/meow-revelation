@@ -18,7 +18,9 @@
   <link rel="stylesheet" href="./afterglow.css?v=afterglow-1">
   <link rel="stylesheet" href="./ascendant.css?v=golden-veil-1">
   <link rel="stylesheet" href="./title-menu.css?v=golden-veil-1">
-  <script type="module" src="./game.mjs?v=clear-sight-1"></script>
+  <link rel="stylesheet" href="./playback.css?v=requiem-1">
+  <script type="module" src="./game.mjs?v=requiem-1"></script>
+  <script type="module" src="./offline.mjs?v=requiem-1" async></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -48,6 +50,7 @@
           <button class="secondary" id="records" disabled><span class="title-icon" aria-hidden="true">☽</span><span>個人紀錄</span><span class="title-chevron" aria-hidden="true">›</span></button>
         </nav>
         <div id="load-note" role="status">正在點亮森林的燭火⋯⋯</div>
+        <div class="offline-pack"><span id="offline-status" aria-live="polite">準備離線資源⋯⋯</span><button id="offline-retry" type="button" hidden>重試下載</button></div>
       </div>
       <div class="cover-footer">
         <span id="entry-gold">金幣 0</span>
@@ -95,6 +98,7 @@
           <span>點紋章自動瞄準 · 拖紋章放手施技</span>
         </div>
         <div class="keys"><kbd>W A S D</kbd> 移動 <kbd>Esc</kbd> 暫停</div>
+        <div id="beat-meter" hidden aria-hidden="true"><span>節拍</span><div class="beat-pips"><b></b><b></b><b></b><b></b></div></div>
         <button id="spell" type="button" class="action" aria-label="月輪" aria-disabled="true" hidden>
           <span aria-hidden="true">☾</span>
           <b id="spell-cooldown" aria-hidden="true" hidden></b>

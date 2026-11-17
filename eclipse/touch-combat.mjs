@@ -121,7 +121,7 @@ export class TouchCombat {
       } else if(elapsed<=flickDuration&&distance>=flickDistance) {
         this.enqueue('dodge',[dx/distance,dy/distance]);
       } else if(g.mode!=='move'&&Math.max(g.drift,distance)<moveThreshold) {
-        this.enqueue('strike');
+        this.enqueue('strike',null,event.timeStamp);
       }
     }
     this.reset();

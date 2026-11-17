@@ -7,11 +7,11 @@ import {stages} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
-import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
+import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
-import {LanternArt} from './lantern-art.mjs?v=boss-camera-1';
+import {LanternArt} from './lantern-art.mjs?v=clear-sight-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=clear-sight-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
 import {loadPaintedActors} from './actor-art.mjs?v=ascendant-1';
 import {GroveLight} from './grove-light.mjs?v=emberlight-1';
@@ -382,6 +382,8 @@ export class Scenery {
     this.previewAim(null);
     this.sigilPreview.material.opacity=0;
     this.sigilTime=0;
+    this.outlineHold=0;
+    if(this.heroOutline)this.heroOutline.visible=false;
     this.landscape.set(stage);
     const dread=stage.dread;
     const hue=new T.Color(stage.zone.color).offsetHSL(stage.lightShift,0,0).getHex();
@@ -401,6 +403,7 @@ export class Scenery {
     for (const fx of this.effects) this.release(fx);
     this.effects.length = 0;
     for (const mote of this.motes.items) mote.life = 0;
+    this.motes.geometry.setDrawRange(0,0);
   }
 
   setBossArena(arena) {
@@ -494,7 +497,7 @@ export class Scenery {
     return mesh;
   }
 
-  createActor(frame, height) {
+  createActor(frame, height, markHero=false) {
     const hitFlash={value:0};
     const spriteMaterial = new T.ShaderMaterial({
       uniforms:{picture:{value:this.atlas[frame]},flash:{value:0},hitFlash,fade:{value:1},warm:{value:0},bend:{value:0},sway:{value:0},compression:{value:0},
@@ -560,14 +563,51 @@ export class Scenery {
           #include <colorspace_fragment>
         }
       `,
-      transparent:true,depthWrite:false,side:T.DoubleSide,
+      transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
     });
     const art = new T.Mesh(actorPlane, spriteMaterial);
+    if(markHero)this.addHeroOutline(art);
     const shade = this.ground(this.shadow, 0xffffff, .82, height * 1.1, height * .66);
     const rim = this.ground(this.halo, 0xff8d52, .19, height * 1.6, height * 1.06);
     rim.material.blending = T.AdditiveBlending;
     this.scene.add(art, shade, rim);
     return {art,shade,rim,height,hitFlash,footPhase:null};
+  }
+
+  addHeroOutline(art) {
+    const material=new T.ShaderMaterial({
+      uniforms:{...art.material.uniforms,pixelRatio:{value:1}},
+      vertexShader:art.material.vertexShader,
+      fragmentShader:`
+        uniform sampler2D picture;
+        uniform float fade,pixelRatio;
+        varying vec2 artUV;
+        float expanded(vec2 d){
+          float h=max(texture2D(picture,artUV+vec2(d.x,0.)).a,texture2D(picture,artUV-vec2(d.x,0.)).a);
+          float v=max(texture2D(picture,artUV+vec2(0.,d.y)).a,texture2D(picture,artUV-vec2(0.,d.y)).a);
+          return max(h,v);
+        }
+        void main(){
+          float art=texture2D(picture,artUV).a;
+          vec2 pixel=fwidth(artUV)*pixelRatio;
+          float rim=smoothstep(.18,.73,expanded(min(pixel*1.65,vec2(.026))))*(1.-smoothstep(.45,.88,art));
+          float glow=smoothstep(.06,.62,expanded(min(pixel*3.,vec2(.043))))*(1.-art);
+          float ink=smoothstep(.35,.84,art)*.085;
+          float alpha=max(ink,max(rim,glow*.78))*fade;
+          if(alpha<.018)discard;
+          vec3 tone=mix(vec3(.009,.12,.15),vec3(.58,1.,.88),rim);
+          gl_FragColor=vec4(tone,alpha);
+          #include <colorspace_fragment>
+        }
+      `,
+      transparent:true,depthWrite:false,depthFunc:T.GreaterDepth,side:T.DoubleSide,forceSinglePass:true,toneMapped:false,
+    });
+    const mark=new T.Mesh(art.geometry,material);
+    mark.name='守燈貓 · 遮擋輪廓';
+    mark.renderOrder=110;
+    mark.visible=false;
+    art.add(mark);
+    this.heroOutline=mark;
   }
 
   prepareBoss(visual,spec,frameBoss=false) {
@@ -1091,6 +1131,11 @@ export class Scenery {
     const {art,shade,rim,form,effigy,relicCrest,relicCrown,bestiary}=visual;
     this.feedback.forget(visual);
     this.scene.remove(art, shade, rim);
+    if(this.heroOutline?.parent===art){
+      this.heroOutline.material.dispose();
+      this.heroOutline.removeFromParent();
+      this.heroOutline=null;
+    }
     if(visual.ascendantAura){
       visual.ascendantAura.energy.dispose();
       visual.ascendantAura.root.removeFromParent();
@@ -1219,6 +1264,7 @@ export class Scenery {
     const alpha = new Float32Array(capacity);
     const shape = new Float32Array(capacity);
     const geometry = new T.BufferGeometry();
+    geometry.setDrawRange(0,0);
     for (const [key, data, size] of [['position',positions,3],['tint',colors,3],['radius',radius,1],['alpha',alpha,1],['shape',shape,1]]) {
       geometry.setAttribute(key,new T.BufferAttribute(data,size).setUsage(T.DynamicDrawUsage));
     }
@@ -1356,6 +1402,7 @@ export class Scenery {
   addEffect(geometry, position, tint, duration, settings = {}) {
     const {opacity=1, scale=1, growth=0, angle=0, blend=true, owned=false, map=null, fade=false, material} = settings;
     const mat = material??new T.MeshBasicMaterial({color:tint,map,transparent:true,opacity,depthWrite:false,side:T.DoubleSide,
+      forceSinglePass:blend||geometry===plane||geometry===this.ring||geometry===this.disc,
       blending:blend ? T.AdditiveBlending : T.NormalBlending});
     const mesh = new T.Mesh(geometry,mat);
     mesh.position.set(position.x, position.y, position.z);
@@ -1752,11 +1799,13 @@ export class Scenery {
     const halfWidth=(this.camera.right-this.camera.left)*.5;
     const halfHeight=(this.camera.top-this.camera.bottom)*.5;
     let minX=-1.15,maxX=1.15,minY=-1.20,maxY=1.35,count=0;
+    frame.nearBoss=false;
     for(const enemy of enemies){
       if(enemy.kind!=='boss'||enemy.hp<=0)continue;
       count++;
       const {bestiary,frameCorners,height}=enemy.visual;
       const x=enemy.x-hero.x,z=(enemy.z-hero.z)*up.z;
+      if(Math.abs(x)<height*1.05&&Math.abs(z)<height*.74)frame.nearBoss=true;
       const pad=.45+height*.045;
       if(frameCorners&&bestiary.root.visible){
         const root=bestiary.root;
@@ -1791,6 +1840,31 @@ export class Scenery {
     const y=count?fitLead(minY,maxY,halfHeight/frame.zoom,bottom,top,leadDown,leadUp):0;
     frame.x=easeFrame(frame.x,x,count?8:4.5,dt);
     frame.y=easeFrame(frame.y,y,count?8:4.5,dt);
+  }
+
+  updateHeroOutline(hero,dt) {
+    const mark=this.heroOutline;
+    if(!mark)return;
+    if(hero.hp<=0||hero.lanternOut>0){
+      mark.visible=false;
+      this.outlineHold=0;
+      return;
+    }
+    const art=mark.parent,origin=art.position,up=this.cameraUp;
+    const near=(point,range)=>Math.hypot(point.x-origin.x,
+      (point.y-origin.y)*up.y+(point.z-origin.z)*up.z)<range;
+    const wash=this.feedback.washDuration>0&&this.feedback.washAge<this.feedback.washDuration*.74;
+    const halo=this.spellLighting.slots.some(({halo})=>
+      halo.visible&&halo.material.opacity>=.12&&near(halo.position,halo.scale.x*.45));
+    const veil=wash||halo||this.effects.some(({mesh})=>{
+      if(mesh.renderOrder<art.renderOrder||!mesh.visible||(mesh.material.uniforms?.opacity?.value??mesh.material.opacity)<.40)return false;
+      const radius=(mesh.geometry?.boundingSphere?.radius??.54)*Math.max(Math.abs(mesh.scale.x),Math.abs(mesh.scale.y),Math.abs(mesh.scale.z));
+      return radius>.45&&near(mesh.position,radius+.20);
+    });
+    this.outlineHold=veil?.13:Math.max(0,this.outlineHold-dt);
+    mark.visible=this.bossFrame.nearBoss||this.outlineHold>0;
+    mark.material.depthTest=this.outlineHold<=0;
+    mark.material.uniforms.pixelRatio.value=this.renderer.getPixelRatio();
   }
 
   render(dt, hero, paused=false, freezeWarnings=false, enemies=[]) {
@@ -1841,6 +1915,7 @@ export class Scenery {
     }
     this.updateEffects(dt,paused,freezeWarnings);
     this.spellLighting.tick(paused?0:dt);
+    if(hero)this.updateHeroOutline(hero,dt);
     this.renderParticles(paused?0:dt,!this.feedback.subdued);
     if(this.leaves.mesh.visible)this.renderLeaves(this.feedback.subdued?0:time);
     this.renderMission();
@@ -1897,7 +1972,10 @@ export class Scenery {
   }
 
   renderParticles(dt,ambient=true) {
-    const {items,geometry,positions,colors,radius,alpha,shape} = this.motes;
+    const motes=this.motes;
+    const {items,geometry,positions,colors,radius,alpha,shape}=motes;
+    const pixelRatio=this.renderer.getPixelRatio();
+    if(!dt&&motes.uploaded===motes.cursor&&motes.pixelRatio===pixelRatio)return;
     if (ambient&&Math.random() < dt * 15) {
       const x = (Math.random() - .5) * 28;
       const z = (Math.random() - .5) * 24;
@@ -1909,25 +1987,29 @@ export class Scenery {
         dy:air.dy+Math.random()*.30,life:4,ttl:4,r:color.r,g:color.g,b:color.b,
         size:(close?3.8+Math.random()*3.4:1.9+Math.random()*2.7)*air.scale,gravity:0,shape:0});
     }
-    for (let i=0;i<items.length;i++) {
-      const p = items[i];
-      if (p.life <= 0) {
-        alpha[i] = 0;
-        radius[i] = 0;
-        continue;
-      }
+    let active=0;
+    for (const p of items) {
+      if(p.life<=0)continue;
       p.life -= dt;
       p.x += p.dx*dt;
       p.z += p.dz*dt;
       p.y += p.dy*dt;
       p.dy -= p.gravity*dt;
-      const j=i*3;
+      if(p.life<=0)continue;
+      const j=active*3;
       positions[j]=p.x;positions[j+1]=p.y;positions[j+2]=p.z;
       colors[j]=p.r;colors[j+1]=p.g;colors[j+2]=p.b;
-      alpha[i] = Math.max(0, p.life/p.ttl) * (p.gravity ? 1 : .63);
-      radius[i] = p.size * this.renderer.getPixelRatio();
-      shape[i] = p.shape;
+      alpha[active]=p.life/p.ttl*(p.gravity?1:.63);
+      radius[active]=p.size*pixelRatio;
+      shape[active++]=p.shape;
     }
-    for (const attribute of Object.values(geometry.attributes)) attribute.needsUpdate = true;
+    geometry.setDrawRange(0,active);
+    motes.uploaded=motes.cursor;
+    motes.pixelRatio=pixelRatio;
+    if(active)for(const attribute of Object.values(geometry.attributes)){
+      attribute.clearUpdateRanges();
+      attribute.addUpdateRange(0,active*attribute.itemSize);
+      attribute.needsUpdate=true;
+    }
   }
 }

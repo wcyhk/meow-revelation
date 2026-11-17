@@ -1,9 +1,9 @@
 import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=boss-foundry-1';
 import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=boss-foundry-1';
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
-import {WeaponViewer} from './weapon-viewer.mjs?v=solo-preview-1';
+import {WeaponViewer} from './weapon-viewer.mjs?v=clear-sight-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=boss-camera-1';
+import {Scenery} from './scenery.mjs?v=clear-sight-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
@@ -442,7 +442,7 @@ export class Game {
     this.altar=null;
     this.twinReward=null;
     this.failure=null;
-    this.heroVisual = this.view.createActor(0,2.68);
+    this.heroVisual = this.view.createActor(0,2.68,true);
     this.relics = this.testRun?testBlessings():this.practiceRun?[...this.practiceRun.relics]:[];
     this.huntedWeapons=new Set();
     this.fusionPin=null;

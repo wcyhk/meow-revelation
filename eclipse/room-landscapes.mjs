@@ -4,7 +4,7 @@ import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {finishForRoom,roomSurface,weatherFloor,weatherMasonry} from './room-surfaces.mjs?v=penumbra-1';
 import {RoomLighting} from './room-lighting.mjs?v=afterglow-1';
 import {depthGeometry,sculptRoomDepth} from './room-depth.mjs?v=penumbra-1';
-import {LanternShadow} from './lantern-shadow.mjs?v=afterglow-1';
+import {LanternShadow} from './lantern-shadow.mjs?v=clear-sight-1';
 import {windGeometries,windInRoom} from './room-wind.mjs?v=afterglow-1';
 
 const PI=Math.PI,TAU=PI*2;
@@ -781,6 +781,12 @@ export class RoomLandscape {
     this.root.add(this.flames,this.orbs);
     this.pose=new T.Object3D();
     chunks.finish();
+    // Room meshes keep their placement. Flame animation updates instance matrices.
+    this.root.updateWorldMatrix(true,true);
+    this.root.traverse(node=>{
+      node.matrixAutoUpdate=false;
+      node.matrixWorldAutoUpdate=false;
+    });
     // Themes without liquid/glass have no draw call for those unused materials.
     for(const mat of Object.values(m)){
       let found=false;

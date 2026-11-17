@@ -62,7 +62,11 @@ export class LanternShadow {
         const distanceSquared=dx*dx+dz*dz;
         if(distanceSquared>(light.distance+radius)**2||distanceSquared<radius*radius)continue;
         const height=prop.height??prop.h??(prop.style==='urn'?.92:2.8);
-        for(let i=0;i<samples;i++){
+        const center=(Math.atan2(dz,dx)/tau+.5)*samples-.5;
+        const span=Math.asin(Math.min(1,radius/Math.sqrt(distanceSquared)))*samples/tau;
+        const first=Math.floor(center-span),last=Math.ceil(center+span);
+        for(let ray=first;ray<=last;ray++){
+          const i=(ray+samples)%samples;
           const [rx,rz]=this.rays[i];
           const line=dx*rx+dz*rz;
           const intercept=line*line-distanceSquared+radius*radius;

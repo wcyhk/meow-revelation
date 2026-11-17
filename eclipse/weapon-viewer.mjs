@@ -1,11 +1,11 @@
 import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
 import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
-import {MotionArt} from './motion-art.mjs?v=skill-depth-1';
+import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=afterglow-1';
+import {RoomLandscape} from './room-landscapes.mjs?v=clear-sight-1';
 import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
 import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';

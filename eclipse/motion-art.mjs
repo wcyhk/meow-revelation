@@ -317,7 +317,7 @@ export class MotionArt {
 
   ribbon(geometry,point,tint,duration,{kind=0,owned=false,...settings}={}) {
     const ink=new T.Color(tint);
-    const material=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,
+    const material=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
       blending:T.AdditiveBlending,uniforms:{ink:{value:ink},edge:{value:ink.clone().lerp(new T.Color(0xfff4de),.76)},
         opacity:{value:settings.opacity??.85},life:{value:0},kind:{value:kind}},vertexShader:vertex,fragmentShader:fragment});
     return this.view.addEffect(geometry,point,tint,duration,{...settings,owned,material,fade:true});

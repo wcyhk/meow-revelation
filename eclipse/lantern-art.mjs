@@ -164,9 +164,15 @@ export class LanternArt {
     this.mask.hidden=false;
     this.mask.classList.toggle('extinguished',extinguished);
     const style=this.mask.style;
-    style.setProperty('--light-x',Math.round(screen.x)+'px');style.setProperty('--light-y',Math.round(screen.y)+'px');
-    style.setProperty('--light-w',Math.round(beam*sx*(1+flicker))+'px');
-    style.setProperty('--light-h',Math.round(beam*sx*.72*(1+flicker))+'px');
+    const update=(name,number)=>{
+      const value=Math.round(number)+'px';
+      if(style.getPropertyValue(name)!==value)style.setProperty(name,value);
+    };
+    const width=beam*sx*(1+flicker);
+    update('--light-x',screen.x);
+    update('--light-y',screen.y);
+    update('--light-w',width);
+    update('--light-h',width*.72);
     this.lamp.visible=!extinguished;
     this.lamp.position.set(hero.x-(hero.face??1)*.40,.69+Math.sin(time*7)*.054,hero.z+.22);
     this.lamp.rotation.z=Math.sin(time*7)*.13;

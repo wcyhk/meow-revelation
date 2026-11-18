@@ -11,12 +11,12 @@ import {Audio} from './audio.mjs?v=local-theme-1';
 import {Input} from './input.mjs?v=loop-music-1';
 import {Soundtrack} from './soundtrack.mjs?v=bundled-requiem-1';
 import {arms} from './armory.mjs?v=emberlight-1';
-import {ending} from './campaign.mjs?v=clock-1';
-import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
+import {ending,storyPrimer} from './campaign.mjs?v=story-repair-1';
+import {enemySpec, patterns, stages} from './expedition.mjs?v=story-repair-1';
 import {blessingRankCap, blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ascendant-1';
 import {advanceThreats, telegraph} from './threats.mjs?v=world-3d-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, skillFootprint, strikeTravel, strikeWith} from './combat.mjs?v=giant-gates-1';
-import {RoomObjective,fieldNotes} from './objectives.mjs?v=ascendant-1';
+import {RoomObjective,fieldNotes} from './objectives.mjs?v=story-repair-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
 import {BossArena} from './boss-arena.mjs?v=ledger-1';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
@@ -31,13 +31,13 @@ import {difficulties,eliteOmen,modeStage} from './nightfall.mjs?v=clock-1';
 import {giftCast,giftFinisher,giftHurt,giftKill,giftRoll,seals} from './relic-gifts.mjs?v=ledger-1';
 import {inExitThreshold,lanternRadius,roomBounds,routeLayout,twinSpec} from './lantern-route.mjs?v=giant-gates-1';
 import {actorMotion} from './actor-kinetics.mjs?v=forgelight-4';
-import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle,training} from './progression.mjs?v=last-bell-1';
-import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=last-bell-1';
-import {BranchCombat} from './branch-combat.mjs?v=skill-depth-1';
-import {storyDialogue} from './dialogue-scenes.mjs?v=story-portraits-1';
-import {dialoguePanel} from './dialogue.mjs?v=story-portraits-1';
-import {endingFor} from './endings.mjs?v=story-portraits-1';
-import {RelicHunt} from './relic-hunt.mjs?v=world-3d-1';
+import {Progression,floorGold,formatTime,milestones,moonlessLantern,moonlessTitle,training} from './progression.mjs?v=story-repair-1';
+import {branchPicker,recordsPanel,setFracture,trainingPanel} from './progression-ui.mjs?v=story-repair-1';
+import {BranchCombat} from './branch-combat.mjs?v=story-repair-1';
+import {storyDialogue} from './dialogue-scenes.mjs?v=story-repair-1';
+import {dialoguePanel} from './dialogue.mjs?v=story-repair-1';
+import {endingFor} from './endings.mjs?v=story-repair-1';
+import {RelicHunt} from './relic-hunt.mjs?v=story-repair-1';
 import {relicCounter} from './relic-cast.mjs?v=giant-gates-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
@@ -692,7 +692,8 @@ export class Game {
     this.state='journal';
     const journal=document.createElement('div');
     journal.className='journal-entries';
-    for (const clue of this.journal) {
+    const entries=[...storyPrimer.map(([title,record])=>({title,record,chapter:'旅程提要'})),...this.journal];
+    for (const clue of entries) {
       const entry=document.createElement('article');
       const heading=document.createElement('b'), record=document.createElement('p');
       heading.textContent=clue.chapter+' · '+clue.title;
@@ -2242,7 +2243,7 @@ export class Game {
       return;
     }
     this.placeStory(ending);
-    this.announce('名字重見天日',ending.title,'往王座走，讓牠們聽見鐘聲。',2.0);
+    this.announce('王冠主印已破',ending.title,'叫回晏燈，再敲下最後一聲鐘。',2.0);
   }
 
   togglePause() {
@@ -2391,7 +2392,7 @@ export class Game {
     const {reason}=this.failure;
     const event=reason==='lantern'?'祭燈熄咗。':reason==='leave'?'呢段挑戰到此為止。':'呢一輪時間碎咗。';
     const scene={cast:['keeper'],intro:[{speaker:'keeper',
-      text:'螢幕前嗰位，我見到你。'+event+'金幣同紀錄已記入帳簿，我而家送你返遊戲入口。'}]};
+      text:'螢幕前嗰位，我見到你。'+event+'我只夠把守燈貓帶返入口。破印金幣、訓練同紀錄存喺圈外，下一輪可以再嚟。'}]};
     this.openDialogue('GM 司刻',this.difficulty.name+' · 第 '+this.stage.floor+' 關',scene,
       '立即返回入口',()=>this.showCover(),this.runResults());
   }

@@ -22,6 +22,7 @@ function button(className,text) {
 }
 
 export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary}) {
+  const names={...characters,...scene.names};
   const root=element('div','vn');
   const illustration=element('img','vn-scene-art');
   illustration.alt='';
@@ -116,9 +117,9 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
       illustration.src=artPath('scenes',artwork);
     }
     if(artwork||scene.art)root.dataset.view=entry.speaker==='narrator'?'illustration':'portrait';
-    speaker.textContent=characters[entry.speaker];
+    speaker.textContent=names[entry.speaker];
     text.textContent=entry.text;
-    transcript.push({name:characters[entry.speaker],text:entry.text});
+    transcript.push({name:names[entry.speaker],text:entry.text});
     const choices=atChoice();
     options.hidden=!choices;
     next.hidden=Boolean(choices);
@@ -156,7 +157,7 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
     render();
   });
   skip.addEventListener('click',()=>{
-    for(const entry of lines.slice(index+1,-1)) transcript.push({name:characters[entry.speaker],text:entry.text});
+    for(const entry of lines.slice(index+1,-1)) transcript.push({name:names[entry.speaker],text:entry.text});
     index=lines.length-1;
     render();
     if(!atChoice()) next.focus({preventScroll:true});

@@ -71,7 +71,7 @@ export class RelicHunt {
     game.audio.danger=true;
     game.audio.boss(spec.effect);
     game.audio.relicRoar(weapon);
-    game.announce('神器守護者闖入',spec.name,mark.cry,3.3);
+    game.announce('神器舊印引來追討',spec.name,mark.cry,3.3);
     game.objective('守住手上神器 · 擊退 '+spec.name);
     this.state='arriving';
     this.unit=boss;

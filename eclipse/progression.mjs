@@ -16,7 +16,7 @@ export const branches = [
   {id:'tech', name:'科技', tint:'#a9e3ee', skills:[
     {id:'robot-squad',name:'機械人小隊',cost:180,detail:'三台機械人跟隨你，自動發射遠程火箭、近程衝鋒槍同中程機槍。'},
     {id:'radar',name:'搜敵雷達',cost:140,detail:'持續偵測大範圍敵人（13 格），腳下紅印喺提燈熄滅時仍然可見。'},
-    {id:'medic',name:'召喚急救小隊',cost:220,detail:'每次挑戰可用一次。受到致命傷害時原地復活，回滿生命。'},
+    {id:'medic',name:'召喚急救小隊',cost:220,detail:'每次挑戰可用一次。受到致命傷害時立即急救，回滿生命並保住本輪守燈。'},
   ]},
   {id:'mystic',name:'神祕',tint:'#e4b8ef',skills:[
     {id:'cthun-hand',name:'克蘇恩之手',cost:180,detail:'三條背生觸手自動出擊。黑色近掃、紅色穿刺、紫色遠處破地。'},

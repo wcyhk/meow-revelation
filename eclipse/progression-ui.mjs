@@ -1,4 +1,4 @@
-import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,loadoutSkills,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=last-bell-1';
+import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,loadoutSkills,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=story-repair-1';
 
 function element(tag,className,content) {
   const node=document.createElement(tag);
@@ -60,7 +60,7 @@ export function trainingPanel(profile,updateBalance) {
     });
   }
   const paths=section('技能分支');
-  paths.append(element('p','branch-hint','兩邊都可以學。入林前揀一邊，再勾選今局想帶嘅技能。'));
+  paths.append(element('p','branch-hint','科技修復器械，神祕另簽借力契印。兩邊都可以學，每輪揀一邊攜帶；借力代價會喺通關結算。'));
   const cards=element('div','branch-cards');
   for (const branch of branches) {
     const card=element('article','branch-card');

@@ -19,7 +19,6 @@ const attackVoices={
 export class Audio {
   constructor() {
     this.muted = false;
-    this.externalMusic=false;
     this.score = new PulseScore();
     this.score.preload();
     this.active = false;
@@ -38,6 +37,7 @@ export class Audio {
 
   async start() {
     if (this.context) {
+      this.soundtrack?.sync(true);
       if (this.context.state === 'suspended') await this.context.resume();
       await this.score.connect(this.context,this.master);
       this.update();
@@ -53,19 +53,16 @@ export class Audio {
     this.noise = context.createBuffer(1, Math.ceil(context.sampleRate * .32), context.sampleRate);
     const data = this.noise.getChannelData(0);
     for (let index=0; index<data.length; index++) data[index] = Math.random() * 2 - 1;
+    this.soundtrack?.sync(true);
     await context.resume();
     await this.score.connect(context,master);
-    this.update();
-  }
-
-  useExternalMusic(enabled) {
-    this.externalMusic=enabled;
     this.update();
   }
 
   toggle() {
     this.muted = !this.muted;
     if (this.context) this.master.gain.setTargetAtTime(this.muted ? 0 : .43,this.context.currentTime,.04);
+    this.update();
     return this.muted;
   }
 
@@ -386,6 +383,7 @@ export class Audio {
   }
 
   update() {
-    this.score.mix(this.active&&!this.externalMusic,this.danger);
+    this.soundtrack?.sync();
+    this.score.mix(this.active&&!this.soundtrack?.available,this.danger);
   }
 }

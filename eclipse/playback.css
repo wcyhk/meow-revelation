@@ -29,53 +29,15 @@
   font-size:12px;
 }
 .soundtrack-toggle:disabled {color:#c5b393;cursor:default}
-#soundtrack {
-  display:grid;
-  align-content:center;
-  gap:4px;
-  padding:0 max(8px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) 8px;
-  background:#16121c;
-  border-inline-start:1px solid #ad805c80;
-}
-.soundtrack-heading {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:6px;
-}
-.soundtrack-heading a {color:#efd2a4;font-size:13px;text-underline-offset:3px}
-.soundtrack-heading button {
-  flex:none;
-  width:44px;
-  height:44px;
-  border:0;
-  background:none;
-  color:#efd2a4;
-  font-size:24px;
-}
-#soundtrack-video iframe {
+
+.soundtrack-status {
   display:block;
-  width:100%;
-  height:max(200px,12vw);
-  border:0;
-  background:#000;
+  max-width:340px;
+  margin-top:5px;
+  color:#cdbb9e;
+  font-size:11px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
 }
-body:has(#soundtrack:not([hidden])) {
-  display:grid;
-  grid-template-columns:minmax(0,1fr) clamp(232px,25vw,450px);
-}
-body:has(#soundtrack:not([hidden])) #game {position:relative;min-height:0;min-width:0}
-body:has(#soundtrack:not([hidden])) :is(#cover .cover-frame,#title-flare) {position:absolute}
-@media (max-width:700px) and (orientation:portrait) {
-  body:has(#soundtrack:not([hidden])) {
-    grid-template-columns:minmax(0,1fr);
-    grid-template-rows:minmax(0,1fr) auto;
-  }
-  #soundtrack {
-    justify-items:center;
-    border-inline-start:0;
-    border-block-start:1px solid #ad805c80;
-  }
-  #soundtrack :is(.soundtrack-heading,#soundtrack-video) {width:min(100%,430px)}
-  body:has(#soundtrack:not([hidden])) .title-menu {margin-top:clamp(64px,14dvh,165px)}
-}
+#modal-content .soundtrack-toggle {display:block;margin:12px auto 0}
+#modal-content .soundtrack-status {margin:5px auto 0}

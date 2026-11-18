@@ -9,7 +9,7 @@ import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
 import {Audio} from './audio.mjs?v=local-theme-1';
 import {Input} from './input.mjs?v=loop-music-1';
-import {Soundtrack} from './soundtrack.mjs?v=local-theme-1';
+import {Soundtrack} from './soundtrack.mjs?v=bundled-requiem-1';
 import {arms} from './armory.mjs?v=emberlight-1';
 import {ending} from './campaign.mjs?v=clock-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=world-3d-1';
@@ -2704,6 +2704,8 @@ try {
   const world=new Scenery($('world'));
   await world.load();
   game=new Game(world,new Audio());
+  $('load-note').textContent='正在載入戰鬥配樂⋯⋯';
+  await game.soundtrack.ready;
   $('load-note').textContent='';
   $('begin').disabled=false;
   $('training').disabled=false;

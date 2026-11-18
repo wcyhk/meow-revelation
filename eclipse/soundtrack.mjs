@@ -1,5 +1,6 @@
 const databaseName='meow-revelation-music';
 const storageKey=new URL('../',import.meta.url).pathname;
+const defaultTrack=new URL('./audio/infinite-requiem.mp3',import.meta.url);
 
 function storedTrack(mode,track) {
   return new Promise((resolve,reject)=>{
@@ -80,9 +81,14 @@ export class Soundtrack {
     status.setAttribute('role','status');
     button.after(status);
     button.addEventListener('click',()=>{
-      if(this.blocked){
+      if(!this.media){
+        this.busy=true;
+        this.message='正在載入戰鬥配樂⋯⋯';
+        this.paint();
+        this.ready=this.restore();
+      }else if(this.blocked){
         this.blocked=false;
-        this.message='已儲存離線配樂 · '+this.name;
+        this.message=this.trackMessage;
         this.paint();
         this.audio.start().catch(()=>{});
         this.audio.update();
@@ -94,8 +100,8 @@ export class Soundtrack {
 
   updateButton(button) {
     button.disabled=this.busy;
-    button.textContent=this.blocked?'重試背景音樂'
-      :this.media?'更換背景音樂':'匯入《Infinite Requiem》';
+    button.textContent=this.busy?'正在載入配樂'
+      :this.blocked||!this.media?'重試背景音樂':'更換背景音樂';
   }
 
   paint() {
@@ -105,13 +111,19 @@ export class Soundtrack {
 
   async restore() {
     try{
-      const track=await storedTrack('readonly');
+      const track=await storedTrack('readonly').catch(()=>null);
       if(track?.blob){
-        const media=await loadTrack(track.blob);
-        this.replace(media,track.name);
-      }else this.message='匯入音訊一次，戰鬥時自動循環並保存離線播放。';
+        try{
+          this.replace(await loadTrack(track.blob),track.name);
+          return;
+        }catch{}
+      }
+      const response=await fetch(defaultTrack);
+      if(!response.ok)throw new Error('Could not load the battle theme');
+      const media=await loadTrack(await response.blob());
+      this.replace(media,'Infinite Requiem · Deoksoon',true);
     }catch{
-      this.message='請匯入音訊，戰鬥時會自動循環播放。';
+      this.message='戰鬥配樂載入失敗，請按「重試背景音樂」。';
     }finally{
       this.busy=false;
       this.paint();
@@ -139,7 +151,7 @@ export class Soundtrack {
     }
   }
 
-  replace(media,name) {
+  replace(media,name,bundled=false) {
     this.source?.disconnect();
     this.gain?.disconnect();
     this.source=this.gain=null;
@@ -148,7 +160,8 @@ export class Soundtrack {
     this.name=name;
     this.blocked=false;
     this.pending=null;
-    this.message='已儲存離線配樂 · '+name;
+    this.trackMessage=bundled?'Infinite Requiem · 戰鬥時自動循環':'已儲存離線配樂 · '+name;
+    this.message=this.trackMessage;
     media.addEventListener('error',()=>{
       if(this.media===media)this.failed();
     });

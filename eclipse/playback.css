@@ -18,26 +18,7 @@
   font-size:11px;
 }
 
-.soundtrack-toggle {
-  min-height:44px;
-  margin-top:6px;
-  padding:0 10px;
-  border:1px solid #e2bd8b74;
-  border-radius:4px;
-  background:#211b23df;
-  color:#ffdfad;
-  font-size:12px;
-}
-.soundtrack-toggle:disabled {color:#c5b393;cursor:default}
-
+.soundtrack-toggle,
 .soundtrack-status {
-  display:block;
-  max-width:340px;
-  margin-top:5px;
-  color:#cdbb9e;
-  font-size:11px;
-  line-height:1.5;
-  overflow-wrap:anywhere;
+  display:none;
 }
-#modal-content .soundtrack-toggle {display:block;margin:12px auto 0}
-#modal-content .soundtrack-status {margin:5px auto 0}

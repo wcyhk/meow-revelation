@@ -145,7 +145,6 @@ export class Game {
     this.updateEntryBalance();
     this.ui.pause.addEventListener('click',()=>this.togglePause());
     this.soundtrack=audio.soundtrack=new Soundtrack(audio);
-    this.soundtrack.bind($('soundtrack-open'));
     this.ui.mute.addEventListener('click',()=>{
       const muted=audio.toggle();
       this.ui.mute.setAttribute('aria-pressed',String(muted));
@@ -2279,11 +2278,7 @@ export class Game {
     setting.append(checkbox,'減少閃光與震動');
     const pauseContent=document.createElement('div');
     if(content)pauseContent.append(content);
-    const musicButton=document.createElement('button');
-    musicButton.type='button';
-    musicButton.className='soundtrack-toggle';
-    pauseContent.append(setting,musicButton);
-    this.soundtrack.bind(musicButton);
+    pauseContent.append(setting);
     this.openModal({kind:'pause',mark:'☾',kicker:'月蝕之夜',title:'稍作休息',
       copy:this.input.touchMode?'拖住移動，點一下普攻，快速短撥翻滾。點神器紋章會自動瞄準，拖住紋章可以手動瞄準，放手施技。點「調查」可同場景互動。'
         :'WASD 移動，J 普通攻擊，空白鍵翻滾，Q 放神器技能，E 調查。',

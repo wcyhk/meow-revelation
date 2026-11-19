@@ -6,6 +6,14 @@ difficulty. A local guest ID is not an authenticated cloud account.
 
 ## Provisioning
 
+The dedicated project is `lndgnnygydivahrywqxa` (Meow Revelation, Tokyo).
+The database is connected. `email:false` and `google:false` deliberately keep
+public login disabled while SMTP and Google OAuth are pending, per the owner's
+choice. Guest play, local history, and public leaderboard viewing remain enabled.
+Turn `email:true` only after real SMTP delivery and OTP verification are tested;
+turn `google:true` only after the configured OAuth callback is tested. Existing
+guest runs can be claimed when permanent login opens.
+
 1. Create the dedicated **Meow Revelation** project in the **Meow Revelation**
    Free organization, in Asia-Pacific. The owner enters the database password.
 2. Apply `migrations/202611190001_player_rankings.sql` in the SQL editor or with
@@ -59,6 +67,8 @@ Install test dependencies with `npm ci --prefix tools/cloud-tests`.
 node tools/cloud-tests/test-records.mjs
 node tools/cloud-tests/test-database.mjs
 node tools/cloud-tests/smoke-player.cjs <absolute-deployment-tree>
+node tools/cloud-tests/test-live-public.mjs
+node tools/cloud-tests/smoke-live-rankings.cjs <absolute-deployment-tree>
 node tools/smoke-reward-music.cjs <absolute-deployment-tree>
 ```
 

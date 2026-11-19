@@ -37,16 +37,21 @@ export class PlayerUI {
         button('立即同步',()=>run(()=>client.sync(),'已檢查待同步紀錄。')),
         button('登出此裝置',()=>run(async()=>{await client.signOut();this.game.showCover();},'')));
     }else{
+      const emailReady=client.config.email!==false;
+      if(!emailReady)root.append(node('p','player-note','Google／電郵驗證碼登入尚未開放。成績已保存在此裝置，開放登入後可以合併並上榜。'));
       const form=node('form','player-login');
       const label=node('label','player-field','電郵');
       const email=node('input');email.id='player-email';email.type='email';email.required=true;email.autocomplete='email';email.inputMode='email';label.append(email);
-      const send=node('button','primary','寄出登入郵件');send.type='submit';
+      const send=node('button','primary',emailReady?'寄出登入郵件':'電郵登入 · 待開放');send.type='submit';send.disabled=!emailReady;email.disabled=!emailReady;
       form.append(label,send);form.addEventListener('submit',event=>{event.preventDefault();run(()=>client.signIn(email.value),'已寄出登入郵件，請開啟信內連結；如信內有驗證碼，亦可喺下面輸入。');});
       const otpLabel=node('label','player-field','電郵驗證碼（如有）');
       const otp=node('input');otp.id='player-otp';otp.autocomplete='one-time-code';otp.inputMode='numeric';otp.maxLength=10;otpLabel.append(otp);
-      root.append(form,otpLabel,button('驗證並登入',()=>run(()=>client.verify(email.value,otp.value.trim()),'登入完成。'),'primary'));
+      const verify=button('驗證並登入',()=>run(()=>client.verify(email.value,otp.value.trim()),'登入完成。'),'primary');verify.disabled=!emailReady;otp.disabled=!emailReady;
+      if(emailReady)root.append(form,otpLabel,verify);
+      else root.append(send);
       if(client.config.google)root.append(button('使用 Google 登入',()=>run(()=>client.google())));
-      root.append(node('p','player-note','登入後會合併呢個裝置未綁定嘅訪客挑戰。帳號已有更好成績時會保留更好嗰局。'));
+      else {const google=button('Google 登入 · 待開放',()=>{});google.disabled=true;root.append(google);}
+      if(emailReady)root.append(node('p','player-note','登入後會合併呢個裝置未綁定嘅訪客挑戰。帳號已有更好成績時會保留更好嗰局。'));
       const signed=()=>{
         if(!root.isConnected||this.game.state!=='account'||this.game.ui.modal.hidden){client.removeEventListener('change',signed);return;}
         if(client.user){client.removeEventListener('change',signed);this.game.showCover();}

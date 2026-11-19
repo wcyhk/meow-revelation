@@ -97,7 +97,7 @@ let chrome,ws;
 
 
 
-  assert.match(await ev('document.querySelector("script[type=module]").src'),/warm-rooms-1$/);
+  assert.match(await ev('document.querySelector("script[type=module]").src'),/game\.mjs\?v=/);
   await wait('!!navigator.serviceWorker.controller && document.querySelector("#offline-status").textContent==="已可離線遊玩"',780);
   await c('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
   const act=async selector=>{

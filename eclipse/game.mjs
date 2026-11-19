@@ -50,6 +50,7 @@ const blend = (speed,dt) => 1-Math.exp(-speed*dt);
 const fixed = value => Math.max(0, Math.ceil(value));
 const random = (low,high) => low + Math.random() * (high-low);
 const actionIds = ['dodge','spell','strike'];
+const rewardMusicStates=new Set(['blessing','twin-reward','twin-inventory','twin-swap','transition']);
 const testTraining=Object.fromEntries(training.map(({id,costs})=>[id,costs.length]));
 
 function testBlessings(){
@@ -325,7 +326,7 @@ export class Game {
   prepare(milestone=false) {
     this.audio.start().catch(() => {});
     this.state='armory';
-    this.audio.active=false;
+    this.audio.active=milestone;
     if(this.testRun||(!milestone&&this.testMode)){
       const content=document.createElement('div');
       content.className='ascendant-arsenal';
@@ -1929,7 +1930,8 @@ export class Game {
     if(document.hidden||this.weaponViewer.open)return;
     if(!this.ui.cover.hidden)return;
     if(!this.hero)return;
-    this.audio.active=this.state==='play';
+    this.audio.active=this.state==='play'||rewardMusicStates.has(this.state)
+      ||this.state==='armory'&&this.ui.cover.hidden;
     if(this.storyDepth.render(this.view.renderer,dt,this.view.feedback.subdued))return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;

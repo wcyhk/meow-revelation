@@ -1,0 +1,65 @@
+/* Short compositor animations; no filters or permanent moving decoration. */
+.interface-anchor {position:relative}
+.interface-ripple {
+  position:absolute;display:block;pointer-events:none;border-radius:50%;z-index:4;
+  background:radial-gradient(circle,transparent 22%,#ffedbf32 40%,#ffe8a957 44%,transparent 48%);
+  border:1px solid #ffe8ac45;
+}
+button { -webkit-tap-highlight-color:transparent }
+button:focus-visible {outline:2px solid #f4d49a;outline-offset:4px}
+.arm-card,.relic {transition:border-color .18s,background-color .18s,box-shadow .18s}
+.arm-card:is(:hover,:focus-visible),.relic:is(:hover,:focus-visible) {
+  border-color:#e8c58b;box-shadow:inset 0 0 22px #ecd39f12,0 0 0 1px #ebc78c24;
+}
+button[aria-pressed] {transition:background-color .18s,border-color .18s,box-shadow .18s}
+button[aria-pressed=true] {box-shadow:inset 0 -2px 0 #e8c58b8c}
+#cover-title[aria-pressed=true] {box-shadow:none}
+#interface-fx {position:fixed;inset:0;z-index:80;pointer-events:none;overflow:hidden;contain:strict}
+.interface-flight {position:absolute;object-fit:contain;filter:drop-shadow(0 0 7px var(--reward-ink));pointer-events:none}
+.interface-mote {position:absolute;width:4px;height:7px;border-radius:1px;pointer-events:none}
+#interface-reward {
+  position:fixed;z-index:81;top:var(--reward-top,140px);left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;width:max-content;max-width:84vw;padding:6px 16px 6px 10px;
+  color:#fff1d2;background:linear-gradient(110deg,#302635f5,#191620f0);
+  border:1px solid color-mix(in srgb,var(--reward-ink) 65%,#dfbd83);border-radius:3px;
+  box-shadow:0 8px 30px #0006,inset 3px 0 var(--reward-ink);pointer-events:none;
+}
+#interface-reward .blessing-emblem {width:32px;height:32px;flex:none}
+#interface-reward strong {display:block;font-size:13px;font-family:var(--serif);letter-spacing:.06em}
+#interface-reward small {display:block;color:#cabfbd;font-size:9px;letter-spacing:.14em;margin-top:3px}
+#begin[aria-busy=true] .title-icon {animation:interface-wait 1.5s linear infinite}
+@keyframes interface-wait {to{rotate:360deg}}
+.offline-pack {position:relative;flex-wrap:wrap}
+#offline-progress {appearance:none;border:0;display:block;width:100%;max-width:260px;height:2px;background:#ffffff16;border-radius:2px;overflow:hidden;accent-color:#e8c58b}
+#offline-progress::-webkit-progress-bar {background:#ffffff16}
+#offline-progress::-webkit-progress-value {background:linear-gradient(90deg,#9c796b,#f5d49a);transition:width .25s}
+#offline-progress::-moz-progress-bar {background:#e8c58b}
+.offline-pack[data-state=ready] #offline-status::before {content:'◆';font-size:8px;color:#d6c69b;margin-right:6px}
+.offline-pack[data-state=failed] #offline-status {color:#dfa498}
+.reduced-effects {min-height:44px;cursor:pointer}
+.reduced-effects input[type=checkbox] {
+  appearance:none;position:relative;width:42px;height:24px;flex:none;margin:0;
+  border:1px solid #bfa58370;border-radius:20px;background:#18161f;cursor:pointer;
+  transition:background-color .18s,border-color .18s;
+}
+.reduced-effects input[type=checkbox]::before {
+  content:'';display:block;position:absolute;left:3px;top:3px;width:16px;height:16px;
+  border-radius:50%;background:#b6a9a5;transition:translate .2s cubic-bezier(.2,.8,.2,1),background-color .18s;
+}
+.reduced-effects input:checked {background:#6a4c32;border-color:#e2c184}
+.reduced-effects input:checked::before {translate:18px 0;background:#ffe3ac}
+.reduced-effects input:focus-visible {outline:2px solid #f4d49a;outline-offset:4px}
+@media (max-width:720px) {
+  /* The 42px icon previously overflowed the old 29px mobile grid column. */
+  .relic {grid-template-columns:42px minmax(72px,.8fr) minmax(0,1.8fr);column-gap:9px}
+  .relic>span {min-width:0;overflow-wrap:anywhere}
+}
+@media (max-height:480px) {#interface-reward {padding-block:5px}}
+@media (prefers-reduced-motion:reduce) {
+  #begin[aria-busy=true] .title-icon {animation:none}
+  #offline-progress::-webkit-progress-value {transition:none}
+  .arm-card,.relic,button[aria-pressed] {transition:none}
+  .reduced-effects input,.reduced-effects input::before {transition:none!important}
+}
+.subdued-effects #begin[aria-busy=true] .title-icon {animation:none}
+.subdued-effects :is(.arm-card,.relic,button[aria-pressed],.reduced-effects input),.subdued-effects .reduced-effects input::before {transition:none}

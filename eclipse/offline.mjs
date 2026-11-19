@@ -1,10 +1,18 @@
 const status=document.getElementById('offline-status');
 const retry=document.getElementById('offline-retry');
+const progress=document.getElementById('offline-progress');
 const workerURL=new URL('../sw.js',import.meta.url);
 
-function show(label,canRetry=false) {
+function show(label,canRetry=false,state='idle',value=null) {
   status.textContent=label;
   retry.hidden=!canRetry;
+  status.parentElement.dataset.state=state;
+  status.setAttribute('aria-busy',String(state==='downloading'));
+  if(progress){
+    progress.hidden=state!=='downloading';
+    if(value===null)progress.removeAttribute('value');
+    else progress.value=value;
+  }
 }
 
 if('serviceWorker' in navigator) {
@@ -15,20 +23,21 @@ if('serviceWorker' in navigator) {
     const {state,bytes,total}=data;
     if(state==='ready'){
       receiving=false;
-      show('已可離線遊玩');
+      show('已可離線遊玩',false,'ready',100);
     }else if(state==='downloading'){
       receiving=true;
-      show('下載離線資源 '+Math.min(99,Math.floor(bytes/total*100))+'%');
+      const percent=total>0?Math.min(99,Math.floor(bytes/total*100)):null;
+      show('下載離線資源 '+(percent??0)+'%',false,'downloading',percent);
     }else if(state==='failed'||state==='missing'&&!receiving){
       receiving=false;
-      show('離線資源未下載完成',true);
+      show('離線資源未下載完成',true,'failed');
     }
   });
   const report=()=>workers.controller?.postMessage('offline-status');
   workers.addEventListener('controllerchange',report);
 
   async function register() {
-    show('準備離線資源⋯⋯');
+    show('準備離線資源⋯⋯',false,'downloading');
     try{
       const registration=await workers.getRegistration(workerURL);
       if(registration?.active){
@@ -41,12 +50,12 @@ if('serviceWorker' in navigator) {
         if(next.installing){
           const candidate=next.installing;
           candidate.addEventListener('statechange',()=>{
-            if(candidate.state==='redundant'&&!next.active)show('離線資源未下載完成',true);
+            if(candidate.state==='redundant'&&!next.active)show('離線資源未下載完成',true,'failed');
           });
         }
       }
     }catch{
-      if(!workers.controller&&!receiving)show('離線資源未下載完成',true);
+      if(!workers.controller&&!receiving)show('離線資源未下載完成',true,'failed');
     }
   }
 

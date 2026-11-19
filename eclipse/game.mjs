@@ -7,6 +7,7 @@ import {Scenery} from './scenery.mjs?v=clear-sight-1';
 import {OnlinePlayer} from './online-player.mjs';
 import {PlayerUI} from './player-ui.mjs';
 import {ActiveRunClock} from './challenge-records.mjs';
+import {InterfaceMotion} from './interface-motion.mjs?v=lantern-ui-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
@@ -164,6 +165,7 @@ export class Game {
     addEventListener('resize',()=>this.view.resize());
     document.addEventListener('visibilitychange',() => {if(document.hidden && this.state==='play') this.togglePause();});
     this.loop = this.loop.bind(this);
+    this.interfaceMotion=new InterfaceMotion({subdued:()=>this.view.feedback.subdued});
   }
 
   tapTitle(now) {
@@ -1989,6 +1991,7 @@ export class Game {
     this.ui.hud.inert=true;
     this.ui.cover.inert=true;
     this.ui.modal.querySelector('button')?.focus({preventScroll:true});
+    this.interfaceMotion.enter(this.ui.modal);
   }
 
   closeModal() {
@@ -2210,6 +2213,7 @@ export class Game {
     }
     paintBlessingHud(this.ui['relic-icons'],this.relics);
     this.audio.play('blessing');
+    this.interfaceMotion.reward({id:relic.id,name:relic.name,rank:this.ranks.get(relic.id)||1,ink:schools[relic.school].ink,icon:blessingIcon(relic)});
   }
 
   showTwinReward() {
@@ -2765,6 +2769,7 @@ try {
   await game.soundtrack.ready;
   $('load-note').textContent='';
   $('begin').disabled=false;
+  $('begin').setAttribute('aria-busy','false');
   $('training').disabled=false;
   $('records').disabled=false;
   $('bestiary').disabled=false;
@@ -2779,6 +2784,7 @@ try {
     game.previewPracticeBoss(reviewBoss);
   }
 } catch (error) {
+  $('begin').setAttribute('aria-busy','false');
   console.error('Could not initialize the Eclipse Grove',error);
   $('load-note').textContent='森林載入失敗。請重新整理，並確認瀏覽器已啟用 WebGL。';
 }

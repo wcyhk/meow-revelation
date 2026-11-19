@@ -4,6 +4,9 @@ import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
 import {WeaponViewer} from './weapon-viewer.mjs?v=clear-sight-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
 import {Scenery} from './scenery.mjs?v=clear-sight-1';
+import {OnlinePlayer} from './online-player.mjs';
+import {PlayerUI} from './player-ui.mjs';
+import {ActiveRunClock} from './challenge-records.mjs';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
 import {heroFrames} from './actor-art.mjs?v=ascendant-1';
@@ -91,6 +94,9 @@ export class Game {
     this.view = view;
     this.audio = audio;
     this.state = 'cover';
+    this.players=new OnlinePlayer();
+    this.playerUI=new PlayerUI(this,this.players);
+    this.runClock=new ActiveRunClock();
     this.difficulty=difficulties.vigil;
     this.progress=new Progression();
     this.branchCombat=new BranchCombat(view);
@@ -140,6 +146,8 @@ export class Game {
     this.ui['cover-title'].addEventListener('click',event=>this.tapTitle(event.timeStamp));
     this.ui.training.addEventListener('click',()=>this.openTraining());
     this.ui.records.addEventListener('click',()=>this.openRecords());
+    $('player-account').addEventListener('click',()=>this.playerUI.openAccount());
+    $('leaderboard').addEventListener('click',()=>this.playerUI.openLeaderboard());
     this.ui.bestiary.addEventListener('click',()=>this.openPracticeLoadout());
     this.ui['practice-edit'].addEventListener('click',()=>this.openPracticeLoadout());
     this.paintDamage=damageHud($('practice-damage'));
@@ -193,9 +201,11 @@ export class Game {
     if (this.state!=='cover') return;
     this.progress.refresh();
     this.state='records';
+    const content=recordsPanel(this.progress,Object.values(difficulties));
+    content.append(this.playerUI.historyPanel());
     this.openModal({kind:'records',mark:'◇',kicker:'司刻嘅帳簿',title:'個人紀錄',
       copy:'抵達同通過嘅樓層會即時記下。敲響歸名鐘先計通關時間。',
-      content:recordsPanel(this.progress,Object.values(difficulties)),
+      content,
       buttons:[makeButton('返回入口',()=>this.showCover(),'primary')]});
   }
 
@@ -433,6 +443,7 @@ export class Game {
   }
 
   start(weapon) {
+    this.recordChallenge('abandoned');
     if (this.heroVisual) this.view.removeEquippedActor(this.heroVisual);
     this.hero = makeHero();
     this.testRun=this.testMode;
@@ -462,6 +473,10 @@ export class Game {
     paintBlessingHud(this.ui['relic-icons'],this.relics);
     this.elapsed = 0;
     this.kills = 0;
+    this.runClock.reset();
+    this.challengeRunId=this.testRun||this.practiceRun?null:crypto.randomUUID();
+    if(this.challengeRunId)this.players.begin(this.challengeRunId,{difficulty:this.difficulty.id,test_mode:false,practice:false,
+      weapon_id:weapon.id,branch:this.branchCombat.branch?.id??null});
     this.hitstop = 0;
     this.damageFlash = 0;
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
@@ -1598,6 +1613,7 @@ export class Game {
     const reward=milestones[this.difficulty.id].find(item=>item.floor===this.stage.floor);
     const gold=floorGold(this.stage);
     const unlocked=this.progress.clear(this.difficulty.id,this.stage.floor,gold,reward?.id==='crimson');
+    this.recordChallenge('active',this.stage.floor);
     this.runGold+=gold;
     if (reward?.id==='redraw') this.redraws++;
     if (unlocked) this.hero.lanternStyle='crimson';
@@ -1803,7 +1819,7 @@ export class Game {
       this.hitstop-=dt;
       return;
     }
-    this.elapsed+=dt;
+    if(!this.runClock)this.elapsed+=dt;
     this.t+=dt;
     this.branchCombat.activeMaw?.expire(this.t);
     this.updateHero(dt,input);
@@ -1927,6 +1943,7 @@ export class Game {
     requestAnimationFrame(this.loop);
     const dt=clamp((now-this.previousTime)/1000,0,.045);
     this.previousTime=now;
+    if(this.hero)this.elapsed=this.runClock.tick(now,this.state==='play'&&!document.hidden&&!this.weaponViewer.open&&!this.discovery)/1000;
     if(document.hidden||this.weaponViewer.open)return;
     if(!this.ui.cover.hidden)return;
     if(!this.hero)return;
@@ -2366,6 +2383,7 @@ export class Game {
   finish(won,reason) {
     if (['cover','fracture','gm','won'].includes(this.state)) return;
     if(this.practiceRun){this.finishPractice(won);return;}
+    this.recordChallenge(won?'completed':'failed');
     this.audio.active=false;
     if (!won) {
       this.state='fracture';
@@ -2427,6 +2445,7 @@ export class Game {
   }
 
   showCover() {
+    this.recordChallenge('abandoned');
     this.state='cover';
     if(this.testRun){
       this.clearThreats();
@@ -2457,6 +2476,14 @@ export class Game {
     this.progress.refresh();
     this.updateEntryBalance();
     this.ui.begin.focus();
+  }
+
+  recordChallenge(status='active',floor){
+    if(!this.challengeRunId||this.testRun||this.practiceRun||!this.hero)return;
+    const id=this.challengeRunId;
+    this.players.checkpoint(id,{floor,elapsed_ms:Math.round(this.elapsed*1000),kills:this.kills,
+      weapon_id:this.weapon?.id,branch:this.branchCombat.branch?.id??null,status});
+    if(status!=='active')this.challengeRunId=null;
   }
 }
 
@@ -2741,6 +2768,8 @@ try {
   $('training').disabled=false;
   $('records').disabled=false;
   $('bestiary').disabled=false;
+  $('player-account').disabled=false;
+  $('leaderboard').disabled=false;
   requestAnimationFrame(game.loop);
   const review=new URLSearchParams(location.search).get('review');
   const reviewBoss=review&&bossDossiers.find(entry=>entry.id===(review==='jade'?'m133':review));

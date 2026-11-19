@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "node test-records.mjs && node test-database.mjs",
+    "build:sdk": "esbuild client-entry.mjs --bundle --format=esm --platform=browser --minify --supported:template-literal=false --outfile=../../eclipse/vendor/supabase.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "@supabase/supabase-js": "2.119.1",
+    "esbuild": "0.28.2",
+    "fake-indexeddb": "6.2.8"
+  }
+}

@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create schema auth;
+  create table auth.users(id uuid primary key);
+  create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
+  create function auth.uid() returns uuid language sql stable as $$select nullif(auth.jwt()->>'sub','')::uuid$$;
+  grant usage on schema auth to anon,authenticated;`);
+await db.exec(await readFile(new URL('../../supabase/migrations/202611190001_player_rankings.sql',import.meta.url),'utf8'));
+const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222';
+await db.query('insert into auth.users values ($1),($2)',[a,b]);
+const as=async(uid,role='authenticated',anonymous=false)=>{
+  await db.exec('reset role');await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:uid,is_anonymous:anonymous})]);await db.exec('set role '+role);
+};
+const run=(floor,time,more={})=>({id:crypto.randomUUID(),difficulty:'vigil',ruleset:'forest-1',highest_floor:floor,
+  cleared_ms:time,elapsed_ms:time+1000,kills:80,weapon_id:'qilin',branch:null,result_status:'failed',offline:true,
+  revision:1,started_at:'2026-11-18T12:00:00Z',test_mode:false,practice:false,...more});
+const submit=async record=>(await db.query('select public.meow_submit_run($1::jsonb) as result',[JSON.stringify(record)])).rows[0].result;
+const board=async(mode='vigil')=>(await db.query('select public.meow_leaderboard($1,100) as result',[mode])).rows[0].result;
+await as(a);await db.query("select public.meow_set_name('守燈貓 A')");
+const r1=run(20,120000),r2=run(35,220000),r3=run(35,180000);
+await submit(r1);await submit(r2);await submit(r3);
+let result=await board();assert.equal(result.rows.length,1);assert.equal(result.rows[0].run_id,r3.id);
+assert.equal(result.rows[0].highest_floor,35);assert.equal(result.rows[0].cleared_ms,180000);
+await submit(r1);assert.equal((await db.query('select count(*)::int as n from public.meow_runs')).rows[0].n,3,'retries are idempotent');
+await submit(run(70,300000,{difficulty:'blood'}));
+assert.equal((await board('blood')).rows[0].highest_floor,70);assert.equal((await board()).rows[0].highest_floor,35);
+await as(b);await db.query("select public.meow_set_name('<b>CAT</b>')");await submit(run(35,170000));
+assert.equal((await db.query('select count(*)::int as n from public.meow_runs')).rows[0].n,1,'RLS hides other players’ detailed histories');
+result=await board();assert.equal(result.rows.length,2);assert.equal(result.rows[0].player_id,b);assert.equal(result.personal.rank,1);
+await assert.rejects(()=>submit({...r3,revision:2}),error=>error.code==='42501','another account cannot take over a run ID');
+await assert.rejects(()=>db.query('delete from public.meow_runs'),error=>error.code==='42501','direct writes must be denied');
+await as(a);
+await assert.rejects(()=>submit(run(100,100000,{test_mode:true})),error=>error.code==='22023');
+await assert.rejects(()=>submit(run(100,100000,{practice:true})),error=>error.code==='22023');
+await assert.rejects(()=>submit(run(101,100000)),error=>error.code==='23514');
+await assert.rejects(()=>submit(run(20,1)),error=>error.code==='23514','impossible floor times are rejected');
+await assert.rejects(()=>submit({...r3,revision:2,cleared_ms:100000}),error=>error.code==='22023','a same-floor checkpoint cannot rewrite its clear time');
+const active=run(20,120000,{result_status:'active'});await submit(active);
+await assert.rejects(()=>submit({...active,revision:2,highest_floor:30,cleared_ms:10000,elapsed_ms:130000}),error=>error.code==='22023','later floors cannot have earlier clear times');
+await submit({...active,revision:3,highest_floor:40,cleared_ms:240000,elapsed_ms:245000,kills:100,result_status:'failed'});
+await submit({...active,revision:2});
+result=await board();assert.equal(result.personal.highest_floor,40);assert.equal(result.personal.cleared_ms,240000);
+await assert.rejects(()=>submit({...active,revision:4,highest_floor:10}),error=>error.code==='22023');
+await assert.rejects(()=>submit({...active,revision:4,highest_floor:40,cleared_ms:240000,elapsed_ms:245000,kills:100,result_status:'active'}),error=>error.code==='22023');
+await assert.rejects(()=>submit({...active,revision:4,highest_floor:100,cleared_ms:300000,elapsed_ms:301000,kills:110,result_status:'failed'}),error=>error.code==='22023','completed history cannot be rewritten with a higher revision');
+await as(a,'authenticated',true);await assert.rejects(()=>submit(run(10,50000)),error=>error.code==='42501');
+await as(null,'anon');assert.equal((await board()).rows.length,2);assert.equal((await board()).personal,null);
+await assert.rejects(()=>db.query('select * from public.meow_runs'),error=>error.code==='42501');
+await db.exec(`reset role;alter table auth.users add column aud text,add column role text,add column email text,
+  add column raw_app_meta_data jsonb,add column raw_user_meta_data jsonb,add column created_at timestamptz,add column updated_at timestamptz;`);
+const before=(await db.query('select count(*)::int as n from public.meow_runs')).rows[0].n;
+await db.exec(await readFile(new URL('../../supabase/tests/live-rollback.sql',import.meta.url),'utf8'));
+assert.equal((await db.query('select count(*)::int as n from public.meow_runs')).rows[0].n,before,'live rollback smoke must leave no test scores');
+await db.close();
+console.log('PostgreSQL migration, RLS, RPC ownership, unique bests, difficulty isolation, idempotency, stale checkpoints, bounds and test exclusions passed.');

@@ -625,6 +625,7 @@ export class WeaponViewer {
     if(this.view){
       const {view}=this;
       this.practice?.dispose();
+      view.modelReserve?.clear();
       for(const fx of view.effects)view.release(fx);
       view.landscape?.clear();
       const geometries=new Set(),materials=new Set();

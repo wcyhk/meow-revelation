@@ -2017,6 +2017,28 @@ export class Game {
     this.altar={message,heal:Math.round(h.hp-before),bonus,options:this.drawBlessings()};
     this.audio.play('blessing');
     this.showBlessing();
+    this.prepareNextRoom();
+  }
+
+  prepareNextRoom(){
+    const level=this.level+1,hero=this.hero;
+    if(level>=stages.length)return null;
+    if(this.roomPreparation?.level===level&&this.roomPreparation.hero===hero&&this.roomPreparation.weapon===this.weapon)return this.roomPreparation;
+    const stage=modeStage(stages[level],this.difficulty);
+    const kinds=new Set([...stage.zone.foes,...stage.waves.flat()]);
+    if(stage.boss)kinds.add('boss');
+    const specs=[...kinds].map(kind=>enemySpec(stage,kind));
+    const twin=twinSpec(stage);
+    if(twin)specs.push(twin);
+    const visitor=visitorFor(stage,this.routeSeed);
+    if(visitor)specs.push(monsterBattle(visitor,stage.floor,this.difficulty));
+    if(this.relicHunt?.state==='waiting')specs.push(this.relicHunt.specFor(stage));
+    const preparation={level,hero,weapon:this.weapon,pending:true};
+    this.roomPreparation=preparation;
+    preparation.promise=this.view.prepareEncounters(specs,()=>this.roomPreparation===preparation&&this.hero===hero&&this.state!=='cover')
+      .catch(error=>{console.warn('Encounter prewarming deferred',error);})
+      .finally(()=>{preparation.pending=false;});
+    return preparation;
   }
 
   redrawBlessings() {
@@ -2236,9 +2258,19 @@ export class Game {
     this.advanceAfterReward();
   }
 
-  advanceAfterReward() {
+  async advanceAfterReward() {
     if (this.stage.floor<stages.length) {
-      this.enter(this.level+1);
+      const level=this.level+1;
+      const preparation=this.prepareNextRoom();
+      if(preparation?.pending){
+        this.state='transition';
+        this.announce('燈火引路','正在準備下一層','凝聚燈火，前路將再次顯現。',10);
+        await preparation.promise;
+        if(this.roomPreparation!==preparation||this.level!==level-1||this.state!=='transition')return;
+      }
+      this.state='play';
+      this.closeModal();
+      this.enter(level);
       return;
     }
     this.placeStory(ending);

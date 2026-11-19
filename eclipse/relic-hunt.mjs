@@ -37,20 +37,15 @@ export class RelicHunt {
     if(this.remaining<=0)this.spawn();
   }
 
-  spawn(){
+  specFor(stage=this.game.stage){
     const {game,weapon}=this;
-    const {hero,stage}=game;
     const mark=weapon.guardian;
     const roll=weapon.sigil;
-    const side=hero.x>0?-1:1;
-    const depth=hero.z<-7?1:-1;
-    const origin={x:hero.x+side*(3.8+roll%3*.47),z:hero.z+depth*(5.5+roll%4*.54)};
-    game.bound(origin);
     const mode=game.difficulty;
     const special=['airavata','hundun','qiongqi','taotie','taowu','nether-box','nether-bow','nether-sword','nether-halberd'].includes(weapon.id);
     const attacks=[...new Set([...mark.attacks,secondary[weapon.spell.action],roll%2?'toll':'gravefan'])];
     const frame=frames[weapon.element];
-    const spec={
+    return {
       name:mark.name,frame,model:forestVariant(frame,weapon.id,effigies[weapon.id],weapon.tone),relicWeapon:weapon,
       hp:Math.round((280+stage.floor*6.3+(special?74:0))*mode.hp),
       height:2.74+(roll%5)*.13,speed:2.5+(roll%4)*.20,reach:5.9+(roll%3)*.51,
@@ -59,6 +54,17 @@ export class RelicHunt {
       tint:weapon.tone,effect:weapon.effect,attacks,phases:[.52],
       signature:mark.cry,form:'破契・'+weapon.skill,
     };
+  }
+
+  spawn(){
+    const {game,weapon}=this;
+    const {hero}=game;
+    const roll=weapon.sigil;
+    const side=hero.x>0?-1:1;
+    const depth=hero.z<-7?1:-1;
+    const origin={x:hero.x+side*(3.8+roll%3*.47),z:hero.z+depth*(5.5+roll%4*.54)};
+    game.bound(origin);
+    const spec=this.specFor();
     const boss=game.spawn('boss',origin.x,origin.z,null,spec);
     game.huntedWeapons.add(weapon.id);
     boss.hunt=this;
@@ -71,7 +77,7 @@ export class RelicHunt {
     game.audio.danger=true;
     game.audio.boss(spec.effect);
     game.audio.relicRoar(weapon);
-    game.announce('神器舊印引來追討',spec.name,mark.cry,3.3);
+    game.announce('神器舊印引來追討',spec.name,weapon.guardian.cry,3.3);
     game.objective('守住手上神器 · 擊退 '+spec.name);
     this.state='arriving';
     this.unit=boss;

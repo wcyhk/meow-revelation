@@ -24,6 +24,7 @@ export function loadRoomSurfaces(){
     texture.anisotropy=4;
     if(!resources.has(kind))resources.set(kind,{});
     resources.get(kind)[channel]=texture;
+    return texture;
   })));
   return loading;
 }

@@ -184,6 +184,7 @@ function localKey(color,x,y,z,tx,tz,power){
 export class RoomLighting {
   constructor(view){
     this.view=view;
+    this.materials=new Map();
     this.key=new T.DirectionalLight(0xadbaff,0);
     this.fill=new T.SpotLight(0xffce9c,0,27,.66,.75,1.3);
     this.fill.position.set(8,7,-1);
@@ -209,17 +210,19 @@ export class RoomLighting {
     }
   }
 
-  clear(){
+  clear(retain=false){
+    const unused=new Set(this.materials.values());
     this.volume.traverse(part=>{
-      if(part.material)part.material.dispose();
+      if(part.material)unused.add(part.material);
       if(part.isInstancedMesh)part.dispose();
       if(part.geometry&&part.geometry!==leafPlane&&part.geometry!==ground)part.geometry.dispose();
     });
     this.volume.clear();
+    if(!retain){for(const mat of unused)mat.dispose();this.materials.clear();}
   }
 
   set(type,stage,lamps){
-    this.clear();
+    this.clear(true);
     const [key,accent,air,density,intensity]=colors[type];
     this.level=intensity;
     this.keyBase=new T.Color(key);
@@ -252,6 +255,23 @@ export class RoomLighting {
     this.pools=radiance(this.volume,slots,key,accent);
     this.mist=lowMist(this.volume,new T.Color(air).multiplyScalar(.69),this.view.mobile);
     this.embers=motes(this.volume,this.view.mobile,air,['dunes','forge'].includes(type)?2.1:.3);
+    // Each shaft keeps independent uniforms, while its compiled program survives
+    // a room change. Swapping rooms changes values, not shader source.
+    const replacements=new Map();
+    let slot=0;
+    this.volume.traverse(part=>{
+      if(!part.material)return;
+      const fresh=part.material,key=slot++;
+      const retained=this.materials.get(key);
+      if(retained){
+        for(const [name,uniform] of Object.entries(fresh.uniforms))retained.uniforms[name].value=uniform.value;
+        fresh.dispose();part.material=retained;replacements.set(fresh,retained);
+      }else this.materials.set(key,fresh);
+    });
+    this.beams=this.beams.map(mat=>replacements.get(mat)??mat);
+    this.pools=replacements.get(this.pools)??this.pools;
+    this.mist=replacements.get(this.mist)??this.mist;
+    this.embers=replacements.get(this.embers)??this.embers;
   }
 
   light(darkness){

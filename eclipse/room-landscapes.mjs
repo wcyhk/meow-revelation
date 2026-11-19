@@ -703,6 +703,7 @@ export class RoomLandscape {
   constructor(view,cutaway){
     this.view=view;
     this.cutaway=cutaway;
+    this.materialKits=new Map();
     this.root=new T.Group();
     this.lanternShadows=view.lanternArt?new LanternShadow():null;
     this.heroWarm=view.lanternArt?null:new T.PointLight(0xffc079,0,12,2);
@@ -711,22 +712,31 @@ export class RoomLandscape {
     if(this.heroWarm)view.scene.add(this.heroWarm);
   }
 
-  clear(){
-    this.roomLighting.clear();
+  clear(retain=false){
+    this.roomLighting.clear(retain);
     const materials=new Set();
     this.root.traverse(node=>{
       if(node.material)materials.add(node.material);
       if(node.isInstancedMesh)node.dispose();
       if(node.geometry&&!sharedGeometry.has(node.geometry))node.geometry.dispose();
     });
-    for(const mat of materials)mat.dispose();
+    if(!retain){
+      for(const kit of this.materialKits.values()){
+        for(const mat of Object.values(kit.m))materials.add(mat);
+        materials.add(kit.floor);materials.add(kit.wind.material);
+        for(const mat of kit.projections??[])materials.add(mat);
+      }
+      for(const mat of materials)mat.dispose();
+      this.materialKits.clear();
+    }
     this.root.clear();
   }
 
   set(stage){
-    this.clear();
+    this.clear(true);
     const [type,sky,base,edge,trim,body,accent,glimmer,warm]=palettes[stage.picture]??palettes['grove.jpg'];
-    const m=setMaterials(this.view,type,base,edge,trim,body,accent,glimmer,warm,this.cutaway);
+    const retained=this.materialKits.get(type);
+    const m=retained?.m??setMaterials(this.view,type,base,edge,trim,body,accent,glimmer,warm,this.cutaway);
     this.m=m;
     this.picture=stage.picture;
     this.type=type;
@@ -740,15 +750,17 @@ export class RoomLandscape {
     const draw=rng((stage.floor??1)*48109+type.length*91311);
     const finish=finishForRoom(type);
     const scan=roomSurface(finish.floor,finish.repeat,type==='frost'?.61:.83);
-    const floor=weatherFloor(new T.MeshStandardMaterial({
+    const floor=retained?.floor??weatherFloor(new T.MeshStandardMaterial({
       color:scan.map?finish.tint:0xdde1e6,
       ...(scan.map?scan:{map:pavement(type,base),...scannedSurface(inlaid.has(type)?'hammered':'leather',.25)}),
       envMap:forgeEnvironment(),envMapIntensity:inlaid.has(type)?.98:.46,
       metalness:finish.metalness,roughness:finish.roughness,
     }),type);
-    this.lanternShadows?.apply(floor);
-    for(const material of Object.values(m)){
-      if(material.isMeshStandardMaterial)this.lanternShadows?.apply(material);
+    if(!retained){
+      this.lanternShadows?.apply(floor);
+      for(const material of Object.values(m)){
+        if(material.isMeshStandardMaterial)this.lanternShadows?.apply(material);
+      }
     }
     const mesh=new T.Mesh(groundPlane,floor);
     mesh.position.set(0,-.071,-.91);
@@ -764,7 +776,14 @@ export class RoomLandscape {
     roomCenter(ctx,stage,type);
     sculptRoomDepth(ctx,stage,type);
     this.wind=windInRoom(this.root,this.view.mobile,type,accent,draw);
-    this.lanternShadows?.apply(this.wind.material);
+    if(retained){
+      const fresh=this.wind.material;
+      this.root.traverse(node=>{if(node.material===fresh)node.material=retained.wind.material;});
+      fresh.dispose();this.wind=retained.wind;
+    }
+    const kit=retained??{m,floor,wind:this.wind,projections:[]};
+    this.materialKits.set(type,kit);
+    if(!retained)this.lanternShadows?.apply(this.wind.material);
     this.lanternShadows?.setObstacles(this.solid,stage.props);
     insignia(this.root,type,stage,m);
     this.lamps=lanterns(ctx,stage);
@@ -772,7 +791,10 @@ export class RoomLandscape {
     this.projections=[];
     if(glassy.has(type))for(let i=0;i<5;i++){
       const x=(i-2)*5.5+(stage.room??0)%3*.82;
-      this.projections.push(sunlight(this.root,stainedGlass(),x,-5.4+i*.35,-.27+i*.073,.80+(i%3)*.17,type));
+      const fresh=sunlight(this.root,stainedGlass(),x,-5.4+i*.35,-.27+i*.073,.80+(i%3)*.17,type);
+      const mat=kit.projections[i]??fresh;
+      if(mat!==fresh){this.root.children.at(-1).material=mat;fresh.dispose();}
+      kit.projections[i]=mat;this.projections.push(mat);
     }
     this.flames=new T.InstancedMesh(shard,m.lantern,this.lamps.length);
     this.orbs=new T.InstancedMesh(vertical,m.ember,this.lamps.length);
@@ -787,12 +809,7 @@ export class RoomLandscape {
       node.matrixAutoUpdate=false;
       node.matrixWorldAutoUpdate=false;
     });
-    // Themes without liquid/glass have no draw call for those unused materials.
-    for(const mat of Object.values(m)){
-      let found=false;
-      this.root.traverse(node=>{if(node.material===mat)found=true;});
-      if(!found)mat.dispose();
-    }
+    // The thirteen bounded theme kits retain programs, not old room geometry.
     this.light(0);
   }
 

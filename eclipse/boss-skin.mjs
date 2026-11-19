@@ -142,6 +142,7 @@ export function bossSkin(kit,mobile,author){
   }
   const motion=skinned.flatMap(rig=>rig.motion);
   return {
+    reset(){for(const {velocity} of motion)for(const vector of velocity??[])vector.set(0,0,0);},
     pose({beat,wind,strike,stage,stagger,travel,fall,turn=0,dt=1/60}){
       const tick=Math.min(.067,Math.max(0,dt));
       const drag=Math.exp(-tick*8.9);

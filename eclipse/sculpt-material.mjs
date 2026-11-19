@@ -13,6 +13,7 @@ export function loadSculptMaterials(){
       map.wrapS=map.wrapT=T.RepeatWrapping;
       map.anisotropy=4;
       (surfaces[kind]??={})[type]=map;
+      return map;
     })));
   }
   return loading;

@@ -318,6 +318,14 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
 
   return {
     mesh,
+    reset(){
+      lastSample=-Infinity;lastRelease=null;lastPose=undefined;idleClock=(tint%811)/811;
+      for(const point of sampled)point.set(0,0,0,-Infinity);
+      for(const point of trail)point.set(0,0,0,0);
+      uniforms.releaseAge.value=1;uniforms.ringSpin.value=0;
+      uniforms.weaponPower.value=0;uniforms.force.value=0;
+      for(const point of uniforms.burstPoint.value)point.set(0,0,0,0);
+    },
     update(time,stage,wind,strike,fall,stagger,travel=0,subdued=false,motion=null){
       const charge=Math.max(wind,strike,stagger*.45);
       mesh.visible=fall<.98&&(root.visible||!field);

@@ -1,9 +1,10 @@
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
+import {ModelReserve} from './model-reserve.mjs';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
 import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=emberlight-1';
-import {stages} from './expedition.mjs?v=world-3d-1';
+import {stages,enemySpec} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
@@ -11,7 +12,7 @@ import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
 import {LanternArt} from './lantern-art.mjs?v=clear-sight-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
-import {RoomLandscape} from './room-landscapes.mjs?v=clear-sight-1';
+import {RoomLandscape,landscapePictures} from './room-landscapes.mjs?v=clear-sight-1';
 import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
 import {loadPaintedActors} from './actor-art.mjs?v=ascendant-1';
 import {GroveLight} from './grove-light.mjs?v=emberlight-1';
@@ -351,10 +352,41 @@ export class Scenery {
   }
 
   async load() {
-    const [atlas]=await Promise.all([loadCast(),loadSculptMaterials(),loadRoomSurfaces()]);
+    const [atlas,sculpt,room]=await Promise.all([loadCast(),loadSculptMaterials(),loadRoomSurfaces()]);
     this.atlas=atlas;
-    for (const image of new Set(this.atlas)) this.renderer.initTexture(image);
+    const textures=new Set([...atlas,...sculpt,...room].flatMap(item=>item?.status?
+      item.status==='fulfilled'?[item.value]:[]:[item]));
+    let uploaded=0;
+    for(const texture of textures){
+      this.renderer.initTexture(texture);
+      if(++uploaded%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
+    }
     this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=relic-sculpts-1',import.meta.url).href]));
+    // Downloading assets is not GPU preparation. Retained theme materials let us
+    // do first-use texture uploads and shader compilation behind the loading art.
+    for(const [index,picture] of landscapePictures.entries()){
+      document.getElementById('load-note').textContent='正在預備場景光影 '+(index+1)+' / '+landscapePictures.length+'⋯⋯';
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      this.setStage(stages.find(stage=>stage.picture===picture)??{...stages[0],picture});
+      await this.renderer.compileAsync(this.scene,this.camera);
+      this.renderer.render(this.scene,this.camera);
+    }
+    // Prime the first field enemies and the first two boss shader/rig families.
+    // Later encounters reuse compatible programs; the reserve has a strict cap.
+    const encounters=[...stages[0].zone.foes.map(kind=>enemySpec(stages[0],kind)),
+      enemySpec(stages[4],'boss'),enemySpec(stages[9],'boss')];
+    document.getElementById('load-note').textContent='正在預備戰鬥模型⋯⋯';
+    this.setStage(stages[0]);
+    for(const spec of encounters){
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      const actor=this.createActor(spec.frame,spec.height);
+      this.prepareBoss(actor,spec);
+      this.actor(actor,{x:0,z:-2,kind:'boss',bossPhase:0,age:1,hp:spec.hp,move:0,flash:0,attack:null},
+        {frame:spec.frame,face:1,aura:.4,rim:spec.tint,bob:0,squash:1,tilt:0});
+      await this.renderer.compileAsync(this.scene,this.camera);
+      this.renderer.render(this.scene,this.camera);
+      this.removeActor(actor);
+    }
     this.setStage(stages[0]);
     this.renderer.render(this.scene, this.camera);
   }
@@ -371,6 +403,28 @@ export class Scenery {
     this.camera.right = view * aspect / 2;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(this.width, this.height, false);
+  }
+
+  async prepareEncounters(specs,valid=()=>true){
+    const seen=new Set();
+    for(const spec of specs){
+      const entry=spec.bestiary??spec.model;
+      if(!entry)continue;
+      this.modelReserve??=new ModelReserve(this.scene,mountBestiary,removeBestiary,this.mobile);
+      const key=this.modelReserve.key(entry,spec);
+      if(seen.has(key))continue;
+      seen.add(key);
+      await new Promise(resolve=>requestAnimationFrame(resolve));
+      if(!valid())return;
+      if(this.modelReserve.has(entry,spec))continue;
+      const actor=this.createActor(spec.frame,spec.height);
+      try{
+        this.prepareBoss(actor,spec);
+        // Use battlefield lighting without displaying rehearsal actors.
+        for(const part of [actor.art,actor.shade,actor.rim,actor.bestiary.root,actor.relicCrest,actor.relicCrown])part?.removeFromParent();
+        await this.renderer.compileAsync(actor.bestiary.root,this.camera,this.scene);
+      }finally{this.removeActor(actor);}
+    }
   }
 
   setStage(stage) {
@@ -613,8 +667,15 @@ export class Scenery {
   prepareBoss(visual,spec,frameBoss=false) {
     const model=spec.bestiary??spec.model;
     if(model){
-      visual.bestiary=mountBestiary(this.scene,model,spec.height,this.mobile,spec);
-      for(const material of Object.values(visual.bestiary.materials))addHitSurface(material,visual.hitFlash);
+      this.modelReserve??=new ModelReserve(this.scene,mountBestiary,removeBestiary,this.mobile);
+      visual.bestiary=this.modelReserve.take(model,spec.height,this.mobile,spec);
+      const rig=visual.bestiary;
+      if(!rig.hitFlash){
+        rig.hitFlash={value:0};
+        for(const material of Object.values(rig.materials))addHitSurface(material,rig.hitFlash);
+      }
+      rig.hitFlash.value=0;
+      visual.hitFlash=rig.hitFlash;
       if(frameBoss){
         const {root,aura}=visual.bestiary;
         const bounds=new T.Box3();
@@ -1145,7 +1206,7 @@ export class Scenery {
       relicCrest.material.dispose();
       relicCrown.material.dispose();
     }
-    if(bestiary)removeBestiary(this.scene,bestiary);
+    if(bestiary)this.modelReserve.release(bestiary);
     if(effigy){
       this.scene.remove(effigy);
       for(const mesh of effigy.children)mesh.material.dispose();

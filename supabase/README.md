@@ -91,5 +91,5 @@ that production email delivery or OAuth has been configured.
 The public draft settings for the provider rollout are in `provider-setup.json`;
 the exact Resend DNS records are in `dns-records.json`. OAuth consent, restricted
 credential creation and credential entry still require the account owner's
-confirmation/handoff. Do not enable the public login flags before live delivery,
-OTP verification and a real Google callback have been tested.
+confirmation/handoff. Enable each public provider flag only after testing its
+real callback (Google) or delivery and verification (email OTP).

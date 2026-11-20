@@ -16,7 +16,7 @@
     "username": "resend",
     "senderName": "貓貓啟示錄",
     "senderEmail": "no-reply@auth-mail.wcy.hk",
-    "keyName": "Meow Revelation SMTP Restricted",
+    "keyName": "Meow Revelation SMTP Launch",
     "keyPermission": "Sending access",
     "keyDomain": "auth-mail.wcy.hk"
   },

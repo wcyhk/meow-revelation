@@ -13,9 +13,9 @@ const line=(k,j,m,path,n=12)=>k.sculpt.sweep(j,m,path,{steps:n,sides:7,ridge:.22
 const plate=(k,j,m,path,depth=.055)=>k.sculpt.plate(j,m,path,depth,.017);
 
 const champions={
-  'oni-bow':{name:'斷角鬼王',ritual:'bow',tones:[0x3d3b38,0x455c64,0x978c73,0x4b5262],glow:0xb6d7f7},
-  'zhurong-axe':{name:'南火祝融',ritual:'axe',tones:[0x442a2a,0x8a4631,0xc38356,0x652d42],glow:0xff9956},
-  airavata:{name:'埃拉瓦塔',tones:[0x657271,0x586564,0xa6a591,0x39606b],glow:0xc1e8bd},
+  'oni-bow':{name:'夜紗追契者',ritual:'bow',tones:[0x3d3b38,0x455c64,0x978c73,0x4b5262],glow:0xb6d7f7},
+  'zhurong-axe':{name:'薪火追契者',ritual:'axe',tones:[0x442a2a,0x8a4631,0xc38356,0x652d42],glow:0xff9956},
+  airavata:{name:'照誓追契者',tones:[0x657271,0x586564,0xa6a591,0x39606b],glow:0xc1e8bd},
 };
 
 function surfaces(k,tone){
@@ -29,8 +29,8 @@ function surfaces(k,tone){
 
 function elephant(k,s,mobile){
   const body=k.bone(k.root,0,.90,0),head=k.bone(body,0,.138,.918);
-  body.name='埃拉瓦塔 · 雲象軀';
-  head.name='埃拉瓦塔 · 鑽鼻骨面';
+  body.name='照誓追契者 · 雲象軀';
+  head.name='照誓追契者 · 鑽鼻骨面';
   cast(k,body,'mythHide',[[0,-.022,-1.019,.275,.356],[0,.072,-.726,.433,.534],[0,.042,-.302,.52,.563],
     [0,.079,.108,.516,.525],[0,.127,.53,.386,.432],[0,.225,.76,.264,.301]],mobile,5.3);
   cast(k,head,'mythHide',[[0,-.138,.371,.213,.243],[0,-.052,.207,.344,.323],[0,.104,.052,.386,.356],
@@ -39,7 +39,7 @@ function elephant(k,s,mobile){
   let parent=head;
   for(let i=0;i<6;i++){
     const r=.152-i*.019,segment=k.bone(parent,0,i?-.161:-.142,i?.087:.348);
-    segment.name='埃拉瓦塔 · 象鼻節 '+(i+1);
+    segment.name='照誓追契者 · 象鼻節 '+(i+1);
     cast(k,segment,'mythHide',[[0,.042,-.058,r,r*.89],[0,-.039,.034,r*1.03,r*.94],
       [0,-.128,.084,r*.96,r*.91],[0,-.204,.133,r*.85,r*.78]],mobile,i*.85);
     line(k,segment,i%2?'mythShell':'mythIvory',[[-r*.79,-.059,.100,.012],[-r*.25,-.073,.146,.015],
@@ -75,7 +75,7 @@ function elephant(k,s,mobile){
     }
     for(const [n,z] of [-.69,.557].entries()){
       const upper=k.bone(body,side*.338,-.094,z),foot=k.bone(upper,side*.034,-.435,n?.125:-.103);
-      upper.name='埃拉瓦塔 · 承重腿 '+side+' '+n;
+      upper.name='照誓追契者 · 承重腿 '+side+' '+n;
       legs.push({upper,foot,side,n});
       cast(k,upper,'mythHide',f([[0,.189,-.067,.188,.207],[.037,-.029,-.047,.220,.216],
         [.063,-.254,.055,.174,.152],[.049,-.467,.12,.133,.135]]),mobile);

@@ -19,7 +19,7 @@ export const taruFinishes={
 
 export function carveTaruHead(k,head,mobile){
   const jaw=k.bone(head,0,-.099,.067),hair=k.bone(head,0,.214,-.108);
-  head.name='天草樽 · 靛霜面甲';
+  head.name='織風亭・八針織者 · 靛霜面甲';
   cast(k,head,'taruMask',[[0,-.159,.068,.116,.106],[0,-.070,.069,.158,.120],
     [0,.025,.058,.173,.134],[0,.129,-.009,.171,.141],[0,.231,-.054,.111,.084]],mobile,5);
   cast(k,jaw,'taruDark',[[0,-.114,.046,.093,.067],[0,-.069,.090,.137,.058],
@@ -54,7 +54,7 @@ export function buildTaruWing(k,body,side,mobile){
   const p=path=>mirror(side,path);
   const wing=k.bone(body,side*.243,.609,-.201);
   const elbow=k.bone(wing,side*.406,.197,-.101);
-  wing.name='天草樽 · 霜骨翼';
+  wing.name='織風亭・八針織者 · 霜骨翼';
   cast(k,wing,'taruOxide',p([[0,-.015,0,.088,.081],[.125,.108,-.046,.101,.078],
     [.277,.168,-.092,.082,.064],[.409,.202,-.103,.061,.051]]),mobile,7);
   const ribs=[
@@ -82,7 +82,7 @@ export function buildTaruWing(k,body,side,mobile){
 export function fitTaruHands(k,joint,side,mobile){
   const {hand}=joint,p=path=>mirror(side,path);
   const frost=k.bone(hand,0,-.153,.196);
-  frost.name='天草樽 · 手心霜火';
+  frost.name='織風亭・八針織者 · 手心霜火';
   if(!k.materials.taruFrostVapor){
     k.materials.taruFrostVapor=new T.ShaderMaterial({
       transparent:true,depthWrite:false,blending:T.AdditiveBlending,
@@ -115,7 +115,7 @@ export function fitTaruHands(k,joint,side,mobile){
     });
   }
   const vapor=new T.Mesh(new T.IcosahedronGeometry(1,mobile?2:3),k.materials.taruFrostVapor);
-  vapor.name='天草樽 · 緊貼手心嘅霜焰';
+  vapor.name='織風亭・八針織者 · 緊貼手心嘅霜焰';
   vapor.position.set(side*.052,-.055,.091);
   vapor.scale.set(.151,.199,.153);
   vapor.renderOrder=33;
@@ -140,7 +140,7 @@ export function pulseTaruHands(k,time,force){
 export function sewTaruTail(k,body,hair,skin){
   for(let i=-3;i<=3;i++){
     const x=i*.033,sag=Math.abs(i)*.024;
-    skin.silk(hair,'天草樽 · 白髮馬尾',[[x,.133,-.127,.032],[x*1.4,.097,-.258,.069],
+    skin.silk(hair,'織風亭・八針織者 · 白髮馬尾',[[x,.133,-.127,.032],[x*1.4,.097,-.258,.069],
       [x*1.56,-.101,-.343,.086],[x*1.67,-.381,-.415,.081],
       [x*1.51,-.752,-.446,.064],[x*1.18,-1.124+sag,-.501,.046],
       [x*.47,-1.319+sag,-.565,.009]],{style:'mane',tint:i%2?0xa9afb7:0xbfc2c9,
@@ -148,7 +148,7 @@ export function sewTaruTail(k,body,hair,skin){
   }
   for(const side of sides)for(let i=0;i<3;i++){
     const x=.053+i*.105;
-    skin.silk(body,'天草樽 · 靛青佩襬',mirror(side,[[x,.008,.218,.085],[x+.02,-.254,.267,.101],
+    skin.silk(body,'織風亭・八針織者 · 靛青佩襬',mirror(side,[[x,.008,.218,.085],[x+.02,-.254,.267,.101],
       [x+.04,-.499,.309,.120],[x+.08,-.783,.297,.100],[x+.103,-1.013,.270,.070]]),
     {style:'woven',tint:i===1?0x2d3754:0x394a6a,trim:0x8fadb8,lining:0x313c55,
       phase:side*.77+i*.81,flex:1.11});

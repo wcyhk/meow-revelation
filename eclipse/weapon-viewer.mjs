@@ -10,7 +10,7 @@ import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
 import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
-import {paoForms} from './pao-model.mjs?v=forgeburst-1';
+const paoForms=new Set();
 
 function node(tag,kind,text){
   const element=document.createElement(tag);
@@ -257,8 +257,7 @@ export class WeaponViewer {
     this.moveNames={...names,...spec.moveLabels};
     const model=spec.bestiary??spec.model;
     this.motionNames=model?{
-      entrance:'出場',travel:model.id==='m026'?'落地步行':paoForms.has(model.id)?'低空飛行':
-        ['dragon','bird','wasp'].includes(model.family)?'飛行':'移動',hit:'受擊',defeat:'倒地',
+      entrance:'出場',travel:['dragon','bird','wasp'].includes(model.family)?'飛行':'移動',hit:'受擊',defeat:'倒地',
     }:null;
     this.motions.replaceChildren(...Object.entries(this.motionNames??{}).map(([motion,label])=>{
       const control=button(label,()=>this.playBoss({motion},control));
@@ -403,7 +402,7 @@ export class WeaponViewer {
       focus.getWorldPosition(previewFocus);
       inspectCamera.position.set(previewFocus.x,previewFocus.y+.045,8);
     }else{
-      inspectCamera.position.set(0,0,8);
+      inspectCamera.position.set(0,this.boss?.10:0,8);
     }
     this.renderer.render(this.scene,inspectCamera);
   }
@@ -449,7 +448,7 @@ export class WeaponViewer {
     }
     const wings=this.bossRig?.flight||this.bossRig?.signature?.type==='phoenix';
     this.wideModel=Boolean(wings);
-    const displaySize=this.boss?(pao?2.13:wings?2.63:2.11):1.87;
+    const displaySize=this.boss?(pao?2.13:wings?2.40:1.78):1.87;
     const diameter=this.boss?Math.max(size.x,size.y,size.z):size.length();
     pivot.scale.setScalar(displaySize/diameter);
     this.scene.add(pivot);

@@ -61,7 +61,7 @@ function buildTorso(k,g,body,tiamat){
 function buildHead(k,g,body,tiamat){
   const {carve,sweep,plate}=g;
   const head=k.bone(body,0,1.601,.042),crown=k.bone(head,0,.064,-.063);
-  head.name=tiamat?'提亞馬特 · 王母面容':'弗栗多 · 蛟王面容';
+  head.name=tiamat?'腐墨室・背函拾骨 · 王母面容':'腐墨室・裂紗纏行 · 蛟王面容';
   const hair=k.bone(head,0,.031,-.096);
   carve(head,'devaFace',[[0,-.153,.080,.089,.069],[0,-.092,.075,.147,.105],
     [0,.02,.048,.175,.135],[0,.104,.022,.184,.146],[0,.19,-.039,.167,.133],[0,.259,-.069,.108,.089]],17);
@@ -91,7 +91,7 @@ function buildHead(k,g,body,tiamat){
     return {head,hair,halo:null};
   }
   const halo=k.bone(crown,0,.071,-.160);
-  halo.name='弗栗多 · 分段銀冕';
+  halo.name='腐墨室・裂紗纏行 · 分段銀冕';
   for(let i=0;i<18;i++){
     const angle=i*tau/18;
     const y=Math.cos(angle),x=Math.sin(angle);
@@ -114,7 +114,7 @@ function buildTail(k,g,body,tiamat){
   for(let i=0;i<9;i++){
     const t=i/9,r=.39*(1-t)**1.21+.017;
     const x=Math.sin((t+.071)*2.5)*(.29+t*.04),y=.009-t*.033,z=-.365+t*.075;
-    link.name=(tiamat?'提亞馬特 · 棘尾 ':'弗栗多 · 銅鱗 ') + (i+1);
+    link.name=(tiamat?'腐墨室・背函拾骨 · 棘尾 ':'腐墨室・裂紗纏行 · 銅鱗 ') + (i+1);
     carve(link,'devaHide',[[0,0,.106,r*1.05,r*.84],[x*.46,y+.021,z*.42,r,r*.80],
       [x,y,z,r*.84,r*.67],[x*1.14,y,z-.05,r*.76,r*.61]],1+i);
     for(const side of sides){
@@ -161,7 +161,7 @@ function armGroup(k,g,body,side,raised,tiamat){
   }else{
     const haft=k.bone(hand,.052,-.059,.147);
     haft.rotation.x=.41;haft.rotation.z=-.22;
-    haft.name='弗栗多 · 三叉槍';
+    haft.name='腐墨室・裂紗纏行 · 三叉槍';
     markEnemyWeapon(haft,[0,1.57,.06],{width:.205});
     sweep(haft,'devaSteel',[[.002,-1.14,-.002,.024],[0,-.89,0,.047],[0,.38,0,.041],[0,.96,.006,.054]],26);
     for(let i=0;i<9;i++)sweep(haft,'devaGold',[[.044,-.89+i*.170,0,.009],[0,-.84+i*.170,.046,.017],
@@ -193,7 +193,7 @@ export function sculptDevaSerpent(k,entry,mobile){
       anchor:body,offset:[0,.86,.095],span:[.99,.88,.78]},
     sourceDress(skin){
       if(!tiamat)return false;
-      for(const side of sides)for(let i=0;i<3;i++)skin.silk(body,'提亞馬特 · 背披',mirror(side,[
+      for(const side of sides)for(let i=0;i<3;i++)skin.silk(body,'腐墨室・背函拾骨 · 背披',mirror(side,[
         [.233+i*.067,1.246-i*.084,-.190,.064],[.387+i*.079,1.085-i*.12,-.323,.103],
         [.519+i*.076,.936-i*.17,-.574,.092],[.812+i*.047,.802-i*.17,-.791+i*.068,.025],
       ]),{style:'woven',tint:i===1?0x473c3c:0x795048,trim:0xae7849,lining:0x392c27,

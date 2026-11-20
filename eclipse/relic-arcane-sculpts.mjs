@@ -13,11 +13,11 @@ const cast=(k,j,m,path,mobile,seed=0)=>k.geometry(j,m,sculptVolume(path,{
 }));
 
 const shapes={
-  'cursed-cane':{form:'chain',name:'鎖杖咒師',size:[.31,.99,.76],tone:0xd9a5ed,shape:'ribbons',drop:1.12,
+  'cursed-cane':{form:'chain',name:'夜紗追契者',size:[.31,.99,.76],tone:0xd9a5ed,shape:'ribbons',drop:1.12,
     tint:[0x322638,0x624766,0x9a7785,0x4f3256]},
-  'ice-talisman':{form:'seal',name:'雪符結界師',size:[.34,1.18,.95],tone:0xafedff,shape:'sigils',drop:1.31,
+  'ice-talisman':{form:'seal',name:'霜函追契者',size:[.34,1.18,.95],tone:0xafedff,shape:'sigils',drop:1.31,
     tint:[0x314151,0x557588,0xd2d5be,0x456880]},
-  'emperor-rod':{form:'palace',name:'無影天皇',size:[.44,1.22,1.04],tone:0xddadfd,shape:'mist',drop:1.23,
+  'emperor-rod':{form:'palace',name:'夜紗追契者',size:[.44,1.22,1.04],tone:0xddadfd,shape:'mist',drop:1.23,
     tint:[0x28252d,0x4f3c49,0xb39367,0x5d3149]},
 };
 

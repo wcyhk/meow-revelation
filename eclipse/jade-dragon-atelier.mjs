@@ -45,7 +45,7 @@ export function jadeDragonAtelier(k,{neck,head,jaw,spine},mobile){
   const seam=(joint,name,path)=>sculpt.sweep(joint,name,path,{sides:6,steps:11,ridge:.20});
   dorsalMosaic(k,neck,spine,mobile);
   const orb=bone(neck,.275,1.025,.66);
-  orb.name='神獸青龍 · 潮珠';
+  orb.name='照誓所・燃芯樹偶 · 潮珠';
   mesh(orb,'pearl','jadeDragonScale',0,0,0,.174,.173,.174);
   mesh(orb,'gem','glow',.021,.027,.12,.077,.093,.072,0,.26,.19);
   for(let i=0;i<3;i++){

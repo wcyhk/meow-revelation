@@ -14,7 +14,7 @@ export function sculptRoyalCoil(k,coils,path,mobile){
   for(let i=0;i<count;i++){
     const t=(i+.45)/count,pos=route.getPointAt(t);
     const joint=k.bone(coils,...pos.toArray());
-    joint.name='劉邦之魂 · 龍軀遊環 '+(i+1);
+    joint.name='鳴隙署・紙翼巡獵 · 龍軀遊環 '+(i+1);
     const arc=Array.from({length:7},(_,j)=>{
       const visible=T.MathUtils.clamp((i+j/6)/count+(j===0?-.013:j===6?.013:0),0,1);
       const p=route.getPointAt(visible).sub(pos);
@@ -42,7 +42,7 @@ export function sculptRoyalCoil(k,coils,path,mobile){
 }
 
 export function sculptRoyalWyrm(k,wyrm,mobile){
-  wyrm.name='劉邦之魂 · 青灰龍面';
+  wyrm.name='鳴隙署・紙翼巡獵 · 青灰龍面';
   solid(k,wyrm,'cobalt',[[0,-.066,.372,.064,.043],[0,-.035,.242,.116,.078],[0,.028,.047,.173,.133],
     [0,.095,-.124,.176,.149],[0,.065,-.305,.144,.118],[0,.023,-.452,.048,.065]],mobile,2.4);
   const jaw=k.bone(wyrm,0,-.086,.087);

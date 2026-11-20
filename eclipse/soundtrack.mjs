@@ -1,6 +1,6 @@
 const databaseName='meow-revelation-music';
 const storageKey=new URL('../',import.meta.url).pathname;
-const defaultTrack=new URL('./audio/infinite-requiem.mp3',import.meta.url);
+const defaultTrack=new URL('./audio/night-watch-metal.mp3',import.meta.url);
 
 function storedTrack(mode,track) {
   return new Promise((resolve,reject)=>{
@@ -13,7 +13,7 @@ function storedTrack(mode,track) {
       try{
         const transaction=database.transaction('tracks',mode);
         const store=transaction.objectStore('tracks');
-        const operation=mode==='readwrite'?store.put(track,storageKey):store.get(storageKey);
+        const operation=mode==='readwrite'?(track===null?store.delete(storageKey):store.put(track,storageKey)):store.get(storageKey);
         transaction.oncomplete=()=>{database.close();resolve(operation.result);};
         transaction.onabort=transaction.onerror=()=>{
           database.close();
@@ -112,7 +112,9 @@ export class Soundtrack {
   async restore() {
     try{
       const track=await storedTrack('readonly').catch(()=>null);
-      if(track?.blob){
+      const retired=track?.name&&/infinite[\s_-]*requiem/i.test(track.name);
+      if(retired)await storedTrack('readwrite',null);
+      if(track?.blob&&!retired){
         try{
           this.replace(await loadTrack(track.blob),track.name);
           return;
@@ -121,7 +123,7 @@ export class Soundtrack {
       const response=await fetch(defaultTrack);
       if(!response.ok)throw new Error('Could not load the battle theme');
       const media=await loadTrack(await response.blob());
-      this.replace(media,'Infinite Requiem · Deoksoon',true);
+      this.replace(media,'巡夜交響 · nene',true);
     }catch{
       this.message='戰鬥配樂載入失敗，請按「重試背景音樂」。';
     }finally{
@@ -160,7 +162,7 @@ export class Soundtrack {
     this.name=name;
     this.blocked=false;
     this.pending=null;
-    this.trackMessage=bundled?'Infinite Requiem · 戰鬥時自動循環':'已儲存離線配樂 · '+name;
+    this.trackMessage=bundled?'巡夜交響 · 戰鬥時自動循環':'已儲存離線配樂 · '+name;
     this.message=this.trackMessage;
     media.addEventListener('error',()=>{
       if(this.media===media)this.failed();

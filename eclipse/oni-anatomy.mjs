@@ -84,9 +84,9 @@ export function oniLimbSculpt(k,rig,mobile){
   }
   for(const s of [-1,1])sweep(k,back,'oniScar',mirror(s,[[.065,.30,.031,.004],[.199,.255,-.026,.016],
     [.273,.107,-.020,.019],[.219,-.021,-.035,.011],[.132,-.133,-.033,.003]]),mobile);
-  return {garments:[{name:'獨角鬼 · 前襠',parent:body,path:[[0,-.203,.454,.134],[.043,-.397,.475,.16],
+  return {garments:[{name:'灰燼庭・紙翼巡獵 · 前襠',parent:body,path:[[0,-.203,.454,.134],[.043,-.397,.475,.16],
     [.037,-.58,.531,.147],[.111,-.872,.568,.064]],tint:0x4c503e,trim:0xb3854e,lining:0x2f3032,phase:.45,flex:.71},
-  {name:'獨角鬼 · 右腰破幅',parent:body,path:[[.361,-.195,-.232,.092],[.447,-.411,-.291,.127],
+  {name:'灰燼庭・紙翼巡獵 · 右腰破幅',parent:body,path:[[.361,-.195,-.232,.092],[.447,-.411,-.291,.127],
     [.488,-.665,-.343,.131],[.464,-.913,-.398,.039]],tint:0x60523a,trim:0xb38756,lining:0x2b2a29,phase:1.3,flex:.87}],
   pose({beat,wind,strike}){back.rotation.x=Math.sin(beat*.45)*.019-wind*.046+strike*.09;}};
 }

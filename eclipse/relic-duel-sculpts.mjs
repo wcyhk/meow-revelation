@@ -13,15 +13,15 @@ const vein=(k,j,m,path,steps=13)=>k.sculpt.sweep(j,m,path,{steps,sides:7,ridge:.
 const panel=(k,j,m,p,depth=.047)=>k.sculpt.plate(j,m,p,depth,.014);
 
 const styles={
-  'wave-wheel':{kind:'water',name:'逆輪匠',size:[.48,1.05,.78],face:[.235,.32,.25],
+  'wave-wheel':{kind:'water',name:'鳴隙追契者',size:[.48,1.05,.78],face:[.235,.32,.25],
     palette:[0x233a42,0x5c827e,0xb6a582,0x38565d],aura:0x7fe1d8,shape:'ribbons',cloth:.80},
-  'kali-wheel':{kind:'altar',name:'黑壇卡里',size:[.36,1.17,.89],face:[.204,.30,.25],
+  'kali-wheel':{kind:'altar',name:'鳴隙追契者',size:[.36,1.17,.89],face:[.204,.30,.25],
     palette:[0x241e25,0x4e3451,0xb37e63,0x542544],aura:0xd783c6,shape:'sigils',cloth:1.18},
-  'thunder-sword':{kind:'thunder',name:'截雲劍師',size:[.31,1.21,.89],face:[.19,.34,.19],
+  'thunder-sword':{kind:'thunder',name:'鳴隙追契者',size:[.31,1.21,.89],face:[.19,.34,.19],
     palette:[0x232f45,0x466684,0xa8c0cc,0x364c6c],aura:0x8fe0ff,shape:'bolts',cloth:1.12},
-  'blood-sword':{kind:'blood',name:'血池劍鬼',size:[.34,1.10,.96],face:[.178,.252,.21],
+  'blood-sword':{kind:'blood',name:'紅線追契者',size:[.34,1.10,.96],face:[.178,.252,.21],
     palette:[0x2d2427,0x67333c,0xca8b78,0x612f4f],aura:0xff607f,shape:'ribbons',cloth:1.30},
-  'dragon-kukri':{kind:'flame',name:'赤面龍刀客',size:[.47,.99,.82],face:[.229,.302,.28],
+  'dragon-kukri':{kind:'flame',name:'薪火追契者',size:[.47,.99,.82],face:[.229,.302,.28],
     palette:[0x301e22,0x7a4535,0xb2906d,0x633635],aura:0xff9a62,shape:'embers',cloth:.94},
 };
 

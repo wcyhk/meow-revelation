@@ -193,7 +193,7 @@ const clientBosses={
 };
 
 export function clientSpriteGuide(weapon,entry){
-  if(weapon?.id==='vritra-spear')return {filename:'britra.AGF',note:'弗栗多手持三叉槍'};
+  if(weapon?.id==='vritra-spear')return {filename:'britra.AGF',note:'腐墨室・裂紗纏行手持三叉槍'};
   const unique=clientUnique[weapon?.id];
   if(unique)return {filename:'lunique01.AGF',frame:unique};
   const relic=clientRelics[weapon?.id];

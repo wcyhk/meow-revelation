@@ -14,7 +14,7 @@ function springMantle(k,parts,mobile,hinges){
     for(let i=0;i<4;i++){
       const h=.152+i*.085;
       const bough=k.bone(parts.body,side*(.22+i*.036),.42+i*.066,-.187-i*.067);
-      bough.name='春神句芒 · 冠上生枝';
+      bough.name='沉鐘追契者 · 冠上生枝';
       const tree=mirror(side,[[.014,.021,-.038,.053,.046],[.136,.145,-.124,.079,.060],
         [.254,.257+h*.18,-.285,.059,.042],[.369,.39+h*.35,-.415,.033,.024],[.447,.495+h*.47,-.483,.005,.005]]);
       cast(k,bough,i%3?'deep':'body',tree,mobile,side+i*.81);
@@ -31,7 +31,7 @@ function springMantle(k,parts,mobile,hinges){
 function autumnCrown(k,parts,mobile,hinges){
   for(const side of sides){
     const hood=k.bone(parts.head,side*.132,.123,-.05);
-    hood.name='秋神蓐收 · 枯穗冠';
+    hood.name='織風追契者 · 枯穗冠';
     const crown=mirror(side,[[.037,.045,.115,.033,.031],[.094,.214,.008,.053,.049],
       [.102,.388,-.082,.052,.04],[.197,.483,-.184,.042,.031],[.285,.504,-.290,.006,.006]]);
     cast(k,hood,'trim',crown,mobile,2.1+side);
@@ -44,7 +44,7 @@ function autumnCrown(k,parts,mobile,hinges){
     }
     hinges.push({joint:hood,side,phase:1.37,angle:.13});
     const mantle=k.bone(parts.body,side*.255,.31,-.365);
-    mantle.name='秋神蓐收 · 枯刃背幡';
+    mantle.name='織風追契者 · 枯刃背幡';
     for(let i=0;i<3;i++){
       const x=.037+i*.071,length=.49+i*.13;
       const stalk=mirror(side,[[x,.19,-.078,.058,.046],[x+.056,.032,-.175,.077,.065],
@@ -59,7 +59,7 @@ function autumnCrown(k,parts,mobile,hinges){
 function droughtSpines(k,parts,mobile,hinges){
   for(const side of sides){
     const spine=k.bone(parts.body,side*.309,.359,-.219);
-    spine.name='旱雷弗栗多 · 枯雷棘';
+    spine.name='鳴隙追契者 · 枯雷棘';
     for(let i=0;i<4;i++){
       const x=.068+i*.091,z=-.091-i*.145,y=i*.072;
       const pitch=mirror(side,[[x,y-.041,z+.087,.067,.054],[x+.129,y+.033,z+.042,.128,.081],

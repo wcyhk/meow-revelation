@@ -227,7 +227,7 @@ function oni(k,parts,mobile){
     volume(k,head,'teal',mirror(side,[[.077,-.121,.133,.047,.037],[.152,-.133,.154,.057,.054],
       [.208,-.091,.124,.071,.042],[.215,-.021,.091,.059,.042]]),mobile,side-4);
     const hinge=k.bone(body,side*.436,.374,-.248);
-    hinge.name='獨角鬼 · 背後甲鉸';
+    hinge.name='灰燼庭・紙翼巡獵 · 背後甲鉸';
     hingeParts.push({hinge,side});
     const frame=mirror(side,[[.030,.066,.043],[.083,.103,.022],[.187,.075,-.112],
       [.198,-.044,-.096],[.103,-.109,-.046],[.006,-.089,-.03]]);

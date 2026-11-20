@@ -25,7 +25,7 @@ function tooling(k,mobile){
 function shaleCrest(k,g,body){
   const {cast,slab,vein}=g;
   const head=k.bone(body,0,1.589,.214),jaw=k.bone(head,0,-.10,.119);
-  head.name='燃燒的火焰怪 · 黑曜石面';
+  head.name='無名庭・空面聽差 · 黑曜石面';
   cast(head,'slagAsh',[[0,-.147,.129,.134,.081],[0,-.061,.074,.242,.132],
     [0,.072,.022,.295,.185],[0,.195,-.034,.248,.167],[.02,.287,-.071,.156,.094]],5.8);
   cast(jaw,'slagObsidian',[[0,-.191,.041,.132,.067],[0,-.117,.099,.186,.103],
@@ -101,7 +101,7 @@ function tectonicCoat(k,g,body,mobile){
 function bludgeon(k,g,wrists){
   const {cast,slab,vein}=g;
   const club=k.bone(wrists,.123,-.155,.213);
-  club.name='燃燒的火焰怪 · 熔岩大棒';
+  club.name='無名庭・空面聽差 · 熔岩大棒';
   club.rotation.x=.47;club.rotation.z=-.35;
   club.scale.setScalar(.93);
   markEnemyWeapon(club,[0,1.13,.083],{width:.34});

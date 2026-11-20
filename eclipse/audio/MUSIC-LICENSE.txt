@@ -1,0 +1,21 @@
+Boss Battle #2 [Symphonic Metal]
+Composer: nene
+Source: https://opengameart.org/content/boss-battle-2-symphonic-metal%20
+Downloaded: 2026-11-20
+License declared on the composer's submission: CC0 1.0 Universal
+License: https://creativecommons.org/publicdomain/zero/1.0/
+Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Original archive: boss_battle_#2_metal_pack.zip
+The author's submission explicitly states that opening and loop filenames are reversed.
+The 26.483-second boss_battle_#2_metal_opening.wav is the looping segment.
+Converted to MP3 at 160 kb/s for offline web playback. No third-party samples added.
+Published file: night-watch-metal.mp3
+SHA-256: 3b8f87fb9230c81d6b4f201e1247c971ce92e11e0c5ee47f2e3eb2563b5d9503
+
+CC0 permits commercial use, modification and redistribution without attribution.
+This provenance record is retained with the project; the composer does not endorse the game.
+
+requiem-grove.mp3 and requiem-pressure.mp3 are separate procedural scores
+generated from this project's tools/render-score.py. They do not use recordings
+or melodies from Infinite Requiem.

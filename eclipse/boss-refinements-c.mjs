@@ -403,10 +403,10 @@ function royalPair(k,parts,awakened,tools){
 function varuna(k,parts,tools){
   const rider=parts.head.parent;
   for(const side of sides){
-    tools.silk(rider,'伐楼拿 · 船幔',reflect(side,
+    tools.silk(rider,'腐墨室・燃芯樹偶 · 船幔',reflect(side,
       [[.21,.933,-.126,.043],[.34,.659,-.228,.074],[.42,.34,-.386,.085],[.51,.063,-.472,.013]]),
       {tint:0x863e42,trim:0xd2a46c,phase:side*.83,flex:1.11});
-    tools.silk(parts.body,'伐楼拿 · 水旗',reflect(side,
+    tools.silk(parts.body,'腐墨室・燃芯樹偶 · 水旗',reflect(side,
       [[.39,.255,-.67,.052],[.56,.19,-.82,.109],[.62,.08,-1.01,.096],[.68,.122,-1.20,.019]]),
       {tint:0x397c83,trim:0xa9caca,style:'membrane',phase:1.7+side});
     const arm=parts.arms.find(part=>part.position.x*side>0);
@@ -449,7 +449,7 @@ function eggGhost(k,parts,mobile,tools){
     plate(k,charm,'redBinding',[[-.077,.011,.014],[.069,.032,.004],[.078,-.092,.064],
       [.042,-.18,.089],[-.075,-.147,.067]],.028);
     tools.hinge(charm,{axis:'x',wind:.04,strike:-.11,phase:.03});
-    tools.silk(charm,'雞蛋怪 · 鎮殼符紙',[[0,-.094,.075,.041],[.035,-.23,.14,.057],
+    tools.silk(charm,'未寄郵庭・旋軌守望 · 鎮殼符紙',[[0,-.094,.075,.041],[.035,-.23,.14,.057],
       [.018,-.44,.162,.057],[-.042,-.66,.212,.016]],
     {tint:0x9f6930,trim:0xd8ad64,phase:i*.78,flex:1.27});
     sweep(k,body,'shellScar',[[x*.477,.47,z*.488-.101,.026],[x*.622,.29,z*.602-.101,.034],
@@ -466,7 +466,7 @@ function straw(k,parts,mobile,tools){
       [.249,.092,.02,.022],[.28,-.025,-.09,.015],[.29,-.132,-.165,.003]]),13);
     for(let i=0;i<(mobile?3:5);i++){
       const t=i*.11;
-      tools.silk(body,'稻草怪 · 燒焦草繩',reflect(side,[[.47-t*.19,.19-t,-.27-t*.50,.053],
+      tools.silk(body,'未寄郵庭・背函拾骨 · 燒焦草繩',reflect(side,[[.47-t*.19,.19-t,-.27-t*.50,.053],
         [.52+t*.16,-.04-t,-.44-t*.51,.077],[.58+t*.17,-.30-t,-.56-t*.62,.064],
         [.63+t*.14,-.51-t,-.72-t*.59,.012]]),
       {tint:0x7f563a,trim:0xbd9066,phase:i*.64+side*.73,flex:1.18,style:'mane'});

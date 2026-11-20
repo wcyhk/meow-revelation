@@ -479,14 +479,14 @@ function sculptGhostShell(k,body,mobile){
 
 function eggGhostFace(k,body,mobile){
   const core=k.bone(body,0,-.195,.542);
-  core.name='雞蛋怪 · 裂隙';
+  core.name='未寄郵庭・旋軌守望 · 裂隙';
   carve(k,core,'deep',[[0,-.144,-.025,.273,.063],[0,-.046,.004,.393,.088],[0,.101,.037,.403,.119],
     [0,.198,.013,.310,.074],[0,.248,-.001,.199,.046]],16,20,2.61);
   const jaws=[];
   for(const side of sides){
     const mirrorSide=path=>mirror(side,path);
     const socket=k.bone(core,side*.189,.094,.119);
-    socket.name='雞蛋怪 · 血瞳';
+    socket.name='未寄郵庭・旋軌守望 · 血瞳';
     socket.rotation.y=side*.37;
     const brow=[[.014,.118,.008],[.116,.055,-.029],[.161,.109,-.044],[.145,.017,-.006],
       [.163,-.073,-.028],[.091,-.047,.035],[-.003,-.081,.028],[-.102,-.027,-.017],[-.076,.059,.008]];
@@ -504,7 +504,7 @@ function eggGhostFace(k,body,mobile){
       [.333,.153,.057],[.412,.188,-.055],[.376,.064,-.055],[.423,.009,-.132]]);
     sweep(k,core,'shellScar',cut.map(([x,y,z],i)=>[x,y,z,.029-i*.0018]),6,19);
     const jaw=k.bone(core,side*.172,-.104,.085);
-    jaw.name='雞蛋怪 · 下頜裂殼';
+    jaw.name='未寄郵庭・旋軌守望 · 下頜裂殼';
     const lip=mirrorSide([[-.162,.037,.073],[-.080,.059,.086],[.029,.051,.076],[.104,.121,.006],
       [.182,.161,-.036],[.204,.073,-.054],[.259,.045,-.125],[.192,-.063,-.087],[.009,-.091,.073],[-.130,-.100,.083]]);
     ridgePanel(k,jaw,'shellIvory',lip,.035,'shellScar');
@@ -527,7 +527,7 @@ function eggGhostFace(k,body,mobile){
 function eggGhostClaw(k,body,side,mobile){
   const r=path=>mirror(side,path);
   const arm=k.bone(body,side*.448,-.14,.156);
-  arm.name='雞蛋怪 · 煙臂';
+  arm.name='未寄郵庭・旋軌守望 · 煙臂';
   const joint=k.bone(arm,side*.37,-.084,-.054);
   const palm=k.bone(joint,side*.298,.202,.123);
   carve(k,arm,'eggSteam',r([[.005,.011,-.026,.063,.053],[.138,-.032,-.045,.109,.089],[.286,-.078,-.054,.092,.083],
@@ -848,7 +848,7 @@ export function carveRoyalPair(k,mobile,awakened){
         for(let i=0;i<feathers;i++){
           const t=i/(feathers-1),x=(.325+t*.689)*reach,y=(.20+(1-t)*.43)*reach;
           const plume=k.bone(wing,s*(.023+i*.011),.03-i*.024,-.02-i*.028);
-          plume.name='雅瑪與亞彌 · 扇形金翎 '+(i+1);
+          plume.name='腐墨室・紙翼巡獵 · 扇形金翎 '+(i+1);
           const anchor=[s*.006,-.005,0],pivot=[s*x*.54,y*.34,-.116-t*.13],tip=[s*x,y+.135,-.164-t*.25];
           k.geometry(plume,i%3?'trim':'bronzeRib',featherVane(anchor,pivot,tip,.202-t*.038,i+side,mobile?8:13));
           const seam=[s*x*.87,y*.83+.101,-.134-t*.21];

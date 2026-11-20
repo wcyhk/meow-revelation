@@ -12,15 +12,15 @@ const cast=(k,j,m,path,mobile,seed=0)=>k.geometry(j,m,sculptVolume(path,
   {sides:mobile?11:17,rings:mobile?15:22,section:2.23,ridge:.21,seed}));
 
 const designs={
-  'thunder-pearl':{name:'三珠刑官',size:[.39,1.02,.89],head:[.218,.286,.208],counts:3,lift:.23,drop:1.08,
+  'thunder-pearl':{name:'鳴隙追契者',size:[.39,1.02,.89],head:[.218,.286,.208],counts:3,lift:.23,drop:1.08,
     tint:[0x252c3d,0x596780,0xa6aeb5,0x383b60],shape:'bolts',aura:0xb1bcff},
-  'ice-orb':{name:'白髮霜珠師',size:[.31,1.14,.86],head:[.179,.327,.156],counts:1,lift:.73,drop:1.17,
+  'ice-orb':{name:'霜函追契者',size:[.31,1.14,.86],head:[.179,.327,.156],counts:1,lift:.73,drop:1.17,
     tint:[0x33414a,0x6b888f,0xc7d4ca,0x416572],shape:'mist',aura:0xb6f1ff},
-  'fire-orb':{name:'燼腹火珠師',size:[.53,.91,.72],head:[.231,.232,.205],counts:1,lift:.18,drop:.76,
+  'fire-orb':{name:'薪火追契者',size:[.53,.91,.72],head:[.231,.232,.205],counts:1,lift:.18,drop:.76,
     tint:[0x29242c,0x6d3830,0xc87850,0x542d37],shape:'embers',aura:0xff8c4d},
-  'spark-orb':{name:'鳴骨珠師',size:[.33,.97,.99],head:[.171,.363,.146],counts:2,lift:.86,drop:1.08,
+  'spark-orb':{name:'鳴隙追契者',size:[.33,.97,.99],head:[.171,.363,.146],counts:2,lift:.86,drop:1.08,
     tint:[0x222636,0x494665,0xa298ab,0x40304e],shape:'bolts',aura:0xc99aff},
-  'golden-orb':{name:'金玉審判使',size:[.42,1.10,.91],head:[.191,.297,.165],counts:1,lift:.55,drop:.97,
+  'golden-orb':{name:'照誓追契者',size:[.42,1.10,.91],head:[.191,.297,.165],counts:1,lift:.55,drop:.97,
     tint:[0x393338,0x846242,0xd7b175,0x626352],shape:'sigils',aura:0xffdb95},
 };
 

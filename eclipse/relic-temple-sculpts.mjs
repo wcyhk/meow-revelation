@@ -13,13 +13,13 @@ const solid=(k,j,m,path,mobile,seed=0)=>k.geometry(j,m,sculptVolume(path,{
 }));
 
 const robes={
-  'earth-beads':{form:'earth',name:'地壇掌珠者',size:[.54,.94,.68],tint:[0x3b322c,0x6b654a,0xa0906e,0x4b5141],
+  'earth-beads':{form:'earth',name:'沉鐘追契者',size:[.54,.94,.68],tint:[0x3b322c,0x6b654a,0xa0906e,0x4b5141],
     flare:.78,aura:0xd4c082,shape:'sigils'},
-  'lotus-beads':{form:'sutra',name:'白蓮藏經僧',size:[.31,1.19,.92],tint:[0x343746,0x6d8786,0xc6bcaa,0x486971],
+  'lotus-beads':{form:'sutra',name:'照誓追契者',size:[.31,1.19,.92],tint:[0x343746,0x6d8786,0xc6bcaa,0x486971],
     flare:1.28,aura:0xbeead7,shape:'mist'},
-  'dragon-fish':{form:'drake',name:'黃龍塔僧',size:[.48,1.02,.78],tint:[0x3a282a,0x8e6040,0xc69460,0x70513a],
+  'dragon-fish':{form:'drake',name:'沉鐘追契者',size:[.48,1.02,.78],tint:[0x3a282a,0x8e6040,0xc69460,0x70513a],
     flare:.85,aura:0xefb478,shape:'embers'},
-  'lotus-fish':{form:'bloom',name:'白蓮塔主',size:[.37,1.15,.86],tint:[0x3b3240,0x8c637a,0xd6b2a3,0x6b546f],
+  'lotus-fish':{form:'bloom',name:'照誓追契者',size:[.37,1.15,.86],tint:[0x3b3240,0x8c637a,0xd6b2a3,0x6b546f],
     flare:1.10,aura:0xffcace,shape:'ribbons'},
 };
 

@@ -8,13 +8,13 @@ const bones=(k,j,finish,path,mobile,seed=0)=>k.geometry(j,finish,sculptVolume(pa
 const sweep=(k,j,finish,path,steps=13)=>k.sculpt.sweep(j,finish,path,{steps,sides:8,ridge:.19});
 
 export function carveCloudDragon(k,head,mobile){
-  head.name='狂魔惡龍 · 霜骨顱';
+  head.name='織風亭・燃芯樹偶 · 霜骨顱';
   bones(k,head,'drakeSlate',[[0,-.089,.489,.114,.071],[0,-.051,.325,.235,.135],[0,.077,.117,.310,.228],
     [0,.178,-.065,.279,.245],[0,.149,-.305,.214,.210],[0,.089,-.497,.074,.119]],mobile,3.3);
   bones(k,head,'drakeHorn',[[0,-.095,.398,.072,.041],[0,-.023,.464,.116,.075],[0,.074,.422,.102,.084],
     [0,.129,.299,.105,.103],[0,.17,.154,.063,.087]],mobile,5.18);
   const jaw=k.bone(head,0,-.129,.045);
-  jaw.name='狂魔惡龍 · 下顎';
+  jaw.name='織風亭・燃芯樹偶 · 下顎';
   bones(k,jaw,'drakeSlate',[[0,-.042,.490,.087,.050],[0,-.083,.345,.205,.087],[0,-.063,.129,.239,.095],
     [0,.014,-.092,.205,.106],[0,.042,-.229,.137,.085]],mobile,4.4);
   const frills=[];
@@ -43,7 +43,7 @@ export function carveCloudDragon(k,head,mobile){
     }
     for(let ear=0;ear<4;ear++){
       const base=k.bone(head,side*(.236+ear*.018),.116-ear*.048,-.203-ear*.032);
-      base.name='狂魔惡龍 · 活動鬃骨';
+      base.name='織風亭・燃芯樹偶 · 活動鬃骨';
       const length=.475+ear*.038;
       const bone=f([[0,.035,.032,.054,.047],[.133,.089,-.115,.076,.050],
         [.349,.127-ear*.034,-length*.75,.046,.036],[.421,.020-ear*.064,-length,.004,.005]]);
@@ -59,7 +59,7 @@ export function carveCloudEddies(k,bank,mobile){
   for(let i=0;i<(mobile?6:9);i++){
     const a=i*tau/(mobile?6:9),r=.42+i%3*.18;
     const eddy=k.bone(bank,Math.sin(a)*r,.02+i%3*.049,Math.cos(a)*r);
-    eddy.name='狂魔惡龍 · 雲渦';
+    eddy.name='織風亭・燃芯樹偶 · 雲渦';
     eddy.rotation.y=-a+.77;
     bones(k,eddy,i%3?'mist':'drakeCloud',[[0,-.028,.398,.027,.046],[.107,-.063,.231,.180,.111],
       [.165,-.013,-.048,.239,.144],[.106,.078,-.322,.169,.127],[-.052,.123,-.472,.071,.057],

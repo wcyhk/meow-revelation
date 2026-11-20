@@ -210,7 +210,7 @@ function serpent(k,entry,mobile){
 function wolfSpider(k,entry,mobile){
   const body=k.bone(k.root,0,.70,0),head=k.bone(body,0,-.10,.66);
   const abdomen=k.bone(body,0,.117,-.249);
-  abdomen.name='沙漠女王蜘蛛 · 腹節甲';
+  abdomen.name='腐墨室・墨蹄獵犬 · 腹節甲';
   skin(k,body,'rind',[[0,-.083,-.292,.28,.211],[0,-.02,-.07,.39,.27],
     [0,.027,.241,.347,.253],[0,.091,.443,.215,.143]],{sides:15,rings:20,section:2.55});
   skin(k,abdomen,'spiderCarapace',[[0,-.139,.21,.237,.191],[0,.051,.061,.454,.34],[0,.236,-.209,.648,.454],
@@ -947,7 +947,7 @@ function jointedChampion(k,entry,mobile){
   championRelief(k,body,shoulders,fabric,entry.id,mobile);
   const backArmor=fittedChampionArmor(k,body,shoulders,depth,entry.id,mobile);
   const elephantDress=elephant?tools=>{
-    for(const side of sides)tools.silk(elephant.mount,'因陀羅 · 象轎重垂 '+side,[[side*.43,.77,-.11,.083],
+    for(const side of sides)tools.silk(elephant.mount,'腐墨室・旋軌守望 · 象轎重垂 '+side,[[side*.43,.77,-.11,.083],
       [side*.515,.591,-.178,.146],[side*.575,.36,-.250,.193],[side*.596,.215,-.339,.153]],{
       tint:0x316565,trim:0xc39855,lining:0x554246,flex:.82,across:[.20,0,side*.98],phase:side*.95,style:'woven',
     });

@@ -113,14 +113,14 @@ function weave(k,g,body,mobile){
     [0,.046,-.091,.451,.35],[0,.44,-.103,.335,.261],[0,.74,-.049,.216,.179],[0,.997,-.015,.070,.078]],16);
   for(const [j,[height,trunk,extent,length,opening,oval]] of racks.entries()){
     const tier=k.bone(body,0,height,-.025);
-    tier.name='稻草怪 · 扎草層 '+(j+1);
+    tier.name='未寄郵庭・背函拾骨 · 扎草層 '+(j+1);
     const count=mobile?6:9;
     for(let i=0;i<count;i++){
       const sector=i+.15*Math.sin(j*2.3),a=sector*tau/count;
       const geometry=bundleGeometry(j,sector,count,trunk,extent,length,opening,oval,mobile);
       if(!geometry)continue;
       const pivot=k.bone(tier,Math.sin(a)*trunk,0,Math.cos(a)*trunk*oval);
-      pivot.name='稻草怪 · 草束 '+(j+1)+' '+(i+1);
+      pivot.name='未寄郵庭・背函拾骨 · 草束 '+(j+1)+' '+(i+1);
       pivot.rotation.y=a;
       k.geometry(pivot,'thatchStem',geometry);
       skirts.push({pivot,angle:a,j,i});
@@ -146,7 +146,7 @@ function weave(k,g,body,mobile){
 
 function hauntedFace(k,g,body,mobile){
   const {cast,trim,plate}=g,head=k.bone(body,0,.041,.286),eyes=[];
-  head.name='稻草怪 · 三眼藏面';
+  head.name='未寄郵庭・背函拾骨 · 三眼藏面';
   plate(head,'thatchNight',[[-.151,.381,-.046],[.165,.345,-.038],[.261,-.04,-.012],
     [.258,-.392,.024],[.07,-.468,.050],[-.238,-.423,.025],[-.269,-.025,-.005]],.075);
   for(const [i,[x,y,z,s,t]] of [[0,.245,.125,.112,-.14],[-.132,-.057,.155,.115,.34],
@@ -185,7 +185,7 @@ export function carveThatchedWraith(k,entry,mobile){
       for(const side of sides)for(let i=0;i<6;i++){
         const a=(.53+i*.45)*side,z=Math.cos(a)*.561,x=Math.sin(a)*.672;
         const color=i%3===0?0x9f4a2c:i%3===1?0x454368:0x95704d;
-        skin.silk(body,'稻草怪 · 打結長繩',[[x,-.224+i*.017,z,.029],
+        skin.silk(body,'未寄郵庭・背函拾骨 · 打結長繩',[[x,-.224+i*.017,z,.029],
           [x*1.046,-.357+i*.019,z*1.13,.039],[x*1.17,-.523+i*.020,z*1.20,.036],
           [x*1.22,-.627+i*.017,z*1.27,.010]],{style:'woven',tint:color,trim:0xad8059,
           lining:0x513b37,flex:1.46,phase:a*1.61,across:[Math.cos(a),0,-Math.sin(a)]});

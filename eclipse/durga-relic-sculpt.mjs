@@ -52,7 +52,7 @@ function helm(k,head,mobile){
 function makeArm(k,body,s,row,mobile){
   const x=.264+row*.032,y=.536+row*.066,z=.109-row*.115;
   const shoulder=k.bone(body,s*x,y,z),elbow=k.bone(shoulder,s*.096,-.259,.057),hand=k.bone(elbow,s*.024,-.213,.074);
-  shoulder.name='杜魯珈 · 第'+(row+1)+'對臂';
+  shoulder.name='灰燼庭・破帆夜舟 · 第'+(row+1)+'對臂';
   formArm(k,shoulder,elbow,hand,s,row,mobile);
   return {shoulder,elbow,hand,s,row};
 }
@@ -123,10 +123,10 @@ export function forgeDurga(k,entry,mobile){
   const grip=arms.find(arm=>arm.s===1&&arm.row===0).hand;
   const disc=solarDisc(k,grip,mobile);
   const garment=sides.flatMap(s=>[
-    {parent:cloak,name:'杜魯珈 橙錦披風 '+s,path:mirror(s,[[.099,.04,-.051,.162],[.171,-.263,-.162,.248],
+    {parent:cloak,name:'灰燼庭・破帆夜舟 橙錦披風 '+s,path:mirror(s,[[.099,.04,-.051,.162],[.171,-.263,-.162,.248],
       [.214,-.651,-.291,.286],[.249,-1.01,-.435,.258],[.218,-1.185,-.454,.155]]),
     tint:0xb9684b,trim:0xcf9d6f,lining:0x6a4747,phase:s*.77,flex:1.13},
-    {parent:body,name:'杜魯珈 腰前幅 '+s,path:mirror(s,[[.058,.081,.184,.068],[.105,-.239,.281,.106],
+    {parent:body,name:'灰燼庭・破帆夜舟 腰前幅 '+s,path:mirror(s,[[.058,.081,.184,.068],[.105,-.239,.281,.106],
       [.132,-.522,.347,.12],[.157,-.877,.365,.039]]),tint:0xa68458,trim:0xd4ae7f,lining:0x534748,phase:s*.63,flex:.95},
   ]);
   return {body,head,crest:cloak,legs:legs.map(leg=>leg.hip),arms:arms.map(arm=>arm.shoulder),

@@ -1,12 +1,12 @@
 export const nightArms=[
-  {id:'reaper',name:'冥契骨鐮',mark:'☽',tone:0xb993e8,ink:'#e5c6ff',role:'中距 · 收割',attack:'骨刃',
-    basic:'斜割接勾拉，最後橫掃一圈。',skill:'亡契收割',detail:'從遠處拉近敵人，再沿鐮刃橫掃；受創越重嘅敵人受傷越多。',damage:25,reach:3.54,period:.34,cooldown:6.35,range:4.58,power:37},
-  {id:'bell',name:'獄鐘法杖',mark:'◈',tone:0x8eead8,ink:'#c2fff1',role:'遠程 · 封場',attack:'鳴鐘',
-    basic:'一道鐘鳴接兩道疊聲，最後震退前方成列敵人。',skill:'倒鐘獄',detail:'在目標位置連敲三次，越遲落下嘅鐘聲越遠。',damage:21,reach:5.75,period:.38,cooldown:6.5,range:7.25,power:34},
-  {id:'fangs',name:'血月雙刃',mark:'✦',tone:0xff627c,ink:'#ffc1bd',role:'近身 · 突襲',attack:'雙刃',
-    basic:'快斬接左右交割，最後衝前貫穿。',skill:'赤影迴身',detail:'先穿過敵群，再反手斬向原路。',damage:20,reach:2.41,period:.23,cooldown:5.6,range:5.5,power:44},
-  {id:'cannon',name:'蝕日火銃',mark:'✷',tone:0xff9b53,ink:'#ffdd9d',role:'遠程 · 火力',attack:'銃火',
-    basic:'速射、雙發、重炮；彈丸要飛到先命中。',skill:'碎日轟',detail:'三發榴彈會喺瞄準位置附近依次炸開。',damage:24,reach:7.12,period:.37,cooldown:7.1,range:8.5,power:39},
+  {id:'reaper',name:'歸途收契鐮',mark:'☽',tone:0xb993e8,ink:'#e5c6ff',role:'中距 · 收割',attack:'骨刃',
+    basic:'斜割接勾拉，最後橫掃一圈。',skill:'還願收割',detail:'從遠處拉近敵人，再沿鐮刃橫掃；受創越重嘅敵人受傷越多。',damage:25,reach:3.54,period:.34,cooldown:6.35,range:4.58,power:37},
+  {id:'bell',name:'啞鐘司燈杖',mark:'◈',tone:0x8eead8,ink:'#c2fff1',role:'遠程 · 封場',attack:'鳴鐘',
+    basic:'一道鐘鳴接兩道疊聲，最後震退前方成列敵人。',skill:'逆響三疊',detail:'在目標位置連敲三次，越遲落下嘅鐘聲越遠。',damage:21,reach:5.75,period:.38,cooldown:6.5,range:7.25,power:34},
+  {id:'fangs',name:'縫影雙爪',mark:'✦',tone:0xff627c,ink:'#ffc1bd',role:'近身 · 突襲',attack:'雙刃',
+    basic:'快斬接左右交割，最後衝前貫穿。',skill:'紅線迴身',detail:'先穿過敵群，再反手斬向原路。',damage:20,reach:2.41,period:.23,cooldown:5.6,range:5.5,power:44},
+  {id:'cannon',name:'爐膛巡夜炮',mark:'✷',tone:0xff9b53,ink:'#ffdd9d',role:'遠程 · 火力',attack:'銃火',
+    basic:'速射、雙發、重炮；彈丸要飛到先命中。',skill:'熾芯連爆',detail:'三發榴彈會喺瞄準位置附近依次炸開。',damage:24,reach:7.12,period:.37,cooldown:7.1,range:8.5,power:39},
 ];
 
 export const nightComboData={

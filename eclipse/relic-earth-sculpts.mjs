@@ -170,7 +170,7 @@ function edgeSpirit(k,weapon,mobile){
       }
     },
     relicDress(tools){
-      for(const s of sides)tools.silk(body,'崩山刀靈 · 礦煙尾跡 '+s,mirror(s,[[.076,-.03,.059,.083],
+      for(const s of sides)tools.silk(body,'沉鐘追契者 · 礦煙尾跡 '+s,mirror(s,[[.076,-.03,.059,.083],
         [.122,-.339,-.071,.115],[.227,-.639,-.169,.126],[.318,-1.053,-.298,.031]]),
         {tint:0x483d55,trim:0x9e869d,lining:0x312c41,style:'woven',phase:s*.87,flex:1.38});
       return true;
@@ -266,9 +266,9 @@ function hanCaptain(k,weapon,mobile,fighter){
   fittedBoots(k,model,mobile,{gap:.22,wrap:'relicHanInner',leather:'relicHanWood',plate:'relicHanSteel',rim:'relicHanTrim'});
   model.relicDress=tools=>{
     for(const s of sides){
-      tools.silk(model.body,'漢營槍督 · 軍袍 '+s,mirror(s,[[.130,.043,.31,.100],[.213,-.262,.367,.144],
+      tools.silk(model.body,'沉鐘追契者 · 軍袍 '+s,mirror(s,[[.130,.043,.31,.100],[.213,-.262,.367,.144],
         [.266,-.570,.411,.212],[.297,-.927,.487,.080]]),{tint:0x454957,trim:0xb0a99b,lining:0x312e3e,style:'woven',phase:s*.94,flex:.94});
-      tools.silk(model.body,'漢營槍督 · 指揮旗 '+s,mirror(s,[[.176,.600,-.242,.064],[.275,.304,-.356,.078],
+      tools.silk(model.body,'沉鐘追契者 · 指揮旗 '+s,mirror(s,[[.176,.600,-.242,.064],[.275,.304,-.356,.078],
         [.404,-.186,-.539,.115],[.529,-.722,-.678,.034]]),{tint:0x3d5156,trim:0x91a19b,lining:0x392d3e,style:'woven',phase:s*1.33,flex:1.32});
     }
     return true;
@@ -345,7 +345,7 @@ function templeWarden(k,weapon,mobile,fighter){
   model.relicDress=tools=>{
     for(const s of sides)for(let row=0;row<2;row++){
       const depth=row===0?.296:-.303;
-      tools.silk(model.body,'寶塔戒律使 · 廟紋綬 '+s+' '+row,mirror(s,[[.128,.172,depth,.075],
+      tools.silk(model.body,'沉鐘追契者 · 廟紋綬 '+s+' '+row,mirror(s,[[.128,.172,depth,.075],
         [.183,-.119,depth+s*.031,.136],[.231,-.418,depth+.093,.168],[.348,-.927,depth-.14,.048]]),
         {tint:0x6c4843,trim:0xc39a72,lining:0x4c3c48,style:'woven',phase:s*.92+row*.77,flex:.95+row*.21});
     }

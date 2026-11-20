@@ -26,7 +26,7 @@ function starKeeper(k,weapon,mobile,build){
   lineMaterials(k,[dark,metal,light,textile]);
   const model=build(k,{broad:.36,ground:1.17,neck:.91,style:'duel',finish:'astralTextile',armLength:.69,mobile,
     portrait(k,head){
-      head.name='星曆監正 · 方星面甲';
+      head.name='照誓追契者 · 方星面甲';
       cast(k,head,'astralHide',[[0,-.167,.163,.102,.093],[0,-.069,.11,.165,.146],[0,.119,-.018,.183,.185],
         [0,.265,-.043,.179,.148],[0,.351,-.083,.107,.093]],mobile);
       for(const side of sides){
@@ -42,7 +42,7 @@ function starKeeper(k,weapon,mobile,build){
     },
     weapon(k,body,back,head,hands,flaps){
       const dial=k.bone(back,0,.588,-.162);
-      dial.name='星曆監正 · 曆盤';
+      dial.name='照誓追契者 · 曆盤';
       for(const [r,depth] of [[.373,-.082],[.462,-.131],[.546,-.179]]){
         k.mesh(dial,'ring','astralPlate',0,0,depth,r,r,.66);
         for(let t=0;t<10;t++){
@@ -135,7 +135,7 @@ function dragonMonk(k,weapon,mobile,build){
       k.mesh(rod,'ring','astralRim',0,1.125,.089,.193,.224,.78,0,.20,-.09);
       k.mesh(rod,'gem','glow',0,1.128,.095,.066,.102,.061);
       const coils=k.bone(body,0,-.631,0);
-      coils.name='盤棍龍僧 · 盤龍';
+      coils.name='照誓追契者 · 盤龍';
       for(let row=0;row<2;row++){
         const path=Array.from({length:8},(_,i)=>{
           const a=(i/7)*tau*.92+row*2.7,span=1-i*.030,h=.06+row*.22+i*.009;

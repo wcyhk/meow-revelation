@@ -785,7 +785,7 @@ export class Game {
       unit.recover=1.16;
       this.ui['boss-echo-name'].textContent=visitor.name;
       this.view.bossCue(unit,'entrance');
-      this.announce('巨商妖異',visitor.name,unit.spec.signature,2.1);
+      this.announce('契約異象',visitor.name,unit.spec.signature,2.1);
       this.audio.boss(unit.spec.effect);
     }
     this.startDelay = Infinity;

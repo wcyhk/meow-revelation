@@ -1,6 +1,5 @@
 import {monsterCatalogue} from './monster-catalogue.mjs?v=boss-foundry-1';
-import {bestiaryTint} from './bestiary-models.mjs?v=boss-foundry-1';
-import {paoForms} from './pao-model.mjs?v=forgeburst-1';
+import {bestiaryTint} from './lantern-creatures.mjs';
 
 const patterns={
   serpent:['lance','roots','gravity','sweep'],hydra:['jaws','prison','summon','cross'],
@@ -13,73 +12,26 @@ const patterns={
   wasp:['feathers','pounce','barrage','web'],shade:['blink','gravity','eclipse','gravefan'],
   eggs:['summon','burst','marked','ring'],straw:['roots','gravity','cross','sweep'],
 };
-const toneEffect={
-  amber:'lightning',gold:'gold',ember:'fire',blood:'blood',jade:'wind',moss:'root',
-  teal:'water',frost:'ice',bone:'stone',violet:'void',void:'void',venom:'root',
-};
-const giantAttacks={
-  '皇帝烏龜':['ring','sweep','burst','cinders'],
-  '大王馬蜂':['feathers','pounce','web','barrage'],
-  '貪':['lance','cross','gravity','spiral'],
-  '黑影':['blink','gravity','eclipse','gravefan'],
-  '牛鬼':['lance','spiral','pounce','cleave'],
-  '雞蛋怪':['summon','burst','ring','sweep'],
-  '稻草怪':['gravity','cross','roots','sweep'],
-  '山魈':['burst','cinders','cleave','pounce'],
-  '古代雪人':['icicles','spiral','burst','ring'],
-};
-const finishers={fire:'cinders',blood:'jaws',wind:'spiral',root:'roots',water:'gravity',
-  ice:'icicles',stone:'burst',gold:'coins',lightning:'cross',void:'eclipse'};
-export const bossMoveNames={
-  lance:'貫穿長刺',roots:'地刺',gravity:'牽引',sweep:'橫掃',jaws:'雙顎撕咬',prison:'四角圍陣',summon:'召喚援兵',
-  cross:'交叉封鎖',cleave:'重斬',burst:'震地衝擊',pounce:'直線突襲',toll:'震波',barrage:'扇面彈幕',blink:'移影伏擊',
-  feathers:'飛羽箭陣',spiral:'迴旋彈幕',marked:'追身咒印',eclipse:'月蝕爆裂',ring:'環形震擊',coins:'迴旋飛刃',
-  web:'縛足蛛網',gravefan:'墓扇回剪',icicles:'落冰',cinders:'流火裂痕',
-};
-
-export const giantBosses=monsterCatalogue.filter(entry=>entry.source==='big');
-const roster=monsterCatalogue.filter(entry=>entry.source!=='big');
-const featured=[
-  'gaoshoudong','qinglongtan','wuningwang','shenxian','guiyidong','deva','zhaoze','orochi','wudou','haian',
-];
-const fieldBosses=[
-  ...giantBosses,
-  ...featured.map(source=>roster.find(entry=>entry.source===source)).filter(Boolean),
-];
-const campaignBosses=[...new Map([...fieldBosses,...roster].map(entry=>[entry.id,entry])).values()];
-
+const effects={amber:'stone',gold:'light',ember:'fire',blood:'blood',jade:'wind',moss:'root',teal:'water',frost:'ice',bone:'light',violet:'void',void:'void',venom:'root'};
+const finishers={fire:'cinders',blood:'jaws',wind:'spiral',root:'roots',water:'gravity',ice:'icicles',stone:'burst',light:'coins',lightning:'cross',void:'eclipse'};
+export const bossMoveNames={lance:'穿契長刺',roots:'根印封路',gravity:'倒時牽引',sweep:'橫掃契刃',jaws:'噬願雙印',prison:'四封鎖函',summon:'喚出紙衛',
+  cross:'交叉斷線',cleave:'重裁',burst:'銅印震地',pounce:'直線追燈',toll:'破鐘震波',barrage:'扇面封信',blink:'移影伏擊',
+  feathers:'裁紙箭陣',spiral:'繞燈彈幕',marked:'追名咒印',eclipse:'熄燈爆裂',ring:'環封震擊',coins:'迴旋刻度',web:'縫線羅網',gravefan:'契扇回剪',icicles:'霜函墜落',cinders:'燼封裂痕'};
+export const giantBosses=monsterCatalogue.filter(entry=>entry.elite);
 export {monsterCatalogue};
-
 export function visitorFor(stage,seed){
   if(stage.floor<3||stage.boss||stage.objective||((stage.floor-3)%4))return null;
-  const interval=Math.floor((stage.floor-3)/4);
-  const offset=seed>>>0;
-  return campaignBosses[(offset+interval*37)%campaignBosses.length];
+  return monsterCatalogue[((seed>>>0)+Math.floor((stage.floor-3)/4)*37)%monsterCatalogue.length];
 }
-
 export function monsterBattle(entry,floor,mode={}){
-  const pao=paoForms.has(entry.id);
-  const effect=pao?'water':toneEffect[entry.tone];
-  const bag=patterns[entry.family];
-  const stagger=(entry.name.length+entry.crest.length)%bag.length;
-  const familyAttacks=[...bag.slice(stagger),...bag.slice(0,stagger)];
-  const attacks=pao?['marked','prison','lance','ring']:
-    [...(giantAttacks[entry.name]??new Set([...entry.attacks,...familyAttacks]))].slice(0,4);
-  const finishing=pao?'gravity':
-    entry.source==='big'?(giantAttacks[entry.name]?.[2]??finishers[effect]):finishers[effect];
-  if(!attacks.includes(finishing))attacks.push(finishing);
-  const brute=['turtle','ogre','emperor'].includes(entry.family);
-  const quick=['wasp','bird','duelist','spider'].includes(entry.family);
-  const ranged=pao||['priest','captain','wasp','star'].includes(entry.family);
-  const moveLabels=pao?{marked:'破奧咒印',prison:'破奧陣',lance:'破奧光',ring:'法輪震波',gravity:'雙輪牽引'}:null;
+  const effect=effects[entry.tone]??'void',bag=patterns[entry.family]??patterns.duelist;
+  const attacks=[...new Set([...entry.attacks,...bag])].slice(0,4),finishing=finishers[effect];
+  if(finishing&&!attacks.includes(finishing))attacks.push(finishing);
+  const brute=['turtle','ogre','emperor'].includes(entry.family),quick=['wasp','bird','duelist','spider'].includes(entry.family),ranged=['priest','captain','wasp','star'].includes(entry.family);
   return {name:entry.name,frame:6,bestiary:entry,secondary:true,tint:bestiaryTint(entry),effect,
-    form:entry.id==='m025'?'真・破奧':pao?'雙輪全開':'邪相現形',
-    signature:attacks.map(attack=>moveLabels?.[attack]??bossMoveNames[attack]).slice(0,3).join(' · '),moveLabels,
-    attacks,finishing,
-    hp:Math.round((285+floor*17)*(mode.hp??1)*(brute?1.13:.96)),
-    height:brute?4.1:entry.family==='eggs'?3.22:quick?3.66:3.9,
-    speed:(brute?1.67:quick?2.80:2.29)*Math.sqrt(mode.pace??1),
-    ranged:ranged?4.1:undefined,reach:ranged?9.4:6.3,radius:brute?2.75:2.2,
-    time:(quick?.92:1.16)/Math.sqrt(mode.pace??1),hurt:(12+floor*.28)*(mode.damage??1),
-    mass:brute?5.3:3.7,phases:entry.name==='黑影'?[.66,.30]:[.5]};
+    form:'第二幕・裂誓之身',signature:attacks.slice(0,3).map(a=>bossMoveNames[a]).join(' · '),
+    attacks,finishing,hp:Math.round((285+floor*17)*(mode.hp??1)*(brute?1.13:.96)),height:brute?4.1:quick?3.66:3.9,
+    speed:(brute?1.67:quick?2.80:2.29)*Math.sqrt(mode.pace??1),ranged:ranged?4.1:undefined,
+    reach:ranged?9.4:6.3,radius:brute?2.75:2.2,time:(quick?.92:1.16)/Math.sqrt(mode.pace??1),
+    hurt:(12+floor*.28)*(mode.damage??1),mass:brute?5.3:3.7,phases:entry.elite?[.66,.30]:[.5]};
 }

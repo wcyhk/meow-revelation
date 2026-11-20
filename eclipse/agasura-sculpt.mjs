@@ -25,7 +25,7 @@ function spine(k,body,mobile){
   const bones=[],stations=mobile?12:17;
   for(let i=0;i<stations;i++){
     const bone=new T.Bone(),point=curve.getPointAt(i/(stations-1));
-    bone.name='阿迦修羅 · 脊骨 '+(i+1);
+    bone.name='腐墨室・雙面封印 · 脊骨 '+(i+1);
     if(i){
       bones[i-1].add(bone);
       point.sub(curve.getPointAt((i-1)/(stations-1)));
@@ -79,7 +79,7 @@ function spine(k,body,mobile){
     normal.setXYZ(j,a.x,a.y,a.z);normal.setXYZ(h,a.x,a.y,a.z);
   }
   const mesh=new T.SkinnedMesh(geometry,[k.materials.asuraScale,k.materials.asuraBelly]);
-  mesh.name='阿迦修羅 · 連續蛇軀';
+  mesh.name='腐墨室・雙面封印 · 連續蛇軀';
   mesh.frustumCulled=false;
   body.add(mesh);
   body.updateWorldMatrix(true,true);

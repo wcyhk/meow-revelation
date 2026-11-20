@@ -18,7 +18,7 @@ export function relicBeastSource(weapon){
 
 function backShard(k,body,[x,y,z],side,length,launch,mobile){
   const mount=k.bone(body,x,y,z);
-  mount.name='逆翅窮奇 · 逆鳴翼楔';
+  mount.name='織風追契者 · 逆鳴翼楔';
   const path=mirror(side,[[0,.012,.061,.043,.050],[.125,length*.28,-.101,.094,.048],
     [.264,length*.71,-.217,.072,.045],[.374,length*.94,-.39,.031,.020],
     [.402,length,-.492,.004,.005]]);
@@ -43,7 +43,7 @@ function reversedQuills(k,parts,mobile,launch){
 
 function sealWhiskers(k,parts,mobile,launch){
   const collar=k.bone(parts.body,0,.24,.16);
-  collar.name='不折檮杌 · 縛角封環';
+  collar.name='霜函追契者 · 縛角封環';
   collar.rotation.x=-.465;
   for(const side of sides){
     const bridge=mirror(side,[[.063,-.214,.11,.040],[.31,-.150,.12,.066],[.38,.034,.067,.079],
@@ -65,7 +65,7 @@ function sealWhiskers(k,parts,mobile,launch){
 function furnaceJaws(k,parts,mobile,launch){
   for(const side of sides){
     const fitting=k.bone(parts.head,side*.228,-.061,.078);
-    fitting.name='饕餮火顎 · 鍛爐頰甲';
+    fitting.name='紅線追契者 · 鍛爐頰甲';
     const frame=mirror(side,[[.025,.111,.05],[.164,.105,.093],[.239,.015,.188],
       [.181,-.165,.235],[.086,-.187,.223],[.03,-.094,.164]]);
     plate(k,fitting,'trim',frame,.054);
@@ -93,7 +93,7 @@ function furnaceJaws(k,parts,mobile,launch){
 
 function hollowFace(k,parts,mobile,launch){
   const mask=k.bone(parts.head,0,.044,.298);
-  mask.name='無面混沌 · 無孔面殼';
+  mask.name='夜紗追契者 · 無孔面殼';
   cast(k,mask,'deep',[[0,-.193,.091,.097,.062],[0,-.087,.162,.197,.099],
     [0,.057,.17,.235,.104],[0,.181,.102,.207,.087],[.032,.244,.024,.081,.054]],mobile,7.35);
   const eye=k.bone(mask,0,-.027,.247);

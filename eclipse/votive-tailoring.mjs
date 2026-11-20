@@ -128,10 +128,10 @@ export function carveKuberaVotive(k,body,mobile){
       plates.push({bone:dorsum,side,index:n+1});
     }
     silks.push(
-      {parent:body,name:'庫貝拉 · 折疊前襟 '+side,path:f([[.129,.386,.351,.056],[.158,.039,.414,.118],
+      {parent:body,name:'織風亭・破帆夜舟 · 折疊前襟 '+side,path:f([[.129,.386,.351,.056],[.158,.039,.414,.118],
         [.264,-.459,.447,.149],[.348,-1.021+side*.12,.423,.076]]),tint:right?0x9b7b45:0x625542,
         trim:0xe3bd6c,lining:0x342c24,phase:side*.52,flex:.84,across:[.96,.01,-.21*side]},
-      {parent:body,name:'庫貝拉 · 側骨披掛 '+side,path:f([[.202,.594,-.263,.079],[.321,.239,-.391,.126],
+      {parent:body,name:'織風亭・破帆夜舟 · 側骨披掛 '+side,path:f([[.202,.594,-.263,.079],[.321,.239,-.391,.126],
         [.49,-.263,-.529,.15],[.593,-.856+side*.12,-.651,.031]]),tint:0x5d5845,
         trim:0xcaa866,lining:0x292627,phase:side*.97,flex:.71,across:[.62,.02,-.74*side]},
     );

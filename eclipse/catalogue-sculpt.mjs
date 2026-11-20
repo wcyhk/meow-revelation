@@ -961,7 +961,7 @@ function qiongqi(k,entry,mobile){
 function frozenLord(k,entry,mobile){
   const body=k.bone(k.root,0,1.1,.006),head=k.bone(body,0,.96,.069);
   const jaw=k.bone(head,0,-.096,.07);
-  jaw.name='冰之骷髏君主 · 冰結下顎';
+  jaw.name='織風亭・裁燈使 · 冰結下顎';
   const robe=longGarment(k,body,{inside:'deep',accent:'rind',cloth:'brocade'},
     {length:1.17,waist:.275,panelW:.20,panels:7,seed:10});
   shape(k,body,'body',[[0,.095,-.02,.257,.178],[0,.303,.02,.277,.216],[0,.466,.008,.317,.22],

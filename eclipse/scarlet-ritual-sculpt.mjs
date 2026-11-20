@@ -30,7 +30,7 @@ export function carveScarletRitual(k,entry,mobile){
   for(let i=0;i<(mobile?9:15);i++){
     const a=i*Math.PI*2/(mobile?9:15),x=Math.sin(a),z=Math.cos(a);
     const coal=bone(pyre,x*.451,.10+Math.sin(a*2)*.021,z*.34);
-    coal.name='喇巴娜 · 焦雲火片';
+    coal.name='腐墨室・裁燈使 · 焦雲火片';
     coal.rotation.y=a;
     form(coal,i%3?'scarletCoal':'scarletCloth',[[0,-.046,.024,.11,.093],
       [.012,.040,.028,.157,.104],[.062,.122,.015,.132,.094],[.143,.208,-.061,.033,.014]],.71*i);
@@ -54,7 +54,7 @@ export function carveScarletRitual(k,entry,mobile){
       [.049,-.055,.019,.122,.118],[.01,.073,.012,.093,.086]]),7*side);
     form(palm,'scarletFlesh',[[0,-.111,.051,.077,.070],[0,-.033,.053,.101,.086],[0,.073,.004,.073,.063]]);
     const coil=bone(shoulder,side*.024,.059,-.08);
-    coil.name='喇巴娜 · 月白披肩';
+    coil.name='腐墨室・裁燈使 · 月白披肩';
     form(coil,'scarletFur',flip([[.018,.086,.107,.061,.085],[.122,.167,.009,.097,.106],
       [.198,.11,-.097,.135,.102],[.226,-.069,-.14,.14,.092],[.201,-.218,-.123,.101,.061],
       [.176,-.331,-.073,.027,.026]]),2.42+side);
@@ -66,7 +66,7 @@ export function carveScarletRitual(k,entry,mobile){
     stoles.push({coil,side});
   }
   const focus=bone(limbs[1].forearm,.045,-.23,.126);
-  focus.name='喇巴娜 · 火雲法輪';
+  focus.name='腐墨室・裁燈使 · 火雲法輪';
   mesh(focus,'ring','scarletCrown',0,.067,.014,.194,.185,.61,.19);
   mesh(focus,'ring','scarletIndigo',0,.072,.025,.145,.139,.40,.19);
   mesh(focus,'gem','glow',0,.063,.069,.057,.079,.036,0,.29,.08);
@@ -75,10 +75,10 @@ export function carveScarletRitual(k,entry,mobile){
     sourceDress(tools){
       for(const side of [-1,1]){
         const band=side*.14;
-        tools.silk(skirt,'喇巴娜 · 赤朱暗紋裙',[[band,.173,.215,.106],[band*1.41,-.009,.270,.139],
+        tools.silk(skirt,'腐墨室・裁燈使 · 赤朱暗紋裙',[[band,.173,.215,.106],[band*1.41,-.009,.270,.139],
           [band*1.72,-.174,.355,.128],[band*2.18,-.355,.386,.119],[band*2.41,-.45,.492,.021]],
           {tint:0x8d4834,trim:0xc19265,lining:0x3d3848,style:'woven',phase:side*.78,flex:1.10});
-        tools.silk(body,'喇巴娜 · 白巾',[[side*.204,.641,-.183,.088],[side*.259,.447,-.328,.150],
+        tools.silk(body,'腐墨室・裁燈使 · 白巾',[[side*.204,.641,-.183,.088],[side*.259,.447,-.328,.150],
           [side*.314,.14,-.427,.171],[side*.373,-.23,-.491,.143],[side*.40,-.55,-.628,.022]],
           {tint:0x9c9a87,trim:0xcb9765,lining:0x554a4e,style:'woven',phase:side*1.19,flex:1.29});
       }

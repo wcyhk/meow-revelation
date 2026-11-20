@@ -148,7 +148,7 @@ function waspAbdomen(k,body,mobile){
   for(let i=0;i<profile.length-1;i++){
     const [x,y,z,r,d]=profile[i],[X,Y,Z,R,D]=profile[i+1],prior=i?profile[i-1]:[0,0,0];
     const j=k.bone(parent,x-prior[0],y-prior[1],z-prior[2]);
-    j.name='大王馬蜂 · 腹節 '+(i+1);
+    j.name='未寄郵庭・倒頁書吏 · 腹節 '+(i+1);
     const dx=X-x,dy=Y-y,dz=Z-z;
     volume(k,j,'waspCoal',[[0,.032,-.008,r,r*.75],[dx*.4,dy*.34,dz*.51,r*.98,d],
       [dx,dy,dz,R,D]],mobile,{rings:10,sides:11,section:2.76,ridge:.19});
@@ -165,7 +165,7 @@ function waspAbdomen(k,body,mobile){
     joints.push(j);parent=j;
   }
   const tip=k.bone(parent,.011-profile[5][0],-.875-profile[5][1],.090-profile[5][2]);
-  tip.name='大王馬蜂 · 赤螫';
+  tip.name='未寄郵庭・倒頁書吏 · 赤螫';
   volume(k,tip,'waspCoal',[[0,.055,-.074,.063,.061],[.002,-.035,.031,.056,.053],[.004,-.079,.141,.047,.039],
     [.009,-.106,.233,.023,.019],[.015,-.074,.309,.005,.005]],mobile,{rings:19,sides:11,section:2.54});
   sweep(k,tip,'waspRed',[[0,-.050,.061,.023],[.012,-.091,.159,.034],[.024,-.076,.252,.025],[.031,-.003,.320,.003]],14);
@@ -231,7 +231,7 @@ export function sculptKingHornet(k,entry,mobile){
     }
     for(const rear of [false,true]){
       const socket=k.bone(body,side*(rear?.155:.194),rear?.208:.284,rear?-.112:-.019);
-      socket.name='大王馬蜂 · '+(rear?'後翅':'前翅');
+      socket.name='未寄郵庭・倒頁書吏 · '+(rear?'後翅':'前翅');
       hornetWing(k,socket,side,rear,mobile);
       wings.push({socket,side,rear});
     }

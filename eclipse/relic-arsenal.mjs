@@ -1,65 +1,65 @@
-// Reference: 52 巨商's 高級武器, 神獸武器, 凶獸武器 and 冥王 weapon lists.
-// Each row describes an independently equippable weapon and its guardian.
+import {stampRelic} from './lantern-designs.mjs';
+// Lantern-world relic rules; authored designs are defined in lantern-designs.mjs.
 const catalogue = `
-sam-in|三寅劍|銀河水|sword|light|rain|5 2.1 .35|星雨織河|星曆監正|落星試劍，交還三寅劍！|prison cross|echo|星雨會令命中嘅敵人短暫硬直
-true-seven|真七支刀|七枝地刺|seven|earth|spikes|7 1.25 .13|根脈開刃|七枝石王|七枝只認我，還刀！|roots lance|stun|地刺會短暫定住敵人
-fox-doll|狐仙的娃娃|狐仙憑依・爆雷|doll|lightning|morph|12 3.1 .11|十二尾雷契|白面狐仙|邊個敢用我嘅身體？還返個娃娃！|blink spiral|chain|狐雷命中後會再跳電
-thunder-pearl|雷電珠|三珠光彈|orb|lightning|rain|3 2.45 .28|拘雷銅環|三珠刑官|雷珠係我嘅刑具！|marked cross|chill|落珠會減速
-snow-doll|冰雪神娃娃|暗黑火焰暴風|doll|void|storm|5 2.85 .27|霜心黑火|熄冬雪神|還返我嘅雪身，我要凍熄你盞燈！|cinders eclipse|pull|黑火風暴會吸入敵人
-han-spear|漢式之槍|飛刀術|spear|earth|rain|7 1.42 .14|萬槍密陣|漢營槍督|我軍令在此，還槍！|barrage lance|wide|投槍落點嘅波及範圍增大
-kunoichi-claw|女忍者的爪刀|活力|claw|blood|buff|3 1.75 .18|無息疾步|緋幕女忍|嗰對爪刀，係我上次留喺你背脊嘅！|blink pounce|haste|活力持續時間增加
-sky-halberd|方天火戟|飛戟墜陣|halberd|fire|rain|4 1.94 .23|餘燼飛戟|墜星戟將|望上面！我嚟取戟！|cinders cleave|burn|落戟會留下兩次餘焰
-glacier-sword|寒冰劍|冰爆|sword|ice|spikes|5 1.72 .16|寒脈分枝|冰柱劍君|呢度每條冰柱都係我柄劍嘅一截！|icicles cross|echo|末段冰柱碎裂後會再爆
-snow-axe|冰雪神斧頭|雙斧滾雪|axe|ice|return|2 .90 .29|雪輪返刃|白山伐神|一把斧都拎唔穩，你仲想拎兩把？|lance icicles|chill|回程斧刃延長減速
-sky-dragon-staff|天龍棍|天龍格擋|staff|light|guard|2 2.65 .25|龍鱗護手|盤棍龍僧|企穩，先擋得住我一棍！|burst cleave|riposte|擋擊時嘅反震更強
-treasure-staff|天王寶心棍|寶心格擋|staff|earth|guard|3 2.12 .16|金心藏勁|寶塔戒律使|寶心離塔，天下唔會太平！|toll ring|guard|格擋持續時間增加
-red-corporal|赤軍曹之槍|赤軍八寒雨|spear|ice|rain|6 1.72 .19|赤營碎甲|赤旗軍曹|赤營唔會退！還返支槍！|icicles barrage|expose|冰雨削弱敵人防禦
-blue-corporal|藍軍曹之槍|藍軍八寒雨|spear|ice|storm|8 2.12 .18|藍營長冬|藍旗軍曹|藍營未收兵，邊個畀你帶走軍槍？|ring icicles|chill|冰雨令敵人減速更耐
-blood-axe|血斧|旋轉血斧|axe|blood|return|3 1.20 .21|血輪回飲|赤首劊子手|柄斧飲開我嘅血，你喂唔飽佢！|cleave jaws|drain|回刃命中會回血
-wave-wheel|波輪|波輪電擊鉤|ring|lightning|ring|3 3.75 .27|離心電弧|逆輪匠|個輪返嚟喇，你企咗喺佢條路上！|ring coins|pull|外圈會扯敵人入內圈
-thunder-sword|雷劍|雲雷|sword|lightning|rain|5 1.82 .17|雲罅放電|截雲劍師|我借你見識吓，乜嘢叫成片天落雷！|cross marked|chain|雲雷會從落點跳去附近敵人
-oni-bow|獨角鬼弓|召喚獨角鬼|bow|void|minion|4 1.58 .46|獨角血食|斷角鬼王|嗰張弓入面困住我個仔！|summon pounce|drain|鬼角擊中敵人時回復生命
-moon-kukri|月牙庫爾喀彎刀|月牙劍輪|curve|light|storm|5 2.15 .22|月牙留軌|彎月行者|見唔見到呢道月牙？佢跟緊你！|sweep eclipse|wide|月輪擴大
-dragon-kukri|龍頭庫爾喀彎刀|龍首劍輪|curve|fire|storm|4 2.48 .26|龍頭吞焰|赤面龍刀客|放開龍頭，佢唔係用嚟斬柴嘅！|cleave cinders|burn|龍輪經過嘅位置會再燒
-kali-wheel|卡里的輪刃|雙電擊輪|ring|lightning|beam|2 .83 .19|雙輪交界|黑壇卡里|兩個輪都落地嗰陣，你就走唔到！|cross coins|echo|雙輪交會會再炸一次
-turtle-bow|忠武公弓箭|召喚龜甲車|bow|earth|minion|5 1.83 .43|鐵龜撞陣|龜甲水師都督|開炮！嗰張弓係水師嘅！|barrage burst|stun|龜甲車會撞暈敵人
-venom-cane|邪毒拐杖|邪毒黑暴|cane|poison|storm|5 2.23 .29|留毒潮|邪毒療師|行前一步，就試到我支杖嘅毒。|web gravity|burn|黑暴散去後毒液仲會傷人
-yama-cane|雅瑪的拐杖|雅瑪暗黑暴風|cane|void|storm|6 2.20 .24|判風倒卷|雅瑪判官|支杖記住你個名，我都記住咗。|gravity toll|pull|判風將敵人拉向中心
-bat-cane|蝙蝠拐杖|蝠群暗風|cane|blood|storm|7 1.81 .18|嗜血回巢|倒吊蝠侯|我嘅蝠群聞到你手上有我支杖！|feathers gravefan|drain|蝠群每次命中都吸少量生命
-skanda-kukri|斯堪達的庫爾喀彎刀|毒旋風|curve|poison|storm|8 1.94 .20|八重毒眼|青毒戰神|入得旋風，就將彎刀留低。|spiral roots|expose|毒旋風令敵人易傷
-ice-orb|冰珠|霜珠震光|orb|ice|beam|4 1.42 .19|凝霜珠心|白髮霜珠師|捧住粒珠，凍唔凍手？|icicles lance|chill|冰光加長減速
-fire-orb|火焰珠|焰珠震光|orb|fire|beam|4 1.52 .21|二燃珠心|燼腹火珠師|燒埋你隻手，粒珠就返嚟。|cinders cross|burn|火光在落點留焰
-spark-orb|雷珠|雷珠震光|orb|lightning|beam|4 1.08 .14|走電珠心|鳴骨珠師|劈中你嗰下，粒珠就知道邊個係主人。|cross barrage|chain|雷光可連到旁邊敵人
-earth-beads|地神念珠|地珠震光|beads|earth|beam|4 1.74 .24|地母沉印|地壇掌珠者|念完地契先好郁，否則地底見。|roots prison|stun|震光會定住地面敵人
-lotus-beads|白蓮念珠|白蓮震光|beads|light|beam|4 1.62 .20|白蓮餘照|白蓮藏經僧|每粒念珠有一個名，你嘅都喺度。|marked ring|echo|末段蓮光再照一次
-shiva-trident|濕婆的三叉矛|雷電激流|trident|lightning|beam|3 1.17 .19|三叉餘電|三叉舞主|用三叉矛企得咁近，你係想同我共舞？|lance cross|stun|電流會眩暈
-dragon-fish|黃龍木魚|黃龍石塔|bell|earth|rain|3 2.20 .34|龍塔鎮地|黃龍塔僧|第三聲木魚響，你就埋喺塔下面。|toll roots|stun|石塔撞擊會暈住敵人
-lotus-fish|白蓮木魚|白蓮石塔|bell|light|rain|3 2.55 .30|蓮塔回聲|白蓮塔主|聽到三聲，就將木魚還我。|toll ring|echo|最後一座石塔會碎裂再震
-goumang|句芒刀|大地之手|curve|earth|spikes|5 2.27 .18|裂壤掌紋|春神句芒|泥土識我，你踩住嗰塊都係。|roots gravefan|stun|地手會按住敵人
-xuanming|玄冥槍|冷氣暴風|spear|ice|storm|7 2.34 .21|玄冥冰結|玄冥冰將|槍尖嘅霜係我嘅呼吸，還我！|icicles sweep|chill|暴風同普攻第三擊都可長時間減速
-red-bow|赤弓|爆炸火箭|bow|fire|volley|5 1.15 .15|赤羽爆芯|赤羽火弓手|數到五，你腳邊啲箭會一齊爆。|barrage cinders|wide|火箭嘅爆風擴大
-blood-sword|血劍|血爆|sword|blood|drain|1 4.12 .20|一劍飲紅|血池劍鬼|你嘅血會養返我柄劍！|jaws eclipse|drain|血爆每次命中回復更多生命
-cursed-cane|被詛咒的拐杖|暗黑旋風|cane|void|storm|5 2.67 .23|黑鏈勒心|鎖杖咒師|聽到鐵鏈聲未？你已經畀佢綁住。|gravity prison|pull|黑鏈會扯敵人去高傷害中心
-golden-orb|黃金祝福之玉|神聖彈|orb|light|volley|3 1.60 .21|金玉分光|金玉審判使|你只係代我捧住粒玉，夠鐘還喇。|marked barrage|echo|最後一發分裂為第二次爆炸
-ice-talisman|如意陀羅尼符|冰釋術・冰牆|talisman|ice|wall|5 1.18 .16|霜牆重疊|雪符結界師|邊個准你將我張符揭落嚟？|prison icicles|guard|冰牆存在更耐
-rushou-cane|蓐收的拐杖|三重颶風|cane|wind|storm|3 2.18 .19|三風聚首|秋神蓐收|三道風到齊嗰陣，將支杖放低。|spiral sweep|echo|旋風消散時會再捲起一次
-zhurong-axe|祝融斧|召喚毒蛇・火龍波|axe|fire|minion|3 2.40 .48|祝融三焰|南火祝融|火蛇返嚟，咬住個拎斧嘅！|cinders summon|burn|火蛇離場會引爆最後落點
-vritra-spear|弗栗多之槍矛|落雷矛磁場|trident|lightning|rain|4 2.65 .32|四矛磁暴|旱雷弗栗多|每支矛都釘住一片天，還返畀我！|cross icicles|pull|磁場吸入外圍敵人
-snake|飼養的蛇|召喚蛇群|snake|poison|minion|7 1.30 .24|蛇群蛻皮|蛇窟育主|喊咩？嗰啲蛇先認得我把聲。|roots web|expose|蛇毒加深後續傷害
-emperor-rod|天皇棒|影子移動|staff|void|blink|2 1.95 .22|御影返身|無影天皇|你走得過啲影，走唔過我。|blink eclipse|echo|原地殘影會再爆一次
-western-rifle|西洋槍手的狙擊槍|召喚西洋槍手|gun|void|minion|4 1.13 .43|亡槍點名|西洋無頭槍手|咪郁，我想睇清楚你手上支槍。|barrage lance|expose|鬼魂彈加強易傷標記
-seven-blade|七支刀|山崩|seven|earth|rain|6 1.86 .20|崩山地脈|崩山刀靈|我把刀倒轉，你成間房都會冧。|roots toll|stun|崩石震暈敵人
-sniper-crossbow|狙擊手石弓|鬼魂彈・伏擊|crossbow|void|volley|2 1.14 .30|瞄魂缺口|伏牆狙擊手|我喺度等咗好耐，你拎咗我張弓。|lance blink|expose|鬼魂彈令目標易傷更耐
-lion-crossbow|獅子石弓|鬼魂彈・獅吼|crossbow|earth|volley|3 1.70 .26|獅咬迴響|斷鬃弩將|你會先聽到獅吼，先至見到我。|barrage jaws|stun|獅吼震暈附近敵人
-airavata|埃拉瓦塔的象牙|象牙波動|horn|earth|wave|3 1.76 .21|白象踏地|埃拉瓦塔|邊個喺我瞓着嗰陣攞走我隻牙？|pounce toll|wide|波動加寬同延伸
-hundun|混沌的刺|混沌狂氣|claw|earth|morph|5 1.65 .16|無面狂心|無面混沌|嗰條刺上面，仲有我嘅心跳！|pounce spiral|haste|狂氣時移動更快
-qiongqi|窮奇的羽毛|窮奇狡猾|feather|wind|volley|6 .88 .10|逆羽追獵|逆翅窮奇|我少咗條羽毛，但仲飛得快過你！|feathers blink|expose|逆羽標記令敵人易傷
-taotie|饕餮的角|饕餮破壞|horn|fire|drain|3 2.70 .24|饕口吞焰|饕餮火顎|交返隻角，我可以先食第二個。|jaws cinders|burn|火顎撕裂後點燃地面
-taowu|檮杌的獠牙|檮杌韌勁|fang|ice|guard|3 2.37 .21|寒獠不折|不折檮杌|你以為拔走我隻牙，我就咬唔到？|pounce icicles|riposte|擋擊時冰牙反震更強
-nether-box|冥王匣|冥界的加護|box|ice|guard|4 2.62 .27|夜叉鎖匣|金剛夜叉冥王|冥匣一開，先收你盞燈。|prison gravity|chill|加護波會凍住附近敵人
-nether-bow|冥王弓|冥界的雷鳴|bow|lightning|chain|5 2.72 .14|雷鳴天束|軍茶利冥王|今日冥雷要追返佢張弓！|cross barrage|chain|冥雷可再跳多兩個目標
-nether-sword|冥王劍|冥界的保護膜|sword|fire|guard|3 2.73 .30|天開火衣|降三世冥王|我件火衣著喺你身上，燒得盡未？|cinders cleave|burn|火膜震波會引燃敵人
-nether-halberd|冥王戟|冥界颶風|halberd|wind|storm|6 2.62 .22|大威德逆流|大威德冥王|我要你親手用陣風送返支戟！|sweep gravity|pull|逆流將周圍敵人扯返入風眼
+sam-in|夜航尺劍|落燈星雨|sword|light|rain|5 2.1 .35|夜航尺劍・餘響|照誓追契者|嗰件夜航尺劍仲留住我嘅名字，交返畀我！|prison cross|echo|星雨會令命中嘅敵人短暫硬直
+true-seven|根脈折扇刃|開函地針|seven|earth|spikes|7 1.25 .13|根脈折扇刃・餘響|沉鐘追契者|嗰件根脈折扇刃仲留住我嘅名字，交返畀我！|roots lance|stun|地刺會短暫定住敵人
+fox-doll|雷線縫偶|十二針巡遊|doll|lightning|morph|12 3.1 .11|雷線縫偶・餘響|鳴隙追契者|嗰件雷線縫偶仲留住我嘅名字，交返畀我！|blink spiral|chain|狐雷命中後會再跳電
+thunder-pearl|拘雷玻璃匣|三枚放電印|orb|lightning|rain|3 2.45 .28|拘雷玻璃匣・餘響|鳴隙追契者|嗰件拘雷玻璃匣仲留住我嘅名字，交返畀我！|marked cross|chill|落珠會減速
+snow-doll|未眠紙偶|黑焰繭床|doll|void|storm|5 2.85 .27|未眠紙偶・餘響|夜紗追契者|嗰件未眠紙偶仲留住我嘅名字，交返畀我！|cinders eclipse|pull|黑火風暴會吸入敵人
+han-spear|埋名長針|七針封路|spear|earth|rain|7 1.42 .14|埋名長針・餘響|沉鐘追契者|嗰件埋名長針仲留住我嘅名字，交返畀我！|barrage lance|wide|投槍落點嘅波及範圍增大
+kunoichi-claw|紅線裁縫爪|縫傷疾步|claw|blood|buff|3 1.75 .18|紅線裁縫爪・餘響|紅線追契者|嗰件紅線裁縫爪仲留住我嘅名字，交返畀我！|blink pounce|haste|活力持續時間增加
+sky-halberd|焚契燈剪|四焰釘陣|halberd|fire|rain|4 1.94 .23|焚契燈剪・餘響|薪火追契者|嗰件焚契燈剪仲留住我嘅名字，交返畀我！|cinders cleave|burn|落戟會留下兩次餘焰
+glacier-sword|冰函直尺|寒函破封|sword|ice|spikes|5 1.72 .16|冰函直尺・餘響|霜函追契者|嗰件冰函直尺仲留住我嘅名字，交返畀我！|icicles cross|echo|末段冰柱碎裂後會再爆
+snow-axe|霜齒開匣斧|雙輪回函|axe|ice|return|2 .90 .29|霜齒開匣斧・餘響|霜函追契者|嗰件霜齒開匣斧仲留住我嘅名字，交返畀我！|lance icicles|chill|回程斧刃延長減速
+sky-dragon-staff|照誓量燈棍|承光反震|staff|light|guard|2 2.65 .25|照誓量燈棍・餘響|照誓追契者|嗰件照誓量燈棍仲留住我嘅名字，交返畀我！|burst cleave|riposte|擋擊時嘅反震更強
+treasure-staff|銅心校時棒|沉心護持|staff|earth|guard|3 2.12 .16|銅心校時棒・餘響|沉鐘追契者|嗰件銅心校時棒仲留住我嘅名字，交返畀我！|toll ring|guard|格擋持續時間增加
+red-corporal|紅封留寒針|六封冰雨|spear|ice|rain|6 1.72 .19|紅封留寒針・餘響|霜函追契者|嗰件紅封留寒針仲留住我嘅名字，交返畀我！|icicles barrage|expose|冰雨削弱敵人防禦
+blue-corporal|藍封長夜針|八封霜井|spear|ice|storm|8 2.12 .18|藍封長夜針・餘響|霜函追契者|嗰件藍封長夜針仲留住我嘅名字，交返畀我！|ring icicles|chill|冰雨令敵人減速更耐
+blood-axe|赤契開罐斧|三刃回收|axe|blood|return|3 1.20 .21|赤契開罐斧・餘響|紅線追契者|嗰件赤契開罐斧仲留住我嘅名字，交返畀我！|cleave jaws|drain|回刃命中會回血
+wave-wheel|鳴隙回線環|三層電網|ring|lightning|ring|3 3.75 .27|鳴隙回線環・餘響|鳴隙追契者|嗰件鳴隙回線環仲留住我嘅名字，交返畀我！|ring coins|pull|外圈會扯敵人入內圈
+thunder-sword|裂隙導電尺|五次回鳴|sword|lightning|rain|5 1.82 .17|裂隙導電尺・餘響|鳴隙追契者|嗰件裂隙導電尺仲留住我嘅名字，交返畀我！|cross marked|chain|雲雷會從落點跳去附近敵人
+oni-bow|寄影空弦弓|喚出噬契影|bow|void|minion|4 1.58 .46|寄影空弦弓・餘響|夜紗追契者|嗰件寄影空弦弓仲留住我嘅名字，交返畀我！|summon pounce|drain|鬼角擊中敵人時回復生命
+moon-kukri|夜航鉤月刀|留光迴圈|curve|light|storm|5 2.15 .22|夜航鉤月刀・餘響|照誓追契者|嗰件夜航鉤月刀仲留住我嘅名字，交返畀我！|sweep eclipse|wide|月輪擴大
+dragon-kukri|餘燼挑燈鉤|薪火迴圈|curve|fire|storm|4 2.48 .26|餘燼挑燈鉤・餘響|薪火追契者|嗰件餘燼挑燈鉤仲留住我嘅名字，交返畀我！|cleave cinders|burn|龍輪經過嘅位置會再燒
+kali-wheel|雙芯測電輪|平行放電|ring|lightning|beam|2 .83 .19|雙芯測電輪・餘響|鳴隙追契者|嗰件雙芯測電輪仲留住我嘅名字，交返畀我！|cross coins|echo|雙輪交會會再炸一次
+turtle-bow|送終鐘軌弓|召來鐘匣車|bow|earth|minion|5 1.83 .43|送終鐘軌弓・餘響|沉鐘追契者|嗰件送終鐘軌弓仲留住我嘅名字，交返畀我！|barrage burst|stun|龜甲車會撞暈敵人
+venom-cane|腐墨蘆管杖|滲墨毒幕|cane|poison|storm|5 2.23 .29|腐墨蘆管杖・餘響|腐墨追契者|嗰件腐墨蘆管杖仲留住我嘅名字，交返畀我！|web gravity|burn|黑暴散去後毒液仲會傷人
+yama-cane|熄燈墨瓶杖|黯墨漩渦|cane|void|storm|6 2.20 .24|熄燈墨瓶杖・餘響|夜紗追契者|嗰件熄燈墨瓶杖仲留住我嘅名字，交返畀我！|gravity toll|pull|判風將敵人拉向中心
+bat-cane|夜紗風鈴杖|夜紗群舞|cane|blood|storm|7 1.81 .18|夜紗風鈴杖・餘響|夜紗追契者|嗰件夜紗風鈴杖仲留住我嘅名字，交返畀我！|feathers gravefan|drain|蝠群每次命中都吸少量生命
+skanda-kukri|蝕紙裂齒鉤|腐紙旋流|curve|poison|storm|8 1.94 .20|蝕紙裂齒鉤・餘響|腐墨追契者|嗰件蝕紙裂齒鉤仲留住我嘅名字，交返畀我！|spiral roots|expose|腐紙旋流令敵人易傷
+ice-orb|封霜沙漏|四點留寒|orb|ice|beam|4 1.42 .19|封霜沙漏・餘響|霜函追契者|嗰件封霜沙漏仲留住我嘅名字，交返畀我！|icicles lance|chill|冰光加長減速
+fire-orb|燃芯沙漏|四點引火|orb|fire|beam|4 1.52 .21|燃芯沙漏・餘響|薪火追契者|嗰件燃芯沙漏仲留住我嘅名字，交返畀我！|cinders cross|burn|火光在落點留焰
+spark-orb|引雷沙漏|四點放電|orb|lightning|beam|4 1.08 .14|引雷沙漏・餘響|鳴隙追契者|嗰件引雷沙漏仲留住我嘅名字，交返畀我！|cross barrage|chain|雷光可連到旁邊敵人
+earth-beads|埋願刻度鏈|四座沉印|beads|earth|beam|4 1.74 .24|埋願刻度鏈・餘響|沉鐘追契者|嗰件埋願刻度鏈仲留住我嘅名字，交返畀我！|roots prison|stun|震光會定住地面敵人
+lotus-beads|照名玻璃鏈|四座照印|beads|light|beam|4 1.62 .20|照名玻璃鏈・餘響|照誓追契者|嗰件照名玻璃鏈仲留住我嘅名字，交返畀我！|marked ring|echo|末段蓮光再照一次
+shiva-trident|鳴隙分流叉|三線斷電|trident|lightning|beam|3 1.17 .19|鳴隙分流叉・餘響|鳴隙追契者|嗰件鳴隙分流叉仲留住我嘅名字，交返畀我！|lance cross|stun|電流會眩暈
+dragon-fish|沉鐘印槌|三座銅函|bell|earth|rain|3 2.20 .34|沉鐘印槌・餘響|沉鐘追契者|嗰件沉鐘印槌仲留住我嘅名字，交返畀我！|toll roots|stun|石塔撞擊會暈住敵人
+lotus-fish|白封印槌|三座霜函|bell|light|rain|3 2.55 .30|白封印槌・餘響|照誓追契者|嗰件白封印槌仲留住我嘅名字，交返畀我！|toll ring|echo|最後一座石塔會碎裂再震
+goumang|喚根契尺|五重根印|curve|earth|spikes|5 2.27 .18|喚根契尺・餘響|沉鐘追契者|嗰件喚根契尺仲留住我嘅名字，交返畀我！|roots gravefan|stun|地手會按住敵人
+xuanming|留寒門閂|冷封風暴|spear|ice|storm|7 2.34 .21|留寒門閂・餘響|霜函追契者|嗰件留寒門閂仲留住我嘅名字，交返畀我！|icicles sweep|chill|暴風同普攻第三擊都可長時間減速
+red-bow|焚信空弦弓|五封火信|bow|fire|volley|5 1.15 .15|焚信空弦弓・餘響|薪火追契者|嗰件焚信空弦弓仲留住我嘅名字，交返畀我！|barrage cinders|wide|火箭嘅爆風擴大
+blood-sword|赤墨割紙刀|回收血印|sword|blood|drain|1 4.12 .20|赤墨割紙刀・餘響|紅線追契者|嗰件赤墨割紙刀仲留住我嘅名字，交返畀我！|jaws eclipse|drain|血爆每次命中回復更多生命
+cursed-cane|無頁書脊杖|留墨颶風|cane|void|storm|5 2.67 .23|無頁書脊杖・餘響|夜紗追契者|嗰件無頁書脊杖仲留住我嘅名字，交返畀我！|gravity prison|pull|黑鏈會扯敵人去高傷害中心
+golden-orb|末燈提芯|三枚照名彈|orb|light|volley|3 1.60 .21|末燈提芯・餘響|照誓追契者|嗰件末燈提芯仲留住我嘅名字，交返畀我！|marked barrage|echo|最後一發分裂為第二次爆炸
+ice-talisman|霜封書籤|留寒紙牆|talisman|ice|wall|5 1.18 .16|霜封書籤・餘響|霜函追契者|嗰件霜封書籤仲留住我嘅名字，交返畀我！|prison icicles|guard|冰牆存在更耐
+rushou-cane|三葉測風杖|三庭風眼|cane|wind|storm|3 2.18 .19|三葉測風杖・餘響|織風追契者|嗰件三葉測風杖仲留住我嘅名字，交返畀我！|spiral sweep|echo|旋風消散時會再捲起一次
+zhurong-axe|噴燼剪薪斧|喚出吐燼管|axe|fire|minion|3 2.40 .48|噴燼剪薪斧・餘響|薪火追契者|嗰件噴燼剪薪斧仲留住我嘅名字，交返畀我！|cinders summon|burn|火蛇離場會引爆最後落點
+vritra-spear|追鳴導線針|四針雷場|trident|lightning|rain|4 2.65 .32|追鳴導線針・餘響|鳴隙追契者|嗰件追鳴導線針仲留住我嘅名字，交返畀我！|cross icicles|pull|磁場吸入外圍敵人
+snake|蜿蜒墨管|三段腐墨咬|snake|poison|minion|7 1.30 .24|蜿蜒墨管・餘響|腐墨追契者|嗰件蜿蜒墨管仲留住我嘅名字，交返畀我！|roots web|expose|蛇毒加深後續傷害
+emperor-rod|永夜校時杖|斷頁回響|staff|void|blink|2 1.95 .22|永夜校時杖・餘響|夜紗追契者|嗰件永夜校時杖仲留住我嘅名字，交返畀我！|blink eclipse|echo|原地殘影會再爆一次
+western-rifle|紙衛排槍|召喚紙衛隊|gun|void|minion|4 1.13 .43|紙衛排槍・餘響|沉鐘追契者|嗰件紙衛排槍仲留住我嘅名字，交返畀我！|barrage lance|expose|鬼魂彈加強易傷標記
+seven-blade|壓頁重裁刀|墜函鎮地|seven|earth|rain|6 1.86 .20|壓頁重裁刀・餘響|沉鐘追契者|嗰件壓頁重裁刀仲留住我嘅名字，交返畀我！|roots toll|stun|崩石震暈敵人
+sniper-crossbow|夜航瞄燈弩|連釘封路|crossbow|void|volley|2 1.14 .30|夜航瞄燈弩・餘響|沉鐘追契者|嗰件夜航瞄燈弩仲留住我嘅名字，交返畀我！|lance blink|expose|鬼魂彈令目標易傷更耐
+lion-crossbow|鳴隙張線弩|穿線雷矢|crossbow|earth|volley|3 1.70 .26|鳴隙張線弩・餘響|鳴隙追契者|嗰件鳴隙張線弩仲留住我嘅名字，交返畀我！|barrage jaws|stun|獅吼震暈附近敵人
+airavata|晨鐘碎鎖鑿|重鎖轟鳴|horn|earth|wave|3 1.76 .21|晨鐘碎鎖鑿・餘響|照誓追契者|嗰件晨鐘碎鎖鑿仲留住我嘅名字，交返畀我！|pounce toll|wide|波動加寬同延伸
+hundun|無頁吞聲匣|噤聲引潮|claw|earth|morph|5 1.65 .16|無頁吞聲匣・餘響|夜紗追契者|嗰件無頁吞聲匣仲留住我嘅名字，交返畀我！|pounce spiral|haste|狂氣時移動更快
+qiongqi|裂帆夜航翎|穿幕疾風|feather|wind|volley|6 .88 .10|裂帆夜航翎・餘響|織風追契者|嗰件裂帆夜航翎仲留住我嘅名字，交返畀我！|feathers blink|expose|逆羽標記令敵人易傷
+taotie|回願吞墨鉗|回收殘願|horn|fire|drain|3 2.70 .24|回願吞墨鉗・餘響|紅線追契者|嗰件回願吞墨鉗仲留住我嘅名字，交返畀我！|jaws cinders|burn|火顎撕裂後點燃地面
+taowu|逆時留寒齒|倒影寒徑|fang|ice|guard|3 2.37 .21|逆時留寒齒・餘響|霜函追契者|嗰件逆時留寒齒仲留住我嘅名字，交返畀我！|pounce icicles|riposte|擋擊時冰牙反震更強
+nether-box|未寄出的燈匣|閉函護持|box|ice|guard|4 2.62 .27|未寄出的燈匣・餘響|霜函追契者|嗰件未寄出的燈匣仲留住我嘅名字，交返畀我！|prison gravity|chill|加護波會凍住附近敵人
+nether-bow|夜巡斷電弓|追燈雷線|bow|lightning|chain|5 2.72 .14|夜巡斷電弓・餘響|鳴隙追契者|嗰件夜巡斷電弓仲留住我嘅名字，交返畀我！|cross barrage|chain|冥雷可再跳多兩個目標
+nether-sword|燼封誓約刀|焚契護衣|sword|fire|guard|3 2.73 .30|燼封誓約刀・餘響|薪火追契者|嗰件燼封誓約刀仲留住我嘅名字，交返畀我！|cinders cleave|burn|火膜震波會引燃敵人
+nether-halberd|逆風回函戟|回收風眼|halberd|wind|storm|6 2.62 .22|逆風回函戟・餘響|織風追契者|嗰件逆風回函戟仲留住我嘅名字，交返畀我！|sweep gravity|pull|逆流將周圍敵人扯返入風眼
 `;
 
 export const elements={
@@ -89,67 +89,9 @@ const forms={
   fang:['獠牙斬','近戰',28,2.68,.34,'turtle'],box:['匣光','中距',23,4.86,.38,'bell'],
 };
 
-const skillLooks={
-  'sam-in':'stars','han-spear':'fallen-arm','sky-halberd':'fallen-arm','vritra-spear':'fallen-arm',
-  'thunder-pearl':'thunder-orbs','thunder-sword':'thunderfall','seven-blade':'boulder',
-  'dragon-fish':'pagoda','lotus-fish':'pagoda',goumang:'hand',
-  'ice-orb':'overhead','fire-orb':'overhead','spark-orb':'overhead','earth-beads':'overhead','lotus-beads':'overhead',
-  'kali-wheel':'electric-wheel','moon-kukri':'blade-wheel','dragon-kukri':'blade-wheel',
-  'blue-corporal':'snowfall','rushou-cane':'three-vortices',
-};
+const skillLooks={};
 
-const skillDetails={
-  'sam-in':'五枚星光喺目標附近墜落，落地爆開。',
-  'true-seven':'七段石刺沿面向依次破土。',
-  'fox-doll':'狐面附身，移動時接連喺身邊引發十二道雷爆，並短暫加快移動。',
-  'thunder-pearl':'三粒雷珠先後墜地，落點附近敵人受傷同減速。',
-  'snow-doll':'目標位置捲起暗色火焰，短時間連續灼傷敵人。',
-  'han-spear':'七支飛槍先後落喺目標附近，刺中落點附近敵人。',
-  'sky-halberd':'四支帶火嘅長戟墜地，擊中落點附近敵人。',
-  'glacier-sword':'五段冰柱沿面向破地而出，碎裂時減慢敵人。',
-  'snow-axe':'兩把冰斧旋向前方再飛返起點，來回都可傷敵同減速。',
-  'red-corporal':'目標附近落下六陣冰雨，命中會減速。',
-  'blue-corporal':'目標位置維持八陣落冰，敵人每次中冰都會減速。',
-  'blood-axe':'投出三道血斧，來回都可斬中敵人。',
-  'wave-wheel':'三道電環由外向內收縮，敵人觸到電環時受傷。',
-  'thunder-sword':'目標附近接連落下五道天雷。',
-  'oni-bow':'召來獨角鬼追咬四次，命中時回復少量生命。',
-  'moon-kukri':'留下一道迴轉月刃，連續斬傷附近敵人。',
-  'dragon-kukri':'留下一道燃燒龍首刃，連續斬傷附近敵人。',
-  'kali-wheel':'向前擲出兩道電擊輪，電輪一路傷及路上敵人。',
-  'turtle-bow':'召來龜甲車追撞附近敵人，再以旋轉攻擊震退敵人。',
-  'venom-cane':'在目標附近留下毒霧風暴，敵人被毒中後會更易受傷。',
-  'yama-cane':'喺目標位置掀起黑紫風暴，持續侵蝕入面嘅敵人。',
-  'bat-cane':'喚出蝠群暗風，喺目標附近反覆掠過敵人。',
-  'skanda-kukri':'捲起毒旋風，連續八次傷害並令敵人易傷。',
-  'ice-orb':'四枚霜珠從上方射落寒光，照中嘅敵人會減速。',
-  'fire-orb':'四枚焰珠從上方射落灼光，燒傷光柱下嘅敵人。',
-  'spark-orb':'四枚雷珠從上方射落電光。',
-  'earth-beads':'四枚地珠喺目標上方依次落光，照中敵人會受傷。',
-  'lotus-beads':'四枚白蓮珠依次從上方照落蓮光，傷及落點附近敵人。',
-  'shiva-trident':'向前放出三道電流，非頭目敵人被電中會短暫硬直。',
-  'dragon-fish':'三座黃龍石塔墜地，震暈落點附近嘅敵人。',
-  'lotus-fish':'三座白蓮石塔墜地，震暈落點附近嘅敵人。',
-  goumang:'向前喚起五隻破土巨手，擊中時震暈非頭目敵人。',
-  xuanming:'喺目標附近捲起冷氣風暴，連續凍傷同減速。',
-  'red-bow':'從弓弦連射五支火箭，逐支喺落點爆炸。',
-  'blood-sword':'放出一次近範圍血爆，命中敵人時回復生命。',
-  'cursed-cane':'喺目標附近留下暗黑旋風，持續傷害入面嘅敵人。',
-  'golden-orb':'連發三枚聖光彈，落地時擴散。',
-  'rushou-cane':'喺目標附近掀起三道分開嘅颶風，每道持續旋轉並傷害附近敵人。',
-  'zhurong-axe':'召出火蛇，由蛇口連吐三道直線火龍波。',
-  'vritra-spear':'四把雷矛先後墜地，落點會產生短暫電磁場。',
-  snake:'放出三條毒蛇連環撲咬，命中會令敵人易傷。',
-  'western-rifle':'喚出一名持槍嘅西洋鬼魂，瞄準附近敵人逐發開火。鬼彈命中會令目標易傷。',
-  'seven-blade':'六波崩石喺目標附近墜下，震暈非頭目敵人。',
-  'sniper-crossbow':'從石弓射出兩發鬼魂彈，落點附近敵人會易傷。',
-  'lion-crossbow':'從石弓射出三發鬼魂彈，落點爆出震波並令敵人易傷。',
-  airavata:'朝面向打出三段逐漸擴闊嘅象牙震波。',
-  hundun:'短暫進入狂氣狀態，加快移動並釋出五次近身衝擊。',
-  qiongqi:'向目標附近連發六枚追獵羽刃。',
-  'nether-box':'展開短暫護甲，發出四道減速衝擊，被打中時可反震。',
-  'nether-halberd':'在目標附近留低持續六次傷害嘅冥界颶風。',
-};
+const skillDetails={};
 
 const descriptions={
   rain:'喺目標附近連續落下攻擊',spikes:'沿前方逐段爆開',morph:'爆發一圈攻擊並短暫強化行動',
@@ -176,7 +118,7 @@ export const huntArms=catalogue.trim().split('\n').map((row,index)=>{
     blessing:{id:'heirloom-'+id,name:blessing,school,mark:'◈',detail:boonDetail+'。',weaponId:id,augment},
     guardian:{name:guardian,cry,attacks:patterns.split(' ')},
   };
-});
+}).map(stampRelic);
 
 export const huntById=new Map(huntArms.map(weapon=>[weapon.id,weapon]));
 export const relicPower=rank=>1+Math.min(3,rank)*.095;

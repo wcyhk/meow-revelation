@@ -361,7 +361,7 @@ export class Scenery {
       this.renderer.initTexture(texture);
       if(++uploaded%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
     }
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=relic-sculpts-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=lantern-original-1',import.meta.url).href]));
     // Downloading assets is not GPU preparation. Retained theme materials let us
     // do first-use texture uploads and shader compilation behind the loading art.
     for(const [index,picture] of landscapePictures.entries()){
@@ -706,7 +706,7 @@ export class Scenery {
   }
 
   previewArms() {
-    const size=288;
+    const size=384;
     const renderer=new T.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});
     renderer.setSize(size,size,false);
     renderer.setClearColor(0,0);
@@ -922,7 +922,7 @@ export class Scenery {
     seal.spin=1.34;
     if(morph){
       for(const side of [-1,1]){
-        const mask=this.addEffect(morphMasks[weapon.id]??relicShard,{x:unit.x,y:1.2,z:unit.z},weapon.tone,duration,
+        const mask=this.addEffect(relicShard,{x:unit.x,y:1.2,z:unit.z},weapon.tone,duration,
           {scale:.61,growth:.23,opacity:.76,angle:side*.65,fade:true,order:75});
         mask.follow=unit;
         mask.orbit=side*(.60+weapon.sigil%4*.055);

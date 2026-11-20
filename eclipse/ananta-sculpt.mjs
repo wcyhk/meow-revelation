@@ -22,7 +22,7 @@ export function sculptAnanta(k,entry,mobile){
     const side=Math.sign(i)||1,bend=Math.abs(i),u=bend/3;
     const out=p=>p.map(([x,...r])=>[x*side,...r]);
     const neck=bone(spire,i*.163,.16+(.055*bend),.065-bend*.056);
-    neck.name='阿南達 · 蛇頸 '+(i+4);
+    neck.name='腐墨室・八針織者 · 蛇頸 '+(i+4);
     const length=1.63-u*.612,offset=bend*(.051+u*.053);
     const shape=out([[.016,-.081,.055,.151,.121],[.055,length*.15,.137,.163,.149],
       [.107+offset*.37,length*.38,.17,.143,.144],[.142+offset*.79,length*.67,.156,.129,.133],
@@ -38,7 +38,7 @@ export function sculptAnanta(k,entry,mobile){
         [x+w*.74,y-.019,z-.018,.004]],9);
     }
     const head=bone(neck,side*(.161+offset),length,.385);
-    head.name='阿南達 · 蛇面 '+(i+4);
+    head.name='腐墨室・八針織者 · 蛇面 '+(i+4);
     const jaw=bone(head,0,-.082,.055);
     heads.push(head);necks.push({neck,head,jaw,i,side,bend});
     shell(head,'anantaScale',[[0,.077,-.16,.118,.106],[0,.056,-.047,.153,.139],

@@ -124,7 +124,7 @@ function mace(k,body,mobile){
   wrap.setAttribute('skinIndex',new T.Uint16BufferAttribute(index,4));
   wrap.setAttribute('skinWeight',new T.Float32BufferAttribute(weight,4));
   const skin=new T.SkinnedMesh(wrap,k.materials.tortoiseHide);
-  skin.name='狂魔邪武 · 尾鞭';
+  skin.name='鳴隙署・銅鐘司夜 · 尾鞭';
   skin.frustumCulled=false;
   body.add(skin);
   body.updateWorldMatrix(true,true);
@@ -145,7 +145,7 @@ export function forgeWhiteTortoise(k,entry,mobile){
   const body=k.bone(k.root,0,.881,0);
   carapace(k,body,mobile);
   const {neck,head,jaw}=skull(k,body,mobile),legs=feet(k,body,mobile),tail=mace(k,body,mobile);
-  tail.tip.name='狂魔邪武 · 尾錘';
+  tail.tip.name='鳴隙署・銅鐘司夜 · 尾錘';
   return {body,head,inspectionHead:head,crest:k.bone(body,0,0,0),grounded:true,sourceSculpt:true,
     catalogueSculpt:entry.id,pattern:'crawl',tortoiseMace:tail.tip,tortoiseLinks:tail.links,tortoisePaws:legs,tortoiseJaw:jaw,
     disposeRig(){tail.skin.skeleton.dispose();},

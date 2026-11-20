@@ -1,10 +1,13 @@
 import {createClient} from './vendor/supabase.mjs';
 import {onlineConfig} from './online-config.mjs';
 import {RunStore,eligible} from './challenge-records.mjs';
+import {authFailure} from './auth-callback.mjs';
 
 export class OnlinePlayer extends EventTarget {
   constructor({config=onlineConfig,store=new RunStore(),client}={}){
     super();this.config=config;this.store=store;this.user=null;this.name='';this.pending=0;this.message='';
+    const failedReturn=authFailure(location.href);
+    if(failedReturn){this.callbackError=true;this.message=failedReturn.message;try{history.replaceState(history.state,'',failedReturn.url);}catch{}}
     this.configured=!!(config.url&&config.publishableKey);
     this.authKey=this.configured?'meow.auth.'+new URL(config.url).hostname:'';
     this.client=client??(this.configured?createClient(config.url,config.publishableKey,{auth:{flowType:'pkce',
@@ -40,6 +43,7 @@ export class OnlinePlayer extends EventTarget {
     this.user=session?.user??null;
     if(this.user?.is_anonymous)this.user=null;
     if(this.user){
+      if(this.callbackError){this.message='';this.callbackError=false;}
       const uid=this.user.id;
       await this.store.claim(this.guestId,uid);
       if(turn!==this.sessionTurn)return;

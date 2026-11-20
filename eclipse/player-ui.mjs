@@ -16,7 +16,7 @@ export class PlayerUI {
     const {client}=this;
     const name=client.user?(client.name||'守燈者-'+client.user.id.slice(0,6)):'訪客';
     const summary=document.getElementById('player-summary');
-    if(summary)summary.textContent=name+' · '+(client.storageError?'紀錄儲存暫不可用':client.syncing?'正在同步':client.pending?'待同步 '+client.pending+' 局':client.user?'個人紀錄已保留':'可離線遊玩');
+    if(summary)summary.textContent=client.callbackError?client.message:name+' · '+(client.storageError?'紀錄儲存暫不可用':client.syncing?'正在同步':client.pending?'待同步 '+client.pending+' 局':client.user?'個人紀錄已保留':'可離線遊玩');
     const login=document.querySelector('#player-account .menu-label');
     if(login)login.textContent=client.user?'玩家帳號':'玩家登入';
     if(this.accountStatus?.isConnected)this.accountStatus.textContent=client.message||(client.user?'已登入 · '+name:'訪客成績先保存在呢個瀏覽器，登入後會合併到帳號。');

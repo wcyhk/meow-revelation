@@ -87,8 +87,11 @@ let chrome,ws;
   await c('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
   await c('Emulation.setDeviceMetricsOverride',{width:390,height:844,mobile:true,deviceScaleFactor:2,screenWidth:390,screenHeight:844});
   await c('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
-  await c('Page.navigate',{url});
+  const failedReturn=new URL(url);failedReturn.searchParams.set('error','server_error');failedReturn.searchParams.set('error_code','unexpected_failure');failedReturn.searchParams.set('error_description','fixture-private-detail');
+  await c('Page.navigate',{url:failedReturn.href});
   await attach();
+  assert.match(await ev('document.querySelector("#player-summary").textContent'),/未能完成/,'Failed OAuth return must be visible to the player');
+  assert.equal(await ev('location.search'),'','Failed OAuth details must not remain in the URL');
 
 
 

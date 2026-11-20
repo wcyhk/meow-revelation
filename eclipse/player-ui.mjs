@@ -23,12 +23,13 @@ export class PlayerUI {
   }
   openAccount(){
     if(this.game.state!=='cover')return;
+    clearTimeout(this.loginRetryTimer);
     this.game.state='account';
     const root=node('div','player-panel');
     const client=this.client;
     this.accountStatus=node('p','player-status');this.accountStatus.setAttribute('role','status');root.append(this.accountStatus);
     const message=node('p','player-message');message.setAttribute('role','status');
-    const run=async(action,success)=>{try{message.textContent='處理中⋯⋯';await action();message.textContent=success??'';}catch(error){message.textContent=error.message;}};
+    const run=async(action,success)=>{try{message.textContent='處理中⋯⋯';await action();message.textContent=success??'';return true;}catch(error){message.textContent=error.message;return false;}};
     if(!client.configured){root.append(node('p','player-note','登入同全服排行榜暫未開放。訪客紀錄會繼續保存，之後可以合併到帳號。'));}
     else if(client.user){
       const label=node('label','player-field','排行榜暱稱');
@@ -38,15 +39,38 @@ export class PlayerUI {
         button('登出此裝置',()=>run(async()=>{await client.signOut();this.game.showCover();},'')));
     }else{
       const emailReady=client.config.email!==false;
-      if(!emailReady)root.append(node('p','player-note','Google／電郵驗證碼登入尚未開放。成績已保存在此裝置，開放登入後可以合併並上榜。'));
+      const pending=[...(!emailReady?['電郵驗證碼']:[]),...(!client.config.google?['Google']:[])];
+      if(pending.length)root.append(node('p','player-note',pending.join('／')+'登入尚未開放。成績已保存在此裝置，之後可以合併並上榜。'));
       const form=node('form','player-login');
       const label=node('label','player-field','電郵');
       const email=node('input');email.id='player-email';email.type='email';email.required=true;email.autocomplete='email';email.inputMode='email';label.append(email);
-      const send=node('button','primary',emailReady?'寄出登入郵件':'電郵登入 · 待開放');send.type='submit';send.disabled=!emailReady;email.disabled=!emailReady;
-      form.append(label,send);form.addEventListener('submit',event=>{event.preventDefault();run(()=>client.signIn(email.value),'已寄出登入郵件，請開啟信內連結；如信內有驗證碼，亦可喺下面輸入。');});
-      const otpLabel=node('label','player-field','電郵驗證碼（如有）');
+      const send=node('button','primary',emailReady?'寄出登入驗證碼':'電郵登入 · 待開放');send.type='submit';send.disabled=!emailReady;email.disabled=!emailReady;
+      form.append(label,send);
+      const otpLabel=node('label','player-field','電郵驗證碼');
       const otp=node('input');otp.id='player-otp';otp.autocomplete='one-time-code';otp.inputMode='numeric';otp.maxLength=10;otpLabel.append(otp);
-      const verify=button('驗證並登入',()=>run(()=>client.verify(email.value,otp.value.trim()),'登入完成。'),'primary');verify.disabled=!emailReady;otp.disabled=!emailReady;
+      let sending=false,verifying=false;
+      const cooldown=()=>Date.now()<(client.emailRetryAt??0)&&email.value.trim().toLowerCase()===client.emailRetryFor;
+      const refreshSend=()=>{
+        clearTimeout(this.loginRetryTimer);
+        send.disabled=!emailReady||sending||cooldown();send.textContent=!emailReady?'電郵登入 · 待開放':sending?'寄送中⋯⋯':cooldown()?'驗證碼已寄出 · 稍後可重寄':'寄出登入驗證碼';
+        if(cooldown())this.loginRetryTimer=setTimeout(()=>{if(root.isConnected)refreshSend();},Math.max(0,client.emailRetryAt-Date.now())+50);
+      };
+      email.addEventListener('input',()=>{otp.value='';refreshSend();});
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();if(sending||cooldown()||!emailReady)return;
+        sending=true;email.readOnly=true;refreshSend();
+        const target=email.value.trim().toLowerCase();
+        const sent=await run(()=>client.signIn(target),'已寄出驗證碼。請檢查收件匣或垃圾郵件，返回呢度輸入。');
+        sending=false;email.readOnly=false;
+        if(sent){client.emailRetryFor=target;client.emailRetryAt=Date.now()+60000;otp.focus({preventScroll:true});}
+        refreshSend();
+      });
+      const verify=button('驗證並登入',async()=>{
+        if(verifying)return;verifying=true;verify.disabled=true;
+        await run(()=>client.verify(email.value,otp.value.trim()),'登入完成。');
+        verifying=false;verify.disabled=!emailReady;
+      },'primary');verify.disabled=!emailReady;otp.disabled=!emailReady;
+      refreshSend();
       if(emailReady)root.append(form,otpLabel,verify);
       else root.append(send);
       if(client.config.google)root.append(button('使用 Google 登入',()=>run(()=>client.google())));
@@ -59,6 +83,9 @@ export class PlayerUI {
       client.addEventListener('change',signed);
     }
     root.append(message,node('p','player-note','排行榜只公開暱稱及成績，登入電郵唔會公開。'));
+    const links=node('nav','player-links');links.setAttribute('aria-label','帳號與資料說明');
+    for(const [path,label] of [['privacy/','私隱與資料使用'],['terms/','排行榜規則']]){const link=node('a','',label);link.href=new URL('../'+path,import.meta.url).href;links.append(link);}
+    root.append(links);
     this.game.openModal({kind:'account',mark:'☾',kicker:'守燈者名冊',title:'玩家帳號',content:root,
       buttons:[button('返回入口',()=>this.game.showCover(),'primary')]});
     this.status();

@@ -111,8 +111,14 @@ let chrome,ws;
   await ev('qa.showCover();true');
   async function login(email){
     await act('#player-account');
-    await ev('document.querySelector("#player-email").value='+JSON.stringify(email)+';document.querySelector(".player-login").requestSubmit();true');
+    const sentBefore=fixture.state.otp.length;
+    await ev('document.querySelector("#player-email").value='+JSON.stringify(email)+';for(let i=0;i<3;i++)document.querySelector(".player-login").requestSubmit();true');
     await wait('document.querySelector(".player-message")?.textContent.includes("已寄出")');
+    assert.equal(fixture.state.otp.length,sentBefore+1,'Repeated submission must send only one code');
+    assert.equal(await ev('document.querySelector(".player-login button").disabled'),true,'Resend cooldown protects against accidental duplicate mail');
+    await ev('document.querySelector("#player-otp").value="123";[...document.querySelectorAll(".player-panel button")].find(b=>b.textContent==="驗證並登入").click();true');
+    await wait('document.querySelector(".player-message")?.textContent.includes("完整")');
+    assert.equal(await ev('qa.players.user'),null,'Incomplete codes must not sign in');
     await ev('document.querySelector("#player-otp").value="123456";[...document.querySelectorAll(".player-panel button")].find(b=>b.textContent==="驗證並登入").click();true');
     await wait('qa.state==="cover" && !!qa.players.user',450);
   }

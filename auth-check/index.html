@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14111b"><meta name="robots" content="noindex"><title>登入連線測試｜貓貓啟示錄</title><link rel="stylesheet" href="../account-pages.css"><script type="module" src="./preflight.mjs?v=auth-launch-1"></script></head>
+<body><main>
+<header><span class="eyebrow">貓貓啟示錄 · 登入預備測試</span><h1>驗證守燈者身份</h1><p>呢頁用正式登入服務驗證連線，唔會建立測試分數。請用原本遊玩嘅瀏覽器登入，先可以合併該裝置嘅訪客紀錄。</p><nav aria-label="頁面導覽"><a href="../">返回遊戲</a><a href="../privacy/">私隱與資料使用</a><a href="../terms/">排行榜規則</a></nav></header>
+<section class="panel"><h2>玩家登入</h2><p id="account-state" class="status" role="status">正在檢查登入服務⋯⋯</p><button id="google" disabled>使用 Google 登入</button>
+<form id="email-form"><label for="email">收取驗證碼嘅電郵</label><input id="email" type="email" required autocomplete="email" inputmode="email"><button id="send" type="submit" disabled>寄出登入驗證碼</button></form>
+<form id="verify-form"><label for="code">郵件內嘅數字驗證碼</label><input id="code" type="text" required inputmode="numeric" autocomplete="one-time-code" maxlength="10"><button id="verify" type="submit" disabled>驗證並登入</button></form>
+<p id="notice" class="status" role="status"></p><div class="actions"><a href="../">登入後返回遊戲</a></div><p class="subtle">登入電郵唔會自動公開到排行榜。服務仍在設定時，原本遊戲嘅訪客遊玩及紀錄會繼續保留。</p></section>
+<footer>登入資料按<a href="../privacy/">私隱與資料使用</a>處理。</footer>
+</main></body></html>

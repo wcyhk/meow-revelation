@@ -6,6 +6,7 @@
 .player-field{display:grid;gap:6px;color:#ead5b4}.player-field input{width:100%;box-sizing:border-box;min-height:48px;border:1px solid #b6936677;border-radius:6px;background:#15131e;color:#fff4da;padding:10px 12px;font-size:16px;touch-action:manipulation;user-select:text;-webkit-user-select:text}
 .player-status,.player-message{min-height:24px;margin:6px 0;color:#dfc49e}.player-message{color:#aaddd5}
 .player-note{font-size:13px;line-height:1.7;color:#bfb1aa;margin:10px 0}
+.player-links{display:flex;flex-wrap:wrap;gap:16px}.player-links a{display:inline-flex;align-items:center;min-height:44px;color:#d5b785;font-size:12px;text-underline-offset:4px;touch-action:manipulation}
 .ranking-tabs{display:flex;gap:8px}.ranking-tabs button{flex:1;min-height:44px}
 .ranking-tabs [aria-pressed=true]{background:#67483f;border-color:#efce95;color:#fff2cf}
 .ranking-body{overflow:auto;max-width:100%;min-height:150px}.ranking-table{width:100%;border-collapse:collapse;font-size:14px}

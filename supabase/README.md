@@ -30,6 +30,10 @@ guest runs can be claimed when permanent login opens.
    Configure a real SMTP sender for public/player use. Supabase's default sender
    is restricted to organization-team addresses and is not production delivery:
    https://supabase.com/docs/guides/auth/auth-smtp
+   Apply `templates/login-otp.html` to **both Confirm sign up and Magic link or
+   OTP**, so first-time and returning players receive a numeric code. The tested
+   client uses `verifyOtp` with `type:'email'`. A 60-second resend cooldown prevents
+   accidental duplicate requests; the provider's server limits remain authoritative.
 6. If Google login is enabled in Supabase Auth with a valid OAuth client,
    set `google:true` in the public config. OAuth client secrets stay in Supabase.
 7. Stage runtime files, run `node tools/build-offline.mjs`, archive with
@@ -68,6 +72,7 @@ node tools/cloud-tests/test-records.mjs
 node tools/cloud-tests/test-database.mjs
 node tools/cloud-tests/smoke-player.cjs <absolute-deployment-tree>
 node tools/cloud-tests/test-live-public.mjs
+node tools/cloud-tests/check-mail-dns.mjs
 node tools/cloud-tests/smoke-live-rankings.cjs <absolute-deployment-tree>
 node tools/smoke-reward-music.cjs <absolute-deployment-tree>
 ```
@@ -82,3 +87,9 @@ isolation, one-best ranking, invincible/practice exclusion and mobile UI.
 Production release additionally needs verification against the provisioned
 Supabase project's real Auth and RPC endpoints. Fixture success is not a claim
 that production email delivery or OAuth has been configured.
+
+The public draft settings for the provider rollout are in `provider-setup.json`;
+the exact Resend DNS records are in `dns-records.json`. OAuth consent, restricted
+credential creation and credential entry still require the account owner's
+confirmation/handoff. Do not enable the public login flags before live delivery,
+OTP verification and a real Google callback have been tested.

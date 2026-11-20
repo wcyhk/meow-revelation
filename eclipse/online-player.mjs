@@ -96,12 +96,14 @@ export class OnlinePlayer extends EventTarget {
   async signIn(email){
     if(this.config.email===false)throw new Error('電郵登入服務尚未開放，訪客紀錄會繼續保留。');
     if(!this.client||!navigator.onLine)throw new Error('請連網後再登入；訪客遊玩同紀錄不受影響。');
-    const {error}=await this.client.auth.signInWithOtp({email,options:{emailRedirectTo:new URL('../',import.meta.url).href}});
-    if(error)throw new Error('暫時未能寄出登入郵件，請稍後再試。');
+    const {error}=await this.client.auth.signInWithOtp({email:email.trim().toLowerCase(),options:{emailRedirectTo:new URL('../',import.meta.url).href}});
+    if(error)throw new Error(error.status===429?'驗證碼要求太密，請稍後再試。':'暫時未能寄出登入郵件，請稍後再試。');
   }
   async verify(email,token){
     if(!this.client||this.config.email===false)throw new Error('電郵登入服務尚未開放。');
-    const {error}=await this.client.auth.verifyOtp({email,token,type:'email'});
+    const code=token.replace(/\s/g,'');
+    if(!/^\d{6,10}$/.test(code))throw new Error('請輸入郵件內完整嘅數字驗證碼。');
+    const {error}=await this.client.auth.verifyOtp({email:email.trim().toLowerCase(),token:code,type:'email'});
     if(error)throw new Error('驗證碼無效或已過期，請重新確認。');
   }
   async google(){

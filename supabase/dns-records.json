@@ -1,0 +1,27 @@
+{
+  "zone": "wcy.hk",
+  "sendingDomain": "auth-mail.wcy.hk",
+  "provider": "Resend",
+  "providerDomainId": "fd39a30f-9579-4124-8c89-8391ff7570b3",
+  "observedAt": "2026-11-20",
+  "records": [
+    {
+      "type": "TXT",
+      "name": "resend._domainkey.auth-mail",
+      "fqdn": "resend._domainkey.auth-mail.wcy.hk",
+      "value": "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDZlwMvELQ4C7Mv/cwEo5pgLlEjTjXbASERm5knaP1mTOr/MzrKPnIfNIFfBX/qdlE5vNMuLmj0eZA6ljtphvZvlIoAxJ2F6O9OwBW/AF4SfrF08P7CEk3FrwTrVfdtzOg9yzkEhN5nPv49f3VSZDoyo0pa/Uvb68QZZ0B+/x6ECQIDAQAB"
+    },
+    {
+      "type": "CNAME",
+      "name": "rsend.auth-mail",
+      "fqdn": "rsend.auth-mail.wcy.hk",
+      "value": "rsend.forge.rmta.net"
+    },
+    {
+      "type": "CNAME",
+      "name": "send.auth-mail",
+      "fqdn": "send.auth-mail.wcy.hk",
+      "value": "send.forge.rmta.net"
+    }
+  ]
+}

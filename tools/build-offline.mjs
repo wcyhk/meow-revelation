@@ -7,7 +7,7 @@ const entries=execFileSync('git',['ls-files','--stage','-z'],{cwd:root,encoding:
   .filter(Boolean).map(entry=>{
     const split=entry.indexOf('\t');
     return [entry.slice(split+1),entry.slice(0,split).split(' ')[1]];
-  }).filter(([path])=>path==='index.html'||path==='three.min.mjs'||path==='lantern-hall/index.html'||path.startsWith('eclipse/'));
+  }).filter(([path])=>path==='index.html'||path==='account-pages.css'||path==='privacy/index.html'||path==='terms/index.html'||path==='three.min.mjs'||path==='lantern-hall/index.html'||path.startsWith('eclipse/'));
 entries.sort(([left],[right])=>left.localeCompare(right,'en'));
 // Use the indexed blobs so hashes match the deployed bytes on Windows too.
 const data=execFileSync('git',['cat-file','--batch'],{cwd:root,input:entries.map(([,hash])=>hash+'\n').join(''),maxBuffer:128*1024*1024});

@@ -1,0 +1,30 @@
+{
+  "google": {
+    "projectId": "polar-lead-515305-k5",
+    "projectName": "Meow Revelation",
+    "applicationName": "貓貓啟示錄",
+    "clientName": "Meow Revelation Web",
+    "clientId": "938585351172-knt26q7q94m421ps82dslabhfa06tvg0.apps.googleusercontent.com",
+    "clientType": "Web application",
+    "javascriptOrigins": ["https://wcy.hk"],
+    "redirectUris": ["https://lndgnnygydivahrywqxa.supabase.co/auth/v1/callback"],
+    "scopes": ["openid", "email", "profile"]
+  },
+  "smtp": {
+    "host": "smtp.resend.com",
+    "port": 465,
+    "username": "resend",
+    "senderName": "貓貓啟示錄",
+    "senderEmail": "no-reply@auth-mail.wcy.hk",
+    "keyName": "Meow Revelation SMTP Restricted",
+    "keyPermission": "Sending access",
+    "keyDomain": "auth-mail.wcy.hk"
+  },
+  "emailTemplate": {
+    "subject": "貓貓啟示錄｜你的登入驗證碼",
+    "file": "templates/login-otp.html",
+    "applyTo": ["Confirm sign up", "Magic link or OTP"]
+  },
+  "siteUrl": "https://wcy.hk/meow-revelation/",
+  "secretStorage": "Enter client secret and SMTP password in the Supabase Dashboard only. Never save secret values in this file."
+}

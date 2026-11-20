@@ -1,0 +1,162 @@
+/* A quieter game shell: one primary action, grouped navigation and progressive detail. */
+:root {--ui-line:#d9be942e;--ui-muted:#baaea8;--ui-paper:#eddbbd;--ui-surface:#1a1721;--ui-radius:12px}
+#cover .cover-frame {display:none}
+#cover::before,#cover[data-ascendant]::before {background:linear-gradient(90deg,#100e19f2 0%,#100e19d4 23%,#100e1955 49%,transparent 75%),linear-gradient(0deg,#100e19b8,transparent 25%)}
+#cover .title-menu {align-self:center;width:min(460px,44vw);margin:85px 0 30px var(--inset)}
+#cover .title-group h1 {margin:10px 0 18px;font-size:clamp(46px,6vw,88px);letter-spacing:-.065em}
+#cover .title-group p {margin:0 0 32px;color:#c7b7ad;font-size:14px;letter-spacing:.12em}
+#cover .title-subtitle {font-size:14px;letter-spacing:.4em;color:#c7ac83}
+#cover .title-actions {display:grid;grid-template-columns:1fr;width:min(100%,326px);gap:0}
+#cover .title-actions button {clip-path:none;box-shadow:none;transform:none;border-radius:8px;min-height:46px;font-family:var(--sans);font-size:14px;font-weight:500;letter-spacing:.05em}
+#cover .title-actions button::before,#cover .title-actions button::after {content:none}
+#cover .title-actions #begin {display:grid;grid-template-columns:20px 1fr auto;gap:12px;align-items:center;min-height:60px;margin-bottom:18px;padding:14px 20px;border:1px solid #ffe4b5a6;border-radius:10px;background:linear-gradient(105deg,#ecdbbd,#d4af7d);color:#2d2226;font:900 19px/1.3 var(--serif);letter-spacing:.12em}
+#cover #begin .title-icon,#cover #begin .title-chevron {color:inherit;text-shadow:none}
+#cover #begin:enabled:is(:hover,:focus-visible) {background:#f3e1bd;box-shadow:0 4px 24px #c7924224}
+#cover .title-actions button:focus-visible {outline:2px solid #f5d49a;outline-offset:3px}
+#cover .menu-group {display:grid;grid-template-columns:44px 1fr 1fr;align-items:center;gap:3px;border-bottom:1px solid var(--ui-line);padding:5px 0}
+#cover .menu-group-label {font-size:11px;letter-spacing:.17em;color:#ab9990}
+#cover .menu-group button {display:block;position:relative;grid-column:auto;grid-row:auto;width:100%;padding:8px 10px;border:0;background:transparent;text-align:center;color:#e8dac7;min-width:0}
+#cover .menu-group button+button {border-left:1px solid var(--ui-line);border-radius:0}
+#cover .menu-group button:enabled:is(:hover,:focus-visible) {color:#fff1d2;background:#e2c28b0c}
+.cover-toolbar {position:absolute;z-index:2;top:max(22px,calc(env(safe-area-inset-top) + 12px));right:max(30px,calc(env(safe-area-inset-right) + 18px));display:flex;align-items:center;gap:20px}
+#cover .cover-wallet {padding:0;color:#d4c0a5;font:13px/1.3 var(--sans);letter-spacing:.025em;text-shadow:0 1px 8px #000}
+.account-chip {display:flex;align-items:center;gap:8px;position:relative;min-height:44px;padding:8px 13px;border:1px solid #cbb58c3b;border-radius:24px;background:#16141dd4;box-shadow:none;color:#ead8ba;font:13px/1.2 var(--sans)}
+.account-chip svg {width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.account-chip i {display:none;width:5px;height:5px;border-radius:50%;background:#b1d6c6}
+.account-chip[data-status=syncing] i,.account-chip[data-status=pending] i {display:block;background:#e9c184}
+.account-chip[data-status=attention] i {display:block;background:#fa9c86}
+.account-chip:enabled:is(:hover,:focus-visible) {background:#312731;border-color:#cbb58c80}
+.account-chip:disabled {opacity:.55}
+#cover .cover-footer {position:relative;inset:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 max(30px,env(safe-area-inset-right)) max(20px,calc(env(safe-area-inset-bottom) + 12px)) var(--inset);min-height:22px;font-family:var(--sans);letter-spacing:.03em}
+#cover .offline-pack {margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:8px;color:#ac9c91;font-size:10px;letter-spacing:.02em;max-width:260px;opacity:.85}
+#cover .offline-pack[data-state=ready] #offline-status::before {content:'✓';margin-right:5px;color:#b6c6b4;font-size:11px}
+#cover #offline-retry {min-height:44px;border:0;background:none;text-decoration:underline;color:#eac69b;font-size:11px}
+#cover #offline-progress {position:absolute;bottom:-4px;height:2px;max-width:180px}
+#cover #player-summary {font-size:12px;line-height:1.6;max-width:330px;margin:14px 0 0;color:#f2b8a5;min-height:0}
+#cover #load-note {top:calc(100% + 8px);font-size:11px;max-width:330px}
+#cover .test-mode-status {font-size:11px;letter-spacing:.04em;border:1px solid #dbb16b55;border-radius:20px;padding:5px 10px;background:#322619c7}
+
+/* Flat panels and restrained controls, with story illustrations left intact. */
+#modal:not([data-kind=dialogue]) {backdrop-filter:none;background:#0a0913c4;padding:clamp(12px,2vw,26px)}
+#modal:not([data-kind=dialogue]) .panel {border:1px solid #cdb18d50;border-radius:16px;background:linear-gradient(135deg,#29212d,#17151f 65%);box-shadow:0 20px 70px #05040b88;padding:clamp(20px,3vw,32px)}
+#modal[data-kind=account] .panel {width:min(520px,100%)}
+#modal:not([data-kind=dialogue]) #modal-mark {display:none}
+#modal:not([data-kind=dialogue]) #modal-title {font-size:clamp(25px,3.5vw,34px);line-height:1.3;letter-spacing:.04em;margin:5px 0 12px}
+#modal:not([data-kind=dialogue]) #modal-kicker {font:11px/1.4 var(--sans);letter-spacing:.17em;color:#b5a18b;margin:0 0 5px}
+#modal:is([data-kind=account],[data-kind=records],[data-kind=leaderboard],[data-kind=training],[data-kind=practice-loadout]) #modal-kicker {display:none}
+#modal:not([data-kind=dialogue]) #modal-copy {font-size:12px;color:#bdada1;letter-spacing:.025em;line-height:1.7;margin-bottom:22px;max-width:42em}
+#modal #modal-copy:empty {display:none}
+#modal:not([data-kind=dialogue]) :is(button.primary,button.secondary) {box-shadow:none;border:1px solid #bea27c45;border-radius:8px;min-height:44px;font-family:var(--sans);letter-spacing:.025em;font-weight:500;background:#2a2430;padding:10px 16px}
+#modal:not([data-kind=dialogue]) button.primary {color:#fce5c2;background:#6a4642;border-color:#bc8e6370}
+#modal:not([data-kind=dialogue]) :is(button.primary,button.secondary):enabled:hover {border-color:#debb87;background:#4b3741}
+#modal:not([data-kind=dialogue]) #modal-actions {border-top:1px solid var(--ui-line);margin-top:22px;padding-top:14px}
+#modal:is([data-kind=account],[data-kind=records],[data-kind=leaderboard],[data-kind=training]) #modal-actions button {background:transparent;box-shadow:none;border-color:transparent;color:#c8b6a0;font-size:12px;padding-inline:20px}
+
+.player-panel {gap:16px;max-width:440px;font-size:14px;line-height:1.6}
+.player-panel .player-status {font-size:13px;color:#bfafa4;margin:0 0 4px;min-height:0}
+.player-panel .player-google {width:100%;min-height:48px!important}
+.player-divider {display:flex;align-items:center;gap:12px;font-size:11px;color:#af9d93;margin:3px 0;white-space:nowrap}
+.player-divider::before,.player-divider::after {content:'';height:1px;flex:1;background:var(--ui-line)}
+.player-login {display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:10px;align-items:end}
+.player-field {font-size:12px;gap:7px;color:#cfbca8}
+.player-panel .player-login button {padding:10px 6px;font-size:12px;min-height:48px}
+.player-field input {border-color:#b798703d;background:#12111ad4;border-radius:8px;font-size:16px}
+.player-verification {display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:10px;align-items:end;border-top:1px solid var(--ui-line);padding-top:16px}
+.player-panel .player-verification button {font-size:12px;padding:10px 6px;min-height:48px}
+.player-note {font-size:11px;color:#ac9d94;line-height:1.7;margin:0}
+.player-message {margin:0;color:#badbca;font-size:12px;min-height:0}
+.player-message:empty {display:none}
+.player-links {gap:16px;border-top:1px solid var(--ui-line);padding-top:8px}
+.player-links a {font-size:11px;color:#bda88f;min-height:36px}
+.player-edit {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.player-edit button {font-size:12px;min-height:48px!important}
+.player-account-actions {display:flex;justify-content:space-between;gap:10px}
+#modal .player-account-actions button {flex:1;background:transparent;font-size:12px}
+.ranking-tabs {gap:3px;padding:4px;border:1px solid var(--ui-line);border-radius:10px;background:#13111b}
+#modal .ranking-tabs button {min-height:40px;border:0;background:transparent;border-radius:6px;font-size:13px}
+#modal .ranking-tabs button[aria-pressed=true] {background:#49363d;color:#f8e3bf}
+.ranking-table th {font-size:11px;color:#bca68e}.ranking-table td {font-size:13px}
+.ranking-body {min-height:110px}.ranking-panel .player-note {margin-top:14px}
+.challenge-history {border-color:var(--ui-line);margin-top:20px}.challenge-history h3 {font-size:16px;font-weight:500;letter-spacing:.05em}
+.challenge-history>.player-status {font-size:11px;line-height:1.7;color:#ac9d94}
+.records-ledger {gap:0!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;background:#15131b;border:1px solid var(--ui-line);border-radius:10px;overflow:hidden}
+.records-ledger .record-card {border:0;background:transparent;border-radius:0;padding:14px;box-shadow:none;min-width:0}
+.records-ledger .record-card+.record-card {border-left:1px solid var(--ui-line)}
+.records-ledger>.challenge-history {grid-column:1/-1;margin:0;padding:18px 16px;border-top:1px solid var(--ui-line);text-align:left}
+.records-ledger>.record-title {grid-column:1/-1}
+.record-card h3 {font-size:15px;margin-top:0}.record-fields div {display:block;margin-top:10px}.record-fields dt {font-size:10px;color:#ac9d94}.record-fields dd {font-size:16px;margin:4px 0 0;white-space:nowrap}
+.record-rewards {font-size:11px;color:#bfa78f;margin-top:12px;text-align:left}.record-rewards summary {cursor:pointer;min-height:36px;display:flex;align-items:center}
+.record-rewards summary::after {content:'+';margin-left:5px}.record-rewards[open] summary::after {content:'−'}
+.record-rewards .record-milestone {font-size:10px;line-height:1.6;margin:4px 0}
+.training-row {border-color:var(--ui-line);box-shadow:none;border-radius:8px;background:#211b27}
+
+/* Show weapon essentials on cards; full move text lives in the preview disclosure. */
+.arm-card {box-shadow:none!important;border-radius:10px;border-color:#b3987240;overflow:hidden}
+.arm-card .arm-basic,.arm-card .arm-combo,.arm-card .arm-link {display:none}
+.arm-text {gap:5px}.arm-card .arm-text b {font-size:21px;margin:3px 0 6px}.arm-card .arm-text small {font:11px/1.5 var(--sans);letter-spacing:.06em;color:#c7b59f}
+.arm-card .arm-text strong {font:500 13px/1.5 var(--sans);margin-top:3px}.arm-card .arm-text .arm-skill-detail {font:12px/1.7 var(--sans);color:#bfae9e}
+.arm-card .arm-resonance {font-size:11px;line-height:1.65;padding-top:8px;margin-top:6px;border-top:1px solid var(--ui-line);color:#d6c6a7}
+.arm-portrait::before,.heirloom-portrait::before {display:none}
+.heirloom-picker summary {background:#211b27;border-color:var(--ui-line);border-radius:8px;font-size:12px;min-height:44px}
+.heirloom-choice {border-color:var(--ui-line);border-radius:8px;box-shadow:none}
+.weapon-viewer {border-radius:14px;border-color:#c4aa7c66;background:#1a1722}.weapon-viewer::backdrop {backdrop-filter:none;background:#09080ee8}
+.weapon-viewer-head h2 {font-size:28px}.weapon-viewer-stage::before {display:none}
+.weapon-viewer :is(button.primary,button.secondary) {box-shadow:none;border:1px solid var(--ui-line);border-radius:7px;min-height:44px}
+.weapon-notes {margin:10px 20px 0;border-top:1px solid var(--ui-line);font:12px/1.7 var(--sans);text-align:left;color:#baaaa0}
+.weapon-notes summary {min-height:44px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:#d8c4a7;list-style:none}
+.weapon-notes summary::after {content:'+';font-size:18px}.weapon-notes[open] summary::after {content:'−'}
+.weapon-notes dl {margin:0 0 12px}.weapon-notes dl>div {padding:8px 0;border-top:1px solid #baa68d16}.weapon-notes dt {color:#e3d0af;margin-bottom:3px}.weapon-notes dd {margin:0;color:#baaaa0}
+.weapon-viewer[data-subject=weapon]:has(.weapon-notes[open]) .weapon-viewer-description {display:none}
+
+/* Keep combat information together, preserving skill targeting and touch geometry. */
+#hud .health-hud::before,#hud .route-hud::before {border:0;background:#11101ac9;box-shadow:none;border-radius:12px}
+#hud .portrait {box-shadow:none;border-color:#d8bd925f}
+#hud .health-track,#hud .boss-track {border-radius:5px;border-color:#a881614d;box-shadow:none;overflow:hidden}
+#hud #route-dots {display:none}
+#hud #route-name {font-size:14px;letter-spacing:.04em}
+#hud #route-floor {font-size:11px;letter-spacing:.02em;color:#e3c8a3}
+#hud .run-counters {gap:11px;margin-top:5px;font-size:10px;color:#bbaa95;letter-spacing:0}
+#hud .utility {gap:0;padding:2px;background:#15121cdb;border:1px solid var(--ui-line);border-radius:12px}
+#hud .utility button {background:transparent;border:0;border-radius:8px;box-shadow:none;min-height:40px;min-width:40px;width:40px;height:40px}
+#hud #boss-hud i {display:none}
+#hud #boss-hud {letter-spacing:.055em}
+#hud #objective {border:0;border-radius:8px;background:#12101cc7;font-size:11px;letter-spacing:.03em;line-height:1.5}
+
+@media(max-width:700px) and (orientation:portrait) {
+  #cover,#cover[data-ascendant] {--inset:max(24px,calc(env(safe-area-inset-left) + 16px))}
+  #cover::before,#cover[data-ascendant]::before {background:linear-gradient(0deg,#100e19 0%,#100e19ee 20%,#100e19b5 40%,#100e1918 69%,transparent 88%)}
+  #cover .title-menu {align-self:end;width:auto;margin:40dvh var(--inset) 20px}
+  #cover .title-group h1 {font-size:clamp(40px,12vw,68px);margin:10px 0 12px}
+  #cover .title-group p {font-size:12px;margin-bottom:24px;letter-spacing:.09em}
+  #cover .title-subtitle {font-size:12px;letter-spacing:.3em}
+  #cover .title-actions {width:100%;grid-template-columns:1fr}
+  #cover .title-actions #begin {min-height:56px;margin-bottom:12px;font-size:18px}
+  #cover .menu-group {grid-template-columns:40px 1fr 1fr}
+  #cover .menu-group button {font-size:13px;min-height:44px}
+  .cover-toolbar {top:max(16px,calc(env(safe-area-inset-top) + 8px));right:max(20px,calc(env(safe-area-inset-right) + 14px));gap:14px}
+  #cover .cover-wallet {font-size:11px}.account-chip {font-size:12px;min-height:44px}
+  #cover .cover-footer {margin-inline:var(--inset);margin-bottom:max(16px,calc(env(safe-area-inset-bottom) + 9px))}
+  #cover .offline-pack {font-size:9px;max-width:180px}
+  #modal:not([data-kind=dialogue]) .panel {padding:22px 18px}
+  #modal:not([data-kind=dialogue]) #modal-title {font-size:27px;margin-bottom:18px}
+  .player-panel {gap:14px}.player-links a {min-height:44px}
+  .records-ledger .record-card {padding:12px 8px}.record-card h3 {font-size:13px}.record-fields dd {font-size:14px}
+  .arm-card .arm-text b {font-size:18px;margin:2px 0 5px}.arm-card .arm-text small {font-size:10px}.arm-card .arm-text .arm-skill-detail {font-size:11px}
+  .arm-card .arm-resonance {font-size:10px}.weapon-viewer-head h2 {font-size:23px}
+  #hud #route-name {font-size:12px}#hud .utility button {min-width:40px;min-height:44px;height:44px}
+}
+@media(max-height:500px) and (orientation:landscape) {
+  #cover .title-menu {align-self:center;margin:44px 0 10px var(--inset);width:min(420px,50vw)}
+  #cover .title-group h1 {font-size:43px;margin:5px 0 10px}#cover .title-group p {font-size:11px;margin-bottom:14px}
+  #cover .title-actions {width:min(310px,100%)}#cover .title-actions #begin {min-height:46px;font-size:16px;margin-bottom:6px;padding-block:9px}
+  #cover .menu-group {padding-block:1px}#cover .menu-group button {min-height:44px;font-size:12px}
+  #cover .title-subtitle {font-size:11px}.cover-toolbar {top:12px;right:22px}
+  #cover .cover-footer {margin-bottom:14px}
+}
+@media(max-width:700px) and (max-height:740px) and (orientation:portrait) {
+  #cover .title-menu {margin-top:26dvh;margin-bottom:16px}
+  #cover .title-group h1 {font-size:43px;margin-block:8px 10px}
+  #cover .title-group p {margin-bottom:16px}
+  #cover .title-actions #begin {min-height:52px;margin-bottom:8px}
+}
+@media(prefers-reduced-motion:reduce) {#cover #begin:enabled:hover {box-shadow:none}}

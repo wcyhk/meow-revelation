@@ -375,6 +375,7 @@ export class Game {
       const basic=document.createElement('span'), moves=document.createElement('span');
       const skill=document.createElement('strong'), detail=document.createElement('span'), link=document.createElement('span');
       role.textContent=(nightArms.includes(weapon)?'夜祭 · ':'')+weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
+      basic.className='arm-basic';detail.className='arm-skill-detail';
       moves.className='arm-combo';
       moves.textContent=comboNames(weapon).join(' → ');
       skill.textContent=weapon.skill; detail.textContent=weapon.detail;
@@ -416,9 +417,9 @@ export class Game {
     content.append(grid);
     this.openModal({kind:'armory',mark:'◇',
       kicker:milestone?'第 '+this.stage.floor+' 關 · '+this.stage.zone.name:'神獸遺物',
-      title:milestone?'領取頭目遺物':this.duelMonster?'試戰 · '+this.duelMonster.name:'向林火借一件神器',
+      title:milestone?'領取頭目遺物':this.duelMonster?'試戰 · '+this.duelMonster.name:'選擇神器',
       copy:milestone?'你已擊敗'+this.stage.guardian.name+'。揀一件新神器帶走，祝福同流派技能會繼續生效。'
-        :'揀難度、勾選入場技能，再帶一件神器出發。',content,
+        :'點選神器查看模型與招式，再帶一件出發。',content,
       buttons:milestone?[]:[makeButton(this.duelMonster?'返回練習場':'返回主畫面',()=>{
         const back=!!this.duelMonster;this.showCover();if(back)this.openPracticeLoadout();
       })]});

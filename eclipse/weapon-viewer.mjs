@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
-import {comboNames} from './weapon-combos.mjs?v=weapon-audit-1';
+import {comboNames,skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
@@ -132,6 +132,7 @@ export class WeaponViewer {
     this.motions.setAttribute('role','group');
     this.motions.setAttribute('aria-label','頭目動作預覽');
     this.detail=node('p','weapon-viewer-description');
+    this.notes=node('details','weapon-notes');
     this.choose=button('',()=>{
       const {commit}=this;
       this.dialog.close();
@@ -146,7 +147,7 @@ export class WeaponViewer {
     const actions=node('div','weapon-viewer-actions');
     actions.append(this.practiceChoice,this.choose);
     footer.append(this.detail,actions);
-    this.dialog.append(header,this.stage,this.tools,this.weakness,this.motions,this.attacks,footer);
+    this.dialog.append(header,this.stage,this.tools,this.weakness,this.motions,this.attacks,this.notes,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
       if(this.dialog.open)return;
@@ -236,6 +237,14 @@ export class WeaponViewer {
     this.attackControls=[];
     this.attacks.replaceChildren();
     this.inspect.textContent='旋轉睇模型';
+    const notes=node('dl');
+    const link=skillLinks[weapon.id];
+    for(const [label,text] of [['普攻連段',comboNames(weapon).join(' → ')+'。'+weapon.basic],
+      [weapon.skill,weapon.detail],[link?.name,link?.detail],['專屬祝福',weapon.blessing?weapon.blessing.name+' · '+weapon.blessing.detail:null]]){
+      if(!label||!text)continue;
+      const row=node('div');row.append(node('dt','',label),node('dd','',text));notes.append(row);
+    }
+    this.notes.replaceChildren(node('summary','','招式與祝福'),notes);
     this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice:'選擇'+weapon.name,
       image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon))});
   }
@@ -305,6 +314,7 @@ export class WeaponViewer {
     this.dialog.classList.toggle('pao-viewer',paoForms.has(this.boss?.bestiary?.id));
     this.dialog.style.setProperty('--preview-ink',ink);
     this.combo.hidden=this.skill.hidden=!!this.boss;
+    this.notes.hidden=!!this.boss;this.notes.open=false;
     this.attacks.hidden=!this.boss;
     this.motions.hidden=!this.boss||!this.motionNames;
     this.weakness.hidden=!this.boss;

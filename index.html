@@ -21,7 +21,8 @@
   <link rel="stylesheet" href="./playback.css?v=quiet-music-ui-1">
   <link rel="stylesheet" href="./player-ui.css?v=auth-onboarding-1">
   <link rel="stylesheet" href="./interface-motion.css?v=lantern-ui-1">
-  <script type="module" src="./game.mjs?v=auth-live-1"></script>
+  <link rel="stylesheet" href="./quiet-ui.css?v=quiet-ui-1">
+  <script type="module" src="./game.mjs?v=quiet-ui-1"></script>
   <script type="module" src="./offline.mjs?v=lantern-ui-1" async></script>
 </head>
 <body>
@@ -39,27 +40,27 @@
         <img class="awakened-poster" src="./art/lantern-ascendant.webp" alt="">
       </div>
       <div class="cover-frame" aria-hidden="true"></div>
+      <div class="cover-toolbar">
+        <span class="cover-wallet" id="entry-gold">金幣 0</span>
+        <button id="player-account" type="button" class="account-chip" aria-label="玩家登入" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg><span class="menu-label">登入</span><i aria-hidden="true"></i></button>
+      </div>
       <div class="title-menu">
         <header class="title-group">
           <span class="title-subtitle">緋月之森</span>
           <h1><button id="cover-title" type="button" aria-label="貓貓啟示錄。連續按三下切換無敵測試模式" aria-pressed="false">貓貓啟示錄</button></h1>
-          <p>小燈被帶入王座的囚名庫。提燈追過百道封印，查清四商會的契約，把妹妹活着帶回家。</p>
+          <p>提燈入林，帶小燈回家。</p>
         </header>
         <nav class="title-actions" aria-label="遊戲選單">
-          <button class="primary" id="begin" disabled aria-busy="true"><span class="title-icon" aria-hidden="true">✦</span><span>進入緋月之森</span><span class="title-chevron" aria-hidden="true">›</span></button>
-          <button class="secondary" id="bestiary" disabled><span class="title-icon" aria-hidden="true">◇</span><span>練習場</span><span class="title-chevron" aria-hidden="true">›</span></button>
-          <button class="secondary" id="training" disabled><span class="title-icon" aria-hidden="true">✧</span><span>訓練所</span><span class="title-chevron" aria-hidden="true">›</span></button>
-          <button class="secondary" id="records" disabled><span class="title-icon" aria-hidden="true">☽</span><span>個人紀錄</span><span class="title-chevron" aria-hidden="true">›</span></button>
-          <button class="secondary" id="leaderboard" disabled><span class="title-icon" aria-hidden="true">♛</span><span>遠征排行</span><span class="title-chevron" aria-hidden="true">›</span></button>
-          <button class="secondary" id="player-account" disabled><span class="title-icon" aria-hidden="true">☾</span><span class="menu-label">玩家登入</span><span class="title-chevron" aria-hidden="true">›</span></button>
+          <button class="primary" id="begin" disabled aria-busy="true"><span class="title-icon" aria-hidden="true">✦</span><span>開始冒險</span><span class="title-chevron" aria-hidden="true">→</span></button>
+          <div class="menu-group" role="group" aria-label="準備冒險"><span class="menu-group-label" aria-hidden="true">整裝</span><button id="bestiary" type="button" disabled>練習場</button><button id="training" type="button" disabled>訓練所</button></div>
+          <div class="menu-group" role="group" aria-label="旅程紀錄"><span class="menu-group-label" aria-hidden="true">旅程</span><button id="records" type="button" disabled>個人紀錄</button><button id="leaderboard" type="button" disabled>排行榜</button></div>
         </nav>
-        <p id="player-summary" aria-live="polite">訪客 · 可離線遊玩</p>
+        <p id="player-summary" aria-live="polite" hidden></p>
         <div id="load-note" role="status">正在點亮森林的燭火⋯⋯</div>
-        <div class="offline-pack"><span id="offline-status" aria-live="polite">準備離線資源⋯⋯</span><button id="offline-retry" type="button" hidden>重試下載</button><progress id="offline-progress" max="100" aria-label="離線資源下載進度" hidden></progress></div>
       </div>
       <div class="cover-footer">
-        <span id="entry-gold">金幣 0</span>
         <span id="test-mode-status" role="status" class="test-mode-status" hidden></span>
+        <div class="offline-pack"><span id="offline-status" aria-live="polite">準備離線資源⋯⋯</span><button id="offline-retry" type="button" hidden>重試下載</button><progress id="offline-progress" max="100" aria-label="離線資源下載進度" hidden></progress></div>
       </div>
       <div id="title-flare" aria-hidden="true"><i></i><b></b></div>
     </section>

@@ -182,10 +182,13 @@ export function recordsPanel(profile,modes) {
       fields.append(pair);
     }
     card.append(fields);
+    const rewards=element('details','record-rewards');
+    rewards.append(element('summary',null,'挑戰獎勵'));
     for (const reward of milestones[mode.id]) {
       const earned=reward.id==='moonless'?record.fastest!==null:record.cleared>=reward.floor;
-      card.append(element('p','record-milestone',`第 ${reward.floor} 關 · ${reward.name}${earned?' ✓':''}`));
+      rewards.append(element('p','record-milestone',`第 ${reward.floor} 關 · ${reward.name}${earned?' ✓':''}`));
     }
+    if(milestones[mode.id].length)card.append(rewards);
     root.append(card);
   }
   return root;

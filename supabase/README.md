@@ -7,12 +7,13 @@ difficulty. A local guest ID is not an authenticated cloud account.
 ## Provisioning
 
 The dedicated project is `lndgnnygydivahrywqxa` (Meow Revelation, Tokyo).
-The database is connected. `email:false` and `google:false` deliberately keep
-public login disabled while SMTP and Google OAuth are pending, per the owner's
-choice. Guest play, local history, and public leaderboard viewing remain enabled.
-Turn `email:true` only after real SMTP delivery and OTP verification are tested;
-turn `google:true` only after the configured OAuth callback is tested. Existing
-guest runs can be claimed when permanent login opens.
+The database and both authentication providers are connected. A production Google
+OAuth callback, SMTP delivery and numeric email OTP login were verified on
+2026-11-20. Google and email login with the same verified email resolve to the
+same player account. Both public provider flags are enabled. Guest play, local
+history and public leaderboard viewing remain available without signing in.
+For later provider changes, enable a flag only after verifying its real callback
+or email delivery and verification again.
 
 1. Create the dedicated **Meow Revelation** project in the **Meow Revelation**
    Free organization, in Asia-Pacific. The owner enters the database password.
@@ -70,6 +71,7 @@ Install test dependencies with `npm ci --prefix tools/cloud-tests`.
 ```
 node tools/cloud-tests/test-records.mjs
 node tools/cloud-tests/test-database.mjs
+node tools/cloud-tests/test-auth-callback.mjs
 node tools/cloud-tests/smoke-player.cjs <absolute-deployment-tree>
 node tools/cloud-tests/test-live-public.mjs
 node tools/cloud-tests/check-mail-dns.mjs

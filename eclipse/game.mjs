@@ -49,6 +49,7 @@ import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {wardenStrikeLook} from './warden-ground.mjs';
 import {moonSlashDuration,moonSlashPattern,queueMoonSlash} from './warden-moon-slash.mjs';
 import {moonPincerPreview} from './warden-moon-assist.mjs';
+import {RewardedRevive} from './rewarded-revive.mjs';
 import {dismissWardenReinforcements,isWardenSummoner,resolveWardenSummon,rewardWardenReinforcement,
   wardenBoon,wardenReinforcementSpecs,wardenSummonPattern,wardenSummonReady} from './warden-reinforcements.mjs';
 
@@ -102,6 +103,7 @@ export class Game {
   constructor(view, audio) {
     this.view = view;
     this.audio = audio;
+    this.rewardedRevive=new RewardedRevive(document.querySelector('meta[name="meow-adsense-client"]')?.content??'');
     this.state = 'cover';
     this.players=new OnlinePlayer();
     this.playerUI=new PlayerUI(this,this.players);
@@ -472,6 +474,8 @@ export class Game {
     this.altar=null;
     this.twinReward=null;
     this.failure=null;
+    this.reviveOffered=false;
+    if(!this.testRun&&!this.practiceRun&&!this.duelMonster)this.rewardedRevive.prepare();
     this.heroVisual = this.view.createActor(0,2.68,true);
     this.relics = this.testRun?testBlessings():this.practiceRun?[...this.practiceRun.relics]:[];
     this.huntedWeapons=new Set();
@@ -1941,7 +1945,7 @@ export class Game {
     }
     if (this.state==='falling') {
       this.animateActors(dt);
-      if (this.hero.reaction.age>=reactionTime.fall) this.finish(false);
+      if (this.hero.reaction.age>=reactionTime.fall) this.offerRevive();
       return;
     }
     this.buffered.dodge = input.dodge ? .39 : this.buffered.dodge-dt;
@@ -2607,6 +2611,53 @@ export class Game {
     }
     paint();
     return panel;
+  }
+
+  offerRevive(){
+    if(this.reviveOffered||this.testRun||this.practiceRun||this.duelMonster||!this.rewardedRevive.available){
+      this.finish(false);
+      return;
+    }
+    this.reviveOffered=true;
+    this.state='revive-offer';
+    const hero=this.hero;
+    let restoreSound=false;
+    this.rewardedRevive.offer({
+      prompt:(watch,decline)=>{
+        if(this.state!=='revive-offer'||this.hero!==hero){decline();return;}
+        const accept=makeButton('睇 1 個廣告復活',()=>{
+          accept.disabled=leave.disabled=true;
+          watch();
+        },'primary');
+        const leave=makeButton('結束本局',decline);
+        this.openModal({kind:'revive-offer',mark:'✦',kicker:'第 '+this.stage.floor+' 關',title:'再點一盞燈',
+          copy:'睇完 1 個廣告可原地復活，回復一半生命。本局只可用一次，遠征排行以倒地前嘅成績為準。',
+          buttons:[accept,leave],focus:leave});
+      },
+      playing:()=>{
+        restoreSound=!this.audio.muted;
+        if(restoreSound)this.audio.toggle();
+      },
+      complete:reward=>{
+        if(restoreSound&&this.audio.muted)this.audio.toggle();
+        if(this.state!=='revive-offer'||this.hero!==hero)return;
+        this.closeModal();
+        if(!reward){this.finish(false);return;}
+        this.recordChallenge('failed');
+        hero.hp=Math.ceil(hero.maxHp*.5);
+        hero.invulnerable=2.4;
+        hero.reaction=null;
+        hero.snared=hero.vx=hero.vz=0;
+        this.damageFlash=this.hitstop=0;
+        this.state='play';
+        this.audio.active=true;
+        this.view.shock(hero.x,hero.z,0x9cffda,2.3,.83);
+        this.view.elementBurst(hero.x,.36,hero.z,0x9bffd2,'light',19,1.16);
+        this.audio.play('branch-revive');
+        this.announce('守燈貓','燈火重燃','已回復一半生命 · 本局廣告復活已用',2.1);
+        this.view.canvas.focus({preventScroll:true});
+      },
+    });
   }
 
   finish(won,reason) {

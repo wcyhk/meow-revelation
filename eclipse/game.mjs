@@ -253,6 +253,8 @@ export class Game {
       chooseWeapon:weapon=>this.setPracticeWeapon(weapon),chooseBoss:entry=>this.setPracticeBoss(entry)});
     this.openModal({kind:'practice-loadout',mark:'◇',kicker:'',title:'練習場',copy:'',content,
       buttons:[makeButton('返回入口',()=>this.showCover()),
+        makeButton({ja:'エフェクト試演',en:'Effect Lab','zh-Hans':'特效演练','zh-Hant':'特效演練'}[language],
+          ()=>import('./effect-lab.mjs').then(module=>{if(this.state==='practice-loadout')module.openEffectLab();})),
         ...(canResume?[makeButton('繼續本場',()=>this.togglePause())]:[]),
         makeButton('開始練習',()=>this.startPractice(),'primary')]});
     this.ui['modal-content'].scrollTop=0;

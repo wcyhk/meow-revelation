@@ -205,7 +205,8 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
         else view.comboArrow(shot.origin,shot.dx,shot.dz,shot.reach,weapon.tone,travel,i===hits-1);
         const impact={x:shot.origin.x+shot.dx*shot.reach,z:shot.origin.z+shot.dz*shot.reach};
         schedule(travel,()=>{
-          if(weapon.id==='red-bow'||weapon.id==='lion-crossbow')
+          const replaced=weapon.id==='red-bow'&&view.combatSpellFx?.play('fire-explosion',impact,radius,.9,weapon.tone,null,view.feedback.subdued);
+          if(!replaced&&(weapon.id==='red-bow'||weapon.id==='lion-crossbow'))
             view.threatImpact({...impact,kind:'circle',radius,tint:weapon.tone,effect:weapon.effect});
           burst(impact,radius,1,i);
         });

@@ -32,6 +32,8 @@ import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 import {WardenGround,wardenStrikeLook} from './warden-ground.mjs';
 import {wardenThreatPhase} from './threats.mjs?v=world-3d-1';
+import {AttackWarnings} from './attack-warnings.mjs';
+import {CombatSpellFx,fieldEffects,guardEffects} from './combat-spell-fx.mjs';
 
 const PI = Math.PI;
 const baseCastLooks={
@@ -315,6 +317,8 @@ export class Scenery {
     this.elementBudget=0;
     this.leaves = this.createLeaves(this.mobile ? 15 : 28);
     this.effects = [];
+    this.attackWarnings = new AttackWarnings(this.scene);
+    this.combatSpellFx = new CombatSpellFx(this.scene,this.mobile);
     this.motion = new MotionArt(this);
     this.clue = this.makeClue();
     this.ward = this.makeWard();
@@ -421,6 +425,7 @@ export class Scenery {
     const point={x:0,y:.1,z:0},tint=0xffc786;
     this.warning('circle',0,0,1,1);
     this.warning('line',0,0,4,1,0,.55);
+    this.warning('ring',0,0,2,1,0,.5);
     this.sealFx(0,0,tint,2);
     this.motion.ribbon(this.motion.cut,point,tint,.3);
     this.motion.impactLight(point,tint,1,0);
@@ -429,6 +434,7 @@ export class Scenery {
     const group=new T.Group();
     const samples=this.effects.splice(0);
     for(const {mesh} of samples)group.add(mesh);
+    this.attackWarnings.moveTo(group);
     // Sealing a route creates a separate crack without the phase floor's
     // cutaway shader. Keep its exact draw programs resident before combat.
     const fissure=this.arenaArt.fissureSample();
@@ -442,6 +448,7 @@ export class Scenery {
         this.preparedEffectMaterials=materials;
       }
     }finally{
+      this.attackWarnings.clear();
       for(const fx of samples){
         if(!ready)fx.mesh.material.dispose();
         else if(fx.materialKey)this.recycleEffectMaterial(fx.materialKey,fx.mesh.material);
@@ -659,6 +666,8 @@ export class Scenery {
     this.arenaDarkness=0;
     this.clue.visible = false;
     this.ward.visible = false;
+    this.attackWarnings.clear();
+    this.combatSpellFx.clear();
     for (const fx of this.effects) this.release(fx);
     this.effects.length = 0;
     this.renderEffectBatches();
@@ -961,6 +970,7 @@ export class Scenery {
 
   equip(actor, weapon) {
     this.unequip(actor);
+    this.combatSpellFx.prepare(weapon.id);
     const model = borrowForge(weapon);
     const glow = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.08,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
     glow.scale.set(.90,.90,1);
@@ -1119,6 +1129,7 @@ export class Scenery {
   }
 
   relicStorm(weapon,point,radius,duration) {
+    if(this.combatSpellFx.play(fieldEffects[weapon.id],point,radius,duration,weapon.tone,null,this.feedback.subdued))return;
     const {look}=weapon.spell;
     if(look==='blade-wheel'){
       this.motion.spinningDisk(point.x,point.z,1,0,0,weapon.tone,0,true,duration,radius*.82);
@@ -1129,6 +1140,7 @@ export class Scenery {
   }
 
   relicAura(weapon,unit,duration,morph=false) {
+    if(this.combatSpellFx.play(guardEffects[weapon.id],unit,2.25,duration,weapon.tone,unit,this.feedback.subdued))return;
     const seal=this.addEffect(plane,{x:unit.x,y:.095,z:unit.z},weapon.tone,duration,
       {map:this.relicTexture(weapon.id),scale:3.4,growth:.36,opacity:.49,fade:true,order:31});
     seal.follow=unit;
@@ -1922,6 +1934,7 @@ export class Scenery {
   }
 
   warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780,active,elapsed,warningInk) {
+    if(this.attackWarnings?.show(kind,x,z,radius,time,angle,width,warningInk,active,elapsed,this.feedback.subdued))return;
     const point={x,y:.049,z};
     const paint=(geometry,location,tint,settings)=>{
       const effect=this.addEffect(geometry,location,tint,time,settings);
@@ -2301,6 +2314,8 @@ export class Scenery {
       if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
     }
     this.updateEffects(dt,paused,freezeWarnings);
+    this.attackWarnings.update(dt,paused,freezeWarnings);
+    this.combatSpellFx.update(paused||freezeWarnings?0:dt);
     this.renderEffectBatches();
     this.spellLighting.tick(paused?0:dt);
     this.wardenGround?.tick(paused?0:dt);

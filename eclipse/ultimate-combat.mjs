@@ -138,7 +138,9 @@ export function launchUltimate(game,link,wind,rite) {
           disk(center,2.72,foe=>hit(foe,1.25,center,1.66,'heavy'));
           sound(2);
         });
-        trackUltimate(cyclone,seal(seed,2.0,life+.10),ultimateBody(view,rite,seed,1.78,life+.10,true));
+        const renewed=view.combatSpellFx?.play('lightning-fire-tornado',seed,1.78,life,tint,cyclone,view.feedback.subdued);
+        trackUltimate(cyclone,seal(seed,2.0,life+.10));
+        if(!renewed)trackUltimate(cyclone,ultimateBody(view,rite,seed,1.78,life+.10,true));
         sound();
       });
       break;

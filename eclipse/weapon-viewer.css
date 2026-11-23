@@ -5,6 +5,14 @@
   box-shadow:0 22px 76px #040308c7;
 }
 .weapon-viewer::backdrop {background:#09080ee0;backdrop-filter:blur(6px)}
+.fx-lab .fx-lab-pick {display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 20px 12px}
+.fx-lab :is(input,select) {min-width:0;width:100%;min-height:42px;padding:8px 10px;font:inherit;
+  color:#f5e4ce;background:#171520;border:1px solid #725b48;border-radius:5px}
+.fx-lab canvas {display:block;width:100%;height:min(54dvh,460px);min-height:200px;touch-action:none;background:#14141e}
+.fx-lab [role=status] {margin:0;color:#d3bc9d;font-size:.9rem;text-align:left}
+.fx-lab .secondary {min-height:42px;flex:none}
+@media(max-width:480px){.fx-lab .fx-lab-pick{grid-template-columns:1fr;padding-inline:12px}
+  .fx-lab :is(.weapon-viewer-head,.weapon-viewer-footer){padding:10px 12px}}
 .weapon-viewer-head,.weapon-viewer-footer {
   display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;
 }

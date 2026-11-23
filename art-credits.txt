@@ -42,20 +42,28 @@ SIL Open Font License 1.1 及版權聲明見 eclipse/FONT-OFL.txt。
 https://github.com/notofonts/noto-cjk/releases/tag/Serif2.003
 https://github.com/google/fonts/tree/main/ofl/notoseriftc
 
-現有插畫的來源紀錄待補
-以下圖片已核對用途及版本庫路徑。現存檔案及提交紀錄可追蹤版本，
-尚未找到可核實其原始生成、委託或授權的紀錄。
-• 標題海報及舊畫面後備圖：eclipse/art/moon-gate.webp、
-  eclipse/art/lantern-ascendant.webp、eclipse/cover.jpg。
-• 守燈貓、戰鬥圖格、拾取物及人物頭像：eclipse/art/lantern-keeper.webp、
-  eclipse/art/forest-enemies.webp、eclipse/art/chapter-bosses.webp、
-  eclipse/art/coin-pickup.webp、eclipse/art/keepers.webp、
-  eclipse/wardens.webp、eclipse/cast.png、eclipse/dialogue-cast.webp。
-• 劇情立繪、場景與 13 幅結局圖：eclipse/story-art/、eclipse/ending-art/。
-  劇情圖最早收錄於 e187278，結局圖最早收錄於 8412644。
-這些圖片尚未完成商用來源核對。offline-assets.js 記錄各發布檔的 SHA-256，
-可供日後把來源證據對應至確實版本。
+2D 插畫與圖格
+以下是本專案使用 OpenAI 圖像生成工具製作的圖像。製作日期為香港時間，
+首個發布提交用來對照成品。已核對目前使用的圖檔仍與對應提交相同。
 
+• 11 月 12 日，舊海報 cover.jpg 與 cast.png 圖集於 183b295 發布。
+  coin-pickup.webp 從同一圖集裁切，於 91060ae 加入。
+• 11 月 12 日，wardens.webp 由當天製作的敵人圖格裁切合成，於 68b533a 發布。
+• 11 月 13 日，對話人物圖集 dialogue-cast.webp 於 504b344 發布。
+• 11 月 13 日，13 幅結局插畫按獨立場景文案製作，於 8412644 發布。
+• 11 月 13 日，標題海報 art/moon-gate.webp、主角圖格 art/lantern-keeper.webp、
+  art/forest-enemies.webp、art/chapter-bosses.webp 及 art/keepers.webp
+  為本遊戲製作，於 1828106 發布。
+• 11 月 14 日，無敵模式海報 art/lantern-ascendant.webp 以遊戲原有海報與
+  守燈貓圖格作人物參考製作，於 3ab8400 發布。
+• 11 月 15 日，story-art/ 的 12 張人物表情及 12 張劇情場景由本遊戲的
+  人物圖集與原創劇情製作，於 e187278 發布。
+
+生成、裁切及轉檔紀錄保存在原開發工作階段。offline-assets.js 保存各個
+發布檔的 SHA-256，可用以對照版本。OpenAI 適用條款的「Ownership of
+content」段落說明服務方與用戶之間的輸出權利，以適用法律為準。
+https://openai.com/en-GB/policies/row-terms-of-use/
+https://openai.com/policies/services-agreement/
 舊參考檔
 歷史參考模組、模型檢視圖及已由 3D 取代的舊場景圖片只保存在版本庫。
 正式 Pages 網站由 tools/package-pages.mjs 組裝發布清單內的檔案。

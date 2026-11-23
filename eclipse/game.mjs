@@ -694,7 +694,7 @@ export class Game {
     if(opening){
       this.poseHero(0);
       preparation=this.openingPreparation={current,pending:true};
-      preparation.promise=this.view.prepareBattlefield(hero,this.enemies,current)
+      preparation.promise=this.view.prepareBattlefield(hero,this.enemies,current,false,this.weapon)
         .catch(error=>console.warn('Opening battlefield preparation deferred',error))
         .finally(()=>{
           preparation.pending=false;
@@ -835,9 +835,10 @@ export class Game {
       const prepared=this.stageEncounter;
       this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head,this.arenaSeed,
         prepared?.seed===this.arenaSeed?prepared.layout:undefined);
-      const lamps=prepared?.seed===this.arenaSeed?prepared.lamps:null;
-      this.view.setBossArena(this.bossArena,lamps);
-      this.clearStageEncounter();
+      const visuals=prepared?.seed===this.arenaSeed?prepared:null;
+      if(visuals)this.stageEncounter=null;
+      else this.clearStageEncounter();
+      this.view.setBossArena(this.bossArena,visuals);
       head.phaseGuard=1.17;
       head.recover=1.04;
       this.ui['boss-name'].textContent=guardian.name;
@@ -2090,8 +2091,7 @@ export class Game {
   }
 
   clearStageEncounter(){
-    const lamps=this.stageEncounter?.lamps;
-    if(lamps)this.view.arenaArt.clear(lamps.root);
+    this.view.arenaArt.disposePreparation(this.stageEncounter);
     this.stageEncounter=null;
   }
 
@@ -2099,7 +2099,7 @@ export class Game {
     const pending=this.roomPreparation;
     this.roomPreparation=null;
     if(pending?.fixtures)this.view.disposeFixtures(pending.fixtures);
-    if(pending?.encounter?.lamps)this.view.arenaArt.clear(pending.encounter.lamps.root);
+    this.view.arenaArt.disposePreparation(pending?.encounter);
   }
 
   prepareNextRoom(){
@@ -2163,6 +2163,12 @@ export class Game {
         return;
       }
       preparation.encounter.lamps=lamps;
+      const phases=await this.view.prepareArenaPhases(stage,preparation.encounter.layout,valid);
+      if(!valid()){
+        this.view.arenaArt.disposePreparation({phases});
+        return;
+      }
+      preparation.encounter.phases=phases;
     }
     if(bosses.length)await this.view.prepareBossEntrances(bosses,stage,valid);
   }
@@ -2399,7 +2405,7 @@ export class Game {
         if(this.state!=='transition')return;
         const current=()=>this.presentingRoom===preparation&&this.hero===preparation.hero&&this.state==='transition';
         this.poseHero(0);
-        await this.view.prepareBattlefield(this.hero,this.enemies,current,true)
+        await this.view.prepareBattlefield(this.hero,this.enemies,current,true,this.weapon)
           .catch(error=>console.warn('Room rendering preparation deferred',error));
         if(!current())return;
         this.state='play';

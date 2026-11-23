@@ -125,10 +125,12 @@ export class CthunHand {
     v1.set(v0.x-dx*.37+dz*side*.41,1.28,v0.z-dz*.37-dx*side*.41);
     v2.set(v0.x-dx*.64+dz*side*1.37,config.rise-.58+sway*.18,v0.z-dz*.64-dx*side*1.37);
     v3.set(v0.x-dx*(.83+sway*.19)+dz*side,config.rise+sway*.24,v0.z-dz*(.83+sway*.19)-dx*side);
+    let pulse=.07*(.5+.5*sway);
     if(attack) {
       const charge=clamp((t-attack.start)/(attack.strike-attack.start));
       const recoil=clamp((attack.end-t)/(attack.end-attack.strike));
       const lash=t<attack.strike?Math.pow(charge,3):recoil;
+      pulse+=lash*lash*(config.id==='pierce'?.46:.32);
       const angle=attack.angle+(config.id==='sweep'?between(-1.20,1.06,clamp((t-attack.start)/(attack.strike-attack.start+.15))):0);
       let x=hero.x+Math.sin(angle)*config.range,z=hero.z+Math.cos(angle)*config.range;
       let y=config.id==='sweep'?.73:.88;
@@ -141,6 +143,8 @@ export class CthunHand {
       v2.z=between(v2.z,between(v0.z,z,.62),lash);
       v3.set(between(v3.x,x,lash),between(v3.y,y,lash),between(v3.z,z,lash));
     }
+    art.skin.material.emissiveIntensity=.18+pulse*.64;
+    art.suckers.material.emissiveIntensity=.25+pulse;
     shapeTendril(art,config.radius);
   }
 }

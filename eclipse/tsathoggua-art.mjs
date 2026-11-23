@@ -43,7 +43,9 @@ const fragment=`
   varying vec2 p;
   void main(){
     vec2 uv=p/vec2(1.,.79);
-    float a=atan(uv.y,uv.x),r=length(uv);
+    float r=length(uv);
+    if(opening<=0.||r>=1.32)discard;
+    float a=atan(uv.y,uv.x);
     float jag=sin(a*11.+clock*9.)*.032+sin(a*23.)*.021;
     float lip=.87*opening+jag;
     float edge=r-lip;
@@ -55,7 +57,8 @@ const fragment=`
     float groove=(edge+.045)*10.;
     float gum=exp(-groove*groove)*(.48+.52*folds);
     vec3 ink=mix(vec3(.022,.004,.027),vec3(.49,.037,.11),max(gum,crack*.7));
-    ink+=vec3(.59,.13,.18)*wet;
+    ink+=vec3(.67,.18,.23)*wet;
+    ink+=vec3(.22,.033,.105)*crack*(.44+folds*.56);
     float alpha=max(inside*.99,max(gum*.84,crack*.82))*smoothstep(.0,.17,opening);
     gl_FragColor=vec4(ink,alpha);
     #include <colorspace_fragment>

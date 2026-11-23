@@ -140,7 +140,14 @@ export class ArenaArt {
     return {root,lamps};
   }
 
+  disposePreparation(prepared) {
+    if(prepared?.lamps)this.clear(prepared.lamps.root);
+    for(const phase of prepared?.phases??[])if(phase)this.clear(phase.root);
+  }
+
   set(arena,prepared) {
+    this.disposePreparation({phases:this.preparedPhases});
+    this.preparedPhases=arena?prepared?.phases:undefined;
     this.clear(this.root);
     this.clear(this.phaseRoot);
     this.arena=arena;
@@ -149,28 +156,43 @@ export class ArenaArt {
     this.sites=[];
     this.counterMarks=[];
     this.transient=[];
-    const lights=arena?(prepared??this.buildLamps(arena.encounter)):null;
+    const lights=arena?(prepared?.lamps??this.buildLamps(arena.encounter)):null;
     this.lamps=lights?.lamps??[];
     for(const lamp of this.lamps)this.root.add(lamp);
+  }
+
+  buildPhase(plan,terrain,points,weakness,rocks) {
+    const root=new T.Group();
+    const {ink,stone}=terrain;
+    const fragments=plan.hazards.map(zone=>(zone.kind==='line'?fissure:pool)(root,zone,ink,stone,plan.style));
+    const columns=(plan.pillars??[]).map(point=>monument(this.view,point,ink,{tall:true,stone}));
+    for(const column of columns)root.add(column);
+    const sites=points.map(point=>fixture(this.view,root,point,plan.mode,ink,stone));
+    const reactsToRock=weakness.type==='projectile'||weakness.target==='pillar';
+    const counterMarks=reactsToRock?rocks.map(rock=>{
+      const radius=rock.radius+.25;
+      const ring=mesh(root,floorRing(radius-.055,radius,32),
+        new T.MeshBasicMaterial({color:0xa7f3df,opacity:.42,...glowOptions}),rock.x,.06,rock.z);
+      ring.renderOrder=4;
+      return ring;
+    }):[];
+    this.view.cutaway.cover(root);
+    return {root,fragments,columns,sites,counterMarks};
   }
 
   transform(arena) {
     this.clear(this.phaseRoot);
     this.transient=[];
-    const {ink,stone}=arena.terrain;
-    this.fragments=arena.hazards.map(zone=>(zone.kind==='line'?fissure:pool)(this.phaseRoot,zone,ink,stone,arena.plan.style));
-    this.columns=arena.pillars.map(point=>monument(this.view,point,ink,{tall:true,stone}));
-    for (const column of this.columns) this.phaseRoot.add(column);
-    this.sites=arena.points.map(point=>fixture(this.view,this.phaseRoot,point,arena.plan.mode,ink,stone));
-    const {weakness,rocks}=arena.counters;
-    const reactsToRock=weakness.type==='projectile'||weakness.target==='pillar';
-    this.counterMarks=reactsToRock?rocks.map(rock=>{
-      const radius=rock.radius+.25;
-      const ring=mesh(this.phaseRoot,floorRing(radius-.055,radius,32),
-        new T.MeshBasicMaterial({color:0xa7f3df,opacity:.42,...glowOptions}),rock.x,.06,rock.z);
-      ring.renderOrder=4;
-      return ring;
-    }):[];
+    const {weakness,rocks}=arena.counters,index=arena.phase-1;
+    const phase=this.preparedPhases?.[index]??this.buildPhase(arena.plan,arena.terrain,arena.points,weakness,rocks);
+    if(this.preparedPhases)this.preparedPhases[index]=null;
+    this.phaseRoot.add(phase.root);
+    this.fragments=phase.fragments;
+    this.columns=phase.columns;
+    this.sites=phase.sites;
+    this.counterMarks=phase.counterMarks;
+    for(const [index,site] of this.sites.entries())site.point=arena.points[index];
+    const {ink}=arena.terrain;
     for (const zone of arena.hazards) {
       const count=this.view.mobile?3:5;
       for (let i=0;i<count;i++) {

@@ -105,6 +105,7 @@ const fragmentInk=`
   void main(){
     vec2 uv=tex;
     float d=abs(uv.x-.5);
+    if(energy<=0.||opacity<=0.)discard;
     float belly=sin(uv.y*3.141593);
     float detail=sin(uv.y*25.-life*12.+speck*8.);
     float mask=pow(max(0.,belly),.6)*(1.-smoothstep(.19,.5,d));
@@ -161,8 +162,8 @@ const fragmentInk=`
     float front=exp(-abs(pulse)*14.)*belly;
     float tail=smoothstep(.05,.45,uv.y)*max(.0,1.-uv.y);
     float filament=exp(-d*25.)*tail*front;
-    vec3 color=mix(tint*(shade*.78+.19*belly),heart,
-      clamp(white+facetGlint*.24*belly+front*.39,0.,.97));
+    vec3 litFace=tint*(shade*.76+.23*belly)+heart*filament*.13;
+    vec3 color=mix(litFace,heart,clamp(white+facetGlint*.26*belly+front*.43,0.,.99));
     gl_FragColor=vec4(color,opacity*energy*(mask+filament*.41));
     #include <colorspace_fragment>
   }
@@ -177,7 +178,9 @@ const crestInk=`
   uniform vec3 tint,heart;
   float rim(float r,float center,float width){return exp(-abs(r-center)*width);}
   void main(){
-    float r=length(coords),a=atan(coords.y,coords.x);
+    float r=length(coords);
+    if(r>.99||opacity<=0.)discard;
+    float a=atan(coords.y,coords.x);
     float spin=a+life*(style>4.5?-1.:1.);
     float angle=spin*spokes+salt;
     float edge=.80+.019*sin(angle*2.);

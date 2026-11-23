@@ -24,6 +24,7 @@ export class BlackGoatEye {
         varying vec2 arena;
         void main(){
           float r=length(arena);
+          if(r>=1.)discard;
           float angle=atan(arena.y,arena.x);
           float ripple=(sin(angle*12.+time*24.)+sin(angle*27.-time*17.))*.008;
           float d=mod(r-time*.57+ripple+.19,.38)-.19;
@@ -36,7 +37,8 @@ export class BlackGoatEye {
           float coverage=smoothstep(.035,.16,r)*(1.-smoothstep(.85,1.,r));
           float edge=(1.-smoothstep(.006,.022,abs(r-.974)))*.24;
           float alpha=max(bruise*.60,max(outer*.72,veins*.56*pulse+fork*iris*.30))*coverage+edge;
-          vec3 hue=mix(vec3(.080,.013,.13),vec3(.65,.31,.93),max(outer,veins*.74+fork*iris*.21));
+          vec3 bruiseInk=mix(vec3(.056,.008,.104),vec3(.22,.025,.35),bruise*.67);
+          vec3 hue=mix(bruiseInk,vec3(.72,.37,.98),max(outer,veins*.76+fork*iris*.24));
           gl_FragColor=vec4(hue,alpha);
         }
       `,

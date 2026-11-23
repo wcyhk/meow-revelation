@@ -89,6 +89,7 @@ const fragment=`
     float sides=sin(v*3.14159);
     float gate=smoothstep(.0,.12,u)*(1.-smoothstep(.83,1.,u));
     float reveal=smoothstep(u-.25,u+.02,life*3.8+.22);
+    if(gate<=0.||reveal<=0.||opacity<=0.)discard;
     float thread=.48, drift=.5+.5*pulse, cloud=sides;
     if(flavor<.5){
       thread=.48+sin(u*44.-t*1.2)*.12+sin(u*81.-t*.72)*.10;
@@ -134,8 +135,10 @@ const fragment=`
     float dust=cloud*(.15+drift*.19)*(.66+.34*abs(lace));
     float focus=u-life*2.2+.17;
     float flare=exp(-abs(focus)*12.)*exp(-distance*17.);
-    float glow=dust+trail*.27+shine*(.62+.37*packet)+echo*.34+rim*.21+flare*.37;
-    vec3 color=mix(tint*(.62+drift*.42),heart,clamp(shine*(.75+.25*packet)+echo*.23+rim*.21+flare*.31,0.,1.));
+    float crest=shine*packet;
+    float glow=dust+trail*.27+shine*.60+crest*.41+echo*.34+rim*.22+flare*.41;
+    vec3 edgeInk=tint*(.56+drift*.45)+heart*(rim*.11+echo*.08);
+    vec3 color=mix(edgeInk,heart,clamp(shine*.67+crest*.29+echo*.21+rim*.19+flare*.34,0.,1.));
     gl_FragColor=vec4(color,glow*gate*reveal*opacity*smoothstep(0.,.17,sides));
     #include <colorspace_fragment>
   }

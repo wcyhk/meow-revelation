@@ -53,19 +53,25 @@ function surface(kind) {
   const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   for(let y=0;y<128;y++)for(let x=0;x<128;x++){
     const waves=Math.sin(x*.14+Math.sin(y*.11)*2)*10+Math.cos(x*.28+y*.18)*6;
+    // Keep polish, patina and lacquer visible on the small handheld silhouette.
+    const bands=Math.cos(y*.069+x*.038);
     const texture=kind==='wood'?Math.sin(x*.42+Math.sin(y*.07)*1.5)*23:
-      kind==='cloth'?((x%4<2)=== (y%5<2)?12:-16):
+      kind==='cloth'?((x%4<2)===(y%5<2)?14:-18):
       kind==='bone'?Math.sin(x*.16+y*.22)*15:
-      kind==='metal'?Math.sin(y*.92+x*.018)*6:Math.sin(x*.53+y*.29)*10;
+      kind==='metal'?Math.sin(y*.92+x*.018)*7+bands*9:
+      kind==='crystal'?Math.abs(Math.sin(x*.117+y*.053)*Math.cos(y*.146-x*.036))*28-11:
+      Math.sin(x*.53+y*.29)*10;
     const value=216+waves+texture+(random()-.5)*(kind==='crystal'?12:28);
+    const temper=kind==='metal'?bands:0;
     const i=(y*128+x)*4;
-    grain.data[i]=value;grain.data[i+1]=value*.98;grain.data[i+2]=value*.96;grain.data[i+3]=255;
+    grain.data[i]=value+temper*5;grain.data[i+1]=value*.98;
+    grain.data[i+2]=value*.96-temper*6;grain.data[i+3]=255;
   }
   ctx.putImageData(grain,0,0);
   ctx.lineCap='round';
   for(let i=0;i<49;i++){
     const x=random()*128,y=random()*128;
-    ctx.strokeStyle=i%2?'#271f2950':'#fff3cf64';
+    ctx.strokeStyle=i%2?'#271f2950':kind==='crystal'?'#f1fcff7b':'#fff3cf64';
     ctx.lineWidth=.38+random()*.7;
     ctx.beginPath();ctx.moveTo(x,y);
     ctx.lineTo(x+(kind==='metal'?16:4)*random(),y+(kind==='wood'?28:5)*random());ctx.stroke();
@@ -92,17 +98,17 @@ export function forgedMaterials(weapon) {
       ['cloth','wood','bone'].includes(kind)?scannedSurface('leather',kind==='wood'?.25:.36):{};
     const bump=scan.normalMap?{}:{bumpMap:map,bumpScale:kind==='wood'?.037:.024};
     const shaded=paintedFinish(new T.MeshStandardMaterial({color,map,...bump,...scan,metalness,roughness,
-      envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?1.16:.73,
+      envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?1.22:kind==='crystal'?.91:.73,
       vertexColors:true,emissive:color,emissiveIntensity}),finish,true,kind==='metal');
     shaded.userData.restGlow=emissiveIntensity;
     return shaded;
   }
   return {
     dark:material(dark,cloth.has(id)?'cloth':'wood',.12,.79),
-    trim:material(trim,'metal',.77,.31,.035,true),
+    trim:material(trim,'metal',.77,.29,.035,true),
     edge:material(edge,chipped?'bone':'metal',chipped?.16:.77,chipped?.60:.27,.046),
     patina:material(new T.Color(body).lerp(new T.Color(trim),.29).multiplyScalar(.69),'metal',.52,.67,.027),
-    hardened:material(new T.Color(edge).lerp(new T.Color(trim),.34),'metal',.80,.32,.064),
+    hardened:material(new T.Color(edge).lerp(new T.Color(trim),.29),'metal',.83,.31,.064),
     body:material(body,gem?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
       gem?.34:.38,lacquer.has(id)?.35:.54,.075),
     core:material(core,gem?'crystal':'stone',gem?.24:.15,gem?.27:.34,gem?.65:.30),

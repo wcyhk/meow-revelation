@@ -285,6 +285,7 @@ function wrappedJet() {
     .setAttribute('uv',new T.Float32BufferAttribute(uv,2));
 }
 
+const ribbonHighlight=new T.Color(0xfff4de);
 const solid=(tint,emission=.27)=>new T.MeshStandardMaterial({
   color:tint,emissive:tint,emissiveIntensity:emission,metalness:.65,roughness:.28,
 });
@@ -316,11 +317,19 @@ export class MotionArt {
   }
 
   ribbon(geometry,point,tint,duration,{kind=0,owned=false,...settings}={}) {
-    const ink=new T.Color(tint);
-    const material=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
-      blending:T.AdditiveBlending,uniforms:{ink:{value:ink},edge:{value:ink.clone().lerp(new T.Color(0xfff4de),.76)},
-        opacity:{value:settings.opacity??.85},life:{value:0},kind:{value:kind}},vertexShader:vertex,fragmentShader:fragment});
-    return this.view.addEffect(geometry,point,tint,duration,{...settings,owned,material,fade:true});
+    const materialKey='motion-ribbon';
+    const material=this.view.effectMaterial(materialKey,()=>new T.ShaderMaterial({
+      transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,blending:T.AdditiveBlending,
+      uniforms:{ink:{value:new T.Color()},edge:{value:new T.Color()},opacity:{value:1},life:{value:0},kind:{value:0}},
+      vertexShader:vertex,fragmentShader:fragment,
+    }));
+    const u=material.uniforms;
+    u.ink.value.set(tint);
+    u.edge.value.copy(u.ink.value).lerp(ribbonHighlight,.76);
+    u.opacity.value=settings.opacity??.85;
+    u.life.value=0;
+    u.kind.value=kind;
+    return this.view.addEffect(geometry,point,tint,duration,{...settings,owned,material,materialKey,fade:true});
   }
 
   slash(x,z,dx,dz,tint,reach,finisher,direction=1,lift=.61) {
@@ -419,10 +428,17 @@ export class MotionArt {
   }
 
   impactLight(point,tint,size,angle) {
-    const material=new T.ShaderMaterial({vertexShader:impactVertex,fragmentShader:impactFragment,
-      transparent:true,depthWrite:false,blending:T.AdditiveBlending,
-      uniforms:{ink:{value:new T.Color(tint)},life:{value:0},opacity:{value:.8}}});
-    const effect=this.view.addEffect(impactLight,point,tint,.22,{material,scale:size*.55,growth:size*1.1,opacity:.82,fade:true,order:96});
+    const materialKey='motion-impact';
+    const material=this.view.effectMaterial(materialKey,()=>new T.ShaderMaterial({
+      vertexShader:impactVertex,fragmentShader:impactFragment,transparent:true,depthWrite:false,
+      blending:T.AdditiveBlending,uniforms:{ink:{value:new T.Color()},life:{value:0},opacity:{value:.8}},
+    }));
+    const u=material.uniforms;
+    u.ink.value.set(tint);
+    u.life.value=0;
+    u.opacity.value=.8;
+    const effect=this.view.addEffect(impactLight,point,tint,.22,
+      {material,materialKey,scale:size*.55,growth:size*1.1,opacity:.82,fade:true,order:96});
     effect.mesh.quaternion.copy(this.view.camera.quaternion);
     effect.mesh.rotateZ(angle+.46);
   }
@@ -490,9 +506,13 @@ export class MotionArt {
     if (curve) for (const fx of [rim,filigree]) fx.drift={x:-dz*curve,z:dx*curve,last:0};
   }
 
+  preloadBlade(){
+    return this.fallingBlade??=forge(flameblade);
+  }
+
   bladefall(x,z,tint,wait,index) {
     const duration=wait+.075;
-    const template=this.fallingBlade??=forge(flameblade);
+    const template=this.preloadBlade();
     const sword=new T.Group();
     // Falling swords share the static forged parts. Each still has its own pose.
     for(const part of template.children)sword.add(part.clone());

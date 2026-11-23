@@ -1798,10 +1798,11 @@ export function poseBestiary(model,unit,spec,time,x,z){
   crest.rotation.z=airborne||pattern==='radial'?time*(.31+stage*.24):Math.sin(beat*.5)*.16;
   crest.scale.setScalar(1+stage*.20+wind*.13);
   const glow=model.palette[3];
+  const chargePulse=model.entry.field?0:(wind*wind*.09+strike*.19)*(spec.subdued?.5:1);
   materials.glow.color.setHex(model.signature?.type==='bear'?0xbbf7f1:glow)
-    .lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18));
-  materials.body.emissiveIntensity=.14+(spec.flash??0)*.19+stage*.08;
-  const forgedPulse=model.entry.field?0:(wind*wind*.084+strike*.17)*(spec.subdued?.50:1);
+    .lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18+chargePulse*.44));
+  materials.body.emissiveIntensity=.14+(spec.flash??0)*.19+stage*.08+chargePulse*.28;
+  const forgedPulse=chargePulse;
   materials.edge.emissiveIntensity=.14+stage*.087+wind*.07+forgedPulse;
 }
 

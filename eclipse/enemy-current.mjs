@@ -225,6 +225,7 @@ const fragment=`
   varying vec2 ribbon;
   varying float opacity,seed,kind;
   void main(){
+    if(opacity<=0.)discard;
     float u=ribbon.x,v=ribbon.y;
     if(kind>14.5){
       vec2 delta=vec2(u*2.-1.,v);
@@ -269,8 +270,9 @@ const fragment=`
       float knot=pow(.5+.5*cos(u*31.-t*1.35),9.)*core;
       float run=fract(u*2.8-clock*(1.15+force*.47)+seed*.31);
       float edgeLight=exp(-abs(v-vein+.31*sin(u*14.-t))*25.)*exp(-abs(run-.66)*11.);
-      glow=mix(tint,heart,min(1.,core*(.49+packet*.35)+knot*.49+edgeLight*.36));
-      energy=(core*packet*.94+branch*.55+veil*.58+knot*.57+edgeLight*.42)*mask*opacity;
+      vec3 stream=tint*(.68+.32*packet)+heart*branch*.09;
+      glow=mix(stream,heart,min(1.,core*(.49+packet*.35)+knot*.49+edgeLight*.42));
+      energy=(core*packet*.94+branch*.56+veil*.59+knot*.61+edgeLight*.46)*mask*opacity;
     }
     gl_FragColor=vec4(glow,energy*(kind>2.5&&kind<3.5?1.27:1.));
     #include <colorspace_fragment>

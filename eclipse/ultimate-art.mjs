@@ -63,12 +63,18 @@ void main(){
 }`;
 
 function art(view,rite,point,radius,time,geometry,volume) {
-  const material=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,
-    forceSinglePass:true,blending:T.AdditiveBlending,vertexShader:vertex,fragmentShader:fragment,
-    uniforms:{ink:{value:new T.Color(rite.tint)},flare:{value:new T.Color(rite.accent)},
-      life:{value:0},opacity:{value:1},style:{value:rite.skin},volume:{value:volume}}});
+  const materialKey='ultimate-rite';
+  const material=view.effectMaterial(materialKey,()=>new T.ShaderMaterial({
+    transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
+    blending:T.AdditiveBlending,vertexShader:vertex,fragmentShader:fragment,
+    uniforms:{ink:{value:new T.Color()},flare:{value:new T.Color()},
+      life:{value:0},opacity:{value:1},style:{value:0},volume:{value:0}},
+  }));
+  const u=material.uniforms;
+  u.ink.value.setHex(rite.tint);u.flare.value.setHex(rite.accent);
+  u.life.value=0;u.opacity.value=1;u.style.value=rite.skin;u.volume.value=volume;
   const fx=view.addEffect(geometry,{x:point.x,y:volume?.09:.052,z:point.z},rite.tint,time,
-    {scale:radius,opacity:volume?.82:.83,order:volume?76:37,material});
+    {scale:radius,opacity:volume?.82:.83,order:volume?76:37,material,materialKey});
   fx.combatClock=true;
   fx.spin=volume?0:(rite.skin%2?-1.1:.82);
   return fx;

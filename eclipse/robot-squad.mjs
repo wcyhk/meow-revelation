@@ -183,7 +183,7 @@ export class RobotSquad {
     mesh.visible=true;
     mesh.material.color.setHex(config.tint);
     mesh.material.opacity=.9;
-    aimTracer(mesh,from,to,config.id==='smg'?.032:.023);
+    aimTracer(mesh,from,to,config.id==='smg'?.034:.025);
   }
 
   launchRocket(from,to) {
@@ -206,7 +206,7 @@ export class RobotSquad {
     this.tail.copy(rocket.from).lerp(rocket.to,Math.max(0,progress-.19));
     aimTracer(rocket.trail,this.tail,point,.065);
     rocket.trail.visible=true;
-    rocket.trail.material.opacity=.58;
+    rocket.trail.material.opacity=.58+.12*Math.sin(Math.PI*progress);
     rocket.smoke-=dt;
     if(rocket.smoke<=0) {
       game.view.spark(this.tail.x,this.tail.y,this.tail.z,0xff824b,3,.45,'fire');

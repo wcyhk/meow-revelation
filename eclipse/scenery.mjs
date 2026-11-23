@@ -7,6 +7,9 @@ import {armLighting, arms, borrowForge, disposeForge, forge, recycleForge, shape
 import {stages,enemySpec} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
+import {AdditiveEffectBatch} from './effect-batch.mjs';
+import {arenaTerrain,bossArenas} from './arena-layouts.mjs?v=bestiary-1';
+import {bossWeaknesses} from './boss-weaknesses.mjs?v=counter-1';
 import {lantern, lightLantern, monument} from './map-art.mjs?v=forge-1';
 import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountEffigy,poseEffigy} from './nightfall-art.mjs?v=practice-1';
@@ -318,6 +321,9 @@ export class Scenery {
     this.projectileShape = new T.OctahedronGeometry(.19);
     this.coinShape=new T.TorusGeometry(.21,.038,5,12);
     this.shardShape=new T.ConeGeometry(.24,1.38,5);
+    this.shardBatches=new Map([34,70].map(order=>[order,new AdditiveEffectBatch(this.scene,this.shardShape,order)]));
+    this.glyphBatch=new AdditiveEffectBatch(this.scene,plane,30,this.battleTextures.glyph);
+    this.effectBatches=[...this.shardBatches.values(),this.glyphBatch];
     this.shake = 0;
     this.time = 0;
     this.lastStamp = 0;
@@ -361,7 +367,7 @@ export class Scenery {
       this.renderer.initTexture(texture);
       if(++uploaded%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
     }
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=emberglass-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=rift-forge-1',import.meta.url).href]));
     // Downloading assets is not GPU preparation. Retained theme materials let us
     // do first-use texture uploads and shader compilation behind the loading art.
     for(const [index,picture] of landscapePictures.entries()){
@@ -398,6 +404,9 @@ export class Scenery {
     }
     this.setStage(stages[0]);
     await this.prepareCombatEffects();
+    for(const mesh of [this.shardBatches.get(70).mesh,this.glyphBatch.mesh]){
+      await this.renderer.compileAsync(mesh,this.camera,this.scene);
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -535,6 +544,26 @@ export class Scenery {
     }finally{if(!ready)this.arenaArt.clear(lights.root);}
   }
 
+  async prepareArenaPhases(stage,encounter,valid){
+    const layout=bossArenas.get(stage.floor);
+    const profile=layout.weakness??bossWeaknesses[stage.floor];
+    const prepared=[];
+    try{
+      for(const [index,plan] of [encounter.first,encounter.last].entries()){
+        if(!plan)continue;
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        if(!valid())return [];
+        const sites=index===1&&!layout.last?encounter.first.sites:plan.sites;
+        const weakness=index===1?profile.last??profile:profile;
+        const phase=this.arenaArt.buildPhase(plan,arenaTerrain(plan.style),sites??[],weakness,
+          [...stage.props,...(plan.pillars??[])]);
+        prepared[index]=phase;
+        if(!await this.warmMesh(phase.root,valid))return [];
+      }
+      return prepared.splice(0);
+    }finally{this.arenaArt.disposePreparation({phases:prepared});}
+  }
+
   async prepareBossEntrances(specs,stage,valid){
     await new Promise(resolve=>requestAnimationFrame(resolve));
     if(!valid())return;
@@ -546,6 +575,17 @@ export class Scenery {
     let ready=false;
     try{
       for(const spec of specs)scratch.bossCue({x:0,z:0,spec},'entrance');
+      // Use the same effects and lighting as a live release, behind the reward.
+      // Distinct shapes exercise the ranks, ribbons and impact shader variants.
+      if(stage.boss){
+        scratch.motion.budget=0;
+        const spec=specs[0];
+        scratch.bossCue({x:0,z:0,spec},'phase');
+        const mark={x:0,z:0,radius:3.1,width:.79,angle:.36,tint:spec.tint,effect:spec.effect};
+        for(const [kind,pattern] of [['line','lance'],['cone','cleave'],['ring','toll'],['circle','burst']]){
+          scratch.threatImpact({...mark,kind,pattern});
+        }
+      }
       ready=await this.warmMesh(group,valid);
     }finally{
       const materials=[];
@@ -595,6 +635,7 @@ export class Scenery {
     this.ward.visible = false;
     for (const fx of this.effects) this.release(fx);
     this.effects.length = 0;
+    this.renderEffectBatches();
     for (const mote of this.motes.items) mote.life = 0;
     this.motes.geometry.setDrawRange(0,0);
   }
@@ -1470,15 +1511,12 @@ export class Scenery {
   }
 
   createParticleSystem(capacity) {
-    const positions = new Float32Array(capacity * 3);
-    const colors = new Float32Array(capacity * 3);
-    const radius = new Float32Array(capacity);
-    const alpha = new Float32Array(capacity);
-    const shape = new Float32Array(capacity);
-    const geometry = new T.BufferGeometry();
+    // One upload for the same nine floats per particle, throughout a burst.
+    const buffer=new T.InterleavedBuffer(new Float32Array(capacity*9),9).setUsage(T.DynamicDrawUsage);
+    const geometry=new T.BufferGeometry();
     geometry.setDrawRange(0,0);
-    for (const [key, data, size] of [['position',positions,3],['tint',colors,3],['radius',radius,1],['alpha',alpha,1],['shape',shape,1]]) {
-      geometry.setAttribute(key,new T.BufferAttribute(data,size).setUsage(T.DynamicDrawUsage));
+    for(const [key,size,offset] of [['position',3,0],['tint',3,3],['radius',1,6],['alpha',1,7],['shape',1,8]]){
+      geometry.setAttribute(key,new T.InterleavedBufferAttribute(buffer,size,offset));
     }
     const material = new T.ShaderMaterial({
       transparent:true, depthWrite:false, blending:T.AdditiveBlending,
@@ -1489,7 +1527,7 @@ export class Scenery {
       `,
       fragmentShader:`
         varying vec4 ink; varying float motif;
-        void main(){vec2 p=gl_PointCoord-.5;float contour=length(p);
+        void main(){if(ink.a<.01)discard;vec2 p=gl_PointCoord-.5;float contour=length(p);
         if(motif>0.5&&motif<1.5) contour=abs(p.x)*.88+abs(p.y);
         if(motif>1.5&&motif<2.5) contour=length(vec2((p.x+p.y)*1.7,(p.x-p.y)*.75));
         if(motif>2.5&&motif<3.5) contour=max(abs(p.x),abs(p.y))*.88+abs(p.x*p.y)*1.2;
@@ -1498,14 +1536,14 @@ export class Scenery {
         float fall=1.-smoothstep(.045,.50,contour);
         float shine=pow(1.-smoothstep(.01,.22,contour),2.);
         float hot=motif>9.5?.12:motif>7.5?.65:.49;
-        if (ink.a<.01) discard;gl_FragColor=vec4(mix(ink.rgb,vec3(1.,.95,.78),shine*hot),fall*fall*ink.a);}
+        gl_FragColor=vec4(mix(ink.rgb,vec3(1.,.95,.78),shine*hot),fall*fall*ink.a);}
       `,
     });
     const particles = new T.Points(geometry, material);
     particles.frustumCulled = false;
     particles.renderOrder = 100;
     this.scene.add(particles);
-    return {geometry, positions, colors, radius, alpha, shape, cursor:0, items:Array.from({length:capacity}, () => ({life:0}))};
+    return {geometry,buffer,cursor:0,items:Array.from({length:capacity}, () => ({life:0}))};
   }
 
   createLeaves(count) {
@@ -1631,9 +1669,18 @@ export class Scenery {
 
   addEffect(geometry, position, tint, duration, settings = {}) {
     const {opacity=1, scale=1, growth=0, angle=0, blend=true, owned=false, map=null, fade=false, material} = settings;
-    const mat = material??new T.MeshBasicMaterial({color:tint,map,transparent:true,opacity,depthWrite:false,side:T.DoubleSide,
-      forceSinglePass:blend||geometry===plane||geometry===this.ring||geometry===this.disc,
-      blending:blend ? T.AdditiveBlending : T.NormalBlending});
+    const singlePass=blend||geometry===plane||geometry===this.ring||geometry===this.disc;
+    const materialKey=material?settings.materialKey:'effect-basic:'+Number(!!map)+Number(blend)+Number(singlePass);
+    const mat=material??this.effectMaterial(materialKey,()=>new T.MeshBasicMaterial({
+      transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:singlePass,
+      blending:blend?T.AdditiveBlending:T.NormalBlending,
+    }));
+    if(!material){
+      mat.color.set(tint);
+      mat.map=map;
+      mat.opacity=opacity;
+      mat.colorWrite=true;
+    }
     const mesh = new T.Mesh(geometry,mat);
     mesh.position.set(position.x, position.y, position.z);
     if (map) mesh.rotation.set(-PI/2,angle,0,'YXZ');
@@ -1641,7 +1688,11 @@ export class Scenery {
     mesh.scale.setScalar(scale);
     mesh.renderOrder = settings.order ?? 30;
     this.scene.add(mesh);
-    const fx = {mesh,ttl:duration,age:0,scale,growth,opacity,owned,fade,materialKey:settings.materialKey};
+    const fx = {mesh,ttl:duration,age:0,scale,growth,opacity,owned,fade,materialKey};
+    if(!material&&blend){
+      if(geometry===this.shardShape&&!map)fx.batch=this.shardBatches?.get(mesh.renderOrder);
+      if(geometry===plane&&map===this.battleTextures.glyph&&mesh.renderOrder===30)fx.batch=this.glyphBatch;
+    }
     this.effects.push(fx);
     return fx;
   }
@@ -2106,10 +2157,14 @@ export class Scenery {
     mark.material.uniforms.pixelRatio.value=this.renderer.getPixelRatio();
   }
 
-  async prepareBattlefield(hero,enemies,valid,draw=false) {
+  async prepareBattlefield(hero,enemies,valid,draw=false,weapon) {
     // Give the prologue a frame to paint before starting the GPU work.
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     if(!valid())return;
+    if(weapon?.id==='flameblade'&&!this.bladePrepared){
+      this.bladePrepared=await this.warmMesh(this.motion.preloadBlade(),valid);
+      if(!this.bladePrepared)return;
+    }
     this.updateFrame(0,hero,true,false,enemies);
     await this.renderer.compileAsync(this.scene,this.camera);
     if(draw&&valid())this.renderer.render(this.scene,this.camera);
@@ -2162,6 +2217,7 @@ export class Scenery {
       if (!paused && Math.random()<dt*9) this.spark(this.clue.position.x,.52,this.clue.position.z,0xffc586,2,.24);
     }
     this.updateEffects(dt,paused,freezeWarnings);
+    this.renderEffectBatches();
     this.spellLighting.tick(paused?0:dt);
     if(hero)this.updateHeroOutline(hero,dt);
     this.renderParticles(paused?0:dt,!this.feedback.subdued);
@@ -2223,9 +2279,23 @@ export class Scenery {
     }
   }
 
+  renderEffectBatches(){
+    if(!this.effectBatches)return;
+    for(const batch of this.effectBatches)batch.reset();
+    // Source-over smoke at this draw order must keep its original compositing.
+    const separateGlyphs=this.effects.some(({mesh})=>mesh.renderOrder===30&&mesh.material.blending!==T.AdditiveBlending);
+    for(const {batch,mesh} of this.effects){
+      if(!batch)continue;
+      if(batch===this.glyphBatch&&separateGlyphs)mesh.layers.enable(0);
+      else batch.push(mesh);
+    }
+    for(const batch of this.effectBatches)batch.upload();
+  }
+
   renderParticles(dt,ambient=true) {
     const motes=this.motes;
-    const {items,geometry,positions,colors,radius,alpha,shape}=motes;
+    const {items,geometry,buffer}=motes;
+    const data=buffer.array;
     const pixelRatio=this.renderer.getPixelRatio();
     if(!dt&&motes.uploaded===motes.cursor&&motes.pixelRatio===pixelRatio)return;
     if (ambient&&Math.random() < dt * 15) {
@@ -2248,20 +2318,20 @@ export class Scenery {
       p.y += p.dy*dt;
       p.dy -= p.gravity*dt;
       if(p.life<=0)continue;
-      const j=active*3;
-      positions[j]=p.x;positions[j+1]=p.y;positions[j+2]=p.z;
-      colors[j]=p.r;colors[j+1]=p.g;colors[j+2]=p.b;
-      alpha[active]=p.life/p.ttl*(p.gravity?1:.63);
-      radius[active]=p.size*pixelRatio;
-      shape[active++]=p.shape;
+      const j=active++*buffer.stride;
+      data[j]=p.x;data[j+1]=p.y;data[j+2]=p.z;
+      data[j+3]=p.r;data[j+4]=p.g;data[j+5]=p.b;
+      data[j+6]=p.size*pixelRatio;
+      data[j+7]=p.life/p.ttl*(p.gravity?1:.63);
+      data[j+8]=p.shape;
     }
     geometry.setDrawRange(0,active);
     motes.uploaded=motes.cursor;
     motes.pixelRatio=pixelRatio;
-    if(active)for(const attribute of Object.values(geometry.attributes)){
-      attribute.clearUpdateRanges();
-      attribute.addUpdateRange(0,active*attribute.itemSize);
-      attribute.needsUpdate=true;
+    if(active){
+      buffer.clearUpdateRanges();
+      buffer.addUpdateRange(0,active*buffer.stride);
+      buffer.needsUpdate=true;
     }
   }
 }

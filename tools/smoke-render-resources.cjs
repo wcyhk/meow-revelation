@@ -194,7 +194,8 @@ let chrome,ws;
   assert.equal(await ev('!!qa.roomPreparation.encounter?.lamps&&!!qa.roomPreparation.fixtures'),true);
   await ev(`(()=>{
     const prep=qa.roomPreparation;
-    window.twinProbe={fixtures:prep.fixtures,lamps:prep.encounter.lamps.lamps,layout:prep.encounter.layout};
+    window.twinProbe={fixtures:prep.fixtures,lamps:prep.encounter.lamps.lamps,layout:prep.encounter.layout,
+      firstPhase:prep.encounter.phases[0].root};
     qa.choose(qa.altar.options[0]);
     return true;
   })()`);
@@ -205,7 +206,32 @@ let chrome,ws;
   assert.equal(await ev('qa.bossArena.encounter===twinProbe.layout && qa.view.fixtures===twinProbe.fixtures && qa.view.arenaArt.lamps===twinProbe.lamps'),true,
     'The twin encounter must use the prepared ritual layout, lamps and fixtures');
   await sleep(1200);await capture('warm-rooms-mobile-twin-bosses');
-  await ev('qa.state="pause";qa.ui.cover.hidden=false;qa.clearActors();true');
+  const dualPhase=await ev(`(()=>{
+    for(const boss of qa.enemies.filter(enemy=>enemy.kind==='boss'))qa.advanceBossPhase(boss);
+    const v=qa.view;
+    return {prewarmed:v.arenaArt.phaseRoot.children.includes(twinProbe.firstPhase),
+      bosses:qa.enemies.filter(enemy=>enemy.kind==='boss'&&enemy.bossPhase===1).length,
+      fractures:v.arenaArt.fragments.length};
+  })()`);
+  assert.ok(dualPhase.prewarmed&&dualPhase.bosses===2&&dualPhase.fractures>0,
+    'Simultaneous transformations must attach the prepared cracks and drive both boss phases');
+  await sleep(140);await capture('rift-forge-mobile-dual-phase');
+  const batchTest=await ev(`(()=>{
+    qa.state='pause';qa.ui.cover.hidden=false;qa.clearActors();
+    const v=qa.view;
+    for(const fx of v.effects)v.release(fx);
+    v.effects.length=0;
+    for(let i=0;i<130;i++)v.fallingShard(i/20,1,.45,.4,i%2===0?0xbadaff:0xffc690);
+    v.updateEffects(.1);
+    v.renderEffectBatches();
+    const {mesh,opacity}=v.shardBatches.get(34);
+    const active=v.effects.filter(fx=>fx.mesh.layers.isEnabled(0)).length;
+    const expected=v.effects[0].mesh.material.opacity;
+    return {batched:mesh.count,active,gain:Math.abs(opacity.getX(0)-expected)<1e-6,
+      particles:v.motes.items.length,interleaved:v.motes.geometry.attributes.alpha.data===v.motes.geometry.attributes.position.data};
+  })()`);
+  assert.deepEqual(batchTest,{batched:128,active:2,gain:true,particles:215,interleaved:true},
+    'Keep each shard\'s opacity and draw overflow at full quality, with the same particle count');
   const memory=await ev(`(async()=>{
     const v=qa.view,{stages,enemySpec}=await import(new URL('expedition.mjs?v=story-repair-1',document.baseURI));
     const samples=[];

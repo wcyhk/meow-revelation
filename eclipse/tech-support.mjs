@@ -22,8 +22,10 @@ const sweepFragment=`
     float fissure=pow(.5+.5*cos(path.x*106.-elapsed*7.+path.y*9.),10.);
     float seam=pow(.5+.5*sin(path.y*6.2832),4.);
     float echo=pow(.5+.5*cos(path.x*62.832-elapsed*11.+path.y*6.),9.);
-    float pulse=mix(.49+.19*fissure+seam*.29,.24+.53*arc+.35*ticks+.14*echo,scanner)*scan;
-    gl_FragColor=vec4(mix(tint,vec3(.96,.89,.78),seam*.35+ticks*scanner*.21),opacity*pulse);
+    float sweep=arc*(.56+.44*echo);
+    float pulse=mix(.47+.22*fissure+seam*.30,.23+.52*sweep+.34*ticks+.16*echo,scanner)*scan;
+    vec3 light=mix(tint,vec3(.96,.89,.78),seam*.35+ticks*scanner*.21+sweep*scanner*.15);
+    gl_FragColor=vec4(light,opacity*pulse);
     #include <colorspace_fragment>
   }`;
 
@@ -119,6 +121,7 @@ export class Medics {
       bot.z=z+.48;
       bot.yaw=Math.atan2(x-bot.x,z-bot.z);
       poseRobot(bot,game.t,0);
+      bot.art.spinner.rotation.z=bot.side*elapsed*(4+3*Math.sin(Math.PI*elapsed/2.2));
     }
   }
 

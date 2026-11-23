@@ -2,7 +2,7 @@ import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v
 import {ModelReserve} from './model-reserve.mjs';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
-import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
+import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=combat-pace-1';
 import {armLighting, arms, borrowForge, disposeForge, forge, recycleForge, shapeBow} from './armory.mjs?v=emberlight-1';
 import {stages,enemySpec} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';

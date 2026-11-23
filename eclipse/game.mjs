@@ -3,7 +3,7 @@ import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=bos
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
 import {WeaponViewer} from './weapon-viewer.mjs?v=clear-sight-1';
 import {damageHud,damageReport,PracticeDamage} from './practice-damage.mjs?v=dojo-1';
-import {Scenery} from './scenery.mjs?v=clear-sight-1';
+import {Scenery} from './scenery.mjs?v=combat-pace-1';
 import {OnlinePlayer} from './online-player.mjs';
 import {PlayerUI} from './player-ui.mjs';
 import {ActiveRunClock} from './challenge-records.mjs';
@@ -647,7 +647,7 @@ export class Game {
     this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.guardian.name:patterns[stage.hazard]+' · 留意地面預警'));
     const arrival=this.mission?.plan.title??(stage.boss?stage.guardian.name:patterns[stage.hazard]);
     this.announce(stage.zone.name+'  /  第 '+stage.floor+' 關',stage.name,arrival,2.15);
-    this.startDelay=1.05;
+    this.startDelay=.70;
     if(clue&&!this.journal.some(entry=>!entry.hiddenClue&&entry.chapter===stage.zone.name)){
       this.discover(clue);
     }
@@ -732,7 +732,7 @@ export class Game {
       this.state='play';
       this.view.canvas.focus({preventScroll:true});
       this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':this.mission?.plan.hint??'前方的封印正在鬆動');
-      this.startDelay=1.07;
+      this.startDelay=.72;
     });
     this.storyDepth.setActive(opening);
     return true;
@@ -1129,7 +1129,7 @@ export class Game {
     const confirm=hits=>{
       if (!hits||this.state!=='play') return;
       this.hitstop=Math.max(this.hitstop,final?.071:.029);
-      this.view.feedback.kick(final?.159:.043,final?.235:.16,Math.atan2(dz,dx));
+      this.view.feedback.kick(final?.184:.043,final?.235:.16,Math.atan2(dz,dx));
       if (final&&!strike.confirmed) invokeSchool(this,'wind');
       strike.confirmed=true;
     };
@@ -1691,13 +1691,14 @@ export class Game {
     }
     if (this.enemies.length) return;
     this.clearDelay+=dt;
-    if (this.clearDelay<.89) return;
+    const anotherWave=this.wave<this.stage.waves.length;
+    if (this.clearDelay<(anotherWave?.55:.65)) return;
     this.clearDelay=0;
     this.clearThreats();
     this.rituals.length=0;
-    if (this.wave<this.stage.waves.length) {
-      this.announce('結界再起','下一波','月蝕正在召喚更多的影子。',1.2);
-      this.startDelay=1.18;
+    if (anotherWave) {
+      this.announce('結界再起','下一波','月蝕正在召喚更多的影子。',.78);
+      this.startDelay=.72;
     } else {
       this.completeRoom();
     }

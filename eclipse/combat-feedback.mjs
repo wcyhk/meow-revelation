@@ -2,9 +2,9 @@ import * as T from '../three.min.mjs';
 
 const impactProfiles={
   light:{flash:.64,shake:.044,kick:.16,rumble:0},
-  heavy:{flash:.97,shake:.153,kick:.235,rumble:.44},
+  heavy:{flash:.97,shake:.176,kick:.235,rumble:.44},
   block:{flash:.35,shake:.055,kick:.16,rumble:0},
-  break:{flash:1,shake:.226,kick:.28,rumble:.75},
+  break:{flash:1,shake:.249,kick:.28,rumble:.75},
   fall:{flash:.85,shake:.127,kick:.24,rumble:.35},
 };
 const washes={

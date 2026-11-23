@@ -7,6 +7,7 @@ import {sculptSilverWarden} from './silver-warden-sculpt.mjs';
 import {wardenDissolve} from './warden-transformation.mjs';
 import {buildWardenCrown} from './warden-crown-rupture.mjs';
 import {forgeWardenMoonKit} from './warden-moon-forge.mjs';
+import {createWardenBladeWake} from './warden-blade-wake.mjs';
 
 const sides=[-1,1];
 const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
@@ -117,6 +118,13 @@ export function sculptFinalWarden(k,mobile){
       [width*.63,y+.053,z],[width,y-.032,z+.061],[0,y-.117,z-.061],
     ],.06);
     stud(spine,i%2?'wardenBronze':'glow',0,y-.021,z-.096,.035,.051,.024);
+    for(const side of sides){
+      piping(spine,'wardenBronze',reflect(side,[
+        [.021,y+.052,z-.110,.007],[width*.48,y+.032,z-.079,.009],
+        [width*.77,y-.014,z-.020,.007],[width*.88,y-.042,z+.010,.004],
+      ]));
+      if(i<4)stud(spine,'wardenWorn',side*width*.55,y-.026,z-.068,.012,.024,.010);
+    }
   }
 
   for(const side of sides){
@@ -267,12 +275,17 @@ export function sculptFinalWarden(k,mobile){
   }
   const reveal=wardenDissolve(Object.values(k.materials),true);
   const openingForm=sculptSilverWarden(k,rig,mobile);
+  const bladeWake=createWardenBladeWake(root,mobile);
   return {body,head,arms,legs,pattern:'duel',crest:bone(root,0,0,0),openingForm,armouredForm:root,
     reveal,inspectionHead:openingForm.head,
     campaign:{flaps,joints},sourceSculpt:true,polishEnergy:{
       tint:0xee714d,shape:'embers',anchor:body,span:[.72,.94,.61],firstStage:1,
     },
-    disposeRig(){sparks.plume.dispose();sparks.material.dispose();crown.dispose();moonKit.dispose();openingForm.dispose();},
+    strikeWake(weapon,state){bladeWake.pose(weapon,moonKit.edge,state);},
+    disposeRig(){
+      bladeWake.dispose();
+      sparks.plume.dispose();sparks.material.dispose();crown.dispose();moonKit.dispose();openingForm.dispose();
+    },
     cataloguePose({beat,step,headtime,wind,strike,travel,stage,fall,transition,subdued}){
       const progress=transition?.phase===2?transition.progress:stage===2?1:0;
       const moon=T.MathUtils.smoothstep(progress,.28,.66);

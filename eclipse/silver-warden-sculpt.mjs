@@ -90,18 +90,27 @@ function pleat(depth,length,start,end,rows,lining){
 
 function blessingLight(radius,halo){
   const material=new T.ShaderMaterial({
-    uniforms:{clock:{value:0},power:{value:0},visibility:{value:1}},
+    uniforms:{clock:{value:0},power:{value:0},visibility:{value:1},seal:{value:0},hand:{value:1}},
     defines:halo?{VIGIL_HALO:1}:{},
     side:T.DoubleSide,forceSinglePass:true,transparent:true,depthWrite:false,
     blending:T.AdditiveBlending,toneMapped:false,
     vertexShader:`
+      uniform float seal;
       varying vec2 local;
       void main(){
         local=uv*2.-1.;
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);
+        vec4 point=modelViewMatrix*vec4(position,1.);
+        #ifndef VIGIL_HALO
+          // Keep a charged seal readable when the wrist turns edge-on.
+          vec4 anchor=modelViewMatrix[3];
+          vec2 scale=vec2(length(modelViewMatrix[0].xyz),length(modelViewMatrix[1].xyz));
+          vec4 front=anchor+vec4(position.xy*scale,0.,0.);
+          point=mix(point,front,smoothstep(.03,.50,seal));
+        #endif
+        gl_Position=projectionMatrix*point;
       }`,
     fragmentShader:`
-      uniform float clock,power,visibility;
+      uniform float clock,power,visibility,seal,hand;
       varying vec2 local;
       float band(float r,float at,float w){return 1.-smoothstep(w*.25,w,abs(r-at));}
       void main(){
@@ -122,6 +131,17 @@ function blessingLight(radius,halo){
           core=exp(-r*r*45.);
           light=(exp(-r*r*12.)*.56+cross+core*.64+band(r,.42,.034)*power*.39)
             *(.23+power*.71);
+          if(seal>.01){
+            float angle=a+hand*clock*1.27;
+            float radius=.48+power*.24;
+            float spokes=pow(.5+.5*cos(angle*10.),7.);
+            float arcs=smoothstep(-.35,.15,cos(angle*3.));
+            float ring=band(r,radius,.018)*arcs+band(r,radius-.10,.013)*.67;
+            float glyphs=band(r,radius+.068,.048)*spokes;
+            float bloom=band(r,radius,.110)*.22;
+            core=clamp(core+(ring*.76+glyphs*.65)*seal,0.,1.);
+            light+=(ring*.60+glyphs*.49+bloom)*seal;
+          }
         #endif
         gl_FragColor=vec4(mix(vec3(.37,.65,1.),vec3(.98,.985,1.),core),
           min(1.,light*visibility)*(1.-smoothstep(.91,1.,r)));
@@ -294,7 +314,9 @@ export function sculptSilverWarden(k,parent,mobile){
     }
     carve(wrist,'vigilPorcelain',reflect([[-.055,-.053,.046,.035,.027],[-.093,-.066,.068,.029,.025],
       [-.125,-.103,.102,.021,.019],[-.128,-.124,.122,.009,.009]]),{sides:7,rings:9,ridge:.02});
-    const light=blessingLight(.245,false);
+    const light=blessingLight(.42,false);
+    light.name=side<0?'晏燈 · 左掌銀紋':'晏燈 · 右掌銀紋';
+    light.material.uniforms.hand.value=side;
     light.position.set(0,-.104,.112);
     wrist.add(light);
     lamps.push(light);
@@ -365,6 +387,11 @@ export function sculptSilverWarden(k,parent,mobile){
       foot.rotation.x=Math.sin(step+side*Math.PI*.5)*travel*.38;
       foot.position.y=.264+Math.max(0,Math.sin(step+side*Math.PI*.5))*travel*.063;
       palm.material.uniforms.power.value=Math.max(breaking,gather*.92,unfold,lead?cast:cast*(1-.66*Math.max(draw,reach,coil,slice)));
+      const direct=lead?Math.max(draw,reach,coil,slice):0;
+      palm.material.uniforms.seal.value=(subdued?.58:1)*Math.max(
+        revealCurve(gather,.34,.88),unfold*.86,
+        .73*revealCurve(Math.max(direct,press,impact),.44,.94),
+      );
     }
     costume.visible=progress<.76;
     halo.position.y=body.position.y+.80;

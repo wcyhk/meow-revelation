@@ -1818,6 +1818,9 @@ export function poseBestiary(model,unit,spec,time,x,z){
     frame:!attack&&spec.targetHeading===undefined?root.parent:null};
   if(warden&&attack)poseWardenStrike(model,patternAtContact,wind,unit.attack?null:release,aim);
   aimEnemyWeapons(model.weapons,attack,wind,strike,aim);
+  if(model.strikeWake)model.strikeWake(model.weapons[0],{
+    attack:unit.attack,release,wind,time,stage,fall,subdued:spec.subdued,transition,
+  });
   const moonGlow=warden?tintWardenEnergy(model,stage,transition):0;
   if(shedding&&progress<.83){
     model.aura.mesh.visible=false;

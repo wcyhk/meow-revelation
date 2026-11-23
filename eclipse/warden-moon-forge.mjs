@@ -111,6 +111,7 @@ function shadowBlade(k,weapon,material){
   const root=k.bone(weapon,0,0,0);
   root.name='王冠守夜者 · 幽月裂刃';
   const pieces=[];
+  let mainEdge;
   const layout=[
     {pivot:[-.046,.279,.065],side:-1,points:[
       [-.064,.245,.060],[.039,.310,.060],[.028,.514,.080],[.010,.697,.084],[-.029,.720,.086],
@@ -140,11 +141,14 @@ function shadowBlade(k,weapon,material){
     const glow=[edge,edge.map(([x,y,z,width])=>[x,y,z-.079,width*.79])].map(path=>path.map(local));
     fractureThreads(section,glow,material);
     pieces.push({section,pivot,side});
+    if(side===1){
+      mainEdge={node:section,heel:new T.Vector3(...local(points[0])),tip:new T.Vector3(...local(points[6]))};
+    }
   }
   // The hit rig stores each articulated blade segment's envelope so the
   // original sword wrist and grip clearance also cover the split shape.
   weapon.userData.weaponClearanceParts=pieces.map(({section})=>section);
-  return {root,pieces};
+  return {root,pieces,mainEdge};
 }
 
 export function forgeWardenMoonKit(k,body,cleft,amber){
@@ -153,6 +157,7 @@ export function forgeWardenMoonKit(k,body,cleft,amber){
   const mantle=shatteredMantle(k,body);
   let blade,bloodBlade;
   return {
+    get edge(){return blade?.root.visible?blade.mainEdge:null;},
     mountBlade(weapon,original){
       blade=shadowBlade(k,weapon,material);
       bloodBlade=original;

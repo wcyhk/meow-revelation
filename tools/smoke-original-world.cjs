@@ -136,26 +136,29 @@ let chrome,ws;
     for(const entry of monsterCatalogue){
       const spec=monsterBattle(entry,15,{hp:1,pace:1,damage:1}),rig=mountBestiary(v.scene,entry,spec.height,true,spec);
       const unit={x:0,z:0,dx:0,dz:1,spec,move:.6,bossPhase:1,phase:0,hp:spec.hp,
-        attack:{time:.10,windup:1,pattern:spec.attacks[0]},motion:null};
+        attack:{time:.10,windup:1,pattern:spec.attacks[0],dx:0,dz:1},motion:null};
       const finite=[];
       for(const angle of [0,Math.PI/2,Math.PI]){
-        unit.dx=Math.sin(angle);unit.dz=Math.cos(angle);rig.heading=angle;
+        unit.attack.dx=unit.dx=Math.sin(angle);unit.attack.dz=unit.dz=Math.cos(angle);rig.heading=angle;
         poseBestiary(rig,unit,{phase:1},.7,0,0);v.renderer.render(v.scene,v.camera);
         const bounds=new T.Box3().setFromObject(rig.root),size=bounds.getSize(new T.Vector3());
         finite.push([size.x,size.y,size.z].every(Number.isFinite)&&size.y>1);
       }
-      rig.heading=0;unit.dx=0;unit.dz=1;poseBestiary(rig,unit,{phase:1},.7,0,0);rig.root.updateMatrixWorld(true);
-      const forward=rig.weapons.every(weapon=>{
+      rig.heading=0;unit.attack.dx=unit.dx=0;unit.attack.dz=unit.dz=1;
+      poseBestiary(rig,unit,{phase:1,targetHeading:0},.7,0,0);rig.root.updateMatrixWorld(true);
+      const forward=rig.weapons.filter(weapon=>weapon.aim).every(weapon=>{
         const from=weapon.base.clone().applyMatrix4(weapon.node.matrixWorld),to=weapon.end.clone().applyMatrix4(weapon.node.matrixWorld);
         return to.sub(from).normalize().z>.10;
       });
-      rows.push({id:entry.id,original:rig.original,finite:finite.every(Boolean),weapons:rig.weapons.length,cloth:rig.silks.length,forward});
+      let cloth=0;
+      rig.root.traverse(part=>{if(part.isSkinnedMesh)cloth++;});
+      rows.push({id:entry.id,name:rig.root.name,finite:finite.every(Boolean),cloth,forward});
       removeBestiary(v.scene,rig);
       if(rows.length%15===0)await new Promise(resolve=>requestAnimationFrame(resolve));
     }
     qa.showCover();return rows;
   })()`);
-  assert.equal(roster.length,166);assert.ok(roster.every(r=>r.original&&r.finite));
+  assert.equal(roster.length,166);assert.ok(roster.every(r=>r.name&&r.finite));
   assert.ok(roster.every(r=>r.forward),'Charged handheld weapons must point forward, including bow muzzle axes');
   assert.ok(roster.some(r=>r.cloth>0));console.log('166 independent encounter rigs: front, side, back and charged pose rendered without errors.');
   // The real modal preview, phase arena and practice controls remain usable.

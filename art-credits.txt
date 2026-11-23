@@ -1,13 +1,16 @@
 《貓貓啟示錄》發布素材紀錄（2026-11-23）
 
 3D 神器、頭目、普通敵人及技能造物
-由本專案獨立編寫的燈契世界模型工廠產生：
+神器和技能造物由本專案的燈契世界模型工廠產生：
 eclipse/lantern-designs.mjs
 eclipse/lantern-weapons.mjs
-eclipse/lantern-creatures.mjs
 eclipse/relic-summons.mjs
 主題為契紙、陶瓷面具、燈芯、銅鐘及校時機械。
 eclipse/art/weapons/ 的 73 張圖卡由同一套手持模型離線渲染。
+
+敵人和頭目沿用本專案較早的 3D 分件雕刻及骨架，見 eclipse/bestiary-models.mjs
+及 eclipse/bestiary-shapes.mjs。遊戲沿用現行的角色名稱、招式和說明。
+發布包不包含舊遊戲的圖格、比對圖或參考資料模組。
 
 場景掃描材質
 Poly Haven Metal Plate 02 用於 eclipse/art/material/hammered-*.webp。

@@ -1,10 +1,11 @@
+import {language, t as textForLocale} from './locale.mjs';
 import {formatTime} from './progression.mjs?v=story-repair-1';
-const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;};
+const node=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=textForLocale(text);return el;};
 const button=(text,action,cls='secondary')=>{const el=node('button',cls,text);el.type='button';el.addEventListener('click',action);return el;};
 const names={vigil:'巡燈',blood:'血月',abyss:'無月'};
 const statuses={active:'進行中',failed:'挑戰結束',completed:'通關',abandoned:'已離場'};
 const syncNames={pending:'待同步',synced:'已同步',guest:'訪客紀錄',rejected:'未通過檢查'};
-const stamp=value=>new Date(value).toLocaleString('zh-HK',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+const stamp=value=>new Date(value).toLocaleString(language,{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
 
 export class PlayerUI {
   constructor(game,client){
@@ -14,21 +15,21 @@ export class PlayerUI {
   }
   status(){
     const {client}=this;
-    const name=client.user?(client.name||'守燈者-'+client.user.id.slice(0,6)):'訪客';
+    const name=client.user?(client.name||textForLocale('守燈者')+'-'+client.user.id.slice(0,6)):textForLocale('訪客');
     const summary=document.getElementById('player-summary');
     const notice=client.callbackError?client.message:client.storageError?'紀錄儲存暫不可用。請檢查瀏覽器儲存空間。':'';
-    if(summary){summary.textContent=notice;summary.hidden=!notice;}
+    if(summary){summary.textContent=textForLocale(notice);summary.hidden=!notice;}
     const account=document.getElementById('player-account');
     if(account){
       account.dataset.status=notice||client.message?'attention':client.syncing?'syncing':client.pending?'pending':'ready';
-      account.title=name+' · '+(notice||client.message|| (client.syncing?'正在同步':client.pending?'待同步 '+client.pending+' 局':client.user?'已登入':'訪客'));
-      account.setAttribute('aria-label',client.user?'玩家帳號':'玩家登入');
+      account.title=name+' · '+textForLocale(notice||client.message||(client.syncing?'正在同步':client.pending?'待同步 '+client.pending+' 局':client.user?'已登入':'訪客'));
+      account.setAttribute('aria-label',textForLocale(client.user?'玩家帳號':'玩家登入'));
     }
     const login=document.querySelector('#player-account .menu-label');
-    if(login)login.textContent=client.user?'我的帳號':'登入';
-    if(this.accountStatus?.isConnected)this.accountStatus.textContent=client.message||(client.user?
-      name+' · '+(client.syncing?'同步中':client.pending?client.pending+' 局待同步':'已同步'):
-      client.pending?client.pending+' 局訪客紀錄，登入後合併。':'登入後合併此裝置嘅訪客紀錄。');
+    if(login)login.textContent=textForLocale(client.user?'我的帳號':'登入');
+    if(this.accountStatus?.isConnected)this.accountStatus.textContent=client.message?textForLocale(client.message):client.user
+      ? name+' · '+textForLocale(client.syncing?'同步中':client.pending?client.pending+' 局待同步':'已同步')
+      : textForLocale(client.pending?client.pending+' 局訪客紀錄，登入後合併。':'登入後合併此裝置嘅訪客紀錄。');
   }
   openAccount(){
     if(this.game.state!=='cover')return;
@@ -38,7 +39,7 @@ export class PlayerUI {
     const client=this.client;
     this.accountStatus=node('p','player-status');this.accountStatus.setAttribute('role','status');root.append(this.accountStatus);
     const message=node('p','player-message');message.setAttribute('role','status');
-    const run=async(action,success)=>{try{message.textContent='處理中⋯⋯';await action();message.textContent=success??'';return true;}catch(error){message.textContent=error.message;return false;}};
+    const run=async(action,success)=>{try{message.textContent=textForLocale('處理中⋯⋯');await action();message.textContent=textForLocale(success??'');return true;}catch(error){message.textContent=textForLocale(error.message);return false;}};
     if(!client.configured){root.append(node('p','player-note','登入同全服排行榜暫未開放。訪客紀錄會繼續保存，之後可以合併到帳號。'));}
     else if(client.user){
       const label=node('label','player-field','排行榜暱稱');
@@ -68,7 +69,7 @@ export class PlayerUI {
       const cooldown=()=>Date.now()<(client.emailRetryAt??0)&&email.value.trim().toLowerCase()===client.emailRetryFor;
       const refreshSend=()=>{
         clearTimeout(this.loginRetryTimer);
-        send.disabled=!emailReady||sending||cooldown();send.textContent=!emailReady?'電郵登入 · 待開放':sending?'寄送中⋯⋯':cooldown()?'稍後重寄':'寄出驗證碼';
+        send.disabled=!emailReady||sending||cooldown();send.textContent=textForLocale(!emailReady?'電郵登入 · 待開放':sending?'寄送中⋯⋯':cooldown()?'稍後重寄':'寄出驗證碼');
         if(cooldown())this.loginRetryTimer=setTimeout(()=>{if(root.isConnected)refreshSend();},Math.max(0,client.emailRetryAt-Date.now())+50);
       };
       email.addEventListener('input',()=>{otp.value='';verification.hidden=true;refreshSend();});
@@ -98,7 +99,7 @@ export class PlayerUI {
       client.addEventListener('change',signed);
     }
     root.append(message,node('p','player-note','排行榜只公開暱稱及成績。'));
-    const links=node('nav','player-links');links.setAttribute('aria-label','帳號與資料說明');
+    const links=node('nav','player-links');links.setAttribute('aria-label',textForLocale('帳號與資料說明'));
     for(const [path,label] of [['privacy/','私隱與資料使用'],['terms/','排行榜規則']]){const link=node('a','',label);link.href=new URL('../'+path,import.meta.url).href;links.append(link);}
     root.append(links);
     this.game.openModal({kind:'account',mark:'☾',kicker:'守燈者名冊',title:'玩家帳號',content:root,
@@ -109,30 +110,33 @@ export class PlayerUI {
     if(this.game.state!=='cover')return;
     this.game.state='leaderboard';
     const root=node('div','ranking-panel'),tabs=node('div','ranking-tabs'),info=node('p','player-status'),body=node('div','ranking-body');
-    tabs.setAttribute('role','group');tabs.setAttribute('aria-label','排行榜難度');
+    tabs.setAttribute('role','group');tabs.setAttribute('aria-label',textForLocale('排行榜難度'));
     info.setAttribute('role','status');let generation=0;
     const load=async mode=>{
       const turn=++generation;
       for(const el of tabs.children)el.setAttribute('aria-pressed',String(el.dataset.mode===mode));
-      info.textContent='正在讀取排行⋯⋯';body.replaceChildren();
+      info.textContent=textForLocale('正在讀取排行⋯⋯');body.replaceChildren();
       try{
         const result=await this.client.leaderboard(mode);
         if(turn!==generation||!root.isConnected)return;
-        info.textContent=result.unavailable?(this.client.configured?'暫時未能連線，連網後可以再試。':'全服排行榜暫未開放。'):
-          (result.cached?'離線快照 · ':'已更新 · ')+stamp(result.updated_at);
+        info.textContent=textForLocale(result.unavailable?(this.client.configured?'暫時未能連線，連網後可以再試。':'全服排行榜暫未開放。'):
+          (result.cached?'離線快照 · ':'已更新 · ')+stamp(result.updated_at));
         if(!result.rows.length){body.append(node('p','player-note','暫時未有已完成樓層嘅成績。'));return;}
         const table=node('table','ranking-table'),head=node('thead'),header=node('tr');
         for(const label of ['名次','守燈者','完成層數','用時'])header.append(node('th',null,label));head.append(header);
         const tbody=node('tbody');
         for(const row of result.rows){
           const tr=node('tr');if(row.player_id===this.client.user?.id)tr.className='ranking-self';
-          for(const value of [row.rank,row.display_name,row.highest_floor,formatTime(row.cleared_ms/1000)])tr.append(node('td',null,String(value)));
+          const displayName=node('td');
+          displayName.textContent=row.display_name;
+          tr.append(node('td',null,String(row.rank)),displayName,node('td',null,String(row.highest_floor)),
+            node('td',null,formatTime(row.cleared_ms/1000)));
           if(row.offline)tr.children[1].append(node('small','offline-result','離線提交'));
           tbody.append(tr);
         }
         table.append(head,tbody);body.append(table);
         if(result.personal)body.prepend(node('p','ranking-personal',`你嘅最佳 · 第 ${result.personal.rank} 名 · ${result.personal.highest_floor} 層 · ${formatTime(result.personal.cleared_ms/1000)}`));
-      }catch{if(turn===generation)info.textContent='暫時未能讀取排行榜。';}
+      }catch{if(turn===generation)info.textContent=textForLocale('暫時未能讀取排行榜。');}
     };
     for(const [mode,name] of Object.entries(names)){const el=button(name,()=>load(mode));el.dataset.mode=mode;tabs.append(el);}
     root.append(tabs,info,body,node('p','player-note','每個難度、每個帳號只顯示最佳一局。層數優先，同層比較完成該層用時。無敵模式同練習場不入榜。'));
@@ -143,15 +147,15 @@ export class PlayerUI {
   }
   historyPanel(){
     const root=node('section','challenge-history'),heading=node('h3',null,'歷次挑戰'),summary=node('p','player-status'),list=node('div');
-    const more=button('讀取更早紀錄',async()=>{try{more.disabled=true;await this.client.moreHistory();await load(false);}catch(error){summary.textContent=error.message;}finally{more.disabled=false;}});
+    const more=button('讀取更早紀錄',async()=>{try{more.disabled=true;await this.client.moreHistory();await load(false);}catch(error){summary.textContent=textForLocale(error.message);}finally{more.disabled=false;}});
     more.hidden=true;
     const load=async(refresh=true)=>{
-      summary.textContent='正在讀取紀錄⋯⋯';
+      summary.textContent=textForLocale('正在讀取紀錄⋯⋯');
       try{
         const rows=await this.client.history(refresh);
         if(!root.isConnected)return;
         list.replaceChildren();
-        summary.textContent=this.client.user?'本機及帳號歷史；每次先讀取最近 100 局，可再讀取更早紀錄。':'訪客紀錄只保存在此瀏覽器，登入後可以合併。';
+        summary.textContent=textForLocale(this.client.user?'本機及帳號歷史；每次先讀取最近 100 局，可再讀取更早紀錄。':'訪客紀錄只保存在此瀏覽器，登入後可以合併。');
         more.hidden=!this.client.historyMore||!navigator.onLine;
         if(!rows.length)list.append(node('p','player-note','完成一次普通挑戰後，紀錄會出現喺呢度。'));
         for(const row of rows){
@@ -161,7 +165,7 @@ export class PlayerUI {
           if(row.highest_floor>0)card.append(node('span',null,'完成該層用時 · '+formatTime(row.cleared_ms/1000)));
           list.append(card);
         }
-      }catch{summary.textContent='暫時未能讀取歷史紀錄。';}
+      }catch{summary.textContent=textForLocale('暫時未能讀取歷史紀錄。');}
     };
     root.append(heading,summary,button('同步紀錄',async()=>{await this.client.sync();await load();}),list,more);
     let actor=this.client.actor;

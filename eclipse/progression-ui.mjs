@@ -1,9 +1,10 @@
+import {t as textForLocale} from './locale.mjs';
 import {branches,formatTime,hasBranch,lanterns,lanternUnlocked,loadoutSkills,milestones,moonlessLantern,moonlessTitle,techniques,training} from './progression.mjs?v=story-repair-1';
 
 function element(tag,className,content) {
   const node=document.createElement(tag);
   if (className) node.className=className;
-  if (content) node.textContent=content;
+  if (content) node.textContent=textForLocale(content);
   return node;
 }
 
@@ -14,7 +15,7 @@ export function trainingPanel(profile,updateBalance) {
   root.append(balance);
   const updates=[];
   const refresh=()=>{
-    balance.textContent='金幣 '+profile.data.gold.toLocaleString('zh-HK');
+    balance.textContent=textForLocale('金幣 '+profile.data.gold.toLocaleString('zh-HK'));
     for (const update of updates) update(profile.data);
     updateBalance();
   };
@@ -43,8 +44,8 @@ export function trainingPanel(profile,updateBalance) {
     row(stats,item,()=>profile.train(item.id),(data,name,button)=>{
       const level=data.training[item.id];
       const cost=item.costs[level];
-      name.textContent=item.mark+' '+item.name+' · '+level+'/'+item.costs.length;
-      button.textContent=cost===undefined?'已滿級':'升級 · '+cost+' 金幣';
+      name.textContent=textForLocale(item.mark+' '+item.name+' · '+level+'/'+item.costs.length);
+      button.textContent=textForLocale(cost===undefined?'已滿級':'升級 · '+cost+' 金幣');
       button.disabled=cost===undefined||data.gold<cost;
     });
   }
@@ -53,8 +54,8 @@ export function trainingPanel(profile,updateBalance) {
     row(moves,item,()=>profile.equipTechnique(item.id),(data,name,button)=>{
       const owned=data.techniques.includes(item.id);
       const equipped=data.technique===item.id;
-      name.textContent=item.mark+' '+item.name+(equipped?' · 已裝備':'');
-      button.textContent=owned?(equipped?'卸下':'裝備'):'學習 · '+item.cost+' 金幣';
+      name.textContent=textForLocale(item.mark+' '+item.name+(equipped?' · 已裝備':''));
+      button.textContent=textForLocale(owned?(equipped?'卸下':'裝備'):'學習 · '+item.cost+' 金幣');
       button.disabled=!owned&&data.gold<item.cost;
       button.setAttribute('aria-pressed',String(equipped));
     });
@@ -70,7 +71,7 @@ export function trainingPanel(profile,updateBalance) {
     for (const skill of branch.skills) {
       row(card,skill,()=>profile.learnBranchSkill(skill.id),(data,name,button)=>{
         const learned=data.branchSkills.includes(skill.id);
-        button.textContent=learned?'已學會':skill.cost+' 金幣';
+        button.textContent=textForLocale(learned?'已學會':skill.cost+' 金幣');
         button.disabled=learned||data.gold<skill.cost;
       });
     }
@@ -83,7 +84,7 @@ export function trainingPanel(profile,updateBalance) {
       const locked=!lanternUnlocked(data,item.id);
       const equipped=data.lantern===item.id;
       name.style.color=item.tint;
-      button.textContent=locked?'未解鎖':equipped?'使用中':'換上';
+      button.textContent=textForLocale(locked?'未解鎖':equipped?'使用中':'換上');
       button.disabled=locked||equipped;
       button.setAttribute('aria-pressed',String(equipped));
     });
@@ -93,7 +94,7 @@ export function trainingPanel(profile,updateBalance) {
     const locked=data.records.abyss.fastest===null;
     const equipped=data.title===moonlessTitle.id;
     name.style.color=moonlessTitle.tint;
-    button.textContent=locked?'未解鎖':equipped?'卸下':'裝備';
+    button.textContent=textForLocale(locked?'未解鎖':equipped?'卸下':'裝備');
     button.disabled=locked;
     button.setAttribute('aria-pressed',String(equipped));
   });
@@ -104,13 +105,13 @@ export function trainingPanel(profile,updateBalance) {
 export function branchPicker(profile,updates) {
   const root=element('div','branch-picker');
   root.setAttribute('role','group');
-  root.setAttribute('aria-label','入場技能分支');
+  root.setAttribute('aria-label',textForLocale('入場技能分支'));
   root.append(element('span',null,'入場分支'));
   const controls=element('div','branch-choices');
   const summary=element('p','branch-loadout-summary');
   const loadout=element('div','branch-skill-choices');
   loadout.setAttribute('role','group');
-  loadout.setAttribute('aria-label','攜帶技能');
+  loadout.setAttribute('aria-label',textForLocale('攜帶技能'));
   const skillButtons=new Map();
   for(const branch of branches) for(const skill of branch.skills) {
     const button=element('button','secondary branch-skill');
@@ -140,7 +141,7 @@ export function branchPicker(profile,updates) {
       button.setAttribute('aria-pressed',String(active.some(skill=>skill.id===id)));
     }
     loadout.hidden=!data.branch;
-    summary.textContent=active.length?`已帶 ${active.length} 個技能 · 攜帶組合會影響結局`:'已帶 0 個技能 · 通關後進入普通結局';
+    summary.textContent=textForLocale(active.length?`已帶 ${active.length} 個技能 · 攜帶組合會影響結局`:'已帶 0 個技能 · 通關後進入普通結局');
   };
   for (const branch of [{id:null,name:'不帶分支'},...branches]) {
     const button=element('button','secondary branch-choice',branch.name);
@@ -195,6 +196,6 @@ export function recordsPanel(profile,modes) {
 }
 
 export function setFracture(overlay,time) {
-  for (const piece of overlay.querySelectorAll('b')) piece.textContent=time;
+  for (const piece of overlay.querySelectorAll('b')) piece.textContent=textForLocale(time);
   overlay.hidden=false;
 }

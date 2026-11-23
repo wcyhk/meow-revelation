@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 const characters={
   narrator:'旁白',
   hero:'守燈貓',
@@ -11,7 +12,7 @@ const artPath=(folder,key)=>`./story-art/${folder}/${key}.webp?v=story-portraits
 function element(tag,className,text) {
   const node=document.createElement(tag);
   node.className=className;
-  if(text) node.textContent=text;
+  if(text) node.textContent=textForLocale(text);
   return node;
 }
 
@@ -55,7 +56,7 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
   const dock=element('div','vn-dock');
   const options=element('div','vn-options');
   options.setAttribute('role','group');
-  options.setAttribute('aria-label','選擇回應');
+  options.setAttribute('aria-label',textForLocale('選擇回應'));
   const box=element('div','vn-box');
   const speaker=element('span','vn-speaker');
   const speech=element('div','vn-speech');
@@ -74,7 +75,7 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
   const history=element('section','vn-history');
   history.id='vn-history';
   history.hidden=true;
-  history.setAttribute('aria-label','對話記錄');
+  history.setAttribute('aria-label',textForLocale('對話記錄'));
   historyButton.setAttribute('aria-controls',history.id);
   const logHeader=element('header','vn-history-head');
   const hideHistory=button('vn-tool','返回對話');
@@ -117,14 +118,14 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
       illustration.src=artPath('scenes',artwork);
     }
     if(artwork||scene.art)root.dataset.view=entry.speaker==='narrator'?'illustration':'portrait';
-    speaker.textContent=names[entry.speaker];
-    text.textContent=entry.text;
+    speaker.textContent=textForLocale(names[entry.speaker]);
+    text.textContent=textForLocale(entry.text);
     transcript.push({name:names[entry.speaker],text:entry.text});
     const choices=atChoice();
     options.hidden=!choices;
     next.hidden=Boolean(choices);
     skip.hidden=index===lines.length-1;
-    next.textContent=index===lines.length-1?finishLabel:'繼續  ▾';
+    next.textContent=textForLocale(index===lines.length-1?finishLabel:'繼續  ▾');
     if(choices) options.firstElementChild.focus({preventScroll:true});
   }
 

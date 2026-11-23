@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 const databaseName='meow-revelation-music';
 const storageKey=new URL('../',import.meta.url).pathname;
 const defaultTrack=new URL('./audio/night-watch-metal.mp3',import.meta.url);
@@ -95,18 +96,18 @@ export class Soundtrack {
       }else this.input.click();
     });
     this.updateButton(button);
-    status.textContent=this.message;
+    status.textContent=textForLocale(this.message);
   }
 
   updateButton(button) {
     button.disabled=this.busy;
-    button.textContent=this.busy?'正在載入配樂'
-      :this.blocked||!this.media?'重試背景音樂':'更換背景音樂';
+    button.textContent=textForLocale(this.busy?'正在載入配樂'
+      :this.blocked||!this.media?'重試背景音樂':'更換背景音樂');
   }
 
   paint() {
     for(const button of document.querySelectorAll('.soundtrack-toggle'))this.updateButton(button);
-    for(const status of document.querySelectorAll('.soundtrack-status'))status.textContent=this.message;
+    for(const status of document.querySelectorAll('.soundtrack-status'))status.textContent=textForLocale(this.message);
   }
 
   async restore() {

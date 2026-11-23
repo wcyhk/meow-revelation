@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
 
 const moveThreshold=11;
@@ -54,7 +55,7 @@ export class TouchCombat {
     this.gesture.mode='skill';
     this.stick.dataset.mode='skill';
     this.prompt.dataset.selected='false';
-    this.caption.textContent=this.gesture.above?'向上拖到紋章':'向下拖到紋章';
+    this.caption.textContent=textForLocale(this.gesture.above?'向上拖到紋章':'向下拖到紋章');
     this.prompt.hidden=false;
   }
 
@@ -104,7 +105,7 @@ export class TouchCombat {
       const selected=this.skillSelected(g,event);
       g.selected=selected;
       this.prompt.dataset.selected=String(selected);
-      this.caption.textContent=selected?'放手施放':g.above?'向上拖到紋章':'向下拖到紋章';
+      this.caption.textContent=textForLocale(selected?'放手施放':g.above?'向上拖到紋章':'向下拖到紋章');
     }
   }
 

@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
 import {schools,buildStats} from './blessings.mjs?v=heirlooms-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
@@ -45,7 +46,7 @@ const boonMotifs={
 };
 const el=(tag,text,kind)=>{
   const node=document.createElement(tag);
-  if(text)node.textContent=text;
+  if(text)node.textContent=textForLocale(text);
   if(kind)node.className=kind;
   return node;
 };
@@ -98,8 +99,8 @@ export function bonusPercent(value){
 
 export function paintBlessingHud(control,relics){
   const unique=[...tally([...relics].reverse()).values()].slice(0,3);
-  control.setAttribute('aria-label','已獲祝福 '+relics.length+' 份。打開查看加成');
-  control.title='查看祝福同加成';
+  control.setAttribute('aria-label',textForLocale('已獲祝福 '+relics.length+' 份。打開查看加成'));
+  control.title=textForLocale('查看祝福同加成');
   control.replaceChildren(...unique.map(({relic,rank})=>{
     const item=el('span','','blessing-mini');
     item.append(blessingIcon(relic));
@@ -164,14 +165,15 @@ export function weaponPicker(weapons,icons,select){
 export function weaponCatalogue(weapons,icons,select){
   const root=el('div','','weapon-catalogue');
   const input=el('input');
-  input.type='search';input.placeholder='搜尋武器、技能或頭目';
-  input.setAttribute('aria-label',input.placeholder);
+  input.type='search';input.placeholder=textForLocale('搜尋武器、技能或頭目');
+  input.setAttribute('aria-label',textForLocale(input.placeholder));
   const list=el('div','','heirloom-list');
   for(const weapon of weapons){
     const item=el('button','','heirloom-choice');
     item.type='button';
     item.dataset.armChoice=weapon.id;
-    item.dataset.search=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name].join(' ');
+    const labels=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name];
+    item.dataset.search=[...labels,...labels.map(textForLocale)].join(' ').toLowerCase();
     item.style.setProperty('--weapon-tone',weapon.ink);
     const icon=el('img');
     icon.alt='';icon.loading='lazy';icon.decoding='async';
@@ -186,7 +188,8 @@ export function weaponCatalogue(weapons,icons,select){
     list.append(item);
   }
   input.addEventListener('input',()=>{
-    for(const item of list.children)item.hidden=!item.dataset.search.includes(input.value.trim());
+    const query=input.value.trim().toLowerCase();
+    for(const item of list.children)item.hidden=!item.dataset.search.includes(query);
   });
   root.append(input,list);
   return root;

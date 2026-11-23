@@ -1,3 +1,5 @@
+import './page-locale.mjs';
+import {format, language, t as textForLocale} from './locale.mjs';
 import {bossMoveNames,monsterBattle,visitorFor} from './monster-bestiary.mjs?v=boss-foundry-1';
 import {bossDossier,bossDossiers,drillEncounter} from './boss-dossiers.mjs?v=boss-foundry-1';
 import {practiceLoadout} from './catalogue.mjs?v=ascendant-1';
@@ -94,7 +96,7 @@ function makeButton(label, callback, style='secondary') {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = style;
-  button.textContent = label;
+  button.textContent = textForLocale(label);
   button.addEventListener('click',callback);
   return button;
 }
@@ -189,14 +191,14 @@ export class Game {
     this.flashTitle(this.view.feedback.subdued);
     this.ui['cover-title'].setAttribute('aria-pressed',String(this.testMode));
     const status=this.ui['test-mode-status'];
-    status.textContent=this.testMode?'無敵測試模式 · 已開啟':'無敵測試模式 · 已關閉';
+    status.textContent=textForLocale(this.testMode?'無敵測試模式 · 已開啟':'無敵測試模式 · 已關閉');
     status.hidden=false;
     clearTimeout(this.testStatusTimer);
     if(!this.testMode)this.testStatusTimer=setTimeout(()=>{status.hidden=true;},2100);
   }
 
   updateEntryBalance() {
-    this.ui['entry-gold'].textContent='金幣 '+this.progress.data.gold.toLocaleString('zh-HK');
+    this.ui['entry-gold'].textContent=format('金幣 《0》',this.progress.data.gold.toLocaleString(language));
   }
 
   openTraining() {
@@ -298,10 +300,10 @@ export class Game {
     this.view.setBossArena(this.bossArena);
     boss.phaseGuard=1.12;
     boss.recover=1.10;
-    this.ui['route-name'].textContent=title;
-    this.ui['route-floor'].textContent=this.difficulty.name;
+    this.ui['route-name'].textContent=textForLocale(title);
+    this.ui['route-floor'].textContent=textForLocale(this.difficulty.name);
     this.ui['route-dots'].replaceChildren();
-    this.ui['boss-name'].textContent=spec.name;
+    this.ui['boss-name'].textContent=textForLocale(spec.name);
     this.audio.danger=true;
     this.audio.dread=stage.dread;
     this.ambientClock=Infinity;
@@ -385,19 +387,19 @@ export class Game {
       const role=document.createElement('small'), name=document.createElement('b');
       const basic=document.createElement('span'), moves=document.createElement('span');
       const skill=document.createElement('strong'), detail=document.createElement('span'), link=document.createElement('span');
-      role.textContent=(nightArms.includes(weapon)?'夜祭 · ':'')+weapon.role; name.textContent=weapon.name; basic.textContent=weapon.basic;
+      role.textContent=textForLocale((nightArms.includes(weapon)?'夜祭 · ':'')+weapon.role); name.textContent=textForLocale(weapon.name); basic.textContent=textForLocale(weapon.basic);
       basic.className='arm-basic';detail.className='arm-skill-detail';
       moves.className='arm-combo';
-      moves.textContent=comboNames(weapon).join(' → ');
-      skill.textContent=weapon.skill; detail.textContent=weapon.detail;
+      moves.textContent=textForLocale(comboNames(weapon).join(' → '));
+      skill.textContent=textForLocale(weapon.skill); detail.textContent=textForLocale(weapon.detail);
       link.className='arm-link';
       const follow=skillLinks[weapon.id];
-      link.textContent='接技 · '+follow.name+'：'+follow.detail;
+      link.textContent=textForLocale('接技 · '+follow.name+'：'+follow.detail);
       text.append(role,name,moves,basic,skill,detail,link);
       if(weapon.spell){
         const heirloom=document.createElement('span');
         heirloom.className='arm-resonance';
-        heirloom.textContent='專屬祝福 · '+weapon.blessing.name+'｜'+weapon.blessing.detail;
+        heirloom.textContent=textForLocale('專屬祝福 · '+weapon.blessing.name+'｜'+weapon.blessing.detail);
         text.append(heirloom);
       }
       const signature={qilin:'wind',flameblade:'fire',stormbow:'thunder',turtle:'ward'}[weapon.id];
@@ -406,14 +408,14 @@ export class Game {
       if (fusion||milestone&&signature&&this.hero.resonance[signature]) {
         const resonance=document.createElement('span');
         resonance.className='arm-resonance';
-        resonance.textContent=fusion?fusion.mark+' '+fusion.name+'｜'+fusion.detail
-          :linkResonances[signature].mark+' 已有共鳴｜'+resonanceText(weapon,signature,this.hero.resonance[signature]);
+        resonance.textContent=textForLocale(fusion?fusion.mark+' '+fusion.name+'｜'+fusion.detail
+          :linkResonances[signature].mark+' 已有共鳴｜'+resonanceText(weapon,signature,this.hero.resonance[signature]));
         text.append(resonance);
       }
       if (secret?.known&&!secret.ready) {
         const clue=document.createElement('span');
         clue.className='arm-resonance';
-        clue.textContent='隱藏合招｜'+this.ultimateClue(secret);
+        clue.textContent=textForLocale('隱藏合招｜'+this.ultimateClue(secret));
         text.append(clue);
       }
       choice.append(portrait,text);
@@ -440,13 +442,13 @@ export class Game {
   difficultyPicker() {
     const root=document.createElement('div');
     root.className='difficulty-picker';
-    root.setAttribute('role','group');root.setAttribute('aria-label','選擇難度');
+    root.setAttribute('role','group');root.setAttribute('aria-label',textForLocale('選擇難度'));
     const controls=document.createElement('div'),detail=document.createElement('small'),goals=document.createElement('small');
     goals.className='difficulty-rewards';
     const refresh=()=>{
       for(const button of controls.children) button.setAttribute('aria-pressed',String(button.dataset.difficulty===this.difficulty.id));
-      detail.textContent=this.difficulty.detail+' 每層金幣 ×'+this.difficulty.gold;
-      goals.textContent=milestones[this.difficulty.id].map(reward=>`第 ${reward.floor} 關 · ${reward.name}`).join('　');
+      detail.textContent=textForLocale(this.difficulty.detail+' 每層金幣 ×'+this.difficulty.gold);
+      goals.textContent=milestones[this.difficulty.id].map(reward=>format('第 《0》 關 · 《1》',reward.floor,reward.name)).join('　');
       goals.hidden=!goals.textContent;
     };
     for(const mode of Object.values(difficulties)) {
@@ -522,10 +524,10 @@ export class Game {
     this.input.touch.setWeapon(weapon);
     const floor=this.practiceRun?(this.duelMonster.floor??12):this.level+1;
     this.ranks=buildStats(this.hero,weapon,floor,this.relics,this.training);
-    this.ui.equipped.textContent=weapon.name;
+    this.ui.equipped.textContent=textForLocale(weapon.name);
     this.ui.equipped.style.color=weapon.ink;
     this.action('strike',weapon.attack,'✦',weapon.ink);
-    this.ui.strike.title=comboNames(weapon).join(' → ');
+    this.ui.strike.title=textForLocale(comboNames(weapon).join(' → '));
     this.action('spell',weapon.skill,weapon.mark,weapon.ink);
     this.refreshFusion();
     this.hero.link=null;
@@ -535,7 +537,7 @@ export class Game {
     this.fusions=fusionChoices(this.weapon,this.hero.resonance);
     this.fusion=pickFusion(this.fusions,this.fusionPin);
     const skill=skillLinks[this.weapon.id].name;
-    this.ui.spell.title=this.weapon.skill+' · 第三擊命中後接技：'+skill+(this.fusion?'｜'+this.fusion.name+'：'+this.fusion.detail:'');
+    this.ui.spell.title=textForLocale(this.weapon.skill+' · 第三擊命中後接技：'+skill+(this.fusion?'｜'+this.fusion.name+'：'+this.fusion.detail:''));
   }
 
   ultimateClue(progress,school) {
@@ -559,10 +561,10 @@ export class Game {
 
   action(id,label,mark,tone) {
     const control=this.ui[id];
-    control.setAttribute('aria-label',label);
-    control.title=label;
-    control.querySelector('em').textContent=label;
-    control.querySelector('span').textContent=mark;
+    control.setAttribute('aria-label',textForLocale(label));
+    control.title=textForLocale(label);
+    control.querySelector('em').textContent=textForLocale(label);
+    control.querySelector('span').textContent=textForLocale(mark);
     control.style.setProperty('--action-ink',tone);
   }
 
@@ -635,8 +637,10 @@ export class Game {
     this.audio.dread=stage.dread;
     this.ui['boss-hud'].hidden = true;
     this.ui['boss-echo'].hidden=true;
-    this.ui['route-name'].textContent = stage.name;
-    this.ui['route-floor'].textContent='第 '+stage.floor+' / 100 關'+(this.difficulty.id==='vigil'?'':' · '+this.difficulty.name);
+    this.ui['route-name'].textContent = textForLocale(stage.name);
+    this.ui['route-floor'].textContent=this.difficulty.id==='vigil'
+      ? format('第 《0》 / 100 關',stage.floor)
+      : format('第 《0》 / 100 關 · 《1》',stage.floor,this.difficulty.name);
     this.ui['route-dots'].replaceChildren(...Array.from({length:10},(_,index) => {
       const gem = document.createElement('i');
       gem.className = 'route-gem '+(index===stage.chapter?'current':index<stage.chapter?'done':'');
@@ -655,15 +659,16 @@ export class Game {
   }
 
   announce(kicker,title,line,duration=2) {
-    this.ui['announce-kicker'].textContent = kicker;
-    this.ui['announce-title'].textContent = title;
-    this.ui['announce-line'].textContent = line;
+    this.ui['announce-kicker'].textContent = textForLocale(kicker);
+    this.ui['announce-title'].textContent = textForLocale(title);
+    this.ui['announce-line'].textContent = textForLocale(line);
     this.ui.announce.classList.add('visible');
     this.announceLeft = duration;
   }
 
   objective(line) {
-    if (line !== this.ui.objective.textContent) this.ui.objective.textContent = line;
+    const label = textForLocale(line);
+    if (label !== this.ui.objective.textContent) this.ui.objective.textContent = label;
   }
 
   placeStory(clue) {
@@ -720,7 +725,7 @@ export class Game {
       if(preparation?.pending){
         this.state='transition';
         const next=this.ui['modal-content'].querySelector('.vn-next');
-        if(next){next.disabled=true;next.textContent='燈火引路⋯⋯';}
+        if(next){next.disabled=true;next.textContent=textForLocale('燈火引路⋯⋯');}
         await preparation.promise;
         if(!current()||this.state!=='transition')return;
       }
@@ -762,13 +767,13 @@ export class Game {
     for (const clue of entries) {
       const entry=document.createElement('article');
       const heading=document.createElement('b'), record=document.createElement('p');
-      heading.textContent=clue.chapter+' · '+clue.title;
-      record.textContent=clue.record;
+      heading.textContent=textForLocale(clue.chapter+' · '+clue.title);
+      record.textContent=textForLocale(clue.record);
       entry.append(heading,record);
       if (clue.note) {
         const note=document.createElement('p');
         note.className='journal-choice';
-        note.textContent='你嘅選擇 · '+clue.note;
+        note.textContent=textForLocale('你嘅選擇 · '+clue.note);
         entry.append(note);
       }
       journal.append(entry);
@@ -831,7 +836,7 @@ export class Game {
       const unit=this.spawn('boss',-2.8,-4.0,null,monsterBattle(visitor,this.stage.floor,this.difficulty));
       unit.phaseGuard=.75;
       unit.recover=1.16;
-      this.ui['boss-echo-name'].textContent=visitor.name;
+      this.ui['boss-echo-name'].textContent=textForLocale(visitor.name);
       this.view.bossCue(unit,'entrance');
       this.announce('契約異象',visitor.name,unit.spec.signature,2.1);
       this.audio.boss(unit.spec.effect);
@@ -853,7 +858,7 @@ export class Game {
       this.view.setBossArena(this.bossArena,visuals);
       head.phaseGuard=1.17;
       head.recover=1.04;
-      this.ui['boss-name'].textContent=guardian.name;
+      this.ui['boss-name'].textContent=textForLocale(guardian.name);
       this.ui['boss-primary'].hidden=false;
       this.ui['boss-hud'].hidden = false;
       const extra=twinSpec(this.stage);
@@ -861,7 +866,7 @@ export class Game {
         const echo=this.spawn('boss',this.escape.x*.65+(this.escape.x>0?3.45:-3.45),-4.95,null,extra);
         echo.phaseGuard=1.30;echo.recover=2.35;echo.cool=2.65;
         this.ui['boss-echo'].hidden=false;
-        this.ui['boss-echo-name'].textContent=extra.name;
+        this.ui['boss-echo-name'].textContent=textForLocale(extra.name);
         this.view.bossCue(echo,'entrance');
         this.objective('擊敗兩名頭目 · 全數擊倒後出口會打開');
       }
@@ -1027,7 +1032,7 @@ export class Game {
       const near=this.closeToClue();
       this.ui.inspect.hidden=!near;
       if (near) {
-        this.ui.inspect.querySelector('span').textContent=this.discovery.action;
+        this.ui.inspect.querySelector('span').textContent=textForLocale(this.discovery.action);
         if (input.interact) this.interact();
       }
       return;
@@ -1039,7 +1044,7 @@ export class Game {
     const arenaPoint=this.bossArena?.nearby(h);
     if (arenaPoint) {
       this.ui.inspect.hidden=false;
-      this.ui.inspect.querySelector('span').textContent=this.bossArena.label(arenaPoint);
+      this.ui.inspect.querySelector('span').textContent=textForLocale(this.bossArena.label(arenaPoint));
       if (input.interact) this.interact();
       return;
     }
@@ -1806,7 +1811,7 @@ export class Game {
     const points=arena ? this.bossArena.points : [];
     this.pins=points.map(point=>{
       const element=document.createElement('i');
-      element.textContent=point.symbol??'✧';
+      element.textContent=textForLocale(point.symbol??'✧');
       element.hidden=true;
       if (arena) element.classList.add('arena-pin');
       return {point,element};
@@ -1993,12 +1998,12 @@ export class Game {
     if(boon)support+=(support?' · ':'')+'殘影增傷 +'+boon*15+'% · '+Math.ceil(h.wardenBoonUntil-this.t)+'秒';
     const badge=this.ui['field-support'];
     badge.classList.toggle('maw-stacks',stacks>0);
-    if(badge.textContent!==support) badge.textContent=support;
+    if(badge.textContent!==textForLocale(support)) badge.textContent=textForLocale(support);
     badge.hidden=!support;
     const hp=fixed(h.hp);
     const label=hp+' / '+h.maxHp;
-    if (this.ui['hp-number'].textContent!==label) {
-      this.ui['hp-number'].textContent=label;
+    if (this.ui['hp-number'].textContent!==textForLocale(label)) {
+      this.ui['hp-number'].textContent=textForLocale(label);
       this.ui['hp-fill'].style.transform='scaleX('+h.hp/h.maxHp+')';
       this.meter.setAttribute('aria-valuemax',h.maxHp);
       this.meter.setAttribute('aria-valuenow',hp);
@@ -2017,14 +2022,14 @@ export class Game {
     this.ui['boss-echo'].hidden=!echo&&!summons;
     if(echo||summons){
       const name=summons?'殘影頭目 ×'+summons:echo.spec.name;
-      if(this.ui['boss-echo-name'].textContent!==name)this.ui['boss-echo-name'].textContent=name;
+      if(this.ui['boss-echo-name'].textContent!==textForLocale(name))this.ui['boss-echo-name'].textContent=textForLocale(name);
       const ratio=summons?echoHp/echoMax:echo.hp/echo.spec.hp;
       this.ui['boss-echo-fill'].style.transform='scaleX('+clamp(ratio,0,1)+')';
     }
     const kills=String(this.kills),clock=formatTime(this.elapsed),gold=String(this.runGold??0);
-    if(this.ui['run-kills'].textContent!==kills)this.ui['run-kills'].textContent=kills;
-    if(this.ui['run-time'].textContent!==clock)this.ui['run-time'].textContent=clock;
-    if(this.ui['run-gold'].textContent!==gold)this.ui['run-gold'].textContent=gold;
+    if(this.ui['run-kills'].textContent!==textForLocale(kills))this.ui['run-kills'].textContent=textForLocale(kills);
+    if(this.ui['run-time'].textContent!==textForLocale(clock))this.ui['run-time'].textContent=textForLocale(clock);
+    if(this.ui['run-gold'].textContent!==textForLocale(gold))this.ui['run-gold'].textContent=textForLocale(gold);
     if (boss) this.ui['boss-fill'].style.transform='scaleX('+clamp(boss.hp/boss.spec.hp,0,1)+')';
     const arena=this.bossArena;
     const arenaHint=this.ui['boss-arena-hint'];
@@ -2033,7 +2038,7 @@ export class Game {
     this.ui['boss-hud'].classList.toggle('shielded',!!boss&&!!arena?.locked);
     if (!arenaHint.hidden) {
       const line=arena.status();
-      if (arenaHint.textContent!==line) arenaHint.textContent=line;
+      if (arenaHint.textContent!==textForLocale(line)) arenaHint.textContent=textForLocale(line);
     }
     const weakness=this.ui['boss-weakness'];
     weakness.hidden=arenaHint.hidden;
@@ -2042,7 +2047,7 @@ export class Game {
       const hint=counter.hint;
       weakness.classList.toggle('open',counter.stagger>0);
       weakness.classList.toggle('windup',counter.chargeHint>0);
-      if (weakness.textContent!==hint) weakness.textContent=hint;
+      if (weakness.textContent!==textForLocale(hint)) weakness.textContent=textForLocale(hint);
     }
     const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/h.atkTotal];
     const combo=String(h.comboLeft>0?h.combo:0);
@@ -2062,7 +2067,7 @@ export class Game {
       hint.hidden=!linkState;
       const marks=resonanceMarks(h.resonance);
       const suffix=fusion?' '+fusion.mark:marks?' '+marks:'';
-      if (linkState) hint.textContent=linkState==='queued'?'等候命中':ready?'接技 · '+name+suffix:name+'！'+suffix;
+      if (linkState) hint.textContent=textForLocale(linkState==='queued'?'等候命中':ready?'接技 · '+name+suffix:name+'！'+suffix);
     }
     if (ready) spell.style.setProperty('--link-left',Math.round((ready.until-this.t)/ready.window*360)+'deg');
     const seconds=Math.ceil(Math.max(0,h.spellCool));
@@ -2073,9 +2078,9 @@ export class Game {
     const spellLabel=ready?'接技：'+name:this.weapon.skill+(seconds?'，冷卻 '+seconds+' 秒':'');
     if(spell.hidden!==hideSpell) spell.hidden=hideSpell;
     if(spell.getAttribute('aria-disabled')!==disabled) spell.setAttribute('aria-disabled',disabled);
-    if(spell.getAttribute('aria-label')!==spellLabel) spell.setAttribute('aria-label',spellLabel);
-    if(countdown.textContent!==count) {
-      countdown.textContent=count;
+    if(spell.getAttribute('aria-label')!==textForLocale(spellLabel)) spell.setAttribute('aria-label',textForLocale(spellLabel));
+    if(countdown.textContent!==textForLocale(count)) {
+      countdown.textContent=textForLocale(count);
       countdown.hidden=!seconds;
       this.input.touch.prompt.dataset.cooldown=String(!!seconds);
     }
@@ -2086,8 +2091,8 @@ export class Game {
     if (mission?.started&&!mission.finished) {
       const {text,fill}=mission.status();
       this.ui['mission-status'].dataset.mode=mission.plan.type;
-      if (this.ui['mission-title'].textContent!==mission.plan.title) this.ui['mission-title'].textContent=mission.plan.title;
-      if (this.ui['mission-text'].textContent!==text) this.ui['mission-text'].textContent=text;
+      if (this.ui['mission-title'].textContent!==textForLocale(mission.plan.title)) this.ui['mission-title'].textContent=textForLocale(mission.plan.title);
+      if (this.ui['mission-text'].textContent!==textForLocale(text)) this.ui['mission-text'].textContent=textForLocale(text);
       this.ui['mission-track'].hidden=fill===null;
       if (fill!==null) this.ui['mission-fill'].style.transform='scaleX('+fill+')';
     }
@@ -2134,10 +2139,10 @@ export class Game {
     this.weaponViewer.stopSelection();
     this.input.reset();
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
-    this.ui['modal-mark'].textContent=mark;
-    this.ui['modal-kicker'].textContent=kicker;
-    this.ui['modal-title'].textContent=title;
-    this.ui['modal-copy'].textContent=copy;
+    this.ui['modal-mark'].textContent=textForLocale(mark);
+    this.ui['modal-kicker'].textContent=textForLocale(kicker);
+    this.ui['modal-title'].textContent=textForLocale(title);
+    this.ui['modal-copy'].textContent=textForLocale(copy);
     this.ui['modal-copy'].hidden=!copy;
     this.ui.modal.dataset.kind=kind;
     this.ui['modal-content'].replaceChildren(...(content?[content]:[]));
@@ -2309,18 +2314,18 @@ export class Game {
       branch.className='relic-school';
       branch.style.color=school.ink;
       const next=Math.min(3,count+Number(rank===0&&!relic.weaponId));
-      branch.textContent=school.name+' '+next+'/3'+(next===3?' · '+school.skill:'');
-      branch.title=school.detail;
-      name.textContent=relic.name+(rank?' · '+rank+' → '+(rank+1):'');
-      detail.textContent=relic.detail;
+      branch.textContent=textForLocale(school.name+' '+next+'/3'+(next===3?' · '+school.skill:''));
+      branch.title=textForLocale(school.detail);
+      name.textContent=textForLocale(relic.name+(rank?' · '+rank+' → '+(rank+1):''));
+      detail.textContent=textForLocale(relic.detail);
       const preview=resonancePreview(this.weapon,relic.school,total);
       resonance.className='relic-resonance'+(preview.upgrade?' upgrade':'');
       resonance.style.setProperty('--resonance-ink',school.ink);
-      resonance.textContent=preview.text;
-      if (next===3&&count<3) branch.textContent+='（解鎖）';
+      resonance.textContent=textForLocale(preview.text);
+      if (next===3&&count<3) branch.textContent+=textForLocale('（解鎖）');
       button.append(mark,name,detail);
       if(relic.weaponId){
-        resonance.textContent='本武器技能傷害 '+bonusPercent(relicPower(rank+1)-1);
+        resonance.textContent=textForLocale('本武器技能傷害 '+bonusPercent(relicPower(rank+1)-1));
         button.append(resonance);
         grid.append(button);
         continue;
@@ -2336,20 +2341,20 @@ export class Game {
         const weave=document.createElement('small');
         weave.className='relic-fusion'+(lead.ultimate?' ultimate-clue':'');
         weave.style.setProperty('--fusion-ink',lead.ink);
-        weave.textContent=(lead.ultimate?'覺醒 ':unlock?'解鎖 ':'升階 ')+lead.name+(changed.length>1?' ＋'+(changed.length-1):'')+'｜'+lead.detail;
+        weave.textContent=textForLocale((lead.ultimate?'覺醒 ':unlock?'解鎖 ':'升階 ')+lead.name+(changed.length>1?' ＋'+(changed.length-1):'')+'｜'+lead.detail);
         button.append(weave);
       } else if (secret?.known&&!secret.ready&&secret.rite.schools.includes(relic.school)&&total<6) {
         const clue=document.createElement('small');
         clue.className='relic-fusion ultimate-clue';
         clue.style.setProperty('--fusion-ink',secret.rite.ink);
-        clue.textContent='隱藏合招｜'+this.ultimateClue(secret,relic.school);
+        clue.textContent=textForLocale('隱藏合招｜'+this.ultimateClue(secret,relic.school));
         button.append(clue);
       }
       for(const seal of seals){
         if(h.seals.has(seal.id)||!seal.needs.includes(relic.id)||!seal.needs.some(id=>id!==relic.id&&this.ranks.has(id)))continue;
         const clue=document.createElement('small');
         clue.className='relic-fusion ultimate-clue';clue.style.setProperty('--fusion-ink',seal.ink);
-        clue.textContent='秘印 '+seal.name+'｜'+seal.detail;
+        clue.textContent=textForLocale('秘印 '+seal.name+'｜'+seal.detail);
         button.append(clue);
       }
       grid.append(button);
@@ -2359,12 +2364,12 @@ export class Game {
     if (!bonus&&reward) {
       const receipt=document.createElement('p');
       receipt.className='floor-receipt';
-      receipt.textContent='金幣 +'+reward.gold+(heal?' · 回復 '+heal+' 生命':'');
+      receipt.textContent=textForLocale('金幣 +'+reward.gold+(heal?' · 回復 '+heal+' 生命':''));
       content.append(receipt);
       if (reward.notice) {
         const notice=document.createElement('p');
         notice.className='milestone-notice';
-        notice.textContent=reward.notice.name+' · '+reward.notice.detail;
+        notice.textContent=textForLocale(reward.notice.name+' · '+reward.notice.detail);
         content.append(notice);
       }
     }
@@ -2375,7 +2380,7 @@ export class Game {
       redraw.id='blessing-redraw';
       buttons.push(redraw);
     }
-    this.openModal({kind:'blessing',mark:'✧',kicker:'第 '+this.stage.floor+' 關 · '+(message??'已完成'),
+    this.openModal({kind:'blessing',mark:'✧',kicker:format('第 《0》 關 · 《1》',this.stage.floor,message??'已完成'),
       title:bonus?'雙頭目遺贈':'亡者的祝福',copy:bonus?'揀多一份祝福，帶入餘下樓層。':'揀一份祝福。累積唔同流派可以解鎖合招。',content,buttons});
   }
 
@@ -2411,22 +2416,22 @@ export class Game {
     const newSeal=seals.find(seal=>h.seals.has(seal.id)&&!oldSeals.has(seal.id));
     if (awakened) {
       const note=this.ui['school-toast'];
-      note.textContent='隱藏合招覺醒 · '+awakened.name+'｜'+awakened.detail;
+      note.textContent=textForLocale('隱藏合招覺醒 · '+awakened.name+'｜'+awakened.detail);
       note.hidden=false;
       this.schoolToast=4.2;
     } else if(newSeal){
       const note=this.ui['school-toast'];
-      note.textContent='秘印 · '+newSeal.name+'｜'+newSeal.detail;
+      note.textContent=textForLocale('秘印 · '+newSeal.name+'｜'+newSeal.detail);
       note.hidden=false;
       this.schoolToast=3.8;
     } else if (learned) {
       const note=this.ui['school-toast'];
-      note.textContent='解鎖 '+schools[branch].skill+' · '+schools[branch].detail;
+      note.textContent=textForLocale('解鎖 '+schools[branch].skill+' · '+schools[branch].detail);
       note.hidden=false;
       this.schoolToast=3.2;
     } else if (this.fusion&&this.fusion.id!==previous?.id) {
       const note=this.ui['school-toast'];
-      note.textContent='接技合招 · '+this.fusion.name+'｜'+this.fusion.detail;
+      note.textContent=textForLocale('接技合招 · '+this.fusion.name+'｜'+this.fusion.detail);
       note.hidden=false;
       this.schoolToast=3.2;
     }
@@ -2478,9 +2483,9 @@ export class Game {
       },'relic');
       card.dataset.blessing=relic.id;
       const name=document.createElement('b'),detail=document.createElement('span'),school=document.createElement('small');
-      name.textContent=relic.name;
-      detail.textContent=relic.detail;
-      school.textContent=schools[relic.school].name;
+      name.textContent=textForLocale(relic.name);
+      detail.textContent=textForLocale(relic.detail);
+      school.textContent=textForLocale(schools[relic.school].name);
       school.style.color=schools[relic.school].ink;
       card.append(blessingIcon(relic),name,detail,school);
       list.append(card);
@@ -2576,12 +2581,12 @@ export class Game {
     const panel=document.createElement('div');
     panel.className='fusion-menu';
     const title=document.createElement('b'), detail=document.createElement('p');
-    title.textContent='接技合招';
+    title.textContent=textForLocale('接技合招');
     detail.className='fusion-summary';
     const paint=()=>{
       const pinned=this.fusions.some(fusion=>fusion.id===this.fusionPin)?this.fusionPin:'auto';
       for (const option of panel.querySelectorAll('button')) option.setAttribute('aria-pressed',String(option.dataset.fusionChoice===pinned));
-      detail.textContent='目前：'+this.fusion.name+(this.fusion.ultimate?' · 終極':' '+this.fusion.rank+'階')+'｜'+this.fusion.detail;
+      detail.textContent=textForLocale('目前：'+this.fusion.name+(this.fusion.ultimate?' · 終極':' '+this.fusion.rank+'階')+'｜'+this.fusion.detail);
     };
     const select=id=>{
       this.fusionPin=id;
@@ -2602,12 +2607,12 @@ export class Game {
     if (secret?.known&&!secret.ready) {
       const clue=document.createElement('p');
       clue.className='fusion-secret';
-      clue.textContent='隱藏合招 · 三個指定流派各達 '+ultimateRank+' 階：'+this.ultimateClue(secret);
+      clue.textContent=textForLocale('隱藏合招 · 三個指定流派各達 '+ultimateRank+' 階：'+this.ultimateClue(secret));
       panel.append(clue);
     }
     for(const seal of seals)if(this.hero.seals.has(seal.id)){
       const entry=document.createElement('p');entry.className='fusion-secret';entry.style.color=seal.ink;
-      entry.textContent='秘印 · '+seal.name+'｜'+seal.detail;
+      entry.textContent=textForLocale('秘印 · '+seal.name+'｜'+seal.detail);
       panel.append(entry);
     }
     paint();
@@ -2700,7 +2705,7 @@ export class Game {
     }
     for (const line of lines) {
       const item=document.createElement('span');
-      item.textContent=line;
+      item.textContent=textForLocale(line);
       results.append(item);
     }
     return results;
@@ -3214,7 +3219,7 @@ try {
   const world=new Scenery($('world'));
   await world.load();
   game=new Game(world,new Audio());
-  $('load-note').textContent='正在載入戰鬥配樂⋯⋯';
+  $('load-note').textContent=textForLocale('正在載入戰鬥配樂⋯⋯');
   await game.soundtrack.ready;
   $('load-note').textContent='';
   $('begin').disabled=false;
@@ -3235,5 +3240,5 @@ try {
 } catch (error) {
   $('begin').setAttribute('aria-busy','false');
   console.error('Could not initialize the Eclipse Grove',error);
-  $('load-note').textContent='森林載入失敗。請重新整理，並確認瀏覽器已啟用 WebGL。';
+  $('load-note').textContent=textForLocale('森林載入失敗。請重新整理，並確認瀏覽器已啟用 WebGL。');
 }

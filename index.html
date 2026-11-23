@@ -23,8 +23,9 @@
   <link rel="stylesheet" href="./player-ui.css?v=auth-onboarding-1">
   <link rel="stylesheet" href="./interface-motion.css?v=lantern-ui-1">
   <link rel="stylesheet" href="./quiet-ui.css?v=quiet-ui-1">
-  <script type="module" src="./game.mjs?v=combat-pace-1"></script>
-  <script type="module" src="./offline.mjs?v=lantern-ui-1" async></script>
+  <link rel="stylesheet" href="./locale.css">
+  <script type="module" src="./game.mjs?v=locale-1"></script>
+  <script type="module" src="./offline.mjs?v=locale-1"></script>
 </head>
 <body>
   <main id="game" aria-label="貓貓啟示錄">
@@ -42,6 +43,16 @@
       </div>
       <div class="cover-frame" aria-hidden="true"></div>
       <div class="cover-toolbar">
+        <label class="language-picker">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><ellipse cx="12" cy="12" rx="3.5" ry="8"/><path d="M4 12h16"/></svg>
+          <select id="game-language" aria-label="遊戲語言">
+            <option value="auto">跟隨裝置</option>
+            <option value="zh-Hant" lang="zh-Hant" data-language>繁體中文</option>
+            <option value="zh-Hans" lang="zh-Hans" data-language>简体中文</option>
+            <option value="en" lang="en" data-language>English</option>
+            <option value="ja" lang="ja" data-language>日本語</option>
+          </select>
+        </label>
         <span class="cover-wallet" id="entry-gold">金幣 0</span>
         <button id="player-account" type="button" class="account-chip" aria-label="玩家登入" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg><span class="menu-label">登入</span><i aria-hidden="true"></i></button>
       </div>
@@ -108,7 +119,7 @@
         <button id="spell" type="button" class="action" aria-label="月輪" aria-disabled="true" hidden>
           <span aria-hidden="true">☾</span>
           <b id="spell-cooldown" aria-hidden="true" hidden></b>
-          <small class="spell-caption" aria-hidden="true"><em>月輪</em><kbd>Q</kbd></small>
+          <small class="spell-caption" aria-hidden="true" data-release-label="放手施放"><em>月輪</em><kbd>Q</kbd></small>
           <i id="skill-link" aria-hidden="true" hidden></i>
         </button>
         <div class="actions">

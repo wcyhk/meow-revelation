@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 // Event-driven interface feedback. No render-loop work and no gameplay input ownership.
 export class InterfaceMotion {
   constructor({subdued=()=>false}={}) {
@@ -162,9 +163,9 @@ export class InterfaceMotion {
     const emblem=icon.cloneNode(true);
     const label=document.createElement('span');
     const title=document.createElement('strong');
-    title.textContent=name+' · '+rank+' 階';
+    title.textContent=textForLocale(name+' · '+rank+' 階');
     const note=document.createElement('small');
-    note.textContent='祝福已融入提燈';
+    note.textContent=textForLocale('祝福已融入提燈');
     label.append(title,note);
     this.toast.append(emblem,label);
     this.toast.style.setProperty('--reward-ink',ink);

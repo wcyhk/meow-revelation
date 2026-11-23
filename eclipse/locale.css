@@ -1,0 +1,47 @@
+.language-picker {
+  display:flex;
+  align-items:center;
+  position:relative;
+  border:1px solid #cbb58c3b;
+  border-radius:24px;
+  background:#16141de8;
+  color:#ead8ba;
+}
+.language-picker svg {
+  position:absolute;
+  left:10px;
+  width:17px;
+  height:17px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.5;
+  pointer-events:none;
+}
+.language-picker select {
+  min-height:42px;
+  max-width:158px;
+  padding-inline:31px 9px;
+  background:transparent;
+  border:0;
+  border-radius:inherit;
+  color:inherit;
+  font:13px/1.2 var(--sans);
+  cursor:pointer;
+}
+.language-picker select option {background:#211924;color:#f4e4c4}
+.language-picker:focus-within {outline:2px solid #fae0ac;outline-offset:2px}
+html[lang="en"] #cover .title-group h1 {
+  font-size:clamp(36px,5.8vw,78px);
+  line-height:.98;
+  letter-spacing:-.035em;
+}
+html[lang="en"] #cover .title-group h1 button {text-wrap:balance}
+html[lang="ja"] #cover .title-group h1 {font-size:clamp(34px,4.8vw,66px)}
+#spell[data-aiming] .spell-caption::after {content:attr(data-release-label)}
+@media (max-width: 600px) {
+  #cover .cover-toolbar {left:max(16px,env(safe-area-inset-left));justify-content:flex-end;gap:8px}
+  .language-picker select {font-size:12px;max-width:132px;padding-inline:30px 5px}
+  #cover .cover-wallet {margin-inline-end:auto;white-space:nowrap}
+  html[lang="en"] #cover .title-group h1 {font-size:clamp(42px,10vw,58px)}
+  html[lang="ja"] #cover .title-group h1 {font-size:clamp(34px,9vw,54px)}
+}

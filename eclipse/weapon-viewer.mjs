@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 import * as T from '../three.min.mjs';
 import {armLighting,borrowForge,recycleForge,retainedForge} from './armory.mjs?v=emberlight-1';
 import {comboNames,skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
@@ -19,7 +20,7 @@ const paoForms=new Set();
 function node(tag,kind,text){
   const element=document.createElement(tag);
   if(kind)element.className=kind;
-  if(text)element.textContent=text;
+  if(text)element.textContent=textForLocale(text);
   return element;
 }
 
@@ -92,12 +93,12 @@ export class WeaponViewer {
     this.canvas.tabIndex=0;
     this.studioReady=new WeakSet();
     this.canvas.addEventListener('webglcontextrestored',()=>{this.studioReady=new WeakSet();});
-    this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
+    this.canvas.setAttribute('aria-label',textForLocale('3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。'));
     this.zoomTools=node('div','model-zoom');
     this.zoomOut=button('−',()=>this.zoom(1/1.18));
     this.zoomIn=button('＋',()=>this.zoom(1.18));
-    this.zoomOut.setAttribute('aria-label','縮小模型');
-    this.zoomIn.setAttribute('aria-label','放大模型');
+    this.zoomOut.setAttribute('aria-label',textForLocale('縮小模型'));
+    this.zoomIn.setAttribute('aria-label',textForLocale('放大模型'));
     this.faceZoom=button('面部',()=>{
       if(this.mode!=='model'||!this.bossRig)return;
       this.closeUp=!this.closeUp;
@@ -105,12 +106,12 @@ export class WeaponViewer {
       this.resize();
     });
     this.faceZoom.classList.add('boss-face-zoom');
-    this.faceZoom.setAttribute('aria-label','切換面部近鏡');
+    this.faceZoom.setAttribute('aria-label',textForLocale('切換面部近鏡'));
     this.faceZoom.setAttribute('aria-pressed','false');
     this.faceZoom.hidden=true;
     this.zoomTools.append(this.faceZoom,this.zoomOut,this.zoomIn);
     this.viewAngles=node('div','model-view-angles');
-    this.viewAngles.setAttribute('aria-label','模型角度');
+    this.viewAngles.setAttribute('aria-label',textForLocale('模型角度'));
     this.viewAngles.setAttribute('role','group');
     for(const [key,label,angle] of [['front','正面',0],['side','側面',Math.PI/2],['back','背面',Math.PI]]){
       const control=button(label,()=>{
@@ -152,20 +153,20 @@ export class WeaponViewer {
     this.pincerOptions=node('div','pincer-options');
     this.pincerRoster=node('div','pincer-roster');
     this.pincerRoster.setAttribute('role','group');
-    this.pincerRoster.setAttribute('aria-label','選擇殘影');
+    this.pincerRoster.setAttribute('aria-label',textForLocale('選擇殘影'));
     this.pincerModes=node('div','pincer-modes');
     this.pincerModes.setAttribute('role','group');
-    this.pincerModes.setAttribute('aria-label','選擇練習');
+    this.pincerModes.setAttribute('aria-label',textForLocale('選擇練習'));
     this.pincerMove=node('p','pincer-move');
     this.pincerOptions.append(this.pincerRoster,this.pincerModes,this.pincerMove);
     this.pincerTools.append(this.pincerEntry,this.pincerOptions);
     this.weakness=node('section','boss-preview-weakness');
     this.attacks=node('div','boss-preview-attacks');
     this.attacks.setAttribute('role','group');
-    this.attacks.setAttribute('aria-label','頭目攻擊預覽');
+    this.attacks.setAttribute('aria-label',textForLocale('頭目攻擊預覽'));
     this.motions=node('div','boss-preview-attacks boss-preview-motions');
     this.motions.setAttribute('role','group');
-    this.motions.setAttribute('aria-label','頭目動作預覽');
+    this.motions.setAttribute('aria-label',textForLocale('頭目動作預覽'));
     this.detail=node('p','weapon-viewer-description');
     this.notes=node('details','weapon-notes');
     this.choose=button('',()=>{
@@ -288,7 +289,7 @@ export class WeaponViewer {
     this.phaseControls=[];
     this.attackControls=[];
     this.attacks.replaceChildren();
-    this.inspect.textContent='旋轉睇模型';
+    this.inspect.textContent=textForLocale('旋轉睇模型');
     const notes=node('dl');
     const link=skillLinks[weapon.id];
     for(const [label,text] of [['普攻連段',comboNames(weapon).join(' → ')+'。'+weapon.basic],
@@ -317,7 +318,7 @@ export class WeaponViewer {
       return control;
     }));
     this.makeBossPractice=makePractice;
-    this.inspect.textContent=spec.phaseTransition?'銀輝造型':spec.bestiary||spec.model?'旋轉睇模型':'睇頭目';
+    this.inspect.textContent=textForLocale(spec.phaseTransition?'銀輝造型':spec.bestiary||spec.model?'旋轉睇模型':'睇頭目');
     this.phaseControls?.forEach(control=>control.remove());
     this.phaseControls=spec.phases.map((_,index)=>{
       const control=button(index===0?'二段變身':'三段變身',()=>this.playBoss({phase:index+1},control));
@@ -359,9 +360,9 @@ export class WeaponViewer {
     this.practiceChoice.hidden=!practice;
     this.description=description;
     this.focusReturn=document.activeElement;
-    this.title.textContent=title;
-    this.role.textContent=role;
-    this.choose.textContent=choice;
+    this.title.textContent=textForLocale(title);
+    this.role.textContent=textForLocale(role);
+    this.choose.textContent=textForLocale(choice);
     this.choose.hidden=!commit;
     this.dialog.dataset.subject=this.boss?'boss':'weapon';
     this.dialog.classList.toggle('warden-viewer',!!this.boss?.phaseTransition);
@@ -486,7 +487,7 @@ export class WeaponViewer {
     if(!this.studioRenderer()){
       this.canvas.hidden=true;
       for(const control of this.controls)control.disabled=true;
-      this.hint.textContent='3D 預覽暫未能載入';
+      this.hint.textContent=textForLocale('3D 預覽暫未能載入');
       return false;
     }
     this.canvas.hidden=false;
@@ -586,10 +587,10 @@ export class WeaponViewer {
     this.stage.dataset.preview='model';
     this.modelPhase=phase;
     this.setActive(phase===2?this.moon:phase===1?this.armour:this.inspect);
-    this.hint.textContent='拖動旋轉';
-    this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
+    this.hint.textContent=textForLocale('拖動旋轉');
+    this.canvas.setAttribute('aria-label',textForLocale('3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。'));
     this.drillTools.hidden=true;
-    this.detail.textContent=this.description;
+    this.detail.textContent=textForLocale(this.description);
     this.canvas.hidden=true;
     this.image.hidden=!this.weapon;
     if(this.boss||this.studioReady.has(retainedForge(this.weapon))){
@@ -597,7 +598,7 @@ export class WeaponViewer {
       return;
     }
     const request=this.modelLoading={weapon:this.weapon};
-    this.hint.textContent='正在準備 3D 模型⋯⋯';
+    this.hint.textContent=textForLocale('正在準備 3D 模型⋯⋯');
     const pending=this.studioWarmup?.weapon===this.weapon?this.studioWarmup.promise:afterPaint();
     pending.then(()=>{
       if(this.open&&this.modelLoading===request)this.mountModel(model);
@@ -607,7 +608,7 @@ export class WeaponViewer {
   mountModel(model){
     this.modelLoading=null;
     if(!this.showCanvas())return;
-    this.hint.textContent='拖動旋轉';
+    this.hint.textContent=textForLocale('拖動旋轉');
     this.zoomTools.hidden=false;
     this.scene=new T.Scene();
     const pao=paoForms.has(this.boss?.bestiary?.id);
@@ -751,7 +752,7 @@ export class WeaponViewer {
     for(const control of this.pincerRoster.children)control.setAttribute('aria-pressed',String(control.dataset.echo===String(settings.floor)));
     for(const control of this.pincerModes.children)control.setAttribute('aria-pressed',String(control.dataset.exercise===settings.mode));
     const echo=this.pincerChoices.find(choice=>choice.sourceFloor===settings.floor);
-    this.pincerMove.textContent=echo.moveLabels[echo.reinforcementMove];
+    this.pincerMove.textContent=textForLocale(echo.moveLabels[echo.reinforcementMove]);
     this.practice?.configure(settings);
     this.resumePlayback();
   }
@@ -784,36 +785,36 @@ export class WeaponViewer {
     this.drillStart.hidden=true;
     const mechanism=action.phase===2?this.dossier.layout.last??this.dossier.layout:this.dossier.layout;
     this.drillInteract.hidden=!!pincerDrill||!['break','light'].includes(mechanism.mode);
-    this.drillInteract.textContent=mechanism.mode==='light'?'重燃祭燈':'擊碎機關';
-    this.canvas.setAttribute('aria-label',this.mode==='drill'?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽');
+    this.drillInteract.textContent=textForLocale(mechanism.mode==='light'?'重燃祭燈':'擊碎機關');
+    this.canvas.setAttribute('aria-label',textForLocale(this.mode==='drill'?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽'));
     const phasePattern=action.phase===2?this.boss.lastFinishing??this.boss.finishing:this.boss.finishing;
     const name=action.motion?this.motionNames[action.motion]:this.moveNames[action.pattern??phasePattern];
-    this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
+    this.hint.textContent=textForLocale(action.phase?(action.phase===1?'第一階段':'第二階段'):(name??''));
     const phaseDetail=name?`變身後出招 · ${name}`:'變身預覽';
-    this.detail.textContent=pincerDrill?(this.main.mobile?'點按或拖動走位 · 短掃或撳掣翻滾':'方向鍵或拖動走位 · Space 翻滾 · J 重擊')
+    this.detail.textContent=textForLocale(pincerDrill?(this.main.mobile?'點按或拖動走位 · 短掃或撳掣翻滾':'方向鍵或拖動走位 · Space 翻滾 · J 重擊')
       :action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
       :pincer?'紅色係斷冠 · 冰藍色係殘影 · 沿薄荷色箭嘴閃避'
       :moonSlash?'兩道命印輪流封路 · 第三斬由守夜者出手'
       :summon?'殘影擁有原頭目三分一生命及攻擊力 · 擊倒後回血同增傷'
-      :action.phase?phaseDetail:action.portrait?this.description:name;
+      :action.phase?phaseDetail:action.portrait?this.description:name);
     const view=this.makeStage(!!(action.phase||moonSlash||summon));
     const seed=pincerDrill?0x4d4f4f4e:(this.bossSeed??=Math.floor(Math.random()*0x100000000));
     const form=this.boss.phaseTransition&&!action.phase?this.modelPhase:0;
     if(pincerDrill)this.configurePincer(pincerDrill);
     this.practice=this.makeBossPractice(view,this.dossier,{seed,form,...action},{
-      phase:(phase,title)=>{this.hint.textContent=`${phase===1?'第二階段':'第三階段'} · ${title}`;},
+      phase:(phase,title)=>{this.hint.textContent=textForLocale(`${phase===1?'第二階段':'第三階段'} · ${title}`);},
       status:(message,done)=>{
-        this.hint.textContent=message;
+        this.hint.textContent=textForLocale(message);
         this.stage.classList.toggle('counter-success',done);
-        if(done)control.textContent='再試一次';
+        if(done)control.textContent=textForLocale('再試一次');
       },
       exercise:(state,message)=>{
-        this.hint.textContent=message;
+        this.hint.textContent=textForLocale(message);
         const active=state==='charging'||state==='interrupted';
         this.drillRoll.hidden=!active;
         this.drillHeavy.hidden=state!=='charging'||this.pincerSettings.mode!=='break';
         this.drillStart.hidden=active||state==='active';
-        this.drillStart.textContent=state==='failure'?'立即重試':state==='success'?'再練一次':'開始練習';
+        this.drillStart.textContent=textForLocale(state==='failure'?'立即重試':state==='success'?'再練一次':'開始練習');
         this.stage.classList.toggle('counter-success',state==='success'||state==='interrupted');
         this.stage.classList.toggle('counter-failure',state==='failure');
         this.stage.dataset.exercise=state;
@@ -833,7 +834,7 @@ export class WeaponViewer {
     const view=this.makeStage();
     this.practice=this.makePractice(view,this.weapon,kind);
     this.hint.textContent='';
-    this.detail.textContent=kind==='combo'?comboNames(this.weapon).join(' → '):this.weapon.skill+' · '+this.weapon.detail;
+    this.detail.textContent=textForLocale(kind==='combo'?comboNames(this.weapon).join(' → '):this.weapon.skill+' · '+this.weapon.detail);
     this.startPlayback();
   }
 
@@ -901,7 +902,7 @@ export class WeaponViewer {
     delete this.stage.dataset.exercise;
     this.pincerSettings=null;
     this.pincerTools.hidden=true;
-    for(const control of this.weakness.querySelectorAll('[data-drill]'))control.textContent='試反制';
+    for(const control of this.weakness.querySelectorAll('[data-drill]'))control.textContent=textForLocale('試反制');
     if(this.bossRig){
       this.bossRig.root.removeFromParent();
       removeBestiary(this.scene,this.bossRig);

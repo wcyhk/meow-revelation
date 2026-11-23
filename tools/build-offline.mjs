@@ -35,7 +35,7 @@ function visit(path){
     visit(target);
   }
 }
-for(const root of ['eclipse/game.mjs','eclipse/offline.mjs'])visit(root);
+for(const root of ['eclipse/game.mjs','eclipse/offline.mjs','eclipse/page-locale.mjs'])visit(root);
 const retiredArtwork=new Set([
   'eclipse/art/basalt-forge.webp',
   'eclipse/art/drowned-cloister.webp',

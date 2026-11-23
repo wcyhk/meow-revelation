@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 export const damageRows=[
   ['basic','普攻','warm'],['skill','神器技能','cool'],['link','接技','violet'],
   ['blessing','祝福追加','gold'],['counter','場地反制','green'],['support','其他','neutral'],
@@ -32,7 +33,7 @@ export function damageHud(root){
     cell.dataset.damage=id;
     cell.dataset.tone=tone;
     const caption=document.createElement('span');
-    caption.textContent=labels[id]??label;
+    caption.textContent=textForLocale(labels[id]??label);
     const value=document.createElement('b');
     cell.append(caption,value);
     root.append(cell);
@@ -47,7 +48,7 @@ export function damageHud(root){
     for(const {id,cell,value} of cells){
       const entry=result.amounts.get(id);
       cell.hidden=id==='support'&&!entry.hits;
-      value.textContent=number.format(entry?.damage??result.total);
+      value.textContent=textForLocale(number.format(entry?.damage??result.total));
     }
   };
 }
@@ -57,7 +58,7 @@ export function damageReport(result){
   report.className='practice-damage-report';
   const total=document.createElement('strong');
   total.className='practice-damage-total';
-  total.textContent='總傷害 '+result.label();
+  total.textContent=textForLocale('總傷害 '+result.label());
   report.append(total);
   for(const [id,label,tone] of damageRows){
     const {damage,hits}=result.amounts.get(id);
@@ -68,11 +69,11 @@ export function damageReport(result){
     row.dataset.tone=tone;
     const percent=result.total?damage/result.total:0;
     const name=document.createElement('span');
-    name.textContent=label;
+    name.textContent=textForLocale(label);
     const value=document.createElement('b');
-    value.textContent=number.format(damage);
+    value.textContent=textForLocale(number.format(damage));
     const meta=document.createElement('small');
-    meta.textContent=hits+' 擊 · '+number.format(percent*100)+'%';
+    meta.textContent=textForLocale(hits+' 擊 · '+number.format(percent*100)+'%');
     const bar=document.createElement('i');
     bar.style.setProperty('--damage-share',percent);
     bar.setAttribute('aria-hidden','true');
@@ -80,7 +81,7 @@ export function damageReport(result){
     report.append(row);
   }
   const notes=document.createElement('p');
-  notes.textContent='合計頭目同援兵實際扣血。祝福追加只計獨立觸發嘅傷害，祝福提高嘅面板數值已計入原招。';
+  notes.textContent=textForLocale('合計頭目同援兵實際扣血。祝福追加只計獨立觸發嘅傷害，祝福提高嘅面板數值已計入原招。');
   report.append(notes);
   return report;
 }

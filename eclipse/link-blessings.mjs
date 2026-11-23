@@ -1,3 +1,5 @@
+import {format, t} from './locale.mjs';
+
 const thresholds=[1,3,6];
 
 export const linkResonances={
@@ -20,19 +22,21 @@ export function linkLoadout(relics) {
 export function resonanceText(weapon,school,tier) {
   const effect=linkResonances[school];
   switch (school) {
-    case 'fire': return weapon.id==='flameblade'?'火痕額外連爆 '+effect.echoes[tier]+' 次':'接技首擊額外引爆 '+effect.echoes[tier]+' 次';
-    case 'thunder': return weapon.id==='stormbow'?'雷電多跳 '+effect.hops[tier]+' 個敵人':'接技首擊跳雷至 '+effect.hops[tier]+' 個敵人';
+    case 'fire': return format(weapon.id==='flameblade'?'火痕額外連爆 《0》 次':'接技首擊額外引爆 《0》 次',effect.echoes[tier]);
+    case 'thunder': return format(weapon.id==='stormbow'?'雷電多跳 《0》 個敵人':'接技首擊跳雷至 《0》 個敵人',effect.hops[tier]);
     case 'wind': {
       const delay=effect.window[tier].toFixed(2);
-      return weapon.id==='qilin'?'破盾額外追刺 '+effect.pursuit[tier]+' 次；接招多 '+delay+' 秒':'接招多 '+delay+' 秒，出招後更快收勢';
+      return weapon.id==='qilin'?format('破盾額外追刺 《0》 次；接招多 《1》 秒',effect.pursuit[tier],delay)
+        :format('接招多 《0》 秒，出招後更快收勢',delay);
     }
-    case 'ward': return '接技後 2.8 秒內擋一擊，減傷 '+Math.round(effect.guard[tier]*100)+'%'+(weapon.id==='turtle'?'；冰甲更持久':'');
+    case 'ward': return format('接技後 2.8 秒內擋一擊，減傷 《0》%',Math.round(effect.guard[tier]*100))
+      +(weapon.id==='turtle'?t('；冰甲更持久'):'');
   }
 }
 
 export function resonancePreview(weapon,school,total) {
   const tier=linkTier(total), next=linkTier(total+1);
-  const label=linkResonances[school].name+'共鳴 '+next+'階';
+  const label=format('《0》共鳴 《1》階',linkResonances[school].name,next);
   const progress=next>tier||next===thresholds.length?'':' · '+(total+1)+'/'+thresholds[next];
   return {upgrade:next>tier,text:label+progress+'｜'+resonanceText(weapon,school,next)};
 }

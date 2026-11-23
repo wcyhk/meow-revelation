@@ -1,3 +1,4 @@
+import {t as textForLocale} from './locale.mjs';
 import {blessingRankCap,blessings,schools} from './blessings.mjs?v=ascendant-1';
 import {blessingIcon} from './relic-interface.mjs?v=codex-1';
 import {seals} from './relic-gifts.mjs?v=ledger-1';
@@ -5,7 +6,7 @@ import {seals} from './relic-gifts.mjs?v=ledger-1';
 function element(tag,style,content){
   const item=document.createElement(tag);
   if(style)item.className=style;
-  if(content)item.textContent=content;
+  if(content)item.textContent=textForLocale(content);
   return item;
 }
 
@@ -38,11 +39,11 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
   const quickFind=(card,select,items,placeholder)=>{
     const find=element('input');
     find.type='search';
-    find.placeholder=placeholder;
-    find.setAttribute('aria-label',placeholder);
+    find.placeholder=textForLocale(placeholder);
+    find.setAttribute('aria-label',textForLocale(placeholder));
     const original=[...select.options];
     const options=(search)=>original.filter((option,index)=>option.value===select.value||
-      (option.textContent+' '+items[index]).toLowerCase().includes(search));
+      (option.textContent+' '+textForLocale(items[index])+' '+items[index]).toLowerCase().includes(search));
     find.addEventListener('input',()=>{
       const value=select.value;
       select.replaceChildren(...options(find.value.trim().toLowerCase()));
@@ -71,7 +72,7 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
   const drawStart=()=>{
     const dossier=describe(draft.boss);
     const {spec}=dossier;
-    weakness.textContent='弱點 · '+dossier.weakness.name;
+    weakness.textContent=textForLocale('弱點 · '+dossier.weakness.name);
     phase.replaceChildren(...['起手','二段變身','三段變身'].slice(0,spec.phases.length+1).map((name,index)=>{
       const choice=element('option',null,name);
       choice.value=index;
@@ -97,8 +98,8 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
   const board=element('div','practice-boons');
   const query=element('input');
   query.type='search';
-  query.placeholder='搜尋祝福或流派';
-  query.setAttribute('aria-label',query.placeholder);
+  query.placeholder=textForLocale('搜尋祝福或流派');
+  query.setAttribute('aria-label',textForLocale(query.placeholder));
   const reset=element('button','secondary','清空祝福');
   reset.type='button';
   reset.addEventListener('click',()=>{draft.ranks.clear();draw();});
@@ -114,21 +115,24 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
   const draw=()=>{
     const {weapon,ranks}=draft;
     icon.src=icons.get(weapon.id);
-    details.textContent=weapon.skill;
+    details.textContent=textForLocale(weapon.skill);
     const items=weapon.blessing?[weapon.blessing,...blessings]:blessings;
     const text=query.value.trim().toLowerCase();
     const totals=Object.keys(schools).map(key=>blessings.filter(item=>item.school===key)
       .reduce((sum,item)=>sum+(ranks.get(item.id)??0),0));
-    count.textContent='已揀 '+items.reduce((total,item)=>total+(ranks.get(item.id)??0),0)+' 層祝福';
-    summary.textContent=Object.values(schools).map((school,index)=>school.name+' '+totals[index]).join(' · ');
+    count.textContent=textForLocale('已揀 '+items.reduce((total,item)=>total+(ranks.get(item.id)??0),0)+' 層祝福');
+    summary.textContent=textForLocale(Object.values(schools).map((school,index)=>school.name+' '+totals[index]).join(' · '));
     const unlocked=Object.entries(schools).filter(([key])=>blessings.filter(item=>item.school===key&&ranks.has(item.id)).length>=3)
       .map(([,school])=>school.skill);
     const activeSeals=seals.filter(seal=>seal.needs.every(id=>ranks.has(id))).map(seal=>seal.name);
-    fusion.textContent=[unlocked.length?'自動技能 · '+unlocked.join('、'):'',
-      activeSeals.length?'合印 · '+activeSeals.join('、'):''].filter(Boolean).join(' ／ ');
+    fusion.textContent=textForLocale([unlocked.length?'自動技能 · '+unlocked.join('、'):'',
+      activeSeals.length?'合印 · '+activeSeals.join('、'):''].filter(Boolean).join(' ／ '));
     fusion.hidden=!fusion.textContent;
     reset.disabled=!items.some(item=>ranks.has(item.id));
-    board.replaceChildren(...items.filter(item=>(!picked||ranks.has(item.id))&&[item.name,item.detail,schools[item.school]?.name].join(' ').toLowerCase().includes(text)).map(item=>{
+    board.replaceChildren(...items.filter(item=>{
+      const labels=[item.name,item.detail,schools[item.school]?.name];
+      return (!picked||ranks.has(item.id))&&[...labels,...labels.map(textForLocale)].join(' ').toLowerCase().includes(text);
+    }).map(item=>{
       const rank=ranks.get(item.id)??0;
       const row=element('article','practice-boon');
       row.dataset.practiceBoon=item.id;
@@ -139,7 +143,7 @@ export function practiceLoadout(draft,{weapons,heads,icons,previewWeapon,preview
       for(const [symbol,delta,label] of [['−',-1,'減少'],['＋',1,'增加']]){
         const button=element('button','secondary',symbol);
         button.type='button';button.dataset.rank=String(delta);
-        button.setAttribute('aria-label',label+item.name);
+        button.setAttribute('aria-label',textForLocale(label+item.name));
         button.disabled=rank+delta<0||rank+delta>cap;
         button.addEventListener('click',()=>{
           const next=rank+delta;

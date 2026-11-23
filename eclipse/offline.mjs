@@ -1,10 +1,11 @@
+import {t as textForLocale} from './locale.mjs';
 const status=document.getElementById('offline-status');
 const retry=document.getElementById('offline-retry');
 const progress=document.getElementById('offline-progress');
 const workerURL=new URL('../sw.js',import.meta.url);
 
 function show(label,canRetry=false,state='idle',value=null) {
-  status.textContent=label;
+  status.textContent=textForLocale(label);
   retry.hidden=!canRetry;
   status.parentElement.dataset.state=state;
   status.setAttribute('aria-busy',String(state==='downloading'));

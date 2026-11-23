@@ -9,6 +9,7 @@ import {Scenery} from './scenery.mjs?v=combat-pace-1';
 import {OnlinePlayer} from './online-player.mjs';
 import {PlayerUI} from './player-ui.mjs';
 import {ActiveRunClock} from './challenge-records.mjs';
+import {traffic} from './traffic.mjs';
 import {InterfaceMotion} from './interface-motion.mjs?v=lantern-ui-1';
 import {StoryDepth} from './story-depth.mjs?v=afterglow-1';
 import {titleFlare} from './title-flare.mjs?v=golden-veil-1';
@@ -496,8 +497,11 @@ export class Game {
     this.kills = 0;
     this.runClock.reset();
     this.challengeRunId=this.testRun||this.practiceRun?null:crypto.randomUUID();
-    if(this.challengeRunId)this.players.begin(this.challengeRunId,{difficulty:this.difficulty.id,test_mode:false,practice:false,
-      weapon_id:weapon.id,branch:this.branchCombat.branch?.id??null});
+    if(this.challengeRunId){
+      traffic?.beginRun(()=>this.runClock.milliseconds);
+      this.players.begin(this.challengeRunId,{difficulty:this.difficulty.id,test_mode:false,practice:false,
+        weapon_id:weapon.id,branch:this.branchCombat.branch?.id??null});
+    }
     this.hitstop = 0;
     this.damageFlash = 0;
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
@@ -2773,7 +2777,10 @@ export class Game {
     const id=this.challengeRunId;
     this.players.checkpoint(id,{floor,elapsed_ms:Math.round(this.elapsed*1000),kills:this.kills,
       weapon_id:this.weapon?.id,branch:this.branchCombat.branch?.id??null,status});
-    if(status!=='active')this.challengeRunId=null;
+    if(status!=='active'){
+      traffic?.finishRun();
+      this.challengeRunId=null;
+    }
   }
 }
 

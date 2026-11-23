@@ -129,6 +129,24 @@ let chrome,ws;
     assert.deepEqual(errors,[]);console.log('Exported 73 distinct icon renders from the exact handheld model factory.');return;
   }
   console.log('73 original relic records, finite geometry, distinct names and rendered icons verified.');
+  const retained=await ev(`(async()=>{
+    const {arms,borrowForge,recycleForge,shapeBow}=await import(new URL('armory.mjs?v=emberlight-1',document.baseURI));
+    const bow=arms.find(arm=>arm.id==='stormbow');
+    const first=borrowForge(bow),second=borrowForge(bow);
+    shapeBow(first,.94,true);
+    const isolated=first!==second&&second.userData.bow.draw===0&&!second.userData.bow.arrow.visible;
+    first.position.set(2,1,0);
+    first.visible=false;
+    const core=first.userData.finishes.core;
+    core.emissiveIntensity+=2;
+    recycleForge(first);
+    const cached=borrowForge(bow);
+    const reset=cached===first&&cached.position.lengthSq()===0&&cached.visible&&cached.userData.bow.draw===0
+      &&!cached.userData.bow.arrow.visible&&core.emissiveIntensity===core.userData.restGlow;
+    recycleForge(cached);recycleForge(second);
+    return {isolated,reset};
+  })()`);
+  assert.deepEqual(retained,{isolated:true,reset:true},'A retained bow must reset its pose and stay independent of active copies');
   // Render every encounter in isolation with three angles and a charged attack.
   const roster=await ev(`(async()=>{
     const {monsterCatalogue,monsterBattle,mountBestiary,poseBestiary,removeBestiary,T}=originalQA;

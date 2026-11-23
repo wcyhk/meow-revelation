@@ -68,7 +68,7 @@ function surface(kind) {
     ctx.strokeStyle=i%2?'#271f2950':'#fff3cf64';
     ctx.lineWidth=.38+random()*.7;
     ctx.beginPath();ctx.moveTo(x,y);
-    ctx.lineTo(x+(kind==='metal'?11:4)*random(),y+(kind==='wood'?28:5)*random());ctx.stroke();
+    ctx.lineTo(x+(kind==='metal'?16:4)*random(),y+(kind==='wood'?28:5)*random());ctx.stroke();
   }
   const map=new T.CanvasTexture(canvas);
   map.colorSpace=T.SRGBColorSpace;
@@ -92,19 +92,19 @@ export function forgedMaterials(weapon) {
       ['cloth','wood','bone'].includes(kind)?scannedSurface('leather',kind==='wood'?.25:.36):{};
     const bump=scan.normalMap?{}:{bumpMap:map,bumpScale:kind==='wood'?.037:.024};
     const shaded=paintedFinish(new T.MeshStandardMaterial({color,map,...bump,...scan,metalness,roughness,
-      envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?1.08:.70,
+      envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?1.16:.73,
       vertexColors:true,emissive:color,emissiveIntensity}),finish,true,kind==='metal');
     shaded.userData.restGlow=emissiveIntensity;
     return shaded;
   }
   return {
     dark:material(dark,cloth.has(id)?'cloth':'wood',.12,.79),
-    trim:material(trim,'metal',.72,.34,.035,true),
+    trim:material(trim,'metal',.77,.31,.035,true),
     edge:material(edge,chipped?'bone':'metal',chipped?.16:.77,chipped?.60:.27,.046),
     patina:material(new T.Color(body).lerp(new T.Color(trim),.29).multiplyScalar(.69),'metal',.52,.67,.027),
     hardened:material(new T.Color(edge).lerp(new T.Color(trim),.34),'metal',.80,.32,.064),
     body:material(body,gem?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
-      gem?.29:.38,lacquer.has(id)?.38:.54,.075),
+      gem?.34:.38,lacquer.has(id)?.35:.54,.075),
     core:material(core,gem?'crystal':'stone',gem?.24:.15,gem?.27:.34,gem?.65:.30),
   };
 }

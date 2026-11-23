@@ -3,7 +3,7 @@ import {ModelReserve} from './model-reserve.mjs';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=afterglow-1';
-import {armLighting, arms, disposeForge, forge, shapeBow} from './armory.mjs?v=emberlight-1';
+import {armLighting, arms, borrowForge, disposeForge, forge, recycleForge, shapeBow} from './armory.mjs?v=emberlight-1';
 import {stages,enemySpec} from './expedition.mjs?v=world-3d-1';
 import {battleTextures, disposeForm, nightmareForm, particleShapes} from './battle-effects.mjs?v=practice-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
@@ -361,7 +361,7 @@ export class Scenery {
       this.renderer.initTexture(texture);
       if(++uploaded%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
     }
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=forged-relics-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=emberglass-1',import.meta.url).href]));
     // Downloading assets is not GPU preparation. Retained theme materials let us
     // do first-use texture uploads and shader compilation behind the loading art.
     for(const [index,picture] of landscapePictures.entries()){
@@ -784,7 +784,7 @@ export class Scenery {
 
   equip(actor, weapon) {
     this.unequip(actor);
-    const model = forge(weapon);
+    const model = borrowForge(weapon);
     const glow = new T.Sprite(new T.SpriteMaterial({map:this.halo,color:weapon.tone,opacity:.08,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
     glow.scale.set(.90,.90,1);
     model.add(glow);
@@ -1174,10 +1174,15 @@ export class Scenery {
       visual.weapon.posed=true;
       if (mount?.axis===bowForward) shapeBow(model,grip?.draw??0,grip?.nocked??false);
       const charge=grip?.charge??0;
-      const core=model.userData.finishes.core;
-      core.emissiveIntensity=core.userData.restGlow+charge*.53+(grip?.contact ? .20 : 0);
-      glow.material.opacity=.072+charge*.30;
-      glow.scale.set(.88+charge*.53,.88+charge*.53,1);
+      const {core,edge}=model.userData.finishes;
+      const sinceCast=this.time-(unit.forgeFlareAt??-1);
+      const flare=sinceCast>=0&&sinceCast<.46?(1-sinceCast/.46)**2:0;
+      const surge=flare*(this.feedback.subdued?.33:1);
+      core.emissiveIntensity=core.userData.restGlow+charge*.53+surge*.82+(grip?.contact ? .20 : 0);
+      edge.emissiveIntensity=edge.userData.restGlow+surge*.27;
+      glow.material.opacity=.072+charge*.30+surge*.15;
+      const halo=.88+charge*.53+surge*.22;
+      glow.scale.set(halo,halo,1);
       model.scale.setScalar(profile.scale*(roll?.85:1)*(1-fall*.16));
       model.position.copy(handPoint).sub(weaponOffset.copy(anchor).multiply(model.scale).applyQuaternion(model.quaternion));
       if(blades) {
@@ -1258,9 +1263,9 @@ export class Scenery {
 
   unequip(actor) {
     if (actor.weapon) {
-      this.scene.remove(actor.weapon.model);
-      disposeForge(actor.weapon.model);
+      actor.weapon.glow.removeFromParent();
       actor.weapon.glow.material.dispose();
+      recycleForge(actor.weapon.model);
       actor.weapon=null;
     }
   }
@@ -1487,6 +1492,7 @@ export class Scenery {
   }
 
   castElements(hero,weapon,[dx,dz]) {
+    hero.forgeFlareAt=this.time;
     const element=weapon.element??weaponElements[weapon.id]??weapon.effect;
     const angle=Math.atan2(dz,dx);
     this.elementBurst(hero.x,.20,hero.z,weapon.tone,element,18,1.18);
@@ -1730,8 +1736,13 @@ export class Scenery {
       effect.combatClock=true;
       effect.active=active;
     };
-    const shade=(geometry,settings)=>paint(geometry,point,0xde442f,
-      {...settings,material:warningMaterial(),opacity:.47,order:35});
+    const shade=(geometry,settings)=>{
+      const materialKey='attack-warning';
+      const material=this.effectMaterial(materialKey,warningMaterial);
+      material.uniforms.life.value=0;
+      material.uniforms.opacity.value=.41;
+      paint(geometry,point,0xde442f,{...settings,material,materialKey,opacity:.47,order:35});
+    };
     const edge=(geometry,settings)=>paint(geometry,{...point,y:.055},0xff8c60,
       {...settings,opacity:.92,order:37});
     if (kind === 'line') {

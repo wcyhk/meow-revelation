@@ -8,11 +8,12 @@ export function paintedFinish(material,kind,sculpted=false,weathered=false){
   const [pigment,shine]=finishes[kind];
   const before=material.onBeforeCompile;
   const program=material.customProgramCacheKey();
-  material.customProgramCacheKey=()=>program+'|painted-finish'+(sculpted?'|sculpted-'+kind:'')+(weathered?'|weathered':'');
+  material.customProgramCacheKey=()=>program+'|painted-finish'+(sculpted?'|sculpted':'')+(weathered?'|weathered':'');
   material.onBeforeCompile=shader=>{
     before.call(material,shader);
     shader.uniforms.paintPigment={value:pigment};
     shader.uniforms.paintShine={value:shine};
+    shader.uniforms.paintSurface={value:surfaceKinds.indexOf(kind)};
     shader.uniforms.paintShadow={value:new T.Color(0x293345)};
     shader.uniforms.paintHighlight={value:new T.Color(0xfbe0b5)};
     shader.vertexShader=shader.vertexShader.replace('#include <common>',`#include <common>
@@ -24,8 +25,13 @@ export function paintedFinish(material,kind,sculpted=false,weathered=false){
       varying vec3 vPaintPoint;
       varying vec3 vPaintNormal;
       uniform float paintPigment,paintShine;
+      uniform int paintSurface;
       uniform vec3 paintShadow,paintHighlight;
-      float paintHash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+      float paintHash(vec3 p){
+        p=fract(p*vec3(.1031,.11369,.13787));
+        p+=dot(p,p.yzx+19.19);
+        return fract((p.x+p.y)*p.z);
+      }
       float paintGrain(vec3 p){
         vec3 cell=floor(p),f=fract(p);
         f=f*f*(3.0-2.0*f);
@@ -52,7 +58,7 @@ export function paintedFinish(material,kind,sculpted=false,weathered=false){
       diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.57+paintShadow*.10,patina*(.21+paintPigment*.31));
       diffuseColor.rgb+=paintHighlight*paintShine*(ridge*.12+scratches*.19+flecks*.032);
       ${sculpted ? `
-        const int surfaceKind=${surfaceKinds.indexOf(kind)};
+        int surfaceKind=paintSurface;
         float pits=paintGrain(q*vec3(29.4,39.4,32.2));
         float fine=(pits-.5)*.30;
         float relief=.0;
@@ -62,7 +68,11 @@ export function paintedFinish(material,kind,sculpted=false,weathered=false){
           relief=oxide*.23-scratches*.35;
           vec3 copper=surfaceKind==1?vec3(.035,.078,.062):vec3(.053,.068,.087);
           diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.49+copper*.67,oxide*.43);
+          float brushed=sin(q.y*113.0+q.z*147.0+q.x*8.1);
+          float wear=smoothstep(.26,.83,mottles)*(.41+.59*ridge);
           diffuseColor.rgb+=rubbed*scratches*paintHighlight*.077;
+          diffuseColor.rgb*=1.0+wear*(.075*brushed+.044);
+          relief-=wear*.055;
         }else if(surfaceKind==2){
           float lamina=pow(.5+.5*sin(q.y*89.+q.z*14.+wash*4.3),7.);
           relief=.08*lamina-pits*.028;
@@ -76,7 +86,10 @@ export function paintedFinish(material,kind,sculpted=false,weathered=false){
           diffuseColor.rgb*=.98+fine;
         }else{
           relief=-.15*ridge+.12*patina;
-          diffuseColor.rgb+=pow(ridge,3.)*paintHighlight*.027;
+          float facets=abs(sin(q.x*24.+q.z*21.+sin(q.y*18.)*.45));
+          float inclusion=smoothstep(.66,.98,facets)*smoothstep(.32,.65,mottles);
+          diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.22+paintHighlight*.034,inclusion*.34);
+          diffuseColor.rgb+=pow(ridge,3.)*paintHighlight*.048;
         }
       ` : ''}
       ${weathered ? `

@@ -71,4 +71,61 @@ export function forge(weapon) {
   return buildWeapon(weapon,forgedMaterials(weapon));
 }
 
+const recentWeapons=new Map();
+const weaponFootprints=new WeakMap();
+const idleForgeBytes=5*1024*1024;
+let stashedBytes=0;
+
+export function borrowForge(weapon){
+  const model=recentWeapons.get(weapon.id);
+  if(model){
+    recentWeapons.delete(weapon.id);
+    stashedBytes-=weaponFootprints.get(model).bytes;
+    return model;
+  }
+  const fresh=forge(weapon);
+  let bytes=0;
+  fresh.traverse(part=>{
+    if(!part.isMesh)return;
+    const {attributes,index}=part.geometry;
+    for(const attribute of Object.values(attributes))bytes+=attribute.array.byteLength;
+    bytes+=index?.array.byteLength??0;
+  });
+  const twinPose=weapon.id==='fangs'?fresh.children.slice(0,2).map(part=>({
+    part,position:part.position.clone(),rotation:part.quaternion.clone(),
+  })):null;
+  weaponFootprints.set(fresh,{id:weapon.id,bytes,twinPose});
+  return fresh;
+}
+
+export function recycleForge(model){
+  const {id,bytes,twinPose}=weaponFootprints.get(model);
+  model.removeFromParent();
+  if(bytes>idleForgeBytes||recentWeapons.has(id)){
+    disposeWeapon(model);
+    return;
+  }
+  model.position.set(0,0,0);
+  model.quaternion.identity();
+  model.scale.setScalar(1);
+  model.visible=true;
+  model.renderOrder=0;
+  shapeBow(model,0,false);
+  const {core,edge}=model.userData.finishes;
+  core.emissiveIntensity=core.userData.restGlow;
+  edge.emissiveIntensity=edge.userData.restGlow;
+  for(const pose of twinPose??[]){
+    pose.part.position.copy(pose.position);
+    pose.part.quaternion.copy(pose.rotation);
+  }
+  recentWeapons.set(id,model);
+  stashedBytes+=bytes;
+  while(stashedBytes>idleForgeBytes||recentWeapons.size>5){
+    const [old,expired]=recentWeapons.entries().next().value;
+    recentWeapons.delete(old);
+    stashedBytes-=weaponFootprints.get(expired).bytes;
+    disposeWeapon(expired);
+  }
+}
+
 export const disposeForge=disposeWeapon;

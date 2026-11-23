@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {armLighting,disposeForge,forge} from './armory.mjs?v=emberlight-1';
+import {armLighting,borrowForge,recycleForge} from './armory.mjs?v=emberlight-1';
 import {comboNames,skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
@@ -136,6 +136,7 @@ export class WeaponViewer {
     this.choose=button('',()=>{
       const {commit}=this;
       this.dialog.close();
+      this.clearScene();
       commit?.();
     },'primary');
     const footer=node('footer','weapon-viewer-footer');
@@ -348,7 +349,11 @@ export class WeaponViewer {
     const limit=this.main.mobile?(this.mode==='model'?1.6:1.25):1.7;
     const pixelRatio=Math.min(devicePixelRatio,limit);
     if(this.renderer.getPixelRatio()!==pixelRatio)this.renderer.setPixelRatio(pixelRatio);
-    this.renderer.setSize(width,height,false);
+    if(this.width!==width||this.height!==height){
+      this.renderer.setSize(width,height,false);
+      this.width=width;
+      this.height=height;
+    }
     const pao=paoForms.has(this.boss?.bestiary?.id);
     this.viewAngles.hidden=this.mode!=='model';
     fit(inspectCamera,width,height,this.closeUp?.93:pao?2.03:this.wideModel?2.82:2.30,
@@ -360,7 +365,7 @@ export class WeaponViewer {
     const battleHeight=arena?13:pao?10.3:jade?9.9:this.boss?8.4:7.6;
     const bossHeight=this.chapterPreviewHeight;
     fit(battleCamera,width,height,battleWidth,Math.max(battleHeight,bossHeight?bossHeight*2+(arena?10.3:2.9):0));
-    if(this.mode==='model')this.renderModel();
+    if(this.mode==='model')this.requestModelFrame();
     else if(this.practice)this.renderer.render(this.scene,battleCamera);
   }
 
@@ -368,7 +373,7 @@ export class WeaponViewer {
     this.yaw+=dx;
     this.pitch=T.MathUtils.clamp(this.pitch+dy,-1.55,1.55);
     this.model.rotation.set(this.pitch,this.yaw,this.boss?-.04:-tilt);
-    this.renderModel(true);
+    this.requestModelFrame(true);
   }
 
   resetRotation(){
@@ -384,7 +389,7 @@ export class WeaponViewer {
   zoom(factor){
     if(this.mode!=='model')return;
     this.setZoom(inspectCamera.zoom*factor);
-    this.renderModel();
+    this.requestModelFrame();
   }
 
   setZoom(value){
@@ -394,9 +399,21 @@ export class WeaponViewer {
     this.zoomIn.disabled=inspectCamera.zoom>=1.8;
   }
 
-  renderModel(refreshEnergy=false){
+  requestModelFrame(refreshEnergy=false){
+    this.refreshEnergy ||= refreshEnergy;
+    if(this.modelFrame)return;
+    this.modelFrame=requestAnimationFrame(()=>{
+      this.modelFrame=0;
+      if(this.open&&this.mode==='model')this.renderModel();
+    });
+  }
+
+  renderModel(){
     const rig=this.bossRig;
-    if(refreshEnergy)rig?.aura.update(this.modelTime,0,0,0,0,0);
+    if(this.refreshEnergy)rig?.aura.update(this.modelTime,0,0,0,0,0);
+    this.refreshEnergy=false;
+    cancelAnimationFrame(this.modelFrame);
+    this.modelFrame=0;
     if(this.closeUp&&rig){
       const focus=rig.portraitHead??rig.mount?.helm??rig.inspectionHead??rig.head??rig.heads?.[0]
         ??rig.body.userData.inspectionHead??rig.body.userData.dragonHead??rig.body;
@@ -434,7 +451,7 @@ export class WeaponViewer {
       poseBestiary(this.bossRig,actor,{phase:0},0,0,0);
       item=this.bossRig.root;
       this.displayActor=actor;
-    }else item=forge(this.weapon);
+    }else item=borrowForge(this.weapon);
     this.faceZoom.hidden=!this.bossRig;
     const bounds=this.boss?studioBounds(item):new T.Box3().setFromObject(item);
     const size=bounds.getSize(new T.Vector3());
@@ -626,6 +643,9 @@ export class WeaponViewer {
 
   clearScene(){
     cancelAnimationFrame(this.raf);
+    cancelAnimationFrame(this.modelFrame);
+    this.modelFrame=0;
+    this.refreshEnergy=false;
     this.viewAngles.hidden=true;
     this.closeUp=false;
     this.faceZoom.hidden=true;
@@ -637,7 +657,7 @@ export class WeaponViewer {
       this.bossRig.root.removeFromParent();
       removeBestiary(this.scene,this.bossRig);
       this.bossRig=null;
-    }else if(this.item)disposeForge(this.item);
+    }else if(this.item)recycleForge(this.item);
     this.item=null;
     if(this.view){
       const {view}=this;

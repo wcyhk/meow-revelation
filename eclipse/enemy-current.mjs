@@ -170,7 +170,8 @@ const vertex=`
       float phase=ringSpin*(strand.z>.42?-1.38:1.51)+strand.y;
       float angle=phase+u*(3.8+strand.z*2.1);
       float crest=sin(u*3.14159);
-      float radius=grip[i].w*(1.04+crest*(.47+weaponPower*.44)+idlePulse[i]*.27);
+      float flutter=sin(u*21.0-t*2.2+strand.y)*.12;
+      float radius=grip[i].w*(1.08+crest*(.47+weaponPower*.49+flutter)+idlePulse[i]*.31);
       vec3 radial=tx*cos(angle)+ty*sin(angle);
       vec3 filament=tx*sin(angle*2.+t)+ty*cos(angle*2.+t);
       p=mix(a,b,mix(.23+u*.78,.5,circular))+radial*radius;
@@ -266,8 +267,10 @@ const fragment=`
       float split=smoothstep(.20,.53,u)*(1.-smoothstep(.74,1.,u));
       float branch=exp(-abs(v-vein-sin(u*9.+seed)*.48*split)*18.)*split;
       float knot=pow(.5+.5*cos(u*31.-t*1.35),9.)*core;
-      glow=mix(tint,heart,min(1.,core*(.48+packet*.34)+knot*.49));
-      energy=(core*packet*.94+branch*.54+veil*.58+knot*.57)*mask*opacity;
+      float run=fract(u*2.8-clock*(1.15+force*.47)+seed*.31);
+      float edgeLight=exp(-abs(v-vein+.31*sin(u*14.-t))*25.)*exp(-abs(run-.66)*11.);
+      glow=mix(tint,heart,min(1.,core*(.49+packet*.35)+knot*.49+edgeLight*.36));
+      energy=(core*packet*.94+branch*.55+veil*.58+knot*.57+edgeLight*.42)*mask*opacity;
     }
     gl_FragColor=vec4(glow,energy*(kind>2.5&&kind<3.5?1.27:1.));
     #include <colorspace_fragment>

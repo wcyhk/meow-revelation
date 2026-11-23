@@ -12,9 +12,9 @@ const profiles={
   gold:[4,0xdf8d32,0xffdf8a,.68,.91],
   stone:[8,0x7a5543,0xf9bd86,.59,.84],
   root:[9,0x547b39,0xc8e6a5,.68,1.13],
-  web:[9,0x8473b4,0xf3d8ff,.58,.84],
-  poison:[5,0x548f2d,0xb7fa6c,.69,1.19],
-  feather:[2,0x9980aa,0xffead5,.51,.70],
+  web:[10,0x8473b4,0xf3d8ff,.58,.84],
+  poison:[11,0x548f2d,0xb7fa6c,.69,1.19],
+  feather:[12,0x9980aa,0xffead5,.51,.70],
 };
 profiles.earth=profiles.stone;
 
@@ -64,18 +64,22 @@ const fragmentVertex=`
     float ember=1.-step(.5,style),volt=1.-step(.5,abs(style-3.));
     float storm=1.-step(.5,min(abs(style-2.),abs(style-7.)));
     float abyss=1.-step(.5,abs(style-5.));
+    float plume=step(11.5,style),venom=1.-step(.5,abs(style-11.));
     float emit=smoothstep(.0,mix(.105,.045,volt),t)*(1.-smoothstep(mix(.52,.31,volt),1.,t));
+    float surge=sin(t*3.14159);
+    float corkscrew=seed.z*6.2831853+t*4.7;
     float spinAngle=seed.x*6.2831853+salt+t*(.62*ember+1.45*storm-1.15*abyss);
     float r=spread*(.16+.59*seed.y)*(.25+t*.96);
     float rise=height*(.36+.64*seed.z)*sin((t*.76+.12)*3.14159);
-    rise+=height*t*(.52*ember+.20*abyss);
+    rise+=height*t*(.52*ember+.20*abyss+.26*venom)-height*plume*t*t*.34;
     r*=1.-abyss*.65*smoothstep(.24,1.,t);
+    r*=1.+venom*t*.44;
     float solid=1.-min(1.,min(abs(style-1.),min(abs(style-6.),abs(style-8.))));
     rise=mix(rise, max(0.,height*(.4+.7*seed.z)*(t*2.8-t*t*2.83)),solid*.8);
     vec3 p=vec3(cos(spinAngle)*r,rise,sin(spinAngle)*r);
     if(form>.5&&form<1.5){
       p.x=spread*(.03+seed.x*.80)*min(1.,.27+t*2.2);
-      p.z=(seed.y-.5)*spread*.33*(.36+t*.64);
+      p.z=(seed.y-.5)*spread*.33*(.36+t*.64)+sin(corkscrew)*.10*storm*surge;
     }
     if(form>1.5){
       float a=spinAngle+t*(.87-1.54*abyss);
@@ -85,7 +89,7 @@ const fragmentVertex=`
     vec3 piece=position;
     piece.x+=sin((uv.y+seed.x)*7.+t*4.)*uv.y*.20*(1.-solid);
     piece*=vec3(.15+.10*storm,.57+.28*volt,.19)*height*(.53+seed.z*.82)*(.47+emit*.65);
-    piece.yz=spin(seed.x*3.+t*2.6)*piece.yz;
+    piece.yz=spin(seed.x*3.+t*(2.65+1.18*solid))*piece.yz;
     piece.xz=spin(spinAngle+t*(seed.y-.5)*3.)*piece.xz;
     shade=.43+.43*max(0., dot(normalize(normal),normalize(vec3(.47,.8,.45))))+.19*seed.z;
     energy=emit;
@@ -134,12 +138,32 @@ const fragmentInk=`
       float ripple=sin(uv.y*17.-life*9.+uv.x*2.);
       mask*=.71+.29*ripple;
       white=max(white,pow(.5+.5*ripple,7.)*belly);
-    }else{
+    }else if(style<9.5){
       mask*=max(0.,1.-d*3.5)*(.6+.4*abs(detail));
+    }else if(style<10.5){
+      float strand=sin(uv.y*24.+speck*4.)*.17;
+      float mesh=exp(-abs(uv.x-.5-strand)*32.)+exp(-abs(uv.x-.5+strand)*32.);
+      mask=mesh*belly;
+      white=mesh*.58*belly;
+    }else if(style<11.5){
+      float bubble=uv.y-.46+.08*sin(speck*31.+life*18.);
+      float radius=length(vec2((uv.x-.5)*1.3,bubble));
+      mask=(1.-smoothstep(.12,.39,radius))*(.46+.54*belly);
+      white=exp(-abs(radius-.22)*18.)*max(.18,1.-uv.y);
+    }else{
+      float keel=abs(uv.x-.5-.11*sin(uv.y*3.14));
+      float vane=pow(abs(sin(uv.y*42.+keel*19.+speck)),3.);
+      mask=(1.-smoothstep(.06,.33,keel/max(.24,belly)))*belly*(.40+.60*vane);
+      white=exp(-keel*44.)*belly;
     }
     float facetGlint=pow(max(0.,.5+.5*sin(uv.y*36.+uv.x*9.-life*17.+speck*9.)),9.);
-    vec3 color=mix(tint*(shade*.88+.14*belly),heart,clamp(white+facetGlint*.18*belly,0.,.95));
-    gl_FragColor=vec4(color,opacity*energy*mask);
+    float pulse=uv.y+speck*.38-life*2.4;
+    float front=exp(-abs(pulse)*14.)*belly;
+    float tail=smoothstep(.05,.45,uv.y)*max(.0,1.-uv.y);
+    float filament=exp(-d*25.)*tail*front;
+    vec3 color=mix(tint*(shade*.78+.19*belly),heart,
+      clamp(white+facetGlint*.24*belly+front*.39,0.,.97));
+    gl_FragColor=vec4(color,opacity*energy*(mask+filament*.41));
     #include <colorspace_fragment>
   }
 `;
@@ -161,11 +185,13 @@ const crestInk=`
     float ticks=pow(abs(cos(angle)),17.)*smoothstep(.62,.72,r)*(1.-smoothstep(.79,.85,r));
     float diamond=pow(abs(cos(angle*.5)),18.)*rim(r,.49+.045*cos(angle),36.);
     float joins=pow(abs(sin(angle*.5)),8.)*rim(r,.53,38.);
+    float wake=rim(r,.35+life*.52,49.)*(1.-smoothstep(.61,1.,life));
+    float script=pow(abs(sin(angle*3.)),9.)*rim(r,.70+.028*sin(angle),55.);
     float spread=smoothstep(.0,.13,life)+(1.-smoothstep(.0,.18,life))*.19;
     float gloss=.47+.53*pow(.5+.5*cos(a*2.-life*9.),3.);
     vec3 color=mix(tint,heart,clamp(round*.68+ticks*.71,0.,1.));
     float veil=(1.-smoothstep(.62,.93,r))*smoothstep(.07,.54,r)*.095;
-    gl_FragColor=vec4(color,(round*.56+ticks*.46+diamond*.43+joins*.22+veil)*opacity*spread*gloss);
+    gl_FragColor=vec4(color,(round*.52+ticks*.43+diamond*.46+joins*.22+veil+wake*.37+script*.29)*opacity*spread*gloss);
     #include <colorspace_fragment>
   }
 `;

@@ -1645,13 +1645,16 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const lift=airborne?.23+Math.sin(beat)*(.085+model.bounce)+stage*.061+travel*(flight?.20:.11)+wind*.13-strike*.19:
     travel*(.016+.050*Math.max(0,Math.sin(step*2)))+Math.max(0,(spec.bob??0)*.18)*travel;
   root.position.set(x,.022-model.floor*scale*phaseScale*(1-fall)+Math.max(0,lift)*(1-fall),z);
-  const lean=airborne?travel*.18+strike*.19:travel*.08+strike*(crush?.18:.09);
+  const groundedBoss=!airborne&&!model.entry.field;
+  const brace=groundedBoss&&crush?wind*wind:0;
+  const recoil=groundedBoss&&thrust?strike*.09:0;
+  const lean=airborne?travel*.18+strike*.19:travel*.08+strike*(crush?.18:.09)+recoil;
   root.rotation.set(-fall*1.43-wind*.078+lean,model.heading+Math.sin(beat*.37)*.017,
     (spec.tilt??0)*.62+fall*.24+(airborne?T.MathUtils.clamp(turn,-1,1)*travel*.22:0));
   const [width,height,depth]=dimensions;
-  root.scale.set(scale*phaseScale*width,scale*phaseScale*height*(1-(spec.compression??0)*.31),scale*phaseScale*depth);
-  body.rotation.x=-(wind*.22)+strike*(pattern==='slam'?.56:.26)+Math.sin(beat)*.025;
-  body.rotation.z=(spec.bend??0)*.33+Math.sin(beat)*.046*(travel+.25);
+  root.scale.set(scale*phaseScale*width,scale*phaseScale*height*(1-(spec.compression??0)*.31-brace*.038),scale*phaseScale*depth);
+  body.rotation.x=-(wind*.22+brace*.15)+strike*(pattern==='slam'?.56:.26)+Math.sin(beat)*.025;
+  body.rotation.z=(spec.bend??0)*.33+Math.sin(beat)*.046*(travel+.25)+(groundedBoss&&sweep?(wind*.12-strike*.18):0);
   if(head)head.rotation.x=Math.sin(beat*.76)*.055+wind*.17-strike*.16;
   for(const [index,arm] of arms.entries()){
     const sign=index%2===0?-1:1;
@@ -1798,7 +1801,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
   materials.glow.color.setHex(model.signature?.type==='bear'?0xbbf7f1:glow)
     .lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18));
   materials.body.emissiveIntensity=.14+(spec.flash??0)*.19+stage*.08;
-  materials.edge.emissiveIntensity=.14+stage*.087+wind*.07+(!model.entry.field?strike*.095:0);
+  const forgedPulse=model.entry.field?0:(wind*wind*.084+strike*.17)*(spec.subdued?.50:1);
+  materials.edge.emissiveIntensity=.14+stage*.087+wind*.07+forgedPulse;
 }
 
 const white=new T.Color(0xfff4e0);

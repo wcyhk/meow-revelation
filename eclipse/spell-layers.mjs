@@ -132,8 +132,10 @@ const fragment=`
     float curl=thread+.24*sin(u*13.+t*.38);
     float rim=exp(-abs(v-curl)*40.)*pow(.5+.5*sin(u*38.+t*.62),5.);
     float dust=cloud*(.15+drift*.19)*(.66+.34*abs(lace));
-    float glow=dust+trail*.28+shine*(.68+.37*packet)+echo*.33+rim*.19;
-    vec3 color=mix(tint*(.64+drift*.42),heart,clamp(shine*(.80+.20*packet)+echo*.23+rim*.21,0.,1.));
+    float focus=u-life*2.2+.17;
+    float flare=exp(-abs(focus)*12.)*exp(-distance*17.);
+    float glow=dust+trail*.27+shine*(.62+.37*packet)+echo*.34+rim*.21+flare*.37;
+    vec3 color=mix(tint*(.62+drift*.42),heart,clamp(shine*(.75+.25*packet)+echo*.23+rim*.21+flare*.31,0.,1.));
     gl_FragColor=vec4(color,glow*gate*reveal*opacity*smoothstep(0.,.17,sides));
     #include <colorspace_fragment>
   }

@@ -23,6 +23,7 @@ import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHi
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=story-repair-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
 import {BossArena} from './boss-arena.mjs?v=ledger-1';
+import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
 import {comboMove, comboNames, comboTiming, linkWindow, skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
@@ -54,6 +55,8 @@ const blend = (speed,dt) => 1-Math.exp(-speed*dt);
 const fixed = value => Math.max(0, Math.ceil(value));
 const random = (low,high) => low + Math.random() * (high-low);
 const actionIds = ['dodge','spell','strike'];
+const weaponById=new Map(arms.map(weapon=>[weapon.id,weapon]));
+const afterPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
 const rewardMusicStates=new Set(['blessing','twin-reward','twin-inventory','twin-swap','transition']);
 const testTraining=Object.fromEntries(training.map(({id,costs})=>[id,costs.length]));
 
@@ -346,10 +349,11 @@ export class Game {
       content.append(weaponCatalogue(arms,this.view.armIcons,weapon=>this.weaponViewer.show(weapon,
         item=>milestone?this.swapWeapon(item):this.start(item))));
       const back=milestone?makeButton('保留目前神器',()=>{
-        this.state='play';this.closeModal();this.advanceAfterReward();
+        this.advanceAfterReward();
       }):makeButton('返回主畫面',()=>this.showCover());
       this.openModal({kind:'armory',mark:'✷',kicker:'無敵測試模式 · '+arms.length+' 件神器',
         title:milestone?'更換神器':'選擇神器',copy:'全技能同滿級祝福已啟用。',content,buttons:[back]});
+      this.weaponViewer.watchSelection(content,[],id=>weaponById.get(id));
       return;
     }
     const grid=document.createElement('div');
@@ -423,6 +427,7 @@ export class Game {
       buttons:milestone?[]:[makeButton(this.duelMonster?'返回練習場':'返回主畫面',()=>{
         const back=!!this.duelMonster;this.showCover();if(back)this.openPracticeLoadout();
       })]});
+    this.weaponViewer.watchSelection(content,choices,id=>weaponById.get(id));
   }
 
   difficultyPicker() {
@@ -540,7 +545,6 @@ export class Game {
     this.state='play';
     this.audio.active=true;
     this.audio.play('blessing');
-    this.closeModal();
     this.advanceAfterReward();
   }
 
@@ -567,7 +571,12 @@ export class Game {
     this.level = level;
     this.wave = 0;
     this.clearDelay = 0;
-    const stage = this.stage = modeStage(stages[level],this.difficulty);
+    const pending=this.roomPreparation;
+    const prepared=pending?.level===level&&pending.hero===this.hero&&pending.stage.difficulty===this.difficulty?pending:null;
+    if(!prepared)this.cancelRoomPreparation();
+    const stage=this.stage=prepared?.stage??modeStage(stages[level],this.difficulty);
+    this.clearStageEncounter();
+    this.stageEncounter=prepared?.encounter;
     if(!this.testRun)this.progress.reach(this.difficulty.id,stage.floor);
     this.floorBossesDefeated=0;
     this.escape=routeLayout(stage,this.routeSeed);
@@ -599,7 +608,12 @@ export class Game {
     h.attackAge=1;
     h.dx = 0; h.dz = -1;
     this.ambientClock=(4.1+(stage.room%4)*.47)/this.difficulty.pace;
-    this.view.setStage(stage);
+    this.view.setStage(stage,prepared?.fixtures);
+    if(prepared){
+      prepared.fixtures=null;
+      prepared.encounter=null;
+      this.cancelRoomPreparation();
+    }
     this.branchCombat.enter(this);
     this.view.lanternArt.set(this.escape);
     this.view.setMission(this.mission);
@@ -818,8 +832,12 @@ export class Game {
     if(elite&&!boss&&!visitor)this.announce('夜祭異變',elite.spec.name,elite.omen.detail,1.75);
     if (boss) {
       this.arenaSeed=(this.arenaSeed+0x9e3779b9)>>>0;
-      this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head,this.arenaSeed);
-      this.view.setBossArena(this.bossArena);
+      const prepared=this.stageEncounter;
+      this.bossArena=new BossArena(this,bossArenas.get(this.stage.floor),head,this.arenaSeed,
+        prepared?.seed===this.arenaSeed?prepared.layout:undefined);
+      const lamps=prepared?.seed===this.arenaSeed?prepared.lamps:null;
+      this.view.setBossArena(this.bossArena,lamps);
+      this.clearStageEncounter();
       head.phaseGuard=1.17;
       head.recover=1.04;
       this.ui['boss-name'].textContent=guardian.name;
@@ -1978,6 +1996,7 @@ export class Game {
       ||this.state==='armory'&&this.ui.cover.hidden;
     if(this.storyDepth.render(this.view.renderer,dt,this.view.feedback.subdued))return;
     if(this.openingPreparation?.pending&&this.openingPreparation.current())return;
+    if(this.state==='transition'&&this.presentingRoom)return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
     if (this.state==='play'||this.state==='falling') {
@@ -2003,6 +2022,7 @@ export class Game {
 
   openModal({mark,kicker,title,copy,content,buttons,kind='',focus}) {
     if(this.weaponViewer.open)this.weaponViewer.dialog.close();
+    this.weaponViewer.stopSelection();
     this.input.reset();
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
     this.ui['modal-mark'].textContent=mark;
@@ -2021,6 +2041,7 @@ export class Game {
   }
 
   closeModal() {
+    this.weaponViewer.stopSelection();
     this.storyDepth.setActive(false);
     this.ui.modal.hidden=true;
     this.ui.hud.inert=false;
@@ -2068,26 +2089,82 @@ export class Game {
     this.prepareNextRoom();
   }
 
+  clearStageEncounter(){
+    const lamps=this.stageEncounter?.lamps;
+    if(lamps)this.view.arenaArt.clear(lamps.root);
+    this.stageEncounter=null;
+  }
+
+  cancelRoomPreparation(){
+    const pending=this.roomPreparation;
+    this.roomPreparation=null;
+    if(pending?.fixtures)this.view.disposeFixtures(pending.fixtures);
+    if(pending?.encounter?.lamps)this.view.arenaArt.clear(pending.encounter.lamps.root);
+  }
+
   prepareNextRoom(){
     const level=this.level+1,hero=this.hero;
     if(level>=stages.length)return null;
-    if(this.roomPreparation?.level===level&&this.roomPreparation.hero===hero&&this.roomPreparation.weapon===this.weapon)return this.roomPreparation;
+    const ready=this.roomPreparation;
+    if(ready?.level===level&&ready.hero===hero&&ready.stage.difficulty===this.difficulty)return ready;
+    this.cancelRoomPreparation();
     const stage=modeStage(stages[level],this.difficulty);
-    const kinds=new Set(stage.objective?stage.zone.foes:stage.waves.flat());
-    const specs=[];
-    if(this.relicHunt?.state==='waiting')specs.push(this.relicHunt.specFor(stage));
-    for(const kind of [...kinds].reverse())if(kind!=='boss')specs.push(enemySpec(stage,kind));
-    if(stage.boss)specs.push(enemySpec(stage,'boss'));
-    const twin=twinSpec(stage);
-    if(twin)specs.push(twin);
-    const visitor=visitorFor(stage,this.routeSeed);
-    if(visitor)specs.push(monsterBattle(visitor,stage.floor,this.difficulty));
-    const preparation={level,hero,weapon:this.weapon,pending:true};
+    const preparation={level,hero,stage,pending:true};
     this.roomPreparation=preparation;
-    preparation.promise=this.view.prepareEncounters(specs,()=>this.roomPreparation===preparation&&this.hero===hero&&this.state!=='cover')
-      .catch(error=>{console.warn('Encounter prewarming deferred',error);})
+    const valid=()=>this.roomPreparation===preparation&&this.hero===hero&&this.state!=='cover';
+    preparation.promise=this.prepareRoom(preparation,valid)
+      .catch(error=>console.warn('Room preparation deferred',error))
       .finally(()=>{preparation.pending=false;});
     return preparation;
+  }
+
+  async prepareRoom(preparation,valid){
+    await afterPaint();
+    if(!valid())return;
+    const {stage}=preparation;
+    const specs=[];
+    if(this.relicHunt?.state==='waiting')specs.push(this.relicHunt.specFor(stage));
+    const waveCounts=new Map();
+    for(const wave of stage.waves){
+      const counts=new Map();
+      for(const kind of wave)counts.set(kind,(counts.get(kind)??0)+1);
+      for(const [kind,count] of counts){
+        waveCounts.set(kind,Math.max(count,waveCounts.get(kind)??0));
+      }
+    }
+    if(stage.objective)for(const kind of stage.zone.foes)if(!waveCounts.has(kind))waveCounts.set(kind,1);
+    for(const [kind,count] of waveCounts){
+      if(kind==='boss')continue;
+      const spec=enemySpec(stage,kind);
+      for(let i=0;i<count;i++)specs.push(spec);
+    }
+    const bosses=[];
+    if(stage.boss){
+      bosses.push(enemySpec(stage,'boss'));
+      const layout=bossArenas.get(stage.floor),seed=(this.arenaSeed+0x9e3779b9)>>>0;
+      preparation.encounter={seed,layout:drawBossEncounter(stage,layout,seed)};
+    }
+    const twin=twinSpec(stage);
+    if(twin)bosses.push(twin);
+    const visitor=visitorFor(stage,this.routeSeed);
+    if(visitor)bosses.push(monsterBattle(visitor,stage.floor,this.difficulty));
+    await this.view.prepareEncounters([...specs,...bosses],valid);
+    if(!valid())return;
+    const fixtures=await this.view.prepareFixtures(stage,valid);
+    if(!valid()){
+      if(fixtures)this.view.disposeFixtures(fixtures);
+      return;
+    }
+    preparation.fixtures=fixtures;
+    if(preparation.encounter){
+      const lamps=await this.view.prepareArenaLamps(preparation.encounter.layout,valid);
+      if(!valid()){
+        if(lamps)this.view.arenaArt.clear(lamps.root);
+        return;
+      }
+      preparation.encounter.lamps=lamps;
+    }
+    if(bosses.length)await this.view.prepareBossEntrances(bosses,stage,valid);
   }
 
   redrawBlessings() {
@@ -2303,26 +2380,37 @@ export class Game {
       this.prepare(true);
       return;
     }
-    this.state='play';
-    this.closeModal();
     this.advanceAfterReward();
   }
 
   async advanceAfterReward() {
-    if (this.stage.floor<stages.length) {
+    if(this.stage.floor<stages.length){
       const level=this.level+1;
       const preparation=this.prepareNextRoom();
-      if(preparation?.pending){
-        this.state='transition';
-        this.announce('燈火引路','正在準備下一層','凝聚燈火，前路將再次顯現。',10);
-        await preparation.promise;
-        if(this.roomPreparation!==preparation||this.level!==level-1||this.state!=='transition')return;
+      this.state='transition';
+      this.openModal({kind:'transition',mark:'◇',kicker:'第 '+(level+1)+' 關',
+        title:'燈火引路',copy:'正在準備下一層⋯⋯'});
+      await afterPaint();
+      await preparation.promise;
+      if(this.roomPreparation!==preparation||this.level!==level-1||this.state!=='transition')return;
+      this.presentingRoom=preparation;
+      try{
+        this.enter(level);
+        if(this.state!=='transition')return;
+        const current=()=>this.presentingRoom===preparation&&this.hero===preparation.hero&&this.state==='transition';
+        this.poseHero(0);
+        await this.view.prepareBattlefield(this.hero,this.enemies,current,true)
+          .catch(error=>console.warn('Room rendering preparation deferred',error));
+        if(!current())return;
+        this.state='play';
+        this.closeModal();
+      }finally{
+        if(this.presentingRoom===preparation)this.presentingRoom=null;
       }
-      this.state='play';
-      this.closeModal();
-      this.enter(level);
       return;
     }
+    this.state='play';
+    this.closeModal();
     this.placeStory(ending);
     this.announce('王冠主印已破',ending.title,'叫回晏燈，再敲下最後一聲鐘。',2.0);
   }
@@ -2478,6 +2566,8 @@ export class Game {
   showCover() {
     this.recordChallenge('abandoned');
     this.state='cover';
+    this.cancelRoomPreparation();
+    this.clearStageEncounter();
     if(this.testRun){
       this.clearThreats();
       this.clearActors();

@@ -126,7 +126,21 @@ export class ArenaArt {
     root.clear();
   }
 
-  set(arena) {
+  buildLamps(encounter){
+    const root=new T.Group();
+    const lamps=encounter.lamps.map(({x,z})=>{
+      const lamp=this.view.makeClue(root);
+      lamp.position.set(x,0,z);
+      lamp.scale.setScalar(1.14);
+      lamp.visible=true;
+      lamp.userData.marker.visible=false;
+      return lamp;
+    });
+    this.view.cutaway.cover(root);
+    return {root,lamps};
+  }
+
+  set(arena,prepared) {
     this.clear(this.root);
     this.clear(this.phaseRoot);
     this.arena=arena;
@@ -135,14 +149,9 @@ export class ArenaArt {
     this.sites=[];
     this.counterMarks=[];
     this.transient=[];
-    this.lamps=arena?arena.encounter.lamps.map(({x,z})=>{
-      const lamp=this.view.makeClue(this.root);
-      lamp.position.set(x,0,z);
-      lamp.scale.setScalar(1.14);
-      lamp.visible=true;
-      lamp.userData.marker.visible=false;
-      return lamp;
-    }):[];
+    const lights=arena?(prepared??this.buildLamps(arena.encounter)):null;
+    this.lamps=lights?.lamps??[];
+    for(const lamp of this.lamps)this.root.add(lamp);
   }
 
   transform(arena) {

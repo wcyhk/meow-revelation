@@ -1,5 +1,5 @@
 import * as T from '../three.min.mjs';
-import {armLighting,borrowForge,recycleForge} from './armory.mjs?v=emberlight-1';
+import {armLighting,borrowForge,recycleForge,retainedForge} from './armory.mjs?v=emberlight-1';
 import {comboNames,skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
@@ -37,6 +37,9 @@ const cursor=new T.Vector2(), groundPoint=new T.Vector3(), ray=new T.Raycaster()
 const drillKeys={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down'};
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
 const previewFocus=new T.Vector3();
+const afterPaint=()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+const studioCamera=new T.OrthographicCamera(-2,2,2,-2,.1,40);
+studioCamera.position.z=8;
 
 function studioBounds(root){
   const bounds=new T.Box3();
@@ -82,6 +85,8 @@ export class WeaponViewer {
     this.hint.setAttribute('aria-live','polite');
     this.canvas=node('canvas','weapon-viewer-canvas');
     this.canvas.tabIndex=0;
+    this.studioReady=new WeakSet();
+    this.canvas.addEventListener('webglcontextrestored',()=>{this.studioReady=new WeakSet();});
     this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
     this.zoomTools=node('div','model-zoom');
     this.zoomOut=button('−',()=>this.zoom(1/1.18));
@@ -157,6 +162,7 @@ export class WeaponViewer {
         this.focusReturn.focus({preventScroll:true});
       }
       this.focusReturn=null;
+      this.queueStudioWarmup();
     });
     this.dialog.addEventListener('keydown',event=>{
       if(event.key==='Escape'){
@@ -321,31 +327,126 @@ export class WeaponViewer {
     this.drillTools.hidden=true;
     if(image)this.image.src=image;
     else this.image.removeAttribute('src');
-    this.canvas.hidden=false;
+    this.canvas.hidden=true;
+    this.image.hidden=!image;
     this.zoomTools.hidden=true;
     this.dialog.showModal();
-    try{
-      this.renderer??=new T.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:true,powerPreference:'low-power'});
-    }catch{
-      this.canvas.hidden=true;
-      this.image.hidden=!image;
-      for(const control of this.controls)control.disabled=true;
-      this.hint.textContent='3D 預覽暫未能載入';
-      this.detail.textContent=description;
-      return;
-    }
-    this.renderer.setClearColor(0,0);
-    this.renderer.toneMapping=T.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure=1.18;
-    this.canvas.hidden=false;
-    this.image.hidden=true;
     for(const control of this.controls)control.disabled=false;
     this.showModel();
   }
 
+  studioRenderer(){
+    if(this.renderer)return this.renderer;
+    try{
+      this.renderer=new T.WebGLRenderer({canvas:this.canvas,alpha:true,antialias:true,powerPreference:'low-power'});
+    }catch{return null;}
+    this.renderer.setClearColor(0,0);
+    this.renderer.toneMapping=T.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure=1.18;
+    return this.renderer;
+  }
+
+  watchSelection(content,choices,findWeapon){
+    this.stopSelection();
+    const selection={content,queue:[...choices],seen:new Set(choices.map(weapon=>weapon.id))};
+    this.selection=selection;
+    const observe=()=>{
+      for(const button of content.querySelectorAll('[data-arm-choice]')){
+        if(!selection.observed.has(button)){
+          selection.observed.add(button);
+          selection.cards.observe(button);
+        }
+      }
+    };
+    selection.observed=new WeakSet();
+    selection.cards=new IntersectionObserver(entries=>{
+      // A catalogue can have dozens of rows. Only warm cards the player can see.
+      for(const entry of entries)if(entry.isIntersecting){
+        const weapon=findWeapon(entry.target.dataset.armChoice);
+        if(weapon&&!selection.seen.has(weapon.id)&&selection.queue.length<3){
+          selection.seen.add(weapon.id);
+          selection.queue.push(weapon);
+        }
+      }
+      this.queueStudioWarmup();
+    },{threshold:.55});
+    selection.dom=new MutationObserver(observe);
+    selection.dom.observe(content,{childList:true,subtree:true});
+    observe();
+    this.queueStudioWarmup();
+  }
+
+  stopSelection(){
+    this.selection?.dom.disconnect();
+    this.selection?.cards.disconnect();
+    this.selection=null;
+  }
+
+  queueStudioWarmup(){
+    const selection=this.selection;
+    if(this.open||this.studioWarmup||!selection?.queue.length||selection.scheduled)return;
+    selection.scheduled=true;
+    const run=()=>{
+      selection.scheduled=false;
+      if(this.open||this.selection!==selection||!selection.content.isConnected||this.studioWarmup)return;
+      const weapon=selection.queue.shift();
+      const renderer=this.studioRenderer();
+      if(!renderer)return;
+      if(this.studioReady.has(retainedForge(weapon))){
+        this.queueStudioWarmup();
+        return;
+      }
+      const job={weapon};
+      this.studioWarmup=job;
+      job.promise=this.warmWeapon(renderer,job,selection)
+        .catch(error=>console.warn('Weapon preview preparation deferred',error))
+        .finally(()=>{
+          this.studioWarmup=null;
+          this.queueStudioWarmup();
+        });
+    };
+    // Wait for the cards to paint, then use one idle turn per model.
+    afterPaint().then(()=>{
+      if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:220});
+      else setTimeout(run,0);
+    });
+  }
+
+  async warmWeapon(renderer,job,selection){
+    const item=borrowForge(job.weapon);
+    const scene=new T.Scene();
+    armLighting(scene);
+    item.traverseVisible(part=>{
+      if(part.geometry&&!part.geometry.boundingBox)part.geometry.computeBoundingBox();
+    });
+    scene.add(item);
+    try{
+      await renderer.compileAsync(scene,studioCamera);
+      if(this.modelLoading?.weapon!==job.weapon&&(this.open||this.selection!==selection))return;
+      renderer.render(scene,studioCamera);
+      this.studioReady.add(item);
+    }finally{
+      recycleForge(item);
+      renderer.renderLists.dispose();
+      renderer.info.reset();
+    }
+  }
+
+  showCanvas(){
+    if(!this.studioRenderer()){
+      this.canvas.hidden=true;
+      for(const control of this.controls)control.disabled=true;
+      this.hint.textContent='3D 預覽暫未能載入';
+      return false;
+    }
+    this.canvas.hidden=false;
+    this.image.hidden=true;
+    return true;
+  }
+
   resize(){
     const width=this.stage.clientWidth,height=this.stage.clientHeight;
-    if(!width||!height||!this.renderer)return;
+    if(!width||!height||!this.renderer||!this.scene)return;
     const limit=this.main.mobile?(this.mode==='model'?1.6:1.25):1.7;
     const pixelRatio=Math.min(devicePixelRatio,limit);
     if(this.renderer.getPixelRatio()!==pixelRatio)this.renderer.setPixelRatio(pixelRatio);
@@ -423,6 +524,7 @@ export class WeaponViewer {
       inspectCamera.position.set(0,this.boss?.10:0,8);
     }
     this.renderer.render(this.scene,inspectCamera);
+    if(this.weapon&&this.item)this.studioReady.add(this.item);
   }
 
   showModel(){
@@ -435,9 +537,27 @@ export class WeaponViewer {
     this.setActive(this.inspect);
     this.hint.textContent='拖動旋轉';
     this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
-    this.zoomTools.hidden=false;
     this.drillTools.hidden=true;
     this.detail.textContent=this.description;
+    this.canvas.hidden=true;
+    this.image.hidden=!this.weapon;
+    if(this.boss||this.studioReady.has(retainedForge(this.weapon))){
+      this.mountModel(model);
+      return;
+    }
+    const request=this.modelLoading={weapon:this.weapon};
+    this.hint.textContent='正在準備 3D 模型⋯⋯';
+    const pending=this.studioWarmup?.weapon===this.weapon?this.studioWarmup.promise:afterPaint();
+    pending.then(()=>{
+      if(this.open&&this.modelLoading===request)this.mountModel(model);
+    });
+  }
+
+  mountModel(model){
+    this.modelLoading=null;
+    if(!this.showCanvas())return;
+    this.hint.textContent='拖動旋轉';
+    this.zoomTools.hidden=false;
     this.scene=new T.Scene();
     const pao=paoForms.has(this.boss?.bestiary?.id);
     if(this.boss)lightPaoDisplay(this.scene);
@@ -561,6 +681,7 @@ export class WeaponViewer {
 
   playBoss(action,control){
     this.clearScene();
+    if(!this.showCanvas())return;
     this.mode=action.drill?'drill':action.phase?'phase':action.portrait?'portrait':'attack';
     this.stage.dataset.preview=this.mode;
     this.setActive(control);
@@ -591,6 +712,7 @@ export class WeaponViewer {
 
   play(kind){
     this.clearScene();
+    if(!this.showCanvas())return;
     this.mode=kind;
     this.stage.dataset.preview=kind;
     this.zoomTools.hidden=true;
@@ -646,6 +768,7 @@ export class WeaponViewer {
     cancelAnimationFrame(this.modelFrame);
     this.modelFrame=0;
     this.refreshEnergy=false;
+    this.modelLoading=null;
     this.viewAngles.hidden=true;
     this.closeUp=false;
     this.faceZoom.hidden=true;

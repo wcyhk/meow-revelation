@@ -76,6 +76,8 @@ const weaponFootprints=new WeakMap();
 const idleForgeBytes=5*1024*1024;
 let stashedBytes=0;
 
+export const retainedForge=weapon=>recentWeapons.get(weapon.id);
+
 export function borrowForge(weapon){
   const model=recentWeapons.get(weapon.id);
   if(model){

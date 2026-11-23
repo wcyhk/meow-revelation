@@ -105,7 +105,15 @@ let chrome,ws;
     await tap(selector);
   };
   await act('#begin');await wait('qa.state==="armory"');
+  await wait('qa.weaponViewer.selection && !qa.weaponViewer.selection.queue.length && !qa.weaponViewer.studioWarmup',450);
+  assert.equal(await ev(`(async()=>{
+    const {arms,retainedForge}=await import(new URL('armory.mjs?v=emberlight-1',document.baseURI));
+    const choice=document.querySelector('.arm-card').dataset.arm;
+    window.studioProbe=retainedForge(arms.find(weapon=>weapon.id===choice));
+    return !!studioProbe&&qa.weaponViewer.studioReady.has(studioProbe);
+  })()`),true,'The first card must have an uploaded model before its first tap');
   await act('.arm-card');await wait('qa.weaponViewer.open');
+  assert.equal(await ev('qa.weaponViewer.item===studioProbe'),true,'The first preview must use the already prepared mesh');
   await ev(`(()=>{
     const view=qa.view,prepare=view.prepareBattlefield;
     const hold=new Promise(resolve=>{window.completeOpeningWarmup=resolve;});
@@ -151,9 +159,16 @@ let chrome,ws;
   assert.equal(rigs.restored,true);assert.equal(rigs.isolated,true);assert.equal(rigs.stable,true);
   console.log('rig lifecycle',JSON.stringify(rigs));
   // Choosing instantly waits for rehearsal completion; no actor leaks into combat.
-  await ev('qa.ui.cover.hidden=true;qa.state="play";qa.enter(3);qa.blessing("測試下一層");qa.choose(qa.altar.options[0]);true');
+  await ev(`(()=>{
+    qa.ui.cover.hidden=true;qa.state='play';qa.enter(3);qa.blessing('測試下一層');
+    const prep=qa.roomPreparation;
+    prep.promise.then(()=>{window.fixtureProbe=prep.fixtures;});
+    qa.choose(qa.altar.options[0]);
+    return true;
+  })()`);
+  assert.equal(await ev('qa.state==="transition"&&!qa.ui.modal.hidden'),true,'An immediate blessing selection must keep the transition visible');
   await wait('qa.level===4 && qa.state==="play"',450);
-  assert.equal(await ev('qa.roomPreparation.pending'),false);
+  assert.equal(await ev('qa.roomPreparation===null && qa.view.fixtures===fixtureProbe && !qa.presentingRoom'),true);
   await wait('qa.enemies.some(enemy=>enemy.kind==="boss")',450);
   assert.ok(await ev('qa.view.modelReserve.stats.hits>'+rigs.stats.hits));
   await capture('warm-rooms-mobile-boss');
@@ -171,8 +186,24 @@ let chrome,ws;
   await ev('qa.clearActors();qa.wave=qa.stage.waves.length-1;qa.startDelay=0;qa.hero.invulnerable=10000;true');
   await wait('qa.enemies.some(enemy=>enemy.kind==="boss")',450);
   assert.ok(await ev('qa.view.modelReserve.stats.hits>'+late.before));
-  await ev('qa.clearActors();qa.enter(94);qa.state="play";qa.wave=qa.stage.waves.length-1;qa.startDelay=0;qa.hero.invulnerable=10000;true');
+  await ev(`(()=>{
+    qa.clearActors();qa.enter(93);qa.relicHunt=null;qa.arenaSeed=118232;qa.routeSeed=99734;qa.blessing('雙頭目預載');
+    return true;
+  })()`);
+  await wait('qa.roomPreparation?.level===94 && !qa.roomPreparation.pending',450);
+  assert.equal(await ev('!!qa.roomPreparation.encounter?.lamps&&!!qa.roomPreparation.fixtures'),true);
+  await ev(`(()=>{
+    const prep=qa.roomPreparation;
+    window.twinProbe={fixtures:prep.fixtures,lamps:prep.encounter.lamps.lamps,layout:prep.encounter.layout};
+    qa.choose(qa.altar.options[0]);
+    return true;
+  })()`);
+  await wait('qa.level===94 && qa.state==="play"',450);
+  await ev('qa.clearActors();twinProbe.misses=qa.view.modelReserve.stats.misses;qa.wave=qa.stage.waves.length-1;qa.startDelay=0;qa.hero.invulnerable=10000;true');
   await wait('qa.enemies.filter(enemy=>enemy.kind==="boss").length===2',450);
+  assert.equal(await ev('qa.view.modelReserve.stats.misses===twinProbe.misses'),true,'Both heads and the rest of their wave should reuse prepared rigs');
+  assert.equal(await ev('qa.bossArena.encounter===twinProbe.layout && qa.view.fixtures===twinProbe.fixtures && qa.view.arenaArt.lamps===twinProbe.lamps'),true,
+    'The twin encounter must use the prepared ritual layout, lamps and fixtures');
   await sleep(1200);await capture('warm-rooms-mobile-twin-bosses');
   await ev('qa.state="pause";qa.ui.cover.hidden=false;qa.clearActors();true');
   const memory=await ev(`(async()=>{

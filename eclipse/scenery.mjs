@@ -442,28 +442,129 @@ export class Scenery {
   }
 
   async prepareEncounters(specs,valid=()=>true){
-    const seen=new Set();
+    const batches=new Map();
     for(const spec of specs){
       const entry=spec.bestiary??spec.model;
       if(!entry)continue;
       this.modelReserve??=new ModelReserve(this.scene,mountBestiary,removeBestiary,this.mobile);
       const key=this.modelReserve.key(entry,spec);
-      if(seen.has(key))continue;
-      seen.add(key);
-      await new Promise(resolve=>requestAnimationFrame(resolve));
-      if(!valid())return;
-      if(this.modelReserve.has(entry,spec))continue;
-      const actor=this.createActor(spec.frame,spec.height);
+      if(!batches.has(key))batches.set(key,[]);
+      batches.get(key).push(spec);
+    }
+    this.warmedRigs??=new WeakSet();
+    for(const batch of batches.values()){
+      const actors=[];
       try{
-        this.prepareBoss(actor,spec);
-        // Use battlefield lighting without displaying rehearsal actors.
-        for(const part of [actor.art,actor.shade,actor.rim,actor.bestiary.root,actor.relicCrest,actor.relicCrown])part?.removeFromParent();
-        await this.renderer.compileAsync(actor.bestiary.root,this.camera,this.scene);
-      }finally{this.removeActor(actor);}
+        for(const spec of batch){
+          await new Promise(resolve=>requestAnimationFrame(resolve));
+          if(!valid())return;
+          const actor=this.createActor(spec.frame,spec.height);
+          actors.push(actor);
+          this.prepareBoss(actor,spec);
+          const rig=actor.bestiary;
+          for(const part of [actor.art,actor.shade,actor.rim,rig.root,actor.relicCrest,actor.relicCrown])part?.removeFromParent();
+          if(this.warmedRigs.has(rig))continue;
+          if(!await this.warmMesh(rig.root,valid))return;
+          this.warmedRigs.add(rig);
+        }
+      }finally{for(const actor of actors)this.removeActor(actor);}
     }
   }
 
-  setStage(stage) {
+  async warmMesh(root,valid){
+    await this.renderer.compileAsync(root,this.camera,this.scene);
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    if(!valid())return false;
+    this.warmGeometry(root);
+    return true;
+  }
+
+  warmGeometry(root){
+    // Upload the same buffers and draw programs the onscreen pass will use.
+    // A zero scissor keeps the current framebuffer intact during rehearsal.
+    const {renderer,scene,camera}=this;
+    const visible=scene.children.filter(node=>node.visible&&!node.isLight);
+    const culling=[];
+    root.traverseVisible(part=>{
+      if(part.isMesh&&part.frustumCulled){culling.push(part);part.frustumCulled=false;}
+    });
+    const scissor=renderer.getScissor(new T.Vector4());
+    const scissorTest=renderer.getScissorTest();
+    const clear=renderer.autoClear,background=scene.background;
+    const updateShadow=renderer.shadowMap.needsUpdate;
+    try{
+      for(const node of visible)node.visible=false;
+      scene.background=null;
+      scene.add(root);
+      renderer.autoClear=false;
+      renderer.shadowMap.needsUpdate=false;
+      renderer.setScissor(0,0,0,0);
+      renderer.setScissorTest(true);
+      renderer.render(scene,camera);
+    }finally{
+      renderer.setScissorTest(scissorTest);
+      renderer.setScissor(scissor);
+      renderer.shadowMap.needsUpdate=updateShadow;
+      renderer.autoClear=clear;
+      root.removeFromParent();
+      scene.background=background;
+      for(const node of visible)node.visible=true;
+      for(const node of culling)node.frustumCulled=true;
+    }
+  }
+
+  async prepareFixtures(stage,valid){
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    if(!valid())return null;
+    const fixtures=this.buildFixtures(stage);
+    let ready=false;
+    try{
+      ready=await this.warmMesh(fixtures,valid);
+      return ready?fixtures:null;
+    }finally{if(!ready)this.disposeFixtures(fixtures);}
+  }
+
+  async prepareArenaLamps(encounter,valid){
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    if(!valid())return null;
+    const lights=this.arenaArt.buildLamps(encounter);
+    let ready=false;
+    try{
+      ready=await this.warmMesh(lights.root,valid);
+      return ready?lights:null;
+    }finally{if(!ready)this.arenaArt.clear(lights.root);}
+  }
+
+  async prepareBossEntrances(specs,stage,valid){
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    if(!valid())return;
+    const scratch=Object.create(this);
+    const group=new T.Group();
+    Object.assign(scratch,{scene:group,stage,effects:[],feedback:{subdued:this.feedback.subdued,kick(){},surge(){}},
+      spellLighting:{emit(){}},spark(){},elementBurst(){}});
+    scratch.motion=Object.assign(Object.create(this.motion),{view:scratch,budget:0});
+    let ready=false;
+    try{
+      for(const spec of specs)scratch.bossCue({x:0,z:0,spec},'entrance');
+      ready=await this.warmMesh(group,valid);
+    }finally{
+      const materials=[];
+      for(const fx of scratch.effects){
+        if(!ready||fx.materialKey)scratch.release(fx);
+        else{
+          materials.push(fx.mesh.material);
+          if(fx.owned)fx.mesh.geometry.dispose();
+        }
+      }
+      group.clear();
+      if(ready){
+        for(const mat of this.preparedEntranceMaterials??[])mat.dispose();
+        this.preparedEntranceMaterials=materials;
+      }
+    }
+  }
+
+  setStage(stage,fixtures) {
     this.stage = stage;
     this.bossFrame={zoom:1,x:0,y:0};
     this.feedback.clear();
@@ -482,7 +583,9 @@ export class Scenery {
     for (const cloud of this.mist) cloud.material.color.setHex(hue);
     this.leaves.mesh.material.color.setHex(hue);
     this.leaves.mesh.visible=stage.zone.style==='leaves'||stage.zone.style==='cinders';
-    this.replaceFixtures(stage);
+    this.disposeFixtures(this.fixtures);
+    this.fixtures=fixtures??this.buildFixtures(stage);
+    this.scene.add(this.fixtures);
     this.shroud=0;
     this.shroudElement.style.setProperty('--dread',String(.14+dread*.39));
     this.shroudElement.style.setProperty('--omen','0');
@@ -496,8 +599,8 @@ export class Scenery {
     this.motes.geometry.setDrawRange(0,0);
   }
 
-  setBossArena(arena) {
-    this.arenaArt.set(arena);
+  setBossArena(arena,prepared) {
+    this.arenaArt.set(arena,prepared);
     this.cutaway.cover(this.arenaArt.root);
   }
 
@@ -510,15 +613,20 @@ export class Scenery {
     this.arenaArt.openFissure(hazard);
   }
 
-  replaceFixtures(stage) {
+  disposeFixtures(fixtures) {
     const materials=new Set();
-    this.fixtures.traverse(piece=>{
+    fixtures.traverse(piece=>{
       if (!piece.isMesh) return;
       if (piece.geometry!==plane) piece.geometry.dispose();
       materials.add(piece.material);
     });
     for (const material of materials) material.dispose();
-    this.fixtures.clear();
+    fixtures.removeFromParent();
+    fixtures.clear();
+  }
+
+  buildFixtures(stage) {
+    const fixtures=new T.Group();
     const tone=stage.zone.color;
     const place=(parent,geometry,material,y)=>{
       const mesh=new T.Mesh(geometry,material);
@@ -526,7 +634,7 @@ export class Scenery {
       parent.add(mesh);
       return mesh;
     };
-    for (const prop of stage.props) this.fixtures.add(monument(this,prop,tone));
+    for (const prop of stage.props) fixtures.add(monument(this,prop,tone));
     const glyph=new T.Group();
     const radius=(stage.boss?3.75:1.8+stage.room*.10);
     glyph.position.set((stage.room%3-1)*.72,.016,stage.boss?-2.1:-2.65);
@@ -542,8 +650,8 @@ export class Scenery {
       rune.position.z=Math.cos(angle)*radius*.9;
       rune.rotation.y=angle;
     }
-    this.fixtures.add(glyph);
-    this.cutaway.cover(this.fixtures);
+    fixtures.add(glyph);
+    this.cutaway.cover(fixtures);
     if (stage.dread>.055) {
       const count=Math.floor(1+stage.dread*8);
       for (let index=0;index<count;index++) {
@@ -554,7 +662,7 @@ export class Scenery {
         stain.position.set(Math.cos(angle)*reach,.014,Math.sin(angle)*reach*.86);
         stain.rotateZ(angle+stage.dread);
         stain.renderOrder=-12;
-        this.fixtures.add(stain);
+        fixtures.add(stain);
       }
       if (stage.boss||stage.dread>.68) {
         const seal=this.ground(this.battleTextures.glyph,stage.dread>.62?0xa8454b:stage.guardian?.tint??tone,
@@ -562,9 +670,10 @@ export class Scenery {
         seal.position.set(0,.021,stage.boss?-2.2:-1.6);
         seal.material.blending=T.AdditiveBlending;
         seal.rotateZ(stage.bearing);
-        this.fixtures.add(seal);
+        fixtures.add(seal);
       }
     }
+    return fixtures;
   }
 
   makeMist(index) {
@@ -712,18 +821,19 @@ export class Scenery {
       }
       rig.hitFlash.value=0;
       visual.hitFlash=rig.hitFlash;
-      if(frameBoss){
-        const {root,aura}=visual.bestiary;
+      if(frameBoss&&!rig.frameCorners){
+        const {root,aura}=rig;
         const bounds=new T.Box3();
         for(const child of root.children)if(child!==aura?.mesh)bounds.expandByObject(child);
         if(!bounds.isEmpty()){
           const {min,max}=bounds;
-          visual.frameCorners=[];
+          rig.frameCorners=[];
           for(const x of [min.x,max.x])for(const y of [min.y,max.y])for(const z of [min.z,max.z]){
-            visual.frameCorners.push(new T.Vector3(x,y,z));
+            rig.frameCorners.push(new T.Vector3(x,y,z));
           }
         }
       }
+      if(frameBoss)visual.frameCorners=rig.frameCorners;
       visual.art.visible=false;
     }else{
       visual.form=nightmareForm(spec);
@@ -1996,12 +2106,13 @@ export class Scenery {
     mark.material.uniforms.pixelRatio.value=this.renderer.getPixelRatio();
   }
 
-  async prepareBattlefield(hero,enemies,valid) {
+  async prepareBattlefield(hero,enemies,valid,draw=false) {
     // Give the prologue a frame to paint before starting the GPU work.
     await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     if(!valid())return;
     this.updateFrame(0,hero,true,false,enemies);
     await this.renderer.compileAsync(this.scene,this.camera);
+    if(draw&&valid())this.renderer.render(this.scene,this.camera);
   }
 
   updateFrame(dt, hero, paused, freezeWarnings, enemies) {

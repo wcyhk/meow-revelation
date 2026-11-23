@@ -1,5 +1,6 @@
 import {roomBounds} from './lantern-route.mjs?v=world-3d-1';
 import {stepMoonSlash} from './warden-moon-slash.mjs';
+import {queueWardenSummon,wardenSummonPattern} from './warden-reinforcements.mjs';
 
 const TAU = Math.PI*2;
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
@@ -98,6 +99,9 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
     case 'summon':
       circle(source,1.40,delay);
       if (owner?.summons<2) game.hazards.push({kind:'summon',...source,delay,owner,tint,windup});
+      break;
+    case wardenSummonPattern:
+      queueWardenSummon(game,owner,delay);
       break;
     case 'cleave':
       zone('cone',source,boss?5.6:3.6,delay,boss?1.00:.73,bearing);
@@ -213,6 +217,10 @@ export function advanceThreats(game,dt) {
   const lantern=game.lanternTarget();
   const counters=game.bossArena?.counters;
   for (const hazard of queued) {
+    if(hazard.owner?.dismissed){
+      if(hazard.visual)view.removeProjectile(hazard.visual);
+      continue;
+    }
     if(hazard.moonSlash){
       if(!stepMoonSlash(game,hazard,dt))continue;
     }else hazard.delay-=dt;

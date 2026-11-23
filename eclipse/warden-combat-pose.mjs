@@ -29,7 +29,7 @@ const moonCuts=[sweep,{
   follow:{body:[.40,.44,.14],lantern:[-1.04,-.25,-.39],blade:[-1.37,.39,.25],aim:[-.71,-.70]},
 }];
 const attacks={cleave:sweep,sweep,jaws:sweep,lance:thrust,cinders:slam,toll:slam,
-  eclipse:ritual,spiral:ritual,summon:ritual,prison:ritual};
+  eclipse:ritual,spiral:ritual,summon:ritual,wardenSummon:ritual,prison:ritual};
 
 function poseJoint(joint,brace,follow,swing,influence){
   const angle=joint.rotation;

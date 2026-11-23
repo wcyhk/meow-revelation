@@ -1817,10 +1817,13 @@ export class Scenery {
     }
   }
 
-  sealFx(x,z,tint,radius,duration=.50) {
+  sealFx(x,z,tint,radius,duration=.50,active,elapsed) {
     const seal=this.addEffect(plane,{x,y:.083,z},tint,duration,
       {map:this.battleTextures.glyph,scale:radius*1.82,growth:radius*.37,opacity:.51,order:22});
     seal.spin=-1.24;
+    seal.active=active;
+    seal.elapsed=elapsed;
+    seal.combatClock=!!elapsed;
   }
 
   chargeBoss(unit) {
@@ -2131,7 +2134,7 @@ export class Scenery {
     let minX=-1.15,maxX=1.15,minY=-1.20,maxY=1.35,count=0;
     frame.nearBoss=false;
     for(const enemy of enemies){
-      if(enemy.kind!=='boss'||enemy.hp<=0)continue;
+      if(enemy.kind!=='boss'||enemy.summoner||enemy.hp<=0)continue;
       count++;
       const {bestiary,frameCorners,height}=enemy.visual;
       const x=enemy.x-hero.x,z=(enemy.z-hero.z)*up.z;

@@ -48,6 +48,8 @@ import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogu
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {wardenStrikeLook} from './warden-ground.mjs';
 import {moonSlashDuration,moonSlashPattern,queueMoonSlash} from './warden-moon-slash.mjs';
+import {dismissWardenReinforcements,isWardenSummoner,resolveWardenSummon,rewardWardenReinforcement,
+  wardenBoon,wardenReinforcementSpecs,wardenSummonPattern,wardenSummonReady} from './warden-reinforcements.mjs';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -581,6 +583,8 @@ export class Game {
     this.stageEncounter=prepared?.encounter;
     if(!this.testRun)this.progress.reach(this.difficulty.id,stage.floor);
     this.floorBossesDefeated=0;
+    this.wardenSummonDeck=null;
+    this.wardenRewardSound=null;
     this.escape=routeLayout(stage,this.routeSeed);
     this.floorReward=null;
     this.bossArena=null;
@@ -593,6 +597,7 @@ export class Game {
     h.trainingWardSpent=false;
     h.relicCounter=h.relicHaste=h.projectileAim=h.poseGait=null;
     h.lanternOut=0;
+    h.wardenBoonStacks=h.wardenBoonUntil=0;
     h.snuffCooldown=0;
     h.x = stage.spawn.x; h.z = stage.spawn.z; h.vx = h.vz = 0;
     h.visualMotion=null;
@@ -769,8 +774,8 @@ export class Game {
   }
 
   spawn(kind,x,z,omen=null,override=null) {
-    const bodyScale=kind==='boss'?2:1;
     const base=override??enemySpec(this.stage,kind);
+    const bodyScale=kind==='boss'?(base.bodyScale??2):1;
     const spec=bodyScale>1||omen?{...base,height:base.height*bodyScale}:base;
     if(omen){
       spec.hp=Math.round(spec.hp*1.22);spec.tint=omen.tint;spec.name=spec.name+' · '+omen.name;
@@ -1228,7 +1233,8 @@ export class Game {
   }
 
   hit(unit,amount,origin,knock,tint=this.weapon.tone,weight,report,source) {
-    const damage=amount*(this.branchCombat.activeMaw?.damage??1);
+    const boon=source==='counter'?0:wardenBoon(this.hero,this.t);
+    const damage=amount*(this.branchCombat.activeMaw?.damage??1)*(1+boon*.15);
     if (unit.kind==='arenaAnchor') return this.bossArena?.hit(unit,damage)??false;
     if (unit.kind==='breakable') {
       if(unit.hp<=0)return false;
@@ -1271,9 +1277,11 @@ export class Game {
     }
     if (unit.hp<=0) {
       this.kills++;
-      if (boss) this.floorBossesDefeated++;
+      if(boss&&!unit.summoner)this.floorBossesDefeated++;
       const h = this.hero;
       h.hp = Math.min(h.maxHp,h.hp+h.leech);
+      if(unit.summoner)rewardWardenReinforcement(this);
+      if(primary&&unit.spec.finalWarden)dismissWardenReinforcements(this,unit);
       this.fallen.push(unit);
       this.branchCombat.activeMaw?.defeat(this,unit);
       giftKill(this,unit);
@@ -1441,6 +1449,7 @@ export class Game {
     if (!boss) index+=this.stage.room+this.wave;
     const finisher=phase===2?spec.lastFinishing??spec.finishing:spec.finishing;
     let pattern=forcedPattern??(finisher&&phase&&index%3===2?finisher:spec.attacks[index%spec.attacks.length]);
+    if(pattern==='summon'&&isWardenSummoner(this,unit))pattern=wardenSummonReady(this,unit)?wardenSummonPattern:'cleave';
     if(pattern===moonSlashPattern){
       if(queueMoonSlash(this,unit))return;
       pattern='cinders';
@@ -1449,13 +1458,13 @@ export class Game {
       pattern=this.stage.enemyPattern==='summon'?'marked':this.stage.enemyPattern;
     }
     if (pattern==='summon'&&unit.summons>=2) pattern='prison';
-    const time=spec.time*(1-phase*.12);
+    const time=pattern===wardenSummonPattern?1.18:spec.time*(1-phase*.12);
     unit.attack={pattern,time,windup:time,dx,dz};
     unit.attack.landing=telegraph(this,pattern,unit,h,{delay:time,damage:spec.hurt+phase*5,radius:spec.radius,owner:unit,phase});
     if(boss)this.view.chargeBoss(unit);
     unit.hunt?.signature(unit.attack,!!forcedPattern);
     if(unit.omen?.id==='echo'&&this.hazards.length<13)telegraph(this,'marked',unit,h,{delay:time+.46,damage:spec.hurt*.58,radius:1.27,owner:unit});
-    if (boss && phase>=1 && index%3===2) {
+    if (boss && phase>=1 && index%3===2&&pattern!==wardenSummonPattern) {
       const echo=spec.attacks[(index+1)%spec.attacks.length];
       telegraph(this,['summon','blink','rally'].includes(echo)?'marked':echo,unit,h,
         {delay:time+.52,damage:spec.hurt*.72,radius:spec.radius*.72,owner:unit,phase});
@@ -1502,6 +1511,7 @@ export class Game {
       boss?1.14:.83,Math.atan2(attack.dz,attack.dx));
     if(look)this.audio.wardenStrike(unit.bossPhase,'release');
     else this.audio.release(attack.pattern,boss,unit.spec.bestiary?.id);
+    if(attack.pattern===wardenSummonPattern)resolveWardenSummon(this,unit,attack);
     if (boss) {
       if(this.bossArena?.boss===unit)this.bossArena.counters.resolveAttack(attack);
       this.view.feedback.kick(.11,.21,Math.atan2(attack.dz,attack.dx));
@@ -1553,6 +1563,10 @@ export class Game {
       const attackRange=h===this.hero ? spec.reach : Math.min(spec.reach,spec.ranged??1.85);
       const exercise=arena?drill:null;
       if (unit.cool<=0&&arena) {
+        if(!exercise?.focused&&wardenSummonReady(this,unit)){
+          this.beginEnemyAttack(unit,wardenSummonPattern);
+          continue;
+        }
         if (arena.counters.tryCharge(dist)) continue;
         if (!exercise?.focused&&dist<attackRange+3.2&&arena.tactics.tryAttack()) continue;
       }
@@ -1607,6 +1621,9 @@ export class Game {
   clearThreats() {
     clearUltimates(this);
     this.relicWalls.length=0;
+    for(const unit of this.enemies){
+      if(unit.attack?.wardenPortal)unit.attack=null;
+    }
     for (const hazard of this.hazards) {
       if (hazard.visual) this.view.removeProjectile(hazard.visual);
       if(hazard.moonSlash&&hazard.windup&&hazard.owner.attack===hazard.windup)hazard.owner.attack=null;
@@ -1958,9 +1975,11 @@ export class Game {
     const h=this.hero;
     const maw=this.branchCombat.activeMaw;
     const stacks=maw?.stacks??0;
-    const support=this.testRun?(stacks?`✷ 無敵 · 噬食 ×${stacks}`:'✷ 無敵'):stacks?`噬食 ×${stacks} · ${Math.ceil(maw.remaining(this.t))} 秒`
+    let support=this.testRun?(stacks?`✷ 無敵 · 噬食 ×${stacks}`:'✷ 無敵'):stacks?`噬食 ×${stacks} · ${Math.ceil(maw.remaining(this.t))} 秒`
       :this.branchCombat.skills.has('medic')?(this.branchCombat.reviveReady?'✚ 急救可用':'✚ 急救已用')
       :this.branchCombat.skills.has('radar')?'◉ 雷達運作中':'';
+    const boon=wardenBoon(h,this.t);
+    if(boon)support+=(support?' · ':'')+'殘影增傷 +'+boon*15+'% · '+Math.ceil(h.wardenBoonUntil-this.t)+'秒';
     const badge=this.ui['field-support'];
     badge.classList.toggle('maw-stacks',stacks>0);
     if(badge.textContent!==support) badge.textContent=support;
@@ -1974,12 +1993,23 @@ export class Game {
       this.meter.setAttribute('aria-valuenow',hp);
     }
     const boss=this.enemies.find(unit=>unit.kind==='boss'&&!unit.spec.secondary);
-    const echo=this.enemies.find(unit=>unit.kind==='boss'&&unit.spec.secondary);
+    const echo=this.enemies.find(unit=>unit.kind==='boss'&&unit.spec.secondary&&!unit.summoner);
+    let summons=0,echoHp=0,echoMax=0;
+    for(const unit of this.enemies)if(unit.summoner&&unit.hp>0){
+      summons++;
+      echoHp+=unit.hp;
+      echoMax+=unit.spec.hp;
+    }
     const bossHUD=this.ui['boss-hud'];
-    bossHUD.hidden=!boss&&!echo;
+    bossHUD.hidden=!boss&&!echo&&!summons;
     this.ui['boss-primary'].hidden=!boss;
-    this.ui['boss-echo'].hidden=!echo;
-    if(echo)this.ui['boss-echo-fill'].style.transform='scaleX('+clamp(echo.hp/echo.spec.hp,0,1)+')';
+    this.ui['boss-echo'].hidden=!echo&&!summons;
+    if(echo||summons){
+      const name=summons?'殘影頭目 ×'+summons:echo.spec.name;
+      if(this.ui['boss-echo-name'].textContent!==name)this.ui['boss-echo-name'].textContent=name;
+      const ratio=summons?echoHp/echoMax:echo.hp/echo.spec.hp;
+      this.ui['boss-echo-fill'].style.transform='scaleX('+clamp(ratio,0,1)+')';
+    }
     const kills=String(this.kills),clock=formatTime(this.elapsed),gold=String(this.runGold??0);
     if(this.ui['run-kills'].textContent!==kills)this.ui['run-kills'].textContent=kills;
     if(this.ui['run-time'].textContent!==clock)this.ui['run-time'].textContent=clock;
@@ -2215,7 +2245,8 @@ export class Game {
     if(twin)bosses.push(twin);
     const visitor=visitorFor(stage,this.routeSeed);
     if(visitor)bosses.push(monsterBattle(visitor,stage.floor,this.difficulty));
-    await this.view.prepareEncounters([...specs,...bosses],valid);
+    const summons=bosses.some(spec=>spec.finalWarden)?wardenReinforcementSpecs(stage.difficulty):[];
+    await this.view.prepareEncounters([...specs,...bosses,...summons],valid);
     if(!valid())return;
     const fixtures=await this.view.prepareFixtures(stage,valid);
     if(!valid()){
@@ -2757,7 +2788,8 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const practice=Object.create(Game.prototype);
   const drill=action.drill;
   const moonSlash=action.pattern===moonSlashPattern;
-  const arenaPreview=action.phase||moonSlash;
+  const summon=action.pattern===wardenSummonPattern;
+  const arenaPreview=action.phase||moonSlash||summon;
   const stage=arenaPreview?source:{...source,props:[]};
   const demonstration=action.motion;
   const pao=['m025','m026'].includes(spec.bestiary?.id);
@@ -2782,7 +2814,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   if(arenaPreview){
     practice.bossArena=new BossArena(practice,layout,unit,action.seed,drill?drillEncounter(dossier):null);
     view.setBossArena(practice.bossArena);
-    if(moonSlash){
+    if(moonSlash||summon){
       practice.bossArena.transform(2);
       practice.bossArena.shift=2;
     }else if(action.phase>1){
@@ -2928,6 +2960,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
         else arena.shift+=dt;
       }
       advanceThreats(practice,dt);
+      if(summon)for(const copy of practice.enemies)if(copy.summoner)copy.age+=dt;
       if(drill&&fired&&!done&&!unit.phaseChange){
         if(riftDrill)for(const hazard of practice.hazards){
           if(hazard.kind==='residue'&&hazard.residue==='embers'&&!hazard.rehearsal){

@@ -12,6 +12,7 @@ import {monument} from './map-art.mjs?v=forge-1';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
 import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 import {moonSlashPattern} from './warden-moon-slash.mjs';
+import {wardenSummonPattern} from './warden-reinforcements.mjs';
 const paoForms=new Set();
 
 function node(tag,kind,text){
@@ -296,7 +297,7 @@ export class WeaponViewer {
       row.append(copy,control);
       this.weakness.append(row);
     }
-    const attacks=spec.finalWarden?[...spec.attacks,moonSlashPattern]:spec.attacks;
+    const attacks=spec.finalWarden?[...spec.attacks,moonSlashPattern,wardenSummonPattern]:spec.attacks;
     this.attackControls=attacks.map(pattern=>{
       const control=button(this.moveNames[pattern],()=>this.playBoss({pattern},control));
       control.dataset.attack=pattern;
@@ -696,7 +697,8 @@ export class WeaponViewer {
     if(!this.showCanvas())return;
     this.mode=action.drill?'drill':action.phase?'phase':action.portrait?'portrait':'attack';
     const moonSlash=action.pattern===moonSlashPattern;
-    if(moonSlash)this.modelPhase=2;
+    const summon=action.pattern===wardenSummonPattern;
+    if(moonSlash||summon)this.modelPhase=2;
     this.stage.dataset.preview=this.mode;
     this.setActive(control);
     this.zoomTools.hidden=true;
@@ -710,8 +712,10 @@ export class WeaponViewer {
     this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
     const phaseDetail=name?`變身後出招 · ${name}`:'變身預覽';
     this.detail.textContent=action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
-      :moonSlash?'兩道命印輪流封路 · 第三斬由守夜者出手':action.phase?phaseDetail:action.portrait?this.description:name;
-    const view=this.makeStage(!!(action.phase||moonSlash));
+      :moonSlash?'兩道命印輪流封路 · 第三斬由守夜者出手'
+      :summon?'殘影擁有原頭目三分一生命及攻擊力 · 擊倒後回血同增傷'
+      :action.phase?phaseDetail:action.portrait?this.description:name;
+    const view=this.makeStage(!!(action.phase||moonSlash||summon));
     const seed=this.bossSeed??=Math.floor(Math.random()*0x100000000);
     const form=this.boss.phaseTransition&&!action.phase?this.modelPhase:0;
     this.practice=this.makeBossPractice(view,this.dossier,{seed,form,...action},{

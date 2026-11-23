@@ -1645,7 +1645,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const attack=unit.attack??release;
   const patternAtContact=attack?.pattern;
   const thrust=['lance','cross','barrage','feathers','coins','marked'].includes(patternAtContact);
-  const sweep=['sweep','cleave','gravefan','jaws'].includes(patternAtContact);
+  const sweep=['sweep','cleave','gravefan','jaws','moonSlash'].includes(patternAtContact);
   const crush=['burst','pounce','cinders','toll','counterCharge'].includes(patternAtContact);
   const stagger=unit.reaction&&unit.reaction.kind!=='fall'?Math.exp(-unit.reaction.age*9):0;
   const animationSpeed=1-Math.exp(-Math.max(.001,spec.dt??1/60)*(attack?29:13));
@@ -1816,7 +1816,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall,turn:T.MathUtils.clamp(turn,-1,1),dt:spec.dt});
   const aim={thrust,sweep,crush,travel,heading:spec.targetHeading??model.heading,fall,
     frame:!attack&&spec.targetHeading===undefined?root.parent:null};
-  if(warden&&attack)poseWardenStrike(model,patternAtContact,wind,unit.attack?null:release,aim);
+  if(warden&&attack)poseWardenStrike(model,patternAtContact,wind,unit.attack?null:release,aim,
+    attack.moonSlash?.index??attack.moonStroke);
   aimEnemyWeapons(model.weapons,attack,wind,strike,aim);
   if(model.strikeWake)model.strikeWake(model.weapons[0],{
     attack:unit.attack,release,wind,time,stage,fall,subdued:spec.subdued,transition,

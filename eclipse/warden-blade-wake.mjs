@@ -1,6 +1,6 @@
 import * as T from '../three.min.mjs';
 
-const cutMoves=new Set(['cleave','sweep','lance','jaws','cinders','toll']);
+const cutMoves=new Set(['cleave','sweep','lance','jaws','cinders','toll','moonSlash']);
 const ember=new T.Color(0xff542a),emberCore=new T.Color(0xffd5a0);
 const violet=new T.Color(0x9559ff),violetCore=new T.Color(0xe9d4ff);
 const vertexShader=`

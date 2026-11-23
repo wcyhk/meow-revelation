@@ -47,6 +47,7 @@ import {relicCounter} from './relic-cast.mjs?v=giant-gates-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {wardenStrikeLook} from './warden-ground.mjs';
+import {moonSlashDuration,moonSlashPattern,queueMoonSlash} from './warden-moon-slash.mjs';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -1440,6 +1441,10 @@ export class Game {
     if (!boss) index+=this.stage.room+this.wave;
     const finisher=phase===2?spec.lastFinishing??spec.finishing:spec.finishing;
     let pattern=forcedPattern??(finisher&&phase&&index%3===2?finisher:spec.attacks[index%spec.attacks.length]);
+    if(pattern===moonSlashPattern){
+      if(queueMoonSlash(this,unit))return;
+      pattern='cinders';
+    }
     if (unit.kind==='oracle'&&this.stage.room>=6&&unit.step%4===0) {
       pattern=this.stage.enemyPattern==='summon'?'marked':this.stage.enemyPattern;
     }
@@ -1466,9 +1471,10 @@ export class Game {
   stepEnemyAttack(unit,dt) {
     const attack=unit.attack;
     const previous=attack.time;
+    const readyLead=attack.readyLead??.17;
     attack.time-=dt;
     if(attack.time<=0)this.resolveEnemyAttack(unit);
-    else if(unit.spec.finalWarden&&!attack.interrupted&&previous>.17&&attack.time<=.17)
+    else if(unit.spec.finalWarden&&!attack.interrupted&&previous>readyLead&&attack.time<=readyLead)
       this.audio.wardenStrike(unit.bossPhase,'ready');
   }
 
@@ -1476,7 +1482,7 @@ export class Game {
     const attack=unit.attack;
     const boss=unit.kind==='boss';
     unit.attack=null;
-    unit.motion={pattern:attack.pattern,dx:attack.dx,dz:attack.dz,age:0};
+    unit.motion={pattern:attack.pattern,dx:attack.dx,dz:attack.dz,age:0,moonStroke:attack.moonSlash?.index};
     unit.recover=boss?.56-unit.bossPhase*.08:.29;
     unit.cool=(boss?1.16-unit.bossPhase*.19:1.21/this.stage.pace)+random(.12,.45);
     if (attack.pattern==='pounce') {
@@ -1536,7 +1542,7 @@ export class Game {
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
       if (unit.attack) {
-        this.stepEnemyAttack(unit,dt);
+        if(!unit.attack.moonSlash)this.stepEnemyAttack(unit,dt);
         continue;
       }
       if (unit.age<.38 || unit.stun>0 || unit.recover>0) continue;
@@ -1603,6 +1609,7 @@ export class Game {
     this.relicWalls.length=0;
     for (const hazard of this.hazards) {
       if (hazard.visual) this.view.removeProjectile(hazard.visual);
+      if(hazard.moonSlash&&hazard.windup&&hazard.owner.attack===hazard.windup)hazard.owner.attack=null;
     }
     this.hazards.length=0;
   }
@@ -2749,10 +2756,12 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const {spec,stage:source,layout,weakness}=dossier;
   const practice=Object.create(Game.prototype);
   const drill=action.drill;
-  const stage=action.phase?source:{...source,props:[]};
+  const moonSlash=action.pattern===moonSlashPattern;
+  const arenaPreview=action.phase||moonSlash;
+  const stage=arenaPreview?source:{...source,props:[]};
   const demonstration=action.motion;
   const pao=['m025','m026'].includes(spec.bestiary?.id);
-  const position=action.phase?source.spawn:pao?{x:1.4,z:3.05}:{x:2.95,z:.82};
+  const position=arenaPreview?source.spawn:pao?{x:1.4,z:3.05}:{x:2.95,z:.82};
   const hero=Object.assign(makeHero(),position,{moveSpeed:6.9,damage:25,face:-1});
   const controls={keys:new Set(),point:null,roll:false,interact:false};
   const weapon=arms.find(arm=>arm.id==='tiger');
@@ -2762,7 +2771,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   Object.assign(practice,{view,stage,hero,weapon,t:0,state:'play',hazards:[],enemies:[],relicWalls:[],wave:0,
     hitstop:0,branchCombat:{skills:new Set()},audio,
     announce(){},setupMissionPins(){},objective(){}});
-  const unit=practice.spawn('boss',action.phase?0:pao?-2.1:-2.4,action.phase?-3.2:pao?-1.65:-.46,null,spec);
+  const unit=practice.spawn('boss',arenaPreview?0:pao?-2.1:-2.4,arenaPreview?-3.2:pao?-1.65:-.46,null,spec);
   unit.age=3;
   unit.face=1;
   if(action.form){
@@ -2770,10 +2779,13 @@ function makeBossPractice(view,dossier,action,signal,sound) {
     unit.hp=spec.hp*spec.phases[action.form-1];
   }
   if(demonstration&&unit.visual.bestiary)unit.visual.bestiary.heading=.55;
-  if(action.phase){
+  if(arenaPreview){
     practice.bossArena=new BossArena(practice,layout,unit,action.seed,drill?drillEncounter(dossier):null);
     view.setBossArena(practice.bossArena);
-    if(action.phase>1){
+    if(moonSlash){
+      practice.bossArena.transform(2);
+      practice.bossArena.shift=2;
+    }else if(action.phase>1){
       unit.bossPhase=action.phase-1;
       unit.hp=spec.hp*spec.phases[action.phase-2];
       practice.bossArena.transform(unit.bossPhase);
@@ -2852,7 +2864,9 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   paint(0);
   let fired=!!action.portrait;
   const hold=action.phase ? .85 : .20;
-  const duration=demonstration?3.05:hold+spec.time+2.75+(spec.phaseTransition?.[action.phase-1]??0);
+  const lastSlash=moonSlash||action.phase===2&&spec.lastFinishing===moonSlashPattern;
+  const duration=demonstration?3.05:hold+(lastSlash?moonSlashDuration+1.45:spec.time+2.75)
+    +(spec.phaseTransition?.[action.phase-1]??0);
   return {
     controls,
     hero,
@@ -2899,7 +2913,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
       }else{
         unit.age+=dt;
         unit.phaseGuard-=dt;
-        if(unit.attack)practice.stepEnemyAttack(unit,dt);
+        if(unit.attack&&!unit.attack.moonSlash)practice.stepEnemyAttack(unit,dt);
         if(unit.motion)unit.motion.age+=dt;
         if(unit.kx||unit.kz){
           const before={x:unit.x,z:unit.z};

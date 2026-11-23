@@ -21,6 +21,13 @@ const ritual={
   brace:{body:[-.16,.09,.038],lantern:[-1.90,-.13,-.49],blade:[-.54,.25,.47],aim:[.51,.08]},
   follow:{body:[.13,-.06,-.08],lantern:[-1.18,.18,-.27],blade:[-.40,.13,.35],aim:[.28,.12]},
 };
+const moonCuts=[sweep,{
+  brace:{body:[-.16,.53,.11],lantern:[-.66,-.20,-.33],blade:[-.94,.54,.29],aim:[-.77,.32]},
+  follow:{body:[.16,-.48,-.10],lantern:[-.38,.29,-.24],blade:[-.77,-.38,.66],aim:[.72,.12]},
+},{
+  brace:{body:[-.36,-.25,-.13],lantern:[-1.48,.32,-.36],blade:[-1.75,-.29,.40],aim:[.52,1.46]},
+  follow:{body:[.40,.44,.14],lantern:[-1.04,-.25,-.39],blade:[-1.37,.39,.25],aim:[-.71,-.70]},
+}];
 const attacks={cleave:sweep,sweep,jaws:sweep,lance:thrust,cinders:slam,toll:slam,
   eclipse:ritual,spiral:ritual,summon:ritual,prison:ritual};
 
@@ -31,8 +38,8 @@ function poseJoint(joint,brace,follow,swing,influence){
     lerp(angle.z,lerp(brace[2],follow[2],swing),influence));
 }
 
-export function poseWardenStrike(model,pattern,wind,release,aim){
-  const attack=attacks[pattern];
+export function poseWardenStrike(model,pattern,wind,release,aim,moonStroke){
+  const attack=pattern==='moonSlash'?moonCuts[moonStroke]:attacks[pattern];
   if(!attack||aim.fall>.25)return;
   const swing=release?smoothstep(release.age,0,.103):0;
   const ready=release?1-smoothstep(release.age,.12,.34):smoothstep(wind,0,.65);

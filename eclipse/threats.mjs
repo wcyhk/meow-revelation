@@ -1,4 +1,5 @@
 import {roomBounds} from './lantern-route.mjs?v=world-3d-1';
+import {stepMoonSlash} from './warden-moon-slash.mjs';
 
 const TAU = Math.PI*2;
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
@@ -212,7 +213,9 @@ export function advanceThreats(game,dt) {
   const lantern=game.lanternTarget();
   const counters=game.bossArena?.counters;
   for (const hazard of queued) {
-    hazard.delay-=dt;
+    if(hazard.moonSlash){
+      if(!stepMoonSlash(game,hazard,dt))continue;
+    }else hazard.delay-=dt;
     if (hazard.tactic&&(hazard.owner.hp<=0||hazard.encounter.phase!==hazard.arenaPhase)) continue;
     if (hazard.windup?.interrupted&&hazard.kind!=='projectile'&&hazard.kind!=='residue') continue;
     if (hazard.kind==='projectile') {

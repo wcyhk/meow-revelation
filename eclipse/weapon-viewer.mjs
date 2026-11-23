@@ -11,6 +11,7 @@ import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
 import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
+import {moonSlashPattern} from './warden-moon-slash.mjs';
 const paoForms=new Set();
 
 function node(tag,kind,text){
@@ -295,7 +296,8 @@ export class WeaponViewer {
       row.append(copy,control);
       this.weakness.append(row);
     }
-    this.attackControls=spec.attacks.map(pattern=>{
+    const attacks=spec.finalWarden?[...spec.attacks,moonSlashPattern]:spec.attacks;
+    this.attackControls=attacks.map(pattern=>{
       const control=button(this.moveNames[pattern],()=>this.playBoss({pattern},control));
       control.dataset.attack=pattern;
       return control;
@@ -466,7 +468,7 @@ export class WeaponViewer {
     this.viewAngles.hidden=this.mode!=='model';
     fit(inspectCamera,width,height,this.closeUp?.93:pao?2.03:this.wideModel?2.82:2.30,
       this.closeUp?1.57:pao?1.98:2.24);
-    const arena=['phase','drill'].includes(this.mode);
+    const arena=!!this.view?.arenaArt;
     const vault=this.boss?.model?.artId==='forest-5';
     const battleWidth=arena?23:vault?17.2:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
     const jade=this.boss?.bestiary?.id==='m133';
@@ -628,11 +630,10 @@ export class WeaponViewer {
     return this.boss&&this.dossier?.entry.floor&&this.dossier.stage.chapterBoss?this.boss.height:0;
   }
 
-  makeStage(){
+  makeStage(arena=false){
     const source=this.main;
     const view=Object.create(Object.getPrototypeOf(source));
     const scene=new T.Scene();
-    const arena=['phase','drill'].includes(this.mode);
     const room=arena?this.dossier.stage:null;
     if(paoForms.has(this.boss?.bestiary?.id))lightPaoDisplay(scene);
     else armLighting(scene,arena);
@@ -694,6 +695,8 @@ export class WeaponViewer {
     this.clearScene();
     if(!this.showCanvas())return;
     this.mode=action.drill?'drill':action.phase?'phase':action.portrait?'portrait':'attack';
+    const moonSlash=action.pattern===moonSlashPattern;
+    if(moonSlash)this.modelPhase=2;
     this.stage.dataset.preview=this.mode;
     this.setActive(control);
     this.zoomTools.hidden=true;
@@ -707,8 +710,8 @@ export class WeaponViewer {
     this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
     const phaseDetail=name?`變身後出招 · ${name}`:'變身預覽';
     this.detail.textContent=action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
-      :action.phase?phaseDetail:action.portrait?this.description:name;
-    const view=this.makeStage();
+      :moonSlash?'兩道命印輪流封路 · 第三斬由守夜者出手':action.phase?phaseDetail:action.portrait?this.description:name;
+    const view=this.makeStage(!!(action.phase||moonSlash));
     const seed=this.bossSeed??=Math.floor(Math.random()*0x100000000);
     const form=this.boss.phaseTransition&&!action.phase?this.modelPhase:0;
     this.practice=this.makeBossPractice(view,this.dossier,{seed,form,...action},{

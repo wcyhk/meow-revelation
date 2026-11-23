@@ -1916,12 +1916,13 @@ export class Scenery {
     this.shake=Math.max(this.shake,phase==='entrance'?.21:.32);
   }
 
-  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780,active) {
+  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780,active,elapsed) {
     const point={x,y:.049,z};
     const paint=(geometry,location,tint,settings)=>{
       const effect=this.addEffect(geometry,location,tint,time,settings);
       effect.combatClock=true;
       effect.active=active;
+      effect.elapsed=elapsed;
     };
     const shade=(geometry,settings)=>{
       const materialKey='attack-warning';
@@ -2295,7 +2296,8 @@ export class Scenery {
     for (let i=this.effects.length-1;i>=0;i--) {
       const fx = this.effects[i];
       const running=!paused&&!(fx.combatClock&&freezeWarnings);
-      if (running) fx.age += dt;
+      if(fx.elapsed)fx.age=fx.elapsed();
+      else if (running) fx.age += dt;
       const age = fx.age / fx.ttl;
       if (age >= 1 || (fx.active && !fx.active())) {
         this.release(fx);

@@ -1,3 +1,33 @@
+@font-face {font-family:GameSansTC;src:url('./locale-fonts/tc-sans.woff2') format('woff2');font-weight:100 900;font-display:swap}
+@font-face {font-family:GameSerifTC;src:url('./locale-fonts/tc-serif.woff2') format('woff2');font-weight:200 900;font-display:swap}
+@font-face {font-family:GameSansSC;src:url('./locale-fonts/sc-sans.woff2') format('woff2');font-weight:100 900;font-display:swap}
+@font-face {font-family:GameSerifSC;src:url('./locale-fonts/sc-serif.woff2') format('woff2');font-weight:200 900;font-display:swap}
+@font-face {font-family:GameSansLatin;src:url('./locale-fonts/latin-sans.woff2') format('woff2');font-weight:100 900;font-display:swap}
+@font-face {font-family:GameSerifLatin;src:url('./locale-fonts/latin-serif.woff2') format('woff2');font-weight:200 900;font-display:swap}
+@font-face {font-family:GameSansJP;src:url('./locale-fonts/jp-sans.woff2') format('woff2');font-weight:100 900;font-display:swap}
+@font-face {font-family:GameSerifJP;src:url('./locale-fonts/jp-serif.woff2') format('woff2');font-weight:200 900;font-display:swap}
+
+:root:lang(zh-Hant) {
+  --sans:GameSansTC,GameSansSC,GameSansJP,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --serif:GameSerifTC,GameSerifSC,GameSerifJP,"Noto Serif TC","Songti TC","PMingLiU",serif;
+}
+:root:lang(zh-Hans) {
+  --sans:GameSansSC,GameSansTC,GameSansJP,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --serif:GameSerifSC,GameSerifTC,GameSerifJP,"Noto Serif SC","Songti SC","SimSun",serif;
+}
+:root:lang(en) {
+  --sans:GameSansLatin,GameSansTC,GameSansSC,GameSansJP,system-ui,sans-serif;
+  --serif:GameSerifLatin,GameSerifTC,GameSerifSC,GameSerifJP,Georgia,serif;
+}
+:root:lang(ja) {
+  --sans:GameSansJP,GameSansTC,GameSansSC,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  --serif:GameSerifJP,GameSerifTC,GameSerifSC,"Hiragino Mincho ProN","Yu Mincho",serif;
+}
+#game-language option:lang(zh-Hant) {font-family:GameSansTC,sans-serif}
+#game-language option:lang(zh-Hans) {font-family:GameSansSC,sans-serif}
+#game-language option:lang(en) {font-family:GameSansLatin,sans-serif}
+#game-language option:lang(ja) {font-family:GameSansJP,sans-serif}
+
 .language-picker {
   display:flex;
   align-items:center;
@@ -35,7 +65,7 @@ html[lang="en"] #cover .title-group h1 {
   line-height:.98;
   letter-spacing:-.035em;
 }
-html[lang="en"] #cover .title-group h1 button {text-wrap:balance}
+html[lang="en"] #cover .title-group h1 button {text-wrap:balance;text-align:left}
 html[lang="ja"] #cover .title-group h1 {font-size:clamp(34px,4.8vw,66px)}
 #spell[data-aiming] .spell-caption::after {content:attr(data-release-label)}
 @media (max-width: 600px) {

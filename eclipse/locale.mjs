@@ -50,7 +50,7 @@ if (localeIndex !== undefined) {
       patterns.push({key, test:new RegExp('^'+pattern+'$','u'), stable, probe:
         parts.filter((_, i) => i % 2 === 0).sort((a,b) => b.length-a.length)[0],
       order:parts.filter((_,i) => i % 2 === 1).map(Number)});
-    } else if (key.length > 1) {
+    } else if (key.length > 1 && table[key][localeIndex]) {
       if (!byInitial.has(key[0])) byInitial.set(key[0], []);
       byInitial.get(key[0]).push(key);
     }
@@ -67,7 +67,7 @@ function getMessage(key) {
 // name followed by a bonus can also be translated phrase by phrase.
 function translate(text, depth) {
   if (!han.test(text)) return text;
-  if (own(table,text)) return getMessage(text);
+  if (own(table,text) && table[text][localeIndex]) return table[text][localeIndex];
   if (depth < 3) for (const item of patterns) {
     if (!text.includes(item.probe)) continue;
     const match = item.test.exec(text);
@@ -129,7 +129,6 @@ export function mountLanguagePicker() {
   const picker = document.querySelector('#game-language');
   if (!picker) return;
   picker.value = supported(request) ? request : preference;
-  picker.options[0].textContent = t('跟隨裝置')+' · '+languages[detectLanguage(device)];
   picker.addEventListener('change',() => {
     let persistent = true;
     try {

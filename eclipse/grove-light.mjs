@@ -1,14 +1,5 @@
 import * as T from '../three.min.mjs';
 
-export const paintedRooms={
-  'grove.jpg':'art/moon-courtyard.webp',
-  'fen.jpg':'art/drowned-cloister.webp',
-  'frost.jpg':'art/winter-abbey.webp',
-  'forge.jpg':'art/basalt-forge.webp',
-  'throne.jpg':'art/red-throne.webp',
-  'crimson-throne.jpg':'art/red-throne.webp',
-};
-
 const archLights={
   'grove.jpg':[[.20,.28],[.37,.24],[.64,.23],[.80,.28]],
   'fen.jpg':[[.265,.105],[.46,.089],[.72,.095]],

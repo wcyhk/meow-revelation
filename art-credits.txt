@@ -1,4 +1,4 @@
-《貓貓啟示錄》現行素材紀錄（2026-11-20）
+《貓貓啟示錄》發布素材紀錄（2026-11-23）
 
 3D 神器、頭目、普通敵人及技能造物
 由本專案獨立編寫的燈契世界模型工廠產生：
@@ -7,29 +7,55 @@ eclipse/lantern-weapons.mjs
 eclipse/lantern-creatures.mjs
 eclipse/relic-summons.mjs
 主題為契紙、陶瓷面具、燈芯、銅鐘及校時機械。
-神器圖卡由同一套手持模型離線渲染。
-不載入原遊戲圖格、原圖配色或歷史還原模型。
+eclipse/art/weapons/ 的 73 張圖卡由同一套手持模型離線渲染。
 
 場景掃描材質
-Poly Haven: https://polyhaven.com/a/metal_plate_02
-License: https://polyhaven.com/license
-ambientCG: Leather006, PavingStones149, PavingStones141, PavingStones132,
-Rock063, Metal032, Ice003, Wood049, Ground054
-License: https://docs.ambientcg.com/license/
-以上供應商聲明素材為 CC0。以本機轉製貼圖整合於遊戲。
+Poly Haven Metal Plate 02 用於 eclipse/art/material/hammered-*.webp。
+https://polyhaven.com/a/metal_plate_02
+https://polyhaven.com/license
+ambientCG Leather006 用於 eclipse/art/material/leather-*.webp。
+eclipse/art/rooms/ 的貼圖對應如下：
+lichen = PavingStones149
+rough-paving = PavingStones141
+limestone = PavingStones132
+rock = Rock063
+metal = Metal032
+ice = Ice003
+wood = Wood049
+sand = Ground054
+https://docs.ambientcg.com/license/
+供應商將以上素材以 CC0 公開，遊戲使用轉製的 WebP 貼圖。
 
 配樂
 Boss Battle #2 [Symphonic Metal] — nene
 https://opengameart.org/content/boss-battle-2-symphonic-metal%20
 CC0 1.0 Universal。使用作者註明的循環段並轉為 MP3。
-詳細來源及雜湊：eclipse/audio/MUSIC-LICENSE.txt。
+詳細來源及雜湊見 eclipse/audio/MUSIC-LICENSE.txt。
 兩段備用配樂由本專案 tools/render-score.py 程式合成。
 
 程式及字體
-Three.js：MIT，見 THREE-LICENSE.txt。
-Supabase SDK：MIT，見 eclipse/vendor/SUPABASE-LICENSE.txt。
-字體附 OFL 文字：eclipse/FONT-OFL.txt；具體字體身分仍需補齊對照紀錄。
+Three.js 採用 MIT 授權，見 THREE-LICENSE.txt。
+Supabase SDK 採用 MIT 授權，見 eclipse/vendor/SUPABASE-LICENSE.txt。
+eclipse/title.woff2 是 Noto Serif TC Black 2.003-H1 子集，涵蓋 59 個字元。
+以字體內嵌名稱、版本及 Adobe 2017–2024 版權紀錄對照上游。
+SIL Open Font License 1.1 及版權聲明見 eclipse/FONT-OFL.txt。
+https://github.com/notofonts/noto-cjk/releases/tag/Serif2.003
+https://github.com/google/fonts/tree/main/ofl/notoseriftc
 
-主角繪製圖格、海報及故事／結局插畫繼續使用本專案既有圖像。
-該等圖像仍應逐項保存生成／委託來源、參考圖及服務條款紀錄；
-本文件不是所有圖像已完成商用清權的保證。
+現有插畫的來源紀錄待補
+以下圖片已核對用途及版本庫路徑。現存檔案及提交紀錄可追蹤版本，
+尚未找到可核實其原始生成、委託或授權的紀錄。
+• 標題海報及舊畫面後備圖：eclipse/art/moon-gate.webp、
+  eclipse/art/lantern-ascendant.webp、eclipse/cover.jpg。
+• 守燈貓、戰鬥圖格、拾取物及人物頭像：eclipse/art/lantern-keeper.webp、
+  eclipse/art/forest-enemies.webp、eclipse/art/chapter-bosses.webp、
+  eclipse/art/coin-pickup.webp、eclipse/art/keepers.webp、
+  eclipse/wardens.webp、eclipse/cast.png、eclipse/dialogue-cast.webp。
+• 劇情立繪、場景與 13 幅結局圖：eclipse/story-art/、eclipse/ending-art/。
+  劇情圖最早收錄於 e187278，結局圖最早收錄於 8412644。
+這些圖片尚未完成商用來源核對。offline-assets.js 記錄各發布檔的 SHA-256，
+可供日後把來源證據對應至確實版本。
+
+舊參考檔
+歷史參考模組、模型檢視圖及已由 3D 取代的舊場景圖片只保存在版本庫。
+正式 Pages 網站由 tools/package-pages.mjs 組裝發布清單內的檔案。

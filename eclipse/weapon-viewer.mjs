@@ -358,7 +358,8 @@ export class WeaponViewer {
     const battleWidth=arena?23:vault?17.2:pao?16.4:this.boss?14.4:Math.min(15.1,Math.max(10.8,7.2+this.weapon.range*.61));
     const jade=this.boss?.bestiary?.id==='m133';
     const battleHeight=arena?13:pao?10.3:jade?9.9:this.boss?8.4:7.6;
-    fit(battleCamera,width,height,battleWidth,battleHeight);
+    const bossHeight=this.chapterPreviewHeight;
+    fit(battleCamera,width,height,battleWidth,Math.max(battleHeight,bossHeight?bossHeight*2+(arena?10.3:2.9):0));
     if(this.mode==='model')this.renderModel();
     else if(this.practice)this.renderer.render(this.scene,battleCamera);
   }
@@ -446,7 +447,7 @@ export class WeaponViewer {
       item.position.sub(bounds.getCenter(new T.Vector3()));
       pivot.add(item);
     }
-    const wings=this.bossRig?.flight||this.bossRig?.signature?.type==='phoenix';
+    const wings=this.bossRig?.flight||this.bossRig?.signature?.type==='phoenix'||this.bossRig?.pattern==='wing';
     this.wideModel=Boolean(wings);
     const displaySize=this.boss?(pao?2.13:wings?2.40:1.78):1.87;
     const diameter=this.boss?Math.max(size.x,size.y,size.z):size.length();
@@ -478,6 +479,10 @@ export class WeaponViewer {
     }
   }
 
+  get chapterPreviewHeight(){
+    return this.boss&&this.dossier?.entry.floor&&this.dossier.stage.chapterBoss?this.boss.height:0;
+  }
+
   makeStage(){
     const source=this.main;
     const view=Object.create(Object.getPrototypeOf(source));
@@ -487,7 +492,9 @@ export class WeaponViewer {
     if(paoForms.has(this.boss?.bestiary?.id))lightPaoDisplay(scene);
     else armLighting(scene,arena);
     battleCamera.position.set(.8,arena?16:9.2,arena?21:15);
-    if(arena)battleCamera.lookAt(0,.3,1.25);
+    const bossHeight=this.chapterPreviewHeight;
+    if(arena)battleCamera.lookAt(0,.3+bossHeight*.56,1.25);
+    else if(bossHeight)battleCamera.lookAt(0,bossHeight*.68,.51);
     else battleCamera.lookAt(aim);
     battleCamera.updateMatrixWorld(true);
     const axis=new T.Vector3(0,1,0).applyQuaternion(battleCamera.quaternion);
@@ -546,7 +553,8 @@ export class WeaponViewer {
     this.drillTools.lastElementChild.hidden=!['break','light'].includes(mechanism.mode);
     this.drillTools.lastElementChild.textContent=mechanism.mode==='light'?'重燃祭燈':'擊碎機關';
     this.canvas.setAttribute('aria-label',action.drill?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽');
-    const name=action.motion?this.motionNames[action.motion]:this.moveNames[action.pattern??this.boss.finishing];
+    const phasePattern=action.phase===2?this.boss.lastFinishing??this.boss.finishing:this.boss.finishing;
+    const name=action.motion?this.motionNames[action.motion]:this.moveNames[action.pattern??phasePattern];
     this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
     const phaseDetail=name?`變身後出招 · ${name}`:'變身預覽';
     this.detail.textContent=action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')

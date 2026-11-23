@@ -26,6 +26,11 @@ const doorways={
 
 export const backdropSpan=34;
 
+export function doorwayAnchor(stage) {
+  const frame=doorways[stage.picture]??doorways['grove.jpg'];
+  return {x:(frame.art[0]-.5)*backdropSpan,z:frame.z,frame};
+}
+
 export function inExitThreshold(hero,exit) {
   const dx=hero.x-exit.x,dz=hero.z-exit.z;
   const yaw=exit.frame.yaw??0,cos=Math.cos(yaw),sin=Math.sin(yaw);
@@ -36,8 +41,8 @@ export function inExitThreshold(hero,exit) {
 export function routeLayout(stage,seed) {
   let value=(seed^Math.imul(stage.floor,0x9e3779b9))>>>0;
   const draw=()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
-  const frame=doorways[stage.picture]??doorways['grove.jpg'];
-  const exit={x:(frame.art[0]-.5)*backdropSpan+(draw()-.5)*.30,z:frame.z+(draw()-.5)*.44,frame};
+  const {x,z,frame}=doorwayAnchor(stage);
+  const exit={x:x+(draw()-.5)*.30,z:z+(draw()-.5)*.44,frame};
   const yaw=frame.yaw??0,cos=Math.cos(yaw),sin=Math.sin(yaw);
   const barricades=[];
   for(const [i,step] of [-.91,.91].entries()){
@@ -46,8 +51,12 @@ export function routeLayout(stage,seed) {
       yaw,radius:.65,hp,maxHp:hp,chill:0,gate:true});
   }
   for(let i=0;i<4;i++){
-    const x=(i%2?-1:1)*(7.2+draw()*5.15);
+    let x=(i%2?-1:1)*(7.2+draw()*5.15);
     const z=i<2?5.8+draw()*2.1:-3.2-draw()*4.5;
+    if(stage.picture==='lotus.jpg'&&i===2){
+      const lane=exit.x+(z-exit.z)*Math.tan(yaw);
+      if(Math.abs(x-lane)<1.55)x=lane-1.63;
+    }
     const hp=19+stage.floor*.32;
     barricades.push({kind:'breakable',style:i%2?'urn':'crate',key:'room-'+i,x,z,radius:i%2?.61:.72,hp,maxHp:hp,chill:0});
   }

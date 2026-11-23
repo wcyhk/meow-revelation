@@ -49,14 +49,14 @@ export const wardens = [
 ];
 
 export const chapterAttacks = [
-  {effect:'feather',form:'赤羽吞月',attacks:['feathers','pounce','marked','cross']},
-  {effect:'water',form:'溺骨出水',attacks:['ring','gravity','barrage','cross']},
-  {effect:'ice',form:'鐘聲無面',attacks:['icicles','cross','lance','ring']},
-  {effect:'fire',form:'熔骨火魔',attacks:['cinders','sweep','burst','summon']},
-  {effect:'web',form:'白面千絲',attacks:['web','prison','summon','spiral']},
-  {effect:'gold',form:'空甲噬骨',attacks:['coins','ring','summon','sweep']},
-  {effect:'blood',form:'吞日空殼',attacks:['pounce','lance','gravity','eclipse']},
-  {effect:'root',form:'枯骨蔓生',attacks:['roots','spiral','gravity','summon']},
-  {effect:'void',form:'百眼展翼',attacks:['eclipse','blink','feathers','prison','gravefan']},
-  {effect:'blood',form:'血冠裂面',attacks:['eclipse','cleave','spiral','summon','sweep','lance','jaws','toll']},
+  {effect:'feather',form:'赤羽吞月',finishing:'feathers',moveLabels:{feathers:'楓刃飛札'},attacks:['feathers','pounce','marked','cross']},
+  {effect:'water',form:'溺骨出水',finishing:'ring',moveLabels:{ring:'雙蓮回潮'},attacks:['ring','gravity','barrage','cross']},
+  {effect:'ice',form:'鐘聲無面',finishing:'cross',lastFinishing:'lance',moveLabels:{cross:'裂冰十字',lance:'鐘槍破霜'},attacks:['icicles','cross','lance','ring']},
+  {effect:'fire',form:'熔骨火魔',finishing:'cinders',lastFinishing:'sweep',moveLabels:{cinders:'雙爐熔道',sweep:'鑄焰橫斬'},attacks:['cinders','sweep','burst','summon']},
+  {effect:'web',form:'白面千絲',finishing:'web',lastFinishing:'prison',moveLabels:{web:'封碑落絲',prison:'葬紗四角'},attacks:['web','prison','summon','spiral']},
+  {effect:'gold',form:'空甲噬骨',finishing:'coins',lastFinishing:'ring',moveLabels:{coins:'千鑰飛錢',ring:'金庫外鎖'},attacks:['coins','ring','summon','sweep']},
+  {effect:'blood',form:'吞日空殼',finishing:'eclipse',lastFinishing:'lance',moveLabels:{eclipse:'日輪合蝕',lance:'日晷穿影'},attacks:['pounce','lance','gravity','eclipse']},
+  {effect:'root',form:'枯骨蔓生',finishing:'spiral',lastFinishing:'roots',moveLabels:{spiral:'孢潮迴旋',roots:'寄根穿地'},attacks:['roots','spiral','gravity','summon']},
+  {effect:'void',form:'百眼展翼',finishing:'eclipse',lastFinishing:'gravefan',moveLabels:{eclipse:'黑翼蔽月',gravefan:'碎窗蝶翎'},attacks:['eclipse','blink','feathers','prison','gravefan']},
+  {effect:'blood',form:'血冠裂面',finishing:'eclipse',lastFinishing:'cinders',moveLabels:{eclipse:'萬名之蝕',cinders:'血冠裂地'},attacks:['eclipse','cleave','spiral','summon','sweep','lance','jaws','toll','cinders']},
 ];

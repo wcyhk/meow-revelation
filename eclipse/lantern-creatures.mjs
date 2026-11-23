@@ -6,9 +6,10 @@ import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {enemyCurrent} from './enemy-current.mjs?v=boss-foundry-1';
 import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=boss-foundry-1';
-import {enemyWeapons,markEnemyWeapon} from './enemy-weapon-pose.mjs?v=boss-foundry-1';
+import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=boss-foundry-1';
 import {sculptVolume} from './sculpt-volume.mjs?v=sculpted-1';
 import {etchedMetal,roundedBlock} from './lantern-geometry.mjs';
+import {assembleCrown,crownDesign,sculptCrownFace} from './lantern-crowns.mjs';
 
 // Independent designs: living correspondence, lamp cages, ceramic masks,
 // calibration machinery and folded paper. No imported character outlines,
@@ -16,20 +17,25 @@ import {etchedMetal,roundedBlock} from './lantern-geometry.mjs';
 const PI=Math.PI,TAU=2*PI,up=new T.Vector3(0,1,0);
 const themeForTone={amber:'earth',gold:'light',ember:'fire',blood:'blood',jade:'wind',moss:'poison',teal:'water',frost:'ice',bone:'light',violet:'void',void:'void',venom:'poison'};
 const tide=['潮痕',0x7bdfdb,0x21313b,0x587b80,0xc2c8b9];
-const paletteFor=entry=>lanternThemes[themeForTone[entry.tone]]??tide;
+const paletteFor=entry=>{
+  const crown=crownDesign(entry);
+  if(crown&&entry.palette)return [entry.crest,entry.palette[3],entry.palette[0],crown.metal,crown.trim];
+  return lanternThemes[themeForTone[entry.tone]]??tide;
+};
 export function bestiaryTint(entry){return paletteFor(entry)[1];}
 
 export function mountBestiary(scene,entry,height,mobile=false,spec={}){
+  const motif=crownDesign(entry);
   const seed=designHash(entry.id+':'+(spec.relicWeapon?.id??'')),v=seed%7;
   const [,glow,dark,bodyColor,trimColor]=paletteFor(entry),clothTime={value:0};
   const root=new T.Group();root.name=entry.name;
-  root.userData.originalBlueprint='lantern-v1:'+entry.family+':'+seed;
+  root.userData.originalBlueprint=motif?'lantern-crown:'+motif.kind:'lantern-v1:'+entry.family+':'+seed;
   const material=(color,metalness,roughness,emission=0)=>new T.MeshStandardMaterial({color,metalness,roughness,
     envMap:forgeEnvironment(),envMapIntensity:.74,...scannedSurface(metalness>.4?'hammered':'leather',.22),
     emissive:glow,emissiveIntensity:emission});
   const materials={body:material(bodyColor,.63,.40),dark:material(dark,.18,.79),trim:material(trimColor,.79,.30),
     edge:material(0xdfd5bc,.42,.43),core:material(glow,.29,.22,1.12),glass:material(dark,.56,.23,.13),
-    cloth:material(new T.Color(dark).offsetHSL(.025,.02,.045),.08,.85)};
+    cloth:material(motif?.cloth??new T.Color(dark).offsetHSL(.025,.02,.045),.08,.85)};
   for(const kind of ['body','trim','edge','glass'])etchedMetal(materials[kind]);
   materials.cloth.side=T.DoubleSide;
   materials.cloth.customProgramCacheKey=()=> 'lantern-paper-cloth-v1';
@@ -66,13 +72,18 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     const geo=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelThickness:.018,bevelSize:.019,bevelSegments:2,curveSegments:4});
     geo.translate(0,0,-depth/2);geometries.add(geo);return put(p,geo,finish,0,0,z);
   };
-  const cloth=(p,x,y,z,width,length,turn=0)=>{
-    const geo=new T.PlaneGeometry(width,length,3,mobile?5:8);geo.translate(0,-length/2,0);
-    const positions=geo.attributes.position;
+  const cloth=(p,x,y,z,width,length,turn=0,torn=false)=>{
+    const geo=new T.PlaneGeometry(width,length,torn?5:3,mobile?5:8);geo.translate(0,-length/2,0);
+    const positions=geo.attributes.position,uv=geo.attributes.uv;
     for(let i=0;i<positions.count;i++){
-      const weight=1-geo.attributes.uv.getY(i);
-      positions.setZ(i,Math.sin(positions.getX(i)*13)*.035*weight);
-      if(weight>.99)positions.setY(i,positions.getY(i)+.10*(i%3));
+      const weight=1-uv.getY(i),across=uv.getX(i);
+      const pleat=positions.getX(i);
+      positions.setZ(i,Math.sin(pleat*13)*(torn?.077:.035)*weight);
+      if(torn){
+        const edge=Math.abs(across-.5)*2;
+        positions.setX(i,pleat*(1+Math.sin(weight*PI)*.27-weight*.28));
+        positions.setY(i,positions.getY(i)+weight**4*length*(.135*edge+Math.sin(across*18)*.067));
+      }else if(weight>.99)positions.setY(i,positions.getY(i)+.10*(i%3));
     }
     geo.computeVertexNormals();geometries.add(geo);
     const mesh=put(p,geo,'cloth',x,y,z);mesh.rotation.z=turn;silks.push(mesh);return mesh;
@@ -84,9 +95,14 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     }
     put(p,gem,'core',x,y,z,r*.56,h*.36,r*.56);
   };
+  const carving={group,put,box,ball,rod,halo,plate,cloth,gem,cone,cylinder};
   const rivets=(p,y,z,width,count=5)=>{for(let i=0;i<count;i++)put(p,gem,'trim',(i/(count-1)-.5)*width,y+(i%2)*.016,z,.025,.022,.019);};
   const face=(p,x,y,z,size=.32)=>{
     const head=group(p,x,y,z);
+    if(motif){
+      sculptCrownFace(head,motif.kind,carving,size);
+      return head;
+    }
     const broad=1+(v-3)*.065;
     ball(head,'edge',0,0,0,size*broad,size*1.22,size*.72);
     plate(head,[[-size*.87,size*.55],[0,size*1.18],[size*.83,size*.42],[size*.57,-size*.93],[0,-size*1.22],[-size*.57,-size*.84]],'dark',.036,size*.53);
@@ -146,13 +162,13 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     for(const side of [-1,1]){
       const wing=group(body,side*.23,1.23,-.12);wings.push(wing);
       const span=1.17+v*.075;
-      for(let j=0;j<4;j++){
+      for(let j=0;!motif&&j<4;j++){
         const panel=plate(wing,[[0,0],[side*(span-.16*j),.52-j*.19],[side*(span*.83-.10*j),-.18-j*.15],[side*.17,-.43-j*.09]],j%2?'edge':'body',.025,-j*.034);
         panel.rotation.y=side*(.08+j*.065);
         rod(wing,'trim',[0,0,0],[side*(span-.16*j),.52-j*.19,0],.022);
         cage(wing,side*(span*.57-j*.06),.15-j*.14,.01,.055,.21);
       }
-      cloth(wing,side*.48,-.14,-.07,.24,.85,side*.20);
+      if(!motif)cloth(wing,side*.48,-.14,-.07,.24,.85,side*.20);
       rod(body,'trim',[side*.16,.55,.13],[side*.35,.13,.26],.041);
       put(body,cone,'edge',side*.35,.12,.32,.065,.23,.065).rotation.x=PI/2;
     }
@@ -217,13 +233,13 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     const hand=limbs.find(l=>l.arm&&l.phase===0)?.hand;
     if(hand){
       const ids=Array.from(originalRelics.keys());
-      const wid=spec.relicWeapon?.id??(tall?'bell':family==='captain'?'cannon':family==='ogre'?'qilin':ids[seed%ids.length]);
+      const wid=spec.relicWeapon?.id??motif?.weapon??(tall?'bell':family==='captain'?'cannon':family==='ogre'?'qilin':ids[seed%ids.length]);
       const weapon=spec.relicWeapon??{id:wid},finishes=forgedMaterials(weapon),carried=buildWeapon(weapon,finishes);
       carried.position.set(0,.02,.19);carried.scale.setScalar(.62);
       if(carried.userData.launch?.bow)carried.rotation.y=PI/2;else carried.rotation.x=PI/2;
       hand.add(carried);weaponRoots.push(carried);
       const bow=!!carried.userData.launch?.bow;
-      markEnemyWeapon(carried,bow?carried.userData.launch.tip:[0,.85,0],{from:bow?[.13,0,.035]:[0,-.30,0],width:.16,aim:false,kind:bow?'bow':'edge'});
+      markEnemyWeapon(carried,bow?carried.userData.launch.tip:[0,.85,0],{from:bow?[.13,0,.035]:[0,-.30,0],width:.16,aim:!!motif,kind:bow?'bow':'edge'});
       Object.entries(finishes).forEach(([name,mat])=>{materials['carried-'+name]=mat;});
     }
     if(family==='eggs'||family==='star'){
@@ -236,6 +252,7 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
     const a=i*TAU/(3+v%3),seal=group(body,Math.cos(a)*.36,.62+Math.sin(a)*.13,-.40);
     cloth(seal,0,0,0,.115,.36+(i%3)*.09,(i-1)*.14);put(seal,gem,'core',0,-.045,.012,.034,.052,.025);
   }
+  const shapeMotion=motif?assembleCrown({body,head,limbs,wings,motif},carving):null;
   root.updateMatrixWorld(true);
   const bounds=new T.Box3().setFromObject(root),scale=height*.87/Math.max(1.5,bounds.max.y),parts={body,head,arms,legs};
   const weapons=enemyWeapons(root,parts),weaponEmission=armWeaponEmission(weapons,materials,glow);
@@ -243,30 +260,48 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   scene.add(root);
   return {root,entry,materials,body,head,arms,legs,limbs,wings,coils,silks,clothTime,weapons,weaponEmission,aura,
     crest:head??body,dimensions:[1,1,1],palette:[dark,bodyColor,trimColor,glow],scale,pattern,footed,floor:0,
-    geometry:geometries,weaponRoots,heading:undefined,original:true};
+    geometry:geometries,weaponRoots,heading:undefined,original:true,shapeMotion};
 }
 
 export function poseBestiary(model,unit,spec,time,x,z){
   const {root,body,head,scale,clothTime}=model,phase=spec.phase??unit.bossPhase??0,fall=spec.fall??0;
+  if(model.shapeMotion)restoreWeaponPose(model.weapons);
   const travel=spec.stepWeight??unit.move??0,beat=spec.gaitPhase??time*(3.0+travel*3.5);
   const wind=unit.attack?T.MathUtils.clamp(1-unit.attack.time/Math.max(.01,unit.attack.windup??unit.spec?.time??1),0,1):0;
-  const strike=unit.motion?Math.max(0,1-unit.motion.age/.38):0,flash=spec.flash??unit.flash??0;
-  const aiming=unit.attack??unit.motion??unit;
-  const desired=Math.atan2(aiming.dx??unit.dx??0,aiming.dz??unit.dz??1);
-  model.heading=model.heading===undefined?desired:model.heading+Math.atan2(Math.sin(desired-model.heading),Math.cos(desired-model.heading))*.24;
+  const motion=unit.motion?.age<.38?unit.motion:null;
+  const strike=motion?1-motion.age/.38:0,flash=spec.flash??unit.flash??0;
+  const aiming=unit.attack??motion;
+  const desired=aiming ? Math.atan2(aiming.dx??0,aiming.dz??1)
+    : spec.targetHeading??Math.atan2(unit.dx??0,unit.dz??1);
+  const rotation=spec.dt===undefined?.24:1-Math.exp(-Math.min(.065,spec.dt)*(aiming?23:14));
+  model.heading=model.heading===undefined?desired:model.heading+Math.atan2(Math.sin(desired-model.heading),Math.cos(desired-model.heading))*rotation;
   root.rotation.set(0,model.heading,fall*.92);root.position.set(x,model.footed?.015:.17+Math.sin(time*2.1)*.06,z);
   root.scale.setScalar(scale*(1+phase*.11)*(1-fall*.10));
-  body.rotation.x=-wind*.19+strike*.24+fall*.31;body.rotation.z=Math.sin(beat*.5)*travel*.035;
+  const move=aiming?.pattern;
+  const sweep=move==='sweep'||move==='cleave'||move==='coins';
+  const thrust=move==='lance'||move==='pounce'||move==='cross';
+  const crush=move==='burst'||move==='toll'||move==='cinders';
+  body.rotation.x=-wind*.19+strike*.24+fall*.31;
+  body.rotation.z=Math.sin(beat*.5)*travel*.035+(model.shapeMotion&&sweep?wind*.22-strike*.29:0);
+  body.rotation.y=model.shapeMotion&&sweep?wind*-.22+strike*.28:0;
   body.position.x=(unit.reaction?.dx??0)*flash*.045;body.position.z=-wind*.07+strike*.13;
   if(head){head.rotation.y=Math.sin(time*1.3)*.035;head.rotation.x=-wind*.11+strike*.13;}
   for(const limb of model.limbs){
     const gait=Math.sin(beat+limb.phase)*travel;
-    limb.joint.rotation.x=limb.arm?-gait*.23-wind*.64+strike*.93:gait*.45;
-    limb.joint.rotation.z=limb.arm?Math.sin(limb.phase)*.1:0;
-    limb.knee.rotation.x=limb.arm?-.08-wind*.30+strike*.22:Math.max(0,-gait)*.52;
+    const direction=limb.phase===0?1:-1;
+    const performance=model.shapeMotion&&limb.arm;
+    limb.joint.rotation.x=limb.arm?-gait*.23-wind*(performance&&crush?1.04:.64)+strike*(performance&&thrust?-1.1:.93):gait*.45;
+    limb.joint.rotation.z=limb.arm?(performance?direction*(.19+sweep*(wind*.38-strike*.22)):0):0;
+    limb.knee.rotation.x=limb.arm?-.08-wind*.30+strike*(performance&&thrust?-.24:.22):Math.max(0,-gait)*.52;
   }
   for(const [i,wing] of model.wings.entries()){wing.rotation.z=(i?-1:1)*(.14+Math.sin(time*4.7)*.10+wind*.31-strike*.23);wing.rotation.y=(i?-1:1)*(.09+Math.sin(time*2.9)*.08);}
   for(const [i,coil] of model.coils.entries())coil.rotation.z=Math.sin(time*2.8-i*.30)*(.035+travel*.08);
+  if(model.shapeMotion){
+    model.shapeMotion(time,phase,wind,strike,travel,fall);
+    if(model.weapons.length){
+      aimEnemyWeapons(model.weapons,aiming,wind,strike,{thrust,sweep,crush,travel,heading:model.heading,fall});
+    }
+  }
   clothTime.value=time+travel*.17;
   const power=1+phase*.18+wind*.44+strike*.38;
   model.materials.core.emissiveIntensity=power*(1.05+Math.sin(time*2.3)*.12);

@@ -1,4 +1,5 @@
 import * as T from '../three.min.mjs';
+import {doorwayAnchor} from './lantern-route.mjs?v=giant-gates-1';
 
 const PI=Math.PI,TAU=PI*2;
 const block=new T.BoxGeometry(1,1,1);
@@ -92,10 +93,21 @@ function nearScenery(ctx,style,stage){
   const {put,rod,m,solid,draw}=ctx;
   const organic=['roots','ice','dunes','lily','spores'].includes(style);
   const z=-6.5+(stage.room%4)*.63;
+  const exit=doorwayAnchor(stage);
   for(const side of [-1,1]){
     const x=side*(10.5+(stage.room%2)*.7);
     const high=2.6+draw()*.84;
     if(organic){
+      // Low stonework keeps the side doorway visible behind the lily basin.
+      // The edge is aligned to the entrance's world anchor, allowing for run jitter.
+      if(style==='lily'&&Math.abs(x-exit.x)<2.8&&z>exit.z&&z-exit.z<9){
+        for(let i=0;i<4;i++){
+          const rowZ=z-i*1.23;
+          put(flank,i===1?m.ridge:m.basal,x+1.90+(draw()-.5)*.44,.15,rowZ,.53,.24,.48,draw()*TAU);
+          put(crown,m.leaf,x+1.99,.25,rowZ+.25,.27,.06,.23,.3*i);
+        }
+        continue;
+      }
       if(style==='roots')roots(ctx,x,z,side*.87,high);
       else{
         backCliff(ctx,x,z,high*.78,style);

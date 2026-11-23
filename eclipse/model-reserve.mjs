@@ -23,6 +23,7 @@ export class ModelReserve {
         node.scale.copy(scale);node.visible=visible;
       }
       rig.heading=undefined;rig.weaponFlash=null;
+      for(const weapon of rig.weapons??[])weapon.posed=false;
       rig.hitFlash&&(rig.hitFlash.value=0);
       rig.skin?.reset();rig.aura?.reset();
       rig.scale=meta.heightScale*height;

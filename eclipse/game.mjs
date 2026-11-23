@@ -1271,7 +1271,8 @@ export class Game {
     unit.phaseGuard=.91;
     unit.step=Math.max(unit.step,unit.bossPhase);
     if(primary)this.bossArena.transform(unit.bossPhase);
-    this.beginEnemyAttack(unit,unit.spec.finishing??unit.spec.attacks[0]);
+    const finisher=unit.bossPhase===2?unit.spec.lastFinishing??unit.spec.finishing:unit.spec.finishing;
+    this.beginEnemyAttack(unit,finisher??unit.spec.attacks[0]);
     this.view.bossCue(unit,'phase');
     this.view.spark(unit.x,2.6,unit.z,unit.spec.tint,34,1.43,unit.spec.effect);
     const terrain=primary?this.bossArena?.plan:null;
@@ -1374,7 +1375,8 @@ export class Game {
     const phase=unit.bossPhase;
     let index=unit.step++;
     if (!boss) index+=this.stage.room+this.wave;
-    let pattern=forcedPattern??(spec.finishing&&phase&&index%3===2?spec.finishing:spec.attacks[index%spec.attacks.length]);
+    const finisher=phase===2?spec.lastFinishing??spec.finishing:spec.finishing;
+    let pattern=forcedPattern??(finisher&&phase&&index%3===2?finisher:spec.attacks[index%spec.attacks.length]);
     if (unit.kind==='oracle'&&this.stage.room>=6&&unit.step%4===0) {
       pattern=this.stage.enemyPattern==='summon'?'marked':this.stage.enemyPattern;
     }
@@ -1617,7 +1619,7 @@ export class Game {
       this.view.lanternArt.smash(gate);
       this.view.spark(gate.x,.42,gate.z,exit.frame.light,8,.85,'flare');
     }
-    this.announce('封印解除','出口已開','行入北面拱門就可以前往下一層。',1.95);
+    this.announce('封印解除','出口已開','行入拱門就可以前往下一層。',1.95);
     this.updateEscape(0);
   }
 

@@ -18,6 +18,9 @@ const emission={
   stone:[0xf2a873,15,.32,.46,.18],
   earth:[0xdeaa78,16,.38,.46,.19],
   poison:[0xb9db62,19,.56,.49,.23],
+  wardenSilver:[0xc2e2ff,24,.54,.48,.21],
+  wardenCrimson:[0xff5c24,33,.66,.52,.26],
+  wardenMoon:[0xa27aff,29,.76,.53,.23],
 };
 const neutral=[0xd7e2ff,18,.43,.73,.26];
 const major=new Set(['phase','entrance','defeat']);
@@ -42,7 +45,7 @@ export class SpellLighting {
   emit(point,{action,element,tint,radius=1.5,power=1,sourceHeight=false}){
     if(power<.48)return;
     const important=major.has(action);
-    const rank=important?3:action==='weapon-release'?2.5:action==='impact'?1:2;
+    const rank=important?3:action==='weapon-release'||action==='warden-impact'?2.5:action==='impact'?1:2;
     const [hue,intensity,decay,height,glow]=emission[element]??neutral;
     const {x,z}=point;
     const size=clamp(radius,1,5.4);

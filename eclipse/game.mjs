@@ -46,6 +46,7 @@ import {RelicHunt} from './relic-hunt.mjs?v=story-repair-1';
 import {relicCounter} from './relic-cast.mjs?v=giant-gates-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
+import {wardenStrikeLook} from './warden-ground.mjs';
 
 const $ = id => document.getElementById(id);
 const TAU = Math.PI * 2;
@@ -1476,7 +1477,8 @@ export class Game {
       unit.z=z;
       this.view.spark(x,.58,z,unit.spec.tint,18,.86,'void');
     }
-    this.view.elementBurst(unit.x,unit.spec.height*.38,unit.z,unit.spec.tint,unit.spec.effect,boss?12:6,
+    const look=unit.spec.wardenGround?wardenStrikeLook(unit.bossPhase):null;
+    this.view.elementBurst(unit.x,unit.spec.height*.38,unit.z,look?.tint??unit.spec.tint,look?.spark??unit.spec.effect,boss?12:6,
       boss?1.14:.83,Math.atan2(attack.dz,attack.dx));
     this.audio.release(attack.pattern,boss,unit.spec.bestiary?.id);
     if (boss) {

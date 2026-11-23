@@ -1,0 +1,47 @@
+name: Publish game
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Verify committed offline manifest
+        run: |
+          node tools/build-offline.mjs
+          git diff --exit-code -- offline-assets.js
+      - name: Assemble and verify the public game
+        run: |
+          node tools/package-pages.mjs . "$RUNNER_TEMP/meow-pages"
+          node tools/check-original-release.mjs "$RUNNER_TEMP/meow-pages"
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/meow-pages
+
+  deploy:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the game
+        id: deployment
+        uses: actions/deploy-pages@v4

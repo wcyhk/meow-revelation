@@ -60,6 +60,6 @@ export const chapterAttacks = [
   {effect:'void',form:'百眼展翼',finishing:'eclipse',lastFinishing:'gravefan',moveLabels:{eclipse:'黑翼蔽月',gravefan:'碎窗蝶翎'},attacks:['eclipse','blink','feathers','prison','gravefan']},
   {effect:'blood',form:'血冠裂面',finishing:'eclipse',lastFinishing:'moonSlash',phaseTransition:[2.1,2.65],finalWarden:true,
     entrance:{tint:0xc0e4ff,effect:'gold'},
-    moveLabels:{eclipse:'萬名之蝕',cinders:'血冠裂地',moonSlash:'月蝕連斬',wardenSummon:'殘影召喚'},
+    moveLabels:{eclipse:'萬名之蝕',cinders:'血冠裂地',moonSlash:'月蝕連斬',moonPincer:'月蝕合圍',wardenSummon:'殘影召喚'},
     attacks:['eclipse','cleave','spiral','summon','sweep','lance','jaws','toll','cinders']},
 ];

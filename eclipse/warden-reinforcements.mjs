@@ -3,7 +3,7 @@ import {insideArena,onArenaHazard} from './arena-draw.mjs?v=shifting-2';
 import {modeStage} from './nightfall.mjs?v=clock-1';
 
 export const wardenSummonPattern='wardenSummon';
-const bossFloors=[30,50,80,90];
+const bossSignatures=[[30,'cross'],[50,'prison'],[80,'spiral'],[90,'eclipse']];
 const summonInterval=8.5;
 const portalTint=0xc4a4fa;
 const rewardTint=0x9cf2dd;
@@ -12,12 +12,12 @@ const pads=[[-7,2.5],[7,2.5],[-6,-1.6],[6,-1.6],[-4,7],[4,7],[7,7],[-7,7],[0,8],
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 export function wardenReinforcementSpecs(difficulty){
-  return bossFloors.map(floor=>{
+  return bossSignatures.map(([floor,reinforcementMove])=>{
     const source=stages[floor-1];
     const spec=enemySpec(difficulty?modeStage(source,difficulty):source,'boss');
     return {...spec,sourceFloor:floor,name:'殘影 · '+spec.name,hp:spec.hp/3,hurt:spec.hurt/3,mass:spec.mass/3,
       phases:[],attacks:spec.attacks.filter(pattern=>pattern!=='summon'),secondary:true,bodyScale:1,
-      reinforcement:true};
+      reinforcement:true,reinforcementMove};
   });
 }
 

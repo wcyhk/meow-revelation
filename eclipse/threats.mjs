@@ -222,7 +222,7 @@ export function advanceThreats(game,dt) {
       continue;
     }
     if(hazard.moonSlash){
-      if(!stepMoonSlash(game,hazard,dt))continue;
+      if(!stepMoonSlash(game,hazard,dt,queued))continue;
     }else hazard.delay-=dt;
     if (hazard.tactic&&(hazard.owner.hp<=0||hazard.encounter.phase!==hazard.arenaPhase)) continue;
     if (hazard.windup?.interrupted&&hazard.kind!=='projectile'&&hazard.kind!=='residue') continue;

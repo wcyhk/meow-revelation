@@ -48,6 +48,7 @@ import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogu
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {wardenStrikeLook} from './warden-ground.mjs';
 import {moonSlashDuration,moonSlashPattern,queueMoonSlash} from './warden-moon-slash.mjs';
+import {moonPincerPreview} from './warden-moon-assist.mjs';
 import {dismissWardenReinforcements,isWardenSummoner,resolveWardenSummon,rewardWardenReinforcement,
   wardenBoon,wardenReinforcementSpecs,wardenSummonPattern,wardenSummonReady} from './warden-reinforcements.mjs';
 
@@ -1448,7 +1449,8 @@ export class Game {
     let index=unit.step++;
     if (!boss) index+=this.stage.room+this.wave;
     const finisher=phase===2?spec.lastFinishing??spec.finishing:spec.finishing;
-    let pattern=forcedPattern??(finisher&&phase&&index%3===2?finisher:spec.attacks[index%spec.attacks.length]);
+    const signature=index%2===0?spec.reinforcementMove:null;
+    let pattern=forcedPattern??signature??(finisher&&phase&&index%3===2?finisher:spec.attacks[index%spec.attacks.length]);
     if(pattern==='summon'&&isWardenSummoner(this,unit))pattern=wardenSummonReady(this,unit)?wardenSummonPattern:'cleave';
     if(pattern===moonSlashPattern){
       if(queueMoonSlash(this,unit))return;
@@ -1514,12 +1516,14 @@ export class Game {
     if(attack.pattern===wardenSummonPattern)resolveWardenSummon(this,unit,attack);
     if (boss) {
       if(this.bossArena?.boss===unit)this.bossArena.counters.resolveAttack(attack);
-      this.view.feedback.kick(.11,.21,Math.atan2(attack.dz,attack.dx));
+      if(!attack.moonAssist)this.view.feedback.kick(.11,.21,Math.atan2(attack.dz,attack.dx));
     }
   }
 
   updateEnemies(dt,drill) {
     const eye=this.branchCombat.skills.has('black-goat-eye')?this.branchCombat.eye:null;
+    let echoCasting=this.bossArena?.phase===2&&(this.hazards.some(mark=>mark.moonSlash||mark.owner?.summoner)
+      ||this.enemies.some(unit=>unit.summoner&&unit.hp>0&&unit.attack));
     for (const unit of this.enemies) {
       if (unit.hp<=0) continue;
       const spec=unit.spec;
@@ -1552,7 +1556,7 @@ export class Game {
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
       if (unit.attack) {
-        if(!unit.attack.moonSlash)this.stepEnemyAttack(unit,dt);
+        if(!unit.attack.moonSlash&&!unit.attack.moonAssist)this.stepEnemyAttack(unit,dt);
         continue;
       }
       if (unit.age<.38 || unit.stun>0 || unit.recover>0) continue;
@@ -1570,8 +1574,10 @@ export class Game {
         if (arena.counters.tryCharge(dist)) continue;
         if (!exercise?.focused&&dist<attackRange+3.2&&arena.tactics.tryAttack()) continue;
       }
-      if (dist<attackRange&&unit.cool<0&&(!exercise?.focused||exercise.attack)) {
+      const canCast=!unit.summoner||(!echoCasting&&!unit.summoner.attack?.moonSlash);
+      if (canCast&&dist<attackRange&&unit.cool<0&&(!exercise?.focused||exercise.attack)) {
         this.beginEnemyAttack(unit,exercise?.attack);
+        if(unit.summoner)echoCasting=true;
         continue;
       }
       const target = h!==this.hero ? attackRange*.64 : exercise?.followRange??spec.ranged??(unit.kind==='boss'?2.8:spec.reach*.67);
@@ -1622,7 +1628,7 @@ export class Game {
     clearUltimates(this);
     this.relicWalls.length=0;
     for(const unit of this.enemies){
-      if(unit.attack?.wardenPortal)unit.attack=null;
+      if(unit.attack?.wardenPortal||unit.attack?.moonAssist)unit.attack=null;
     }
     for (const hazard of this.hazards) {
       if (hazard.visual) this.view.removeProjectile(hazard.visual);
@@ -2787,13 +2793,14 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const {spec,stage:source,layout,weakness}=dossier;
   const practice=Object.create(Game.prototype);
   const drill=action.drill;
-  const moonSlash=action.pattern===moonSlashPattern;
+  const pincer=action.pattern===moonPincerPreview;
+  const moonSlash=action.pattern===moonSlashPattern||pincer;
   const summon=action.pattern===wardenSummonPattern;
   const arenaPreview=action.phase||moonSlash||summon;
   const stage=arenaPreview?source:{...source,props:[]};
   const demonstration=action.motion;
   const pao=['m025','m026'].includes(spec.bestiary?.id);
-  const position=arenaPreview?source.spawn:pao?{x:1.4,z:3.05}:{x:2.95,z:.82};
+  const position=pincer?{x:1.25,z:4.65}:arenaPreview?source.spawn:pao?{x:1.4,z:3.05}:{x:2.95,z:.82};
   const hero=Object.assign(makeHero(),position,{moveSpeed:6.9,damage:25,face:-1});
   const controls={keys:new Set(),point:null,roll:false,interact:false};
   const weapon=arms.find(arm=>arm.id==='tiger');
@@ -2817,6 +2824,12 @@ function makeBossPractice(view,dossier,action,signal,sound) {
     if(moonSlash||summon){
       practice.bossArena.transform(2);
       practice.bossArena.shift=2;
+      if(pincer){
+        for(const [x,z] of [[-6.5,4],[6.4,4.5],[-5.6,-1.2],[5.8,-.8]]){
+          resolveWardenSummon(practice,unit,{wardenPortal:{x,z}});
+        }
+        for(const echo of practice.enemies)if(echo.summoner)echo.age=1;
+      }
     }else if(action.phase>1){
       unit.bossPhase=action.phase-1;
       unit.hp=spec.hp*spec.phases[action.phase-2];
@@ -2895,10 +2908,11 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   };
   paint(0);
   let fired=!!action.portrait;
+  let replayed=false;
   const hold=action.phase ? .85 : .20;
   const lastSlash=moonSlash||action.phase===2&&spec.lastFinishing===moonSlashPattern;
   const duration=demonstration?3.05:hold+(lastSlash?moonSlashDuration+1.45:spec.time+2.75)
-    +(spec.phaseTransition?.[action.phase-1]??0);
+    +(spec.phaseTransition?.[action.phase-1]??0)+(pincer?moonSlashDuration+1.3:0);
   return {
     controls,
     hero,
@@ -2926,8 +2940,12 @@ function makeBossPractice(view,dossier,action,signal,sound) {
           practice.advanceBossPhase(unit);
           if(!unit.phaseChange)signal.phase(unit.bossPhase,arena.plan.title);
         }else{
-          practice.beginEnemyAttack(unit,action.pattern);
+          practice.beginEnemyAttack(unit,pincer?moonSlashPattern:action.pattern);
         }
+      }
+      if(pincer&&!replayed&&practice.t>=hold+moonSlashDuration+.85&&!unit.attack&&!practice.hazards.some(mark=>mark.moonSlash)){
+        replayed=true;
+        practice.beginEnemyAttack(unit,moonSlashPattern);
       }
       if(demonstration==='travel'&&fired&&practice.t<2.38){
         const speed=spec.bestiary?.id==='m026'?2.15:2.55;
@@ -2960,7 +2978,10 @@ function makeBossPractice(view,dossier,action,signal,sound) {
         else arena.shift+=dt;
       }
       advanceThreats(practice,dt);
-      if(summon)for(const copy of practice.enemies)if(copy.summoner)copy.age+=dt;
+      if(summon||pincer)for(const copy of practice.enemies)if(copy.summoner){
+        copy.age+=dt;
+        if(copy.motion)copy.motion.age+=dt;
+      }
       if(drill&&fired&&!done&&!unit.phaseChange){
         if(riftDrill)for(const hazard of practice.hazards){
           if(hazard.kind==='residue'&&hazard.residue==='embers'&&!hazard.rehearsal){

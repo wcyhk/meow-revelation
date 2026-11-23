@@ -212,16 +212,18 @@ function laneEdges(length,width) {
 
 function warningMaterial() {
   return new T.ShaderMaterial({side:T.DoubleSide,transparent:true,depthWrite:false,forceSinglePass:true,
-    uniforms:{life:{value:0},opacity:{value:.41}},
+    uniforms:{life:{value:0},opacity:{value:.41},ink:{value:new T.Color()},shaded:{value:0}},
     vertexShader:`varying vec2 tex; void main(){tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader:`
-      varying vec2 tex; uniform float life,opacity;
+      varying vec2 tex; uniform float life,opacity,shaded; uniform vec3 ink;
       void main(){
         float threads=pow(.5+.5*sin((tex.x+tex.y*.43)*68.-life*9.),4.);
         float grid=pow(.5+.5*sin(tex.x*32.-life*12.)*sin(tex.y*41.+life*6.),8.);
         float sparks=pow(.5+.5*sin(tex.x*51.+tex.y*71.-life*19.),15.)*grid;
         float urgency=smoothstep(.52,.99,life);
-        gl_FragColor=vec4(.46+threads*.22+sparks*.29,.025+threads*.04+sparks*.05,.014,
+        vec3 red=vec3(.46+threads*.22+sparks*.29,.025+threads*.04+sparks*.05,.014);
+        vec3 blue=ink*(.29+threads*.31+sparks*.38);
+        gl_FragColor=vec4(mix(red,blue,shaded),
           opacity*(.55+urgency*.20+threads*.27+grid*.12));
         #include <colorspace_fragment>
       }
@@ -1919,7 +1921,7 @@ export class Scenery {
     this.shake=Math.max(this.shake,phase==='entrance'?.21:.32);
   }
 
-  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780,active,elapsed) {
+  warning(kind,x,z,radius,time,angle=0,width=0,tint=0xffb780,active,elapsed,warningInk) {
     const point={x,y:.049,z};
     const paint=(geometry,location,tint,settings)=>{
       const effect=this.addEffect(geometry,location,tint,time,settings);
@@ -1932,9 +1934,11 @@ export class Scenery {
       const material=this.effectMaterial(materialKey,warningMaterial);
       material.uniforms.life.value=0;
       material.uniforms.opacity.value=.41;
+      material.uniforms.shaded.value=warningInk===undefined?0:1;
+      if(warningInk!==undefined)material.uniforms.ink.value.setHex(warningInk);
       paint(geometry,point,0xde442f,{...settings,material,materialKey,opacity:.47,order:35});
     };
-    const edge=(geometry,settings)=>paint(geometry,{...point,y:.055},0xff8c60,
+    const edge=(geometry,settings)=>paint(geometry,{...point,y:.055},warningInk??0xff8c60,
       {...settings,opacity:.92,order:37});
     if (kind === 'line') {
       const fill=new T.PlaneGeometry(radius,width*2).rotateX(-PI/2);
@@ -1960,6 +1964,25 @@ export class Scenery {
     }
     shade(this.disc,{scale:radius});
     edge(this.ring,{scale:radius});
+  }
+
+  moonEscapeGuide(route,duration,active,elapsed) {
+    const vertices=[];
+    for(const distance of [.72,1.28,1.84,2.40]){
+      if(distance>route.length)break;
+      vertices.push(distance-.32,0,.24,distance,0,0,distance-.14,0,0,
+        distance-.32,0,-.24,distance-.14,0,0,distance,0,0);
+    }
+    const geometry=new T.BufferGeometry().setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+    const materialKey='moon-escape-guide';
+    const material=this.effectMaterial(materialKey,()=>new T.MeshBasicMaterial({color:0x9bf4cf,
+      transparent:true,depthTest:false,depthWrite:false,toneMapped:false,side:T.DoubleSide,forceSinglePass:true}));
+    const effect=this.addEffect(geometry,{...route.from,y:.070},0x9bf4cf,duration,
+      {owned:true,angle:-route.angle,opacity:.93,order:48,materialKey,material});
+    effect.mesh.name='月蝕合圍 · 閃避方向';
+    effect.active=active;
+    effect.elapsed=elapsed;
+    effect.combatClock=true;
   }
 
   threatImpact(hazard) {

@@ -1,4 +1,5 @@
 import {insideArena,onArenaHazard} from './arena-draw.mjs?v=shifting-2';
+import {cancelMoonAssist,startMoonAssist,stepMoonAssist} from './warden-moon-assist.mjs';
 
 export const moonSlashPattern='moonSlash';
 const notice=[1.24,1.18,1.32];
@@ -50,7 +51,7 @@ function strikeZone(game,owner,chain){
   return line(origin,angle+Math.PI,Math.min(length,5.4),.56);
 }
 
-export function queueMoonSlash(game,owner,chain){
+export function queueMoonSlash(game,owner,chain,pending=game.hazards){
   if(!chain){
     const arena=game.bossArena;
     if(!owner.spec.finalWarden||arena?.boss!==owner||arena?.points.length!==2)return false;
@@ -70,6 +71,7 @@ export function queueMoonSlash(game,owner,chain){
   };
   const hazard={...zone,delay:windup,damage:owner.spec.hurt*(index===2?1.02:.80),
     owner,windup:attack,bossPhase:2,pattern:moonSlashPattern,effect:'void',tint:0xb098ff,moonSlash:chain};
+  startMoonAssist(game,hazard,pending);
   game.hazards.push(hazard);
   const visible=()=>owner.attack===attack&&!attack.interrupted&&active(game,owner,chain);
   const elapsed=()=>windup-attack.time;
@@ -82,21 +84,26 @@ export function queueMoonSlash(game,owner,chain){
   return true;
 }
 
-export function stepMoonSlash(game,hazard,dt){
+export function stepMoonSlash(game,hazard,dt,pending=game.hazards){
   const {owner,moonSlash:chain,windup}=hazard;
   if(!active(game,owner,chain)){
     if(windup&&owner.attack===windup)owner.attack=null;
+    cancelMoonAssist(hazard);
     return false;
   }
   if(hazard.kind==='moon-followup'){
     hazard.delay-=dt;
     if(hazard.delay>0)game.hazards.push(hazard);
-    else queueMoonSlash(game,owner,chain);
+    else queueMoonSlash(game,owner,chain,pending);
     return false;
   }
-  if(owner.attack!==windup||windup.interrupted)return false;
+  if(owner.attack!==windup||windup.interrupted){
+    cancelMoonAssist(hazard);
+    return false;
+  }
   game.stepEnemyAttack(owner,dt);
   hazard.delay=windup.time;
+  stepMoonAssist(game,hazard,pending);
   if(hazard.delay<=0){
     const next=chain.index+1;
     const last=next===notice.length;

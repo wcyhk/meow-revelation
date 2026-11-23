@@ -91,6 +91,7 @@ export function startMoonAssist(game,slash,threats){
     const elapsed=()=>duration-slash.windup.time;
     for(const zone of zones)game.view.warning(zone.kind,zone.x,zone.z,zone.radius+(zone.kind==='line'?0:.12),duration,
       -zone.angle,zone.width+(zone.kind==='ring'?.24:.13),warningInk,active,elapsed,warningInk);
+    game.view.warning('aura',owner.x,owner.z,1.1,duration,0,0,0xf9cd85,active,elapsed);
     game.view.moonEscapeGuide(route,duration,active,elapsed);
     return assist;
   }

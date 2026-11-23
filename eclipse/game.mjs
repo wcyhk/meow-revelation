@@ -18,7 +18,7 @@ import {arms} from './armory.mjs?v=emberlight-1';
 import {ending,storyPrimer} from './campaign.mjs?v=story-repair-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=story-repair-1';
 import {blessingRankCap, blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ascendant-1';
-import {advanceThreats, telegraph} from './threats.mjs?v=world-3d-1';
+import {advanceThreats, telegraph, withinThreat} from './threats.mjs?v=world-3d-1';
 import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, skillFootprint, strikeTravel, strikeWith} from './combat.mjs?v=giant-gates-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=story-repair-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
@@ -1259,7 +1259,7 @@ export class Game {
     unit.hp -= damage*(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     this.practiceRun?.damage.record(source,before,unit.hp);
-    const kind=unit.hp<=0?'fall':shield?(heavy?'break':'block'):heavy?'heavy':'light';
+    const kind=unit.hp<=0?'fall':heavy&&(shield||unit.attack?.moonAssist)?'break':shield?'block':heavy?'heavy':'light';
     if (kind==='break') {
       unit.guardOpen=1.48;
       unit.exposed=Math.max(unit.exposed,1.48);
@@ -2789,6 +2789,130 @@ function makeWeaponPractice(view,weapon,kind) {
   };
 }
 
+function moonPincerExercise(practice,warden,position,controls,steer,paint,dispose,signal,settings){
+  const {hero,view,weapon,audio,bossArena:arena}=practice;
+  const roster=wardenReinforcementSpecs(practice.stage.difficulty);
+  const finisher=comboMove(weapon,3);
+  const timing=comboTiming(weapon,finisher,weapon.period);
+  let echo,goal,slash,charge,elapsed,rolled,interrupted,tookHit,status='ready',wind=0,settle=0;
+  const show=(state,message)=>{
+    status=state;
+    signal.exercise(state,message);
+  };
+  const reset=({floor,mode})=>{
+    practice.clearThreats();
+    view.wardenGround?.reset();
+    view.spellLighting.reset();
+    if(echo?.spec.sourceFloor!==floor){
+      if(echo)view.removeActor(echo.visual);
+      practice.enemies=[warden];
+      const spec=roster.find(entry=>entry.sourceFloor===floor);
+      practice.wardenSummonDeck=[spec];
+      echo=resolveWardenSummon(practice,warden,{wardenPortal:{x:5.45,z:4.35}});
+    }
+    echo.age=1;
+    echo.motion=echo.reaction=null;
+    warden.motion=warden.reaction=null;
+    Object.assign(hero,makeHero(),position,{moveSpeed:6.9,damage:25,face:1,reach:weapon.reach,finisher:1.5});
+    controls.keys.clear();
+    Object.assign(controls,{point:null,roll:false,rollVector:null,heavy:false});
+    goal=mode;
+    elapsed=wind=settle=0;
+    slash=charge=null;
+    rolled=interrupted=tookHit=false;
+    show('ready',goal==='roll'?'睇準薄荷色箭嘴，向箭嘴方向翻滾。':'見到殘影腳下金圈，行近再重擊。');
+    paint(0);
+  };
+  practice.hurt=(amount,x,z)=>{
+    if(hero.invulnerable>0)return false;
+    tookHit=true;
+    recoil(hero,{x,z},'heavy');
+    hero.invulnerable=.28;
+    view.impact(hero,{x,z},'heavy',warden.spec.tint,practice.heroVisual);
+    return true;
+  };
+  practice.hit=(target,amount,origin,knock,tint,weight)=>{
+    if(target!==echo||weight!=='heavy')return false;
+    const charging=echo.attack===slash?.assist?.attack;
+    if(charging)interrupted=true;
+    practice.impact(echo,origin,charging?'break':'heavy',tint);
+    return true;
+  };
+  const release=()=>{
+    const gap=Math.max(.02,distance(echo,hero));
+    hero.dx=(echo.x-hero.x)/gap;
+    hero.dz=(echo.z-hero.z)/gap;
+    if(Math.abs(hero.dx)>.12)hero.face=Math.sign(hero.dx);
+    hero.combo=3;
+    hero.attackAge=0;
+    heroAction(hero,'strike',finisher,timing);
+    audio.attack(weapon.id,3,'wind');
+    wind=timing.hits[0].at;
+  };
+  reset(settings);
+  return {
+    controls,hero,configure:reset,dispose,
+    start(){
+      reset({floor:echo.spec.sourceFloor,mode:goal});
+      show('active','準備 · 留意地面預警');
+    },
+    step(dt){
+      practice.t+=dt;
+      if(status==='ready'){paint(dt);return false;}
+      if(status!=='active'&&status!=='charging'&&status!=='interrupted'){
+        settle+=dt;
+        for(const unit of practice.enemies)if(unit.motion)unit.motion.age+=dt;
+        paint(dt);
+        return settle<.5;
+      }
+      if(!slash){
+        elapsed+=dt;
+        if(elapsed>=.42){
+          queueMoonSlash(practice,warden);
+          slash=practice.hazards.find(mark=>mark.moonSlash);
+          if(!slash?.assist){
+            practice.clearThreats();
+            show('failure','今次未形成合圍，請重試。');
+            return true;
+          }
+          charge=slash.assist;
+          show('charging',goal==='roll'?'沿薄荷色箭嘴翻滾，避開兩邊攻擊。':'殘影蓄力中 · 向金圈行近再重擊');
+        }
+      }else{
+        hero.invulnerable-=dt;
+        hero.attackAge+=dt;
+        const previousRoll=hero.rolling;
+        steer(dt);
+        if(hero.rolling>0&&previousRoll<=0)rolled=true;
+        if(controls.heavy&&!wind&&hero.rolling<=0&&goal==='break'&&!interrupted)release();
+        if(wind>0){
+          wind-=dt;
+          if(wind<=0){
+            wind=0;
+            audio.attack(weapon.id,3,'release',0);
+            strikeWith(practice,hero.dx,hero.dz,finisher);
+            if(interrupted)show('interrupted','蓄力已打斷 · 斷冠仍會出斬，快避開紅線。');
+          }
+        }
+        advanceThreats(practice,dt);
+        if(slash.delay<=0){
+          practice.clearThreats();
+          const clear=![slash,...charge.zones,...arena.hazards].some(mark=>withinThreat(hero,mark));
+          if(goal==='break'){
+            show(interrupted?'success':'failure',interrupted?'成功 · 已打斷殘影蓄力':'失手 · 要喺冰藍預警消失之前重擊命中');
+          }else{
+            const success=rolled&&!tookHit&&clear;
+            show(success?'success':'failure',success?'成功 · 已翻滾避開合擊':rolled?'失手 · 試下沿箭嘴翻滾，離開預警範圍':'未完成 · 見到箭嘴後撳「翻滾」');
+          }
+        }
+      }
+      controls.heavy=false;
+      paint(dt);
+      return true;
+    },
+  };
+}
+
 function makeBossPractice(view,dossier,action,signal,sound) {
   const {spec,stage:source,layout,weakness}=dossier;
   const practice=Object.create(Game.prototype);
@@ -2802,12 +2926,12 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const pao=['m025','m026'].includes(spec.bestiary?.id);
   const position=pincer?{x:1.25,z:4.65}:arenaPreview?source.spawn:pao?{x:1.4,z:3.05}:{x:2.95,z:.82};
   const hero=Object.assign(makeHero(),position,{moveSpeed:6.9,damage:25,face:-1});
-  const controls={keys:new Set(),point:null,roll:false,interact:false};
+  const controls={keys:new Set(),point:null,roll:false,rollVector:null,interact:false,heavy:false};
   const weapon=arms.find(arm=>arm.id==='tiger');
   const audible=pao||spec.finalWarden;
   const audio=audible?sound:{play(){},release(){},boss(){},impact(){}};
   if(audible)audio.start().catch(()=>{});
-  Object.assign(practice,{view,stage,hero,weapon,t:0,state:'play',hazards:[],enemies:[],relicWalls:[],wave:0,
+  Object.assign(practice,{view,stage,hero,weapon,t:0,state:'play',hazards:[],enemies:[],relicWalls:[],ultimateFields:[],wave:0,
     hitstop:0,branchCombat:{skills:new Set()},audio,
     announce(){},setupMissionPins(){},objective(){}});
   const unit=practice.spawn('boss',arenaPreview?0:pao?-2.1:-2.4,arenaPreview?-3.2:pao?-1.65:-.46,null,spec);
@@ -2824,7 +2948,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
     if(moonSlash||summon){
       practice.bossArena.transform(2);
       practice.bossArena.shift=2;
-      if(pincer){
+      if(pincer&&!action.pincerDrill){
         for(const [x,z] of [[-6.5,4],[6.4,4.5],[-5.6,-1.2],[5.8,-.8]]){
           resolveWardenSummon(practice,unit,{wardenPortal:{x,z}});
         }
@@ -2879,12 +3003,18 @@ function makeBossPractice(view,dossier,action,signal,sound) {
     h.rollCool-=dt;
     h.snared-=dt;
     if(controls.roll&&h.rollCool<=0&&h.rolling<=0){
+      if(controls.rollVector){
+        ({x:h.dx,z:h.dz}=controls.rollVector);
+        if(Math.abs(h.dx)>.14)h.face=Math.sign(h.dx);
+      }
       h.rolling=h.rollDuration;
       h.rollCool=.67;
       h.invulnerable=.34;
+      if(action.pincerDrill)audio.play('roll');
       view.spark(h.x,.20,h.z,0xe5b17b,11,.64);
     }
     controls.roll=false;
+    controls.rollVector=null;
     const speed=h.moveSpeed*(h.snared>0?.57:1);
     h.vx=h.rolling>0?h.dx*h.rollSpeed:x/length*speed;
     h.vz=h.rolling>0?h.dz*h.rollSpeed:z/length*speed;
@@ -2904,8 +3034,21 @@ function makeBossPractice(view,dossier,action,signal,sound) {
     advanceReaction(hero,dt);
     if(demonstration)advanceReaction(unit,dt);
     practice.poseHero(dt);
-    for(const actor of practice.enemies)practice.poseEnemy(actor,dt);
+    for(const actor of practice.enemies){
+      if(action.pincerDrill)advanceReaction(actor,dt);
+      practice.poseEnemy(actor,dt);
+    }
   };
+  const dispose=()=>{
+    if(arena)view.setBossArena(null);
+    for(const hazard of practice.hazards)if(hazard.visual)view.removeProjectile(hazard.visual);
+    for(const actor of practice.enemies)view.removeActor(actor.visual);
+    view.removeActor(practice.heroVisual);
+  };
+  if(action.pincerDrill){
+    view.equip(practice.heroVisual,weapon);
+    return moonPincerExercise(practice,unit,position,controls,steer,paint,dispose,signal,action.pincerDrill);
+  }
   paint(0);
   let fired=!!action.portrait;
   let replayed=false;
@@ -3010,12 +3153,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
       paint(dt);
       return true;
     },
-    dispose() {
-      if(arena)view.setBossArena(null);
-      for(const hazard of practice.hazards)if(hazard.visual)view.removeProjectile(hazard.visual);
-      for(const actor of practice.enemies)view.removeActor(actor.visual);
-      view.removeActor(practice.heroVisual);
-    },
+    dispose,
   };
 }
 

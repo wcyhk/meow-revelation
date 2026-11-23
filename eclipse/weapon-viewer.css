@@ -117,8 +117,18 @@
   padding:5px 10px;border:1px solid #705c54;border-radius:3px;background:#15121ae8;color:#f3dfc4;
 }
 .weapon-viewer-stage.counter-success .weapon-viewer-hint {color:#c1f6e0;border-color:#84cabb;background:#16362fe8}
+.weapon-viewer-stage.counter-failure .weapon-viewer-hint {color:#ffe0d3;border-color:#c38075;background:#41252be8}
 .counter-drill-tools {position:absolute;z-index:2;display:flex;gap:6px;right:10px;bottom:10px}
 .counter-drill-tools .secondary {min-height:44px;padding:7px 10px;background:#271f2cee;font-size:12px}
+.counter-drill-tools .primary {min-height:44px;padding:7px 15px;font-size:13px}
+.pincer-exercise {margin:8px 20px 0;padding:8px;background:#211e2d;border:1px solid #4d465c;border-radius:4px}
+.pincer-exercise>.secondary {display:block;margin-inline:auto;width:min(100%,230px)}
+.pincer-options {display:grid;gap:7px}
+.pincer-roster,.pincer-modes {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.pincer-modes {grid-template-columns:repeat(2,minmax(0,1fr))}
+.pincer-exercise .secondary {min-height:44px;padding:5px 6px;font-size:13px;line-height:1.3}
+.pincer-exercise [aria-pressed=true] {border-color:#9ce0d1;background:#29413e;color:#def9ea}
+.pincer-move {margin:0;color:#c9deda;text-align:center;font-size:12px}
 #modal[data-kind=practice-loadout] .panel {display:flex;flex-direction:column;width:min(760px,100%);overflow:hidden;
   background:radial-gradient(ellipse at 50% 0,#412e39,#1b1923 74%)}
 #modal[data-kind=practice-loadout] :is(#modal-kicker,#modal-mark) {display:none}
@@ -176,6 +186,7 @@
 :is(.practice-damage-row,#practice-damage>div)[data-tone=green] {--damage-ink:#9ce5c6}
 .practice-damage-report p {font-size:12px;line-height:1.5;color:#cfbba6;margin:9px 0 0}
 @media(max-width:540px){
+  .pincer-exercise {margin-inline:12px}
   .boss-preview-attacks,.boss-preview-weakness {margin-inline:12px}
   .weapon-viewer[data-subject=boss] .weapon-viewer-stage {height:36dvh}
   .weapon-viewer-actions {justify-content:flex-end}

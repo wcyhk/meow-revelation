@@ -72,6 +72,7 @@ export function resolveWardenSummon(game,owner,attack){
   copy.cool=1.04;
   game.view.spellAccent(copy,{action:'summon',element:'void',tint:portalTint,radius:1.55,power:.82,seed:index%65521});
   game.view.spark(copy.x,.40,copy.z,portalTint,12,.82,'void');
+  return copy;
 }
 
 export function wardenBoon(hero,time){

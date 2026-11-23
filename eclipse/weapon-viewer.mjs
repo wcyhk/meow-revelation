@@ -13,7 +13,7 @@ import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
 import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 import {moonSlashPattern} from './warden-moon-slash.mjs';
 import {moonPincerPreview} from './warden-moon-assist.mjs';
-import {wardenSummonPattern} from './warden-reinforcements.mjs';
+import {wardenReinforcementSpecs,wardenSummonPattern} from './warden-reinforcements.mjs';
 const paoForms=new Set();
 
 function node(tag,kind,text){
@@ -87,6 +87,7 @@ export class WeaponViewer {
     this.image.alt='';
     this.hint=node('p','weapon-viewer-hint');
     this.hint.setAttribute('aria-live','polite');
+    this.hint.setAttribute('aria-live','polite');
     this.canvas=node('canvas','weapon-viewer-canvas');
     this.canvas.tabIndex=0;
     this.studioReady=new WeakSet();
@@ -132,10 +133,32 @@ export class WeaponViewer {
     this.tools=node('div','weapon-viewer-tools');
     this.tools.append(this.inspect,this.armour,this.moon,this.combo,this.skill);
     this.drillTools=node('div','counter-drill-tools');
-    const roll=button('翻滾',()=>{this.practice.controls.roll=true;});
-    const interact=button('祭燈／機關',()=>{this.practice.controls.interact=true;});
-    this.drillTools.append(roll,interact);
+    this.drillRoll=button('翻滾',()=>{if(this.practice)this.practice.controls.roll=true;});
+    this.drillInteract=button('祭燈／機關',()=>{if(this.practice)this.practice.controls.interact=true;});
+    this.drillHeavy=button('重擊',()=>{if(this.practice)this.practice.controls.heavy=true;});
+    this.drillStart=button('開始練習',()=>{
+      this.practice?.start?.();
+      this.resumePlayback();
+      this.canvas.focus({preventScroll:true});
+    },'primary');
+    this.drillTools.append(this.drillRoll,this.drillInteract,this.drillHeavy,this.drillStart);
     this.stage.append(this.drillTools);
+    this.pincerTools=node('section','pincer-exercise');
+    this.pincerTools.hidden=true;
+    this.pincerEntry=button('試反制',()=>this.playBoss({
+      pattern:moonPincerPreview,pincerDrill:{floor:this.pincerChoices[0].sourceFloor,mode:'roll'},
+    },this.pincerEntry));
+    this.pincerEntry.dataset.pincerDrill='';
+    this.pincerOptions=node('div','pincer-options');
+    this.pincerRoster=node('div','pincer-roster');
+    this.pincerRoster.setAttribute('role','group');
+    this.pincerRoster.setAttribute('aria-label','選擇殘影');
+    this.pincerModes=node('div','pincer-modes');
+    this.pincerModes.setAttribute('role','group');
+    this.pincerModes.setAttribute('aria-label','選擇練習');
+    this.pincerMove=node('p','pincer-move');
+    this.pincerOptions.append(this.pincerRoster,this.pincerModes,this.pincerMove);
+    this.pincerTools.append(this.pincerEntry,this.pincerOptions);
     this.weakness=node('section','boss-preview-weakness');
     this.attacks=node('div','boss-preview-attacks');
     this.attacks.setAttribute('role','group');
@@ -160,7 +183,7 @@ export class WeaponViewer {
     const actions=node('div','weapon-viewer-actions');
     actions.append(this.practiceChoice,this.choose);
     footer.append(this.detail,actions);
-    this.dialog.append(header,this.stage,this.tools,this.weakness,this.motions,this.attacks,this.notes,footer);
+    this.dialog.append(header,this.stage,this.pincerTools,this.tools,this.weakness,this.motions,this.attacks,this.notes,footer);
     document.getElementById('game').append(this.dialog);
     this.dialog.addEventListener('close',()=>{
       if(this.dialog.open)return;
@@ -184,7 +207,11 @@ export class WeaponViewer {
         this.practice.controls.keys.add(direction);
       }
       if(event.code==='Space'&&event.target===this.canvas){event.preventDefault();this.practice.controls.roll=true;}
-      if(event.code==='KeyE')this.practice.controls.interact=true;
+      if(event.code==='KeyE'&&!this.pincerSettings)this.practice.controls.interact=true;
+      if(event.code==='KeyJ'&&this.pincerSettings&&!event.repeat){
+        event.preventDefault();
+        this.practice.controls.heavy=true;
+      }
     });
     this.dialog.addEventListener('keyup',event=>this.practice?.controls?.keys.delete(drillKeys[event.code]));
     this.dialog.addEventListener('focusout',event=>{
@@ -196,7 +223,9 @@ export class WeaponViewer {
       this.canvas.setPointerCapture(event.pointerId);
       if(this.mode==='drill'){
         this.canvas.focus({preventScroll:true});
-        this.pointAt(event);
+        this.drag.point=this.pointAt(event);
+        this.drag.started=event.timeStamp;
+        this.drag.touch=event.pointerType==='touch';
       }
     });
     this.canvas.addEventListener('pointermove',event=>{
@@ -214,6 +243,15 @@ export class WeaponViewer {
     for(const name of ['pointerup','pointercancel','lostpointercapture']){
       this.canvas.addEventListener(name,event=>{
         if(this.drag?.id!==event.pointerId)return;
+        if(name==='pointerup'&&this.mode==='drill'&&this.pincerSettings&&this.drag.touch
+            &&event.timeStamp-this.drag.started<=175&&Math.hypot(event.clientX-this.drag.x,event.clientY-this.drag.y)>=33){
+          const point=this.pointAt(event),start=this.drag.point;
+          if(point&&start){
+            const gap=Math.hypot(point.x-start.x,point.z-start.z);
+            if(gap>.03)Object.assign(this.practice.controls,{roll:true,point:null,
+              rollVector:{x:(point.x-start.x)/gap,z:(point.z-start.z)/gap}});
+          }
+        }
         this.drag=null;
         if(name==='pointercancel'&&this.mode==='drill')this.practice.controls.point=null;
       });
@@ -240,7 +278,7 @@ export class WeaponViewer {
     const bounds=this.canvas.getBoundingClientRect();
     cursor.set((event.clientX-bounds.left)/bounds.width*2-1,1-(event.clientY-bounds.top)/bounds.height*2);
     ray.setFromCamera(cursor,battleCamera);
-    if(ray.ray.intersectPlane(floor,groundPoint))this.practice.controls.point={x:groundPoint.x,z:groundPoint.z};
+    if(ray.ray.intersectPlane(floor,groundPoint))return this.practice.controls.point={x:groundPoint.x,z:groundPoint.z};
   }
 
   show(weapon,commit){
@@ -305,6 +343,7 @@ export class WeaponViewer {
       return control;
     });
     this.attacks.replaceChildren(...this.attackControls);
+    if(spec.finalWarden)this.preparePincerControls(wardenReinforcementSpecs(dossier.stage.difficulty));
     this.openViewer({title:entry.name,role:entry.floor?'主線頭目 · 第 '+entry.floor+' 關':'頭目預覽',ink:new T.Color(spec.tint).getStyle(),
       choice:'挑戰此頭目',description:spec.signature,commit,practice});
   }
@@ -693,10 +732,42 @@ export class WeaponViewer {
     for(const control of this.controls)control.setAttribute('aria-pressed',String(control===active));
   }
 
+  preparePincerControls(choices){
+    this.pincerChoices=choices;
+    this.pincerRoster.replaceChildren(...choices.map(spec=>{
+      const control=button(spec.name.replace('殘影 · ',''),()=>this.configurePincer({floor:spec.sourceFloor}));
+      control.dataset.echo=String(spec.sourceFloor);
+      return control;
+    }));
+    this.pincerModes.replaceChildren(...[['roll','翻滾避招'],['break','打斷蓄力']].map(([mode,name])=>{
+      const control=button(name,()=>this.configurePincer({mode}));
+      control.dataset.exercise=mode;
+      return control;
+    }));
+  }
+
+  configurePincer(changes){
+    const settings=this.pincerSettings={...this.pincerSettings,...changes};
+    for(const control of this.pincerRoster.children)control.setAttribute('aria-pressed',String(control.dataset.echo===String(settings.floor)));
+    for(const control of this.pincerModes.children)control.setAttribute('aria-pressed',String(control.dataset.exercise===settings.mode));
+    const echo=this.pincerChoices.find(choice=>choice.sourceFloor===settings.floor);
+    this.pincerMove.textContent=echo.moveLabels[echo.reinforcementMove];
+    this.practice?.configure(settings);
+    this.resumePlayback();
+  }
+
+  resumePlayback(){
+    if(this.playbackDone&&this.practice){
+      cancelAnimationFrame(this.raf);
+      this.startPlayback();
+    }
+  }
+
   playBoss(action,control){
     this.clearScene();
     if(!this.showCanvas())return;
-    this.mode=action.drill?'drill':action.phase?'phase':action.portrait?'portrait':'attack';
+    const pincerDrill=action.pincerDrill;
+    this.mode=action.drill||pincerDrill?'drill':action.phase?'phase':action.portrait?'portrait':'attack';
     const pincer=action.pattern===moonPincerPreview;
     const moonSlash=action.pattern===moonSlashPattern||pincer;
     const summon=action.pattern===wardenSummonPattern;
@@ -704,23 +775,31 @@ export class WeaponViewer {
     this.stage.dataset.preview=this.mode;
     this.setActive(control);
     this.zoomTools.hidden=true;
-    this.drillTools.hidden=!action.drill;
+    this.pincerTools.hidden=!pincer;
+    this.pincerEntry.hidden=!!pincerDrill;
+    this.pincerOptions.hidden=!pincerDrill;
+    this.drillTools.hidden=this.mode!=='drill';
+    this.drillRoll.hidden=!!pincerDrill;
+    this.drillHeavy.hidden=true;
+    this.drillStart.hidden=true;
     const mechanism=action.phase===2?this.dossier.layout.last??this.dossier.layout:this.dossier.layout;
-    this.drillTools.lastElementChild.hidden=!['break','light'].includes(mechanism.mode);
-    this.drillTools.lastElementChild.textContent=mechanism.mode==='light'?'重燃祭燈':'擊碎機關';
-    this.canvas.setAttribute('aria-label',action.drill?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽');
+    this.drillInteract.hidden=!!pincerDrill||!['break','light'].includes(mechanism.mode);
+    this.drillInteract.textContent=mechanism.mode==='light'?'重燃祭燈':'擊碎機關';
+    this.canvas.setAttribute('aria-label',this.mode==='drill'?'反制練習場。點按、拖動或用方向鍵移動。':'頭目動畫預覽');
     const phasePattern=action.phase===2?this.boss.lastFinishing??this.boss.finishing:this.boss.finishing;
     const name=action.motion?this.motionNames[action.motion]:this.moveNames[action.pattern??phasePattern];
     this.hint.textContent=action.phase?(action.phase===1?'第一階段':'第二階段'):(name??'');
     const phaseDetail=name?`變身後出招 · ${name}`:'變身預覽';
-    this.detail.textContent=action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
+    this.detail.textContent=pincerDrill?(this.main.mobile?'點按或拖動走位 · 短掃或撳掣翻滾':'方向鍵或拖動走位 · Space 翻滾 · J 重擊')
+      :action.drill?(this.main.mobile?'點按或拖住場地走位，撳「翻滾」閃開。':'點按或拖動場地走位 · 方向鍵移動 · Space 翻滾 · E 操作機關')
       :pincer?'紅色係斷冠 · 冰藍色係殘影 · 沿薄荷色箭嘴閃避'
       :moonSlash?'兩道命印輪流封路 · 第三斬由守夜者出手'
       :summon?'殘影擁有原頭目三分一生命及攻擊力 · 擊倒後回血同增傷'
       :action.phase?phaseDetail:action.portrait?this.description:name;
     const view=this.makeStage(!!(action.phase||moonSlash||summon));
-    const seed=this.bossSeed??=Math.floor(Math.random()*0x100000000);
+    const seed=pincerDrill?0x4d4f4f4e:(this.bossSeed??=Math.floor(Math.random()*0x100000000));
     const form=this.boss.phaseTransition&&!action.phase?this.modelPhase:0;
+    if(pincerDrill)this.configurePincer(pincerDrill);
     this.practice=this.makeBossPractice(view,this.dossier,{seed,form,...action},{
       phase:(phase,title)=>{this.hint.textContent=`${phase===1?'第二階段':'第三階段'} · ${title}`;},
       status:(message,done)=>{
@@ -728,8 +807,20 @@ export class WeaponViewer {
         this.stage.classList.toggle('counter-success',done);
         if(done)control.textContent='再試一次';
       },
+      exercise:(state,message)=>{
+        this.hint.textContent=message;
+        const active=state==='charging'||state==='interrupted';
+        this.drillRoll.hidden=!active;
+        this.drillHeavy.hidden=state!=='charging'||this.pincerSettings.mode!=='break';
+        this.drillStart.hidden=active||state==='active';
+        this.drillStart.textContent=state==='failure'?'立即重試':state==='success'?'再練一次':'開始練習';
+        this.stage.classList.toggle('counter-success',state==='success'||state==='interrupted');
+        this.stage.classList.toggle('counter-failure',state==='failure');
+        this.stage.dataset.exercise=state;
+      },
     });
     this.startPlayback();
+    if(pincer)this.stage.scrollIntoView({block:'nearest'});
   }
 
   play(kind){
@@ -806,7 +897,10 @@ export class WeaponViewer {
     this.faceZoom.hidden=true;
     this.faceZoom.setAttribute('aria-pressed','false');
     this.displayActor=null;
-    this.stage.classList.remove('counter-success');
+    this.stage.classList.remove('counter-success','counter-failure');
+    delete this.stage.dataset.exercise;
+    this.pincerSettings=null;
+    this.pincerTools.hidden=true;
     for(const control of this.weakness.querySelectorAll('[data-drill]'))control.textContent='試反制';
     if(this.bossRig){
       this.bossRig.root.removeFromParent();

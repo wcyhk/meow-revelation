@@ -2133,13 +2133,24 @@ export class Scenery {
         maxY=Math.max(maxY,z+(height-followHeight)*up.y+pad);
       }
     }
+    const arena=this.arenaArt.arena;
+    const showSeals=arena?.eclipseProgress!==undefined&&arena.locked&&arena.shift<arena.boss.spec.phaseTransition[1]+.90;
+    if(showSeals){
+      for(const seal of arena.points){
+        const x=seal.x-hero.x,z=(seal.z-hero.z)*up.z;
+        minX=Math.min(minX,x-1.45);
+        maxX=Math.max(maxX,x+1.45);
+        minY=Math.min(minY,z-followHeight*up.y-1.08);
+        maxY=Math.max(maxY,z+(1.18-followHeight)*up.y+1.05);
+      }
+    }
     // Keep the hero in the middle of the view while leaving space for the HUD.
     const side=.89,bottom=.70;
     const top=this.height<=470?.46:this.width<=650?.52:.68;
-    const leadX=.40,leadDown=.28,leadUp=.43;
+    const leadX=showSeals?.49:.40,leadDown=.28,leadUp=.43;
     let zoom=1;
     if(count){
-      zoom=Math.max(.48,Math.min(count>1?.77:.89,
+      zoom=Math.max(showSeals?.40:.48,Math.min(count>1?.77:.89,
         fitZoom(minX,maxX,halfWidth,side,side,leadX,leadX),
         fitZoom(minY,maxY,halfHeight,bottom,top,leadDown,leadUp)));
     }
@@ -2225,7 +2236,7 @@ export class Scenery {
       this.camera.updateMatrixWorld();
       this.cutaway.place(shot?T.MathUtils.lerp(hero.x,boss.x,shot):hero.x,
         shot?T.MathUtils.lerp(hero.z,boss.z,shot):hero.z,sceneAngle);
-      this.landscape.tick(time,hero,darkness,paused?0:dt,arena?.crimsonLight??0);
+      this.landscape.tick(time,hero,darkness,paused?0:dt,arena?.crimsonLight??0,arena?.moonMist??0,arena?.eclipseProgress);
       this.lanternArt.tick(hero,time,this.stage,dt);
       this.landscape.lanternShadows.update(this.lanternArt.light,arena?.pillars,
         this.lanternArt.route?.barricades);

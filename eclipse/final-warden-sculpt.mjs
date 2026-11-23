@@ -5,9 +5,11 @@ import {paintedFinish} from './painted-finish.mjs?v=guard-forge-2';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {sculptSilverWarden} from './silver-warden-sculpt.mjs';
 import {wardenDissolve} from './warden-transformation.mjs';
+import {buildWardenCrown} from './warden-crown-rupture.mjs';
 
 const sides=[-1,1];
 const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
+const emberEye=new T.Color(0xffa66d),moonEye=new T.Color(0xcfabff);
 
 function wardenFinishes(k){
   for(const [name,color,metalness,roughness,kind] of [
@@ -23,16 +25,17 @@ function wardenFinishes(k){
     }),kind,true,true);
   }
   k.materials.wardenEmber=new T.MeshBasicMaterial({color:0xffa66d,toneMapped:false});
+  k.materials.wardenCrownCore=new T.MeshBasicMaterial({color:0xbb99ee,toneMapped:false});
 }
 
-function crownSparks(k,anchor,mobile){
+function crownSparks(anchor,mobile){
   const count=mobile?64:122,phases=new Float32Array(count),centers=new Float32Array(count*3);
   for(let i=0;i<count;i++)phases[i]=(i*.6180339)%1;
   const plume=new T.BufferGeometry();
   plume.setAttribute('position',new T.BufferAttribute(centers,3));
   plume.setAttribute('seed',new T.BufferAttribute(phases,1));
   const material=new T.ShaderMaterial({
-    uniforms:{clock:{value:0},summon:{value:0},stage:{value:0}},
+    uniforms:{clock:{value:0},summon:{value:0},stage:{value:0},moon:{value:0}},
     transparent:true,blending:T.AdditiveBlending,depthWrite:false,toneMapped:false,
     vertexShader:`
       attribute float seed;
@@ -50,12 +53,15 @@ function crownSparks(k,anchor,mobile){
       }
     `,
     fragmentShader:`
+      uniform float moon;
       varying float life;
       void main(){
         float r=length((gl_PointCoord-.5)*2.);
         float spec=exp(-r*r*10.);
         float glow=exp(-r*r*3.3)*(1.-smoothstep(.58,1.,r));
-        gl_FragColor=vec4(mix(vec3(.81,.14,.031),vec3(1.,.79,.36),spec),life*(glow*.56+spec*.66));
+        vec3 shell=mix(vec3(.81,.14,.031),vec3(.33,.12,.70),moon);
+        vec3 core=mix(vec3(1.,.79,.36),vec3(.81,.66,1.),moon);
+        gl_FragColor=vec4(mix(shell,core,spec),life*(glow*.56+spec*.66));
       }
     `,
   });
@@ -89,7 +95,8 @@ export function sculptFinalWarden(k,mobile){
     [0,.164,.024,.213,.131],[0,.251,-.014,.121,.068]]);
   volume(cleft,'glow',[[0,-.155,.06,.03,.025],[0,-.097,.111,.076,.075],[0,.025,.148,.111,.062],
     [0,.091,.132,.074,.049],[0,.166,.043,.015,.011]],5.8);
-  const sparks=crownSparks(k,cleft,mobile);
+  const sparks=crownSparks(cleft,mobile);
+  const crown=buildWardenCrown(k,head,mobile);
   for(let i=0;i<5;i++){
     const x=(i-2)*.056;
     piping(cleft,i===2?'wardenWorn':'wardenSteel',[[x*.57,-.204,.107,.011],[x,-.093,.183,.016],
@@ -135,18 +142,6 @@ export function sculptFinalWarden(k,mobile){
         [.128+i*.64,.191-i,.069,.011],[.157+i*.59,.163-i,.042,.008],[.163+i*.61,.118-i,.022,.003]]));
     }
     mask.push({half,side});
-    const spike=bone(head,side*.124,.155,-.041);
-    volume(spike,'wardenSteel',out([[.013,-.013,.068,.096,.047],[.089,.144,.002,.108,.059],
-      [.12,.306,-.052,.077,.048],[.184,.481,-.097,.056,.030],[.247,.577,-.172,.028,.019],
-      [.279,.618,-.188,.005,.004]]),side*2);
-    piping(spike,'wardenBronze',out([[.055,.105,.050,.026],[.100,.260,.012,.028],[.175,.443,-.040,.024],
-      [.253,.55,-.112,.013]]));
-    piping(spike,'wardenWorn',out([[.040,.046,.090,.019],[.093,.176,.087,.022],[.120,.301,.037,.016],
-      [.184,.479,-.026,.012],[.268,.597,-.165,.004]]));
-    piping(spike,'wardenCrimson',out([[.061,.025,-.039,.031],[.103,.175,-.099,.023],[.150,.346,-.124,.018],
-      [.223,.496,-.190,.013],[.273,.603,-.185,.004]]));
-    piping(spike,'glow',out([[.060,.064,.101,.009],[.078,.167,.108,.012],[.111,.245,.064,.008],
-      [.103,.289,.040,.007],[.151,.402,.019,.008],[.194,.476,-.028,.005]]));
     for(let i=0;i<4;i++){
       const y=.123-i*.141,spread=.413-i*.029;
       const rib=bone(cleft,0,y,-.058);
@@ -268,15 +263,23 @@ export function sculptFinalWarden(k,mobile){
     campaign:{flaps,joints},sourceSculpt:true,polishEnergy:{
       tint:0xee714d,shape:'embers',anchor:body,span:[.72,.94,.61],firstStage:1,
     },
-    disposeRig(){sparks.plume.dispose();sparks.material.dispose();openingForm.dispose();},
-    cataloguePose({beat,step,headtime,wind,strike,travel,stage,fall}){
+    disposeRig(){sparks.plume.dispose();sparks.material.dispose();crown.dispose();openingForm.dispose();},
+    cataloguePose({beat,step,headtime,wind,strike,travel,stage,fall,transition,subdued}){
+      const progress=transition?.phase===2?transition.progress:stage===2?1:0;
+      const moon=T.MathUtils.smoothstep(progress,.28,.66);
+      const recoil=T.MathUtils.smoothstep(progress,.13,.29)*(1-T.MathUtils.smoothstep(progress,.31,.65));
+      crown.pose(stage,transition,subdued);
+      k.materials.wardenEmber.color.copy(emberEye).lerp(moonEye,moon);
+      head.rotation.x-=recoil*(subdued?.08:.16);
+      body.rotation.x+=recoil*(subdued?.05:.11);
       sparks.motes.visible=fall<.59;
       sparks.material.uniforms.clock.value=headtime;
       sparks.material.uniforms.summon.value=Math.max(wind*.73,strike)*(1-fall);
       sparks.material.uniforms.stage.value=stage;
+      sparks.material.uniforms.moon.value=moon;
       for(const {half,side} of mask){
-        half.rotation.y=side*(stage*.11+wind*.061-strike*.081);
-        half.rotation.z=side*(stage*.063+Math.sin(beat*.46)*.019);
+        half.rotation.y=side*(stage*.11+wind*.061-strike*.081+moon*.065);
+        half.rotation.z=side*(stage*.063+Math.sin(beat*.46)*.019+moon*.031);
       }
       for(const {rib,side,i} of ribs){
         rib.rotation.y=side*(Math.sin(beat*.73-i*.32)*.035+stage*.09+wind*.12-strike*.23);

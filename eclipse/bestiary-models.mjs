@@ -1620,8 +1620,9 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const stage=spec.phase??unit.bossPhase??0;
   const transition=unit.phaseChange;
   const progress=transition?.progress??0;
-  const opening=model.openingForm&&(stage===0||!!transition);
-  const armoured=!model.openingForm||stage>0&&(!transition||progress>=.37);
+  const shedding=transition?.phase===1;
+  const opening=model.openingForm&&(stage===0||shedding);
+  const armoured=!model.openingForm||stage>0&&(!shedding||progress>=.37);
   if(model.openingForm){
     model.openingForm.root.visible=opening;
     model.armouredForm.visible=armoured;
@@ -1646,8 +1647,12 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const crush=['burst','pounce','cinders','toll','counterCharge'].includes(patternAtContact);
   const stagger=unit.reaction&&unit.reaction.kind!=='fall'?Math.exp(-unit.reaction.age*9):0;
   const animationSpeed=1-Math.exp(-Math.max(.001,spec.dt??1/60)*(attack?29:13));
-  const facing=attack&&Math.hypot(attack.dx,attack.dz)>.05?Math.atan2(attack.dx,attack.dz):
+  let facing=attack&&Math.hypot(attack.dx,attack.dz)>.05?Math.atan2(attack.dx,attack.dz):
     spec.targetHeading??spec.heading??model.heading??(unit.face>0?.47:-.47);
+  if(transition?.phase===2&&!spec.subdued){
+    const front=T.MathUtils.smoothstep(progress,0,.16)*(1-T.MathUtils.smoothstep(progress,.57,.91));
+    facing+=Math.atan2(-Math.sin(facing),Math.cos(facing))*front;
+  }
   const change=facing-(model.heading??facing);
   const turn=Math.atan2(Math.sin(change),Math.cos(change));
   model.heading=(model.heading??facing)+turn*animationSpeed;
@@ -1662,7 +1667,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     (spec.tilt??0)*.62+fall*.24+(airborne?T.MathUtils.clamp(turn,-1,1)*travel*.22:0));
   const [width,height,depth]=dimensions;
   root.scale.set(scale*phaseScale*width,scale*phaseScale*height*(1-(spec.compression??0)*.31-brace*.038),scale*phaseScale*depth);
-  if(transition&&model.openingForm){
+  if(shedding&&model.openingForm){
     root.updateWorldMatrix(true,false);
     model.reveal.space.value.copy(root.matrixWorld).invert();
     model.openingForm.fade.space.value.copy(model.reveal.space.value);
@@ -1675,7 +1680,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.weaponFlash=null;
     return;
   }
-  if(model.reveal)model.reveal.amount.value=transition?1-T.MathUtils.smoothstep(progress,.37,.91):0;
+  if(model.reveal)model.reveal.amount.value=shedding?1-T.MathUtils.smoothstep(progress,.37,.91):0;
   body.rotation.x=-(wind*.22+brace*.15)+strike*(pattern==='slam'?.56:.26)+Math.sin(beat)*.025;
   body.rotation.z=(spec.bend??0)*.33+Math.sin(beat)*.046*(travel+.25)+(groundedBoss&&sweep?(wind*.12-strike*.18):0);
   if(head)head.rotation.x=Math.sin(beat*.76)*.055+wind*.17-strike*.16;
@@ -1730,7 +1735,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
   if(model.pao)posePao(model,unit,time,{stage,wind,strike,travel,fall,step,flash:spec.flash??0});
   if(model.signature?.type==='kirin')poseKirin(model,time,step,{wind,strike,travel,fall,stage});
   else if(model.signature)poseSignatureBeast(model,time,beat,{wind,strike,travel,fall});
-  model.cataloguePose?.({beat,headtime:time,wind,strike,travel,fall,step,stage,attackPattern:patternAtContact});
+  model.cataloguePose?.({beat,headtime:time,wind,strike,travel,fall,step,stage,transition,subdued:spec.subdued,
+    attackPattern:patternAtContact});
   for(const {root:wing,elbow,hand,side,membranous} of model.flight??[]){
     const pulse=Math.sin(beat-.59);
     wing.rotation.y=side*(.035+wind*.22-strike*.34);
@@ -1806,7 +1812,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall,turn:T.MathUtils.clamp(turn,-1,1),dt:spec.dt});
   aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,
     heading:spec.targetHeading??model.heading,fall,frame:!attack&&spec.targetHeading===undefined?root.parent:null});
-  if(transition&&progress<.83){
+  if(shedding&&progress<.83){
     model.aura.mesh.visible=false;
     model.weaponFlash=null;
   }else model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);

@@ -1289,9 +1289,10 @@ export class Game {
     unit.bossPhase++;
     unit.phaseGuard=.91;
     unit.step=Math.max(unit.step,unit.bossPhase);
-    if(primary&&unit.bossPhase===1&&unit.spec.phaseTransition){
-      const duration=unit.spec.phaseTransition;
-      unit.phaseChange={duration,elapsed:0,progress:0};
+    const duration=primary?unit.spec.phaseTransition?.[unit.bossPhase-1]:0;
+    if(duration){
+      const phase=unit.bossPhase;
+      unit.phaseChange={phase,duration,elapsed:0,progress:0};
       unit.phaseGuard=duration+.91;
       if(unit.attack)unit.attack.interrupted=true;
       unit.attack=unit.motion=unit.reaction=null;
@@ -1302,8 +1303,8 @@ export class Game {
         if(hazard.visual)this.view.removeProjectile(hazard.visual);
         return false;
       });
-      this.bossArena.transform(1);
-      this.objective('銀輪正在碎裂');
+      this.bossArena.transform(phase);
+      this.objective(phase===1?'銀輪正在碎裂':'血冠正在崩裂');
       this.audio.impact('heavy','armor');
       return;
     }
@@ -1317,7 +1318,8 @@ export class Game {
     const previous=change.progress;
     change.elapsed+=dt;
     change.progress=Math.min(1,change.elapsed/change.duration);
-    if(previous<.12&&change.progress>=.12){
+    const fracture=change.phase===2?.24:.12;
+    if(previous<fracture&&change.progress>=fracture){
       this.audio.impact('break','armor');
       this.view.feedback.kick(.11,.28,Math.PI*.63);
     }
@@ -2829,7 +2831,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   paint(0);
   let fired=!!action.portrait;
   const hold=action.phase ? .85 : .20;
-  const duration=demonstration?3.05:hold+spec.time+2.75+(action.phase===1?spec.phaseTransition??0:0);
+  const duration=demonstration?3.05:hold+spec.time+2.75+(spec.phaseTransition?.[action.phase-1]??0);
   return {
     controls,
     hero,

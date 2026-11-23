@@ -2,7 +2,7 @@ import * as T from '../three.min.mjs';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 import {finishForRoom,roomSurface,weatherFloor,weatherMasonry} from './room-surfaces.mjs?v=penumbra-1';
-import {RoomLighting} from './room-lighting.mjs?v=afterglow-1';
+import {eclipseLampFade,RoomLighting} from './room-lighting.mjs?v=afterglow-1';
 import {depthGeometry,sculptRoomDepth} from './room-depth.mjs?v=penumbra-1';
 import {LanternShadow} from './lantern-shadow.mjs?v=clear-sight-1';
 import {windGeometries,windInRoom} from './room-wind.mjs?v=afterglow-1';
@@ -701,6 +701,7 @@ function roomCenter(ctx,stage,type){
 
 const crimsonSky=new T.Color(0x3c0e1a),crimsonGlass=new T.Color(0xff445c),
   crimsonStone=new T.Color(0xb96871),crimsonFlame=new T.Color(0xff452f);
+const eclipseSky=new T.Color(0x070512);
 export class RoomLandscape {
   constructor(view,cutaway){
     this.view=view;
@@ -744,7 +745,8 @@ export class RoomLandscape {
     this.type=type;
     this.root.name='3D: '+type;
     this.view.scene.background=new T.Color(sky);
-    this.view.scene.fog=new T.FogExp2(sky,inlaid.has(type)?.017:.023);
+    this.fogDensity=inlaid.has(type)?.017:.023;
+    this.view.scene.fog=new T.FogExp2(sky,this.fogDensity);
     this.skyBase=new T.Color(sky);
     this.skyDusk=this.skyBase.clone().lerp(new T.Color(0x493041),.28);
     this.skyNight=this.skyBase.clone().lerp(new T.Color(0x0a1533),.36);
@@ -792,7 +794,7 @@ export class RoomLandscape {
     if(!retained)this.lanternShadows?.apply(this.wind.material);
     this.lanternShadows?.setObstacles(this.solid,stage.props);
     insignia(this.root,type,stage,m);
-    this.lamps=lanterns(ctx,stage);
+    this.lamps=lanterns(ctx,stage).sort((a,b)=>a.z-b.z||a.x-b.x);
     this.roomLighting.set(type,stage,this.lamps);
     this.projections=[];
     if(glassy.has(type))for(let i=0;i<5;i++){
@@ -834,13 +836,13 @@ export class RoomLandscape {
 
   light(darkness){
     this.roomLighting.light(darkness);
-    this.m.ember.opacity=.68*(1-darkness*.87);
+    this.emberOpacity=this.m.ember.opacity=.68*(1-darkness*.87);
     this.m.soft.opacity=.50*(1-darkness*.77);
     this.m.lantern.opacity=.95*(1-darkness*.88);
     for(const mat of this.projections)mat.uniforms.energy.value=.88*(1-darkness*.86);
   }
 
-  tick(time,hero,darkness,dt=0,red=0) {
+  tick(time,hero,darkness,dt=0,red=0,moon=0,eclipseProgress) {
     const still=this.view.feedback?.subdued;
     this.floorProgress+=dt;
     const shift=still?0:Math.min(1,this.floorProgress/105);
@@ -849,25 +851,35 @@ export class RoomLandscape {
     const sky=this.view.scene.background;
     sky.copy(this.skyBase).lerp(this.skyDusk,dusk).lerp(this.skyNight,night);
     if(red)sky.lerp(crimsonSky,red*.8);
-    this.view.scene.fog.color.copy(sky);
+    if(moon)sky.lerp(eclipseSky,moon*.82);
+    const fog=this.view.scene.fog;
+    fog.color.copy(sky);
+    fog.density=this.fogDensity+moon*.016;
     this.tintCrimson(red);
-    this.roomLighting.tick(time,dusk,night,red);
+    this.roomLighting.tick(time,dusk,night,red,moon,eclipseProgress,hero);
     this.wind.clock.value=still?0:time;
     this.m.water.uniforms.clock.value=time%3600;
     if(this.heroWarm){
       this.heroWarm.position.set(hero.x,1.55,hero.z);
       this.heroWarm.intensity=hero.lanternOut>0?0:8.3*(1-darkness*.23);
     }
+    const lampCount=this.lamps.length;
+    const progress=eclipseProgress??0;
+    this.m.ember.opacity=this.emberOpacity*(1-T.MathUtils.smoothstep(progress,.24,.75));
+    const lit=eclipseLampFade(progress,lampCount-1,lampCount)>0;
+    this.flames.visible=this.orbs.visible=lit;
+    if(!lit)return;
     const p=this.pose;
     for(const [i,{x,y,z,phase}] of this.lamps.entries()){
       const glow=Math.sin(time*9.6+phase*13)*.17+Math.sin(time*13+phase)*.10;
+      const wick=progress?eclipseLampFade(progress,i,lampCount):1;
       p.position.set(x,y+.14,z);
       p.rotation.set(0,time*.75+phase,glow*.32);
-      p.scale.set(.071,.179+glow*.11,.066);
+      p.scale.set(.071*wick,(.179+glow*.11)*wick,.066*wick);
       p.updateMatrix();this.flames.setMatrixAt(i,p.matrix);
       p.position.set(x,y+.21,z);
       p.quaternion.copy(this.view.camera.quaternion);
-      p.scale.set(.76+glow*.25,.82+glow*.18,1);
+      p.scale.set((.76+glow*.25)*wick,(.82+glow*.18)*wick,wick);
       p.updateMatrix();this.orbs.setMatrixAt(i,p.matrix);
     }
     this.flames.instanceMatrix.needsUpdate=true;

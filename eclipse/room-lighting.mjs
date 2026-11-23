@@ -18,38 +18,70 @@ const colors={
   crimson:[0xcc90e1,0xff735d,0xad3655,.79,2.1],
 };
 const crimsonKey=new T.Color(0xff6868),crimsonFill=new T.Color(0xff3328),crimsonRim=new T.Color(0xe52a54);
+const lampDimming=.04;
+const lampEclipseBeat=(index,count)=>.28+.43*index/Math.max(1,count-1);
+
+export function eclipseLampFade(progress,index,count){
+  const beat=lampEclipseBeat(index,count);
+  return 1-T.MathUtils.smoothstep(progress??0,beat-lampDimming,beat+lampDimming);
+}
 
 function lowMist(root,color,mobile){
   const geometry=leafPlane.clone();
   const count=mobile?3:6;
-  const seeds=new Float32Array(count);
+  const seeds=new Float32Array(count+1);
   for(let i=0;i<count;i++)seeds[i]=i*.83;
+  seeds[count]=-1;
   geometry.setAttribute('layer',new T.InstancedBufferAttribute(seeds,1));
   const material=new T.ShaderMaterial({
     transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,
-    uniforms:{ink:{value:new T.Color(color)},clock:{value:0},power:{value:1}},
+    uniforms:{ink:{value:new T.Color(color)},clock:{value:0},power:{value:1},
+      eclipse:{value:0},sweep:{value:0},eclipseClock:{value:0},lanternScreen:{value:new T.Vector2(.5,.5)}},
     vertexShader:`
       attribute float layer;
+      uniform float eclipse;
       varying vec2 v;varying float heightLayer;
       void main(){
         v=uv;heightLayer=layer;
-        gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.);
+        // The last instance is a near-plane veil, outside the viewport until the rite.
+        if(layer<0.)gl_Position=eclipse>.001?vec4(position.xy*2.,-.98,1.):vec4(-2.,-2.,0.,1.);
+        else gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.);
       }`,
     fragmentShader:`
       varying vec2 v;varying float heightLayer;
       uniform vec3 ink;uniform float clock,power;
+      uniform float eclipse,sweep,eclipseClock;
+      uniform vec2 lanternScreen;
       void main(){
+        if(heightLayer<0.){
+          float phase=eclipseClock*.84;
+          float ripple=sin(v.x*11.3+v.y*7.5-phase)*.060+
+            sin(v.x*21.6-v.y*4.1+phase*1.3)*.041;
+          float front=1.10-1.41*smoothstep(.22,.67,sweep);
+          float cover=smoothstep(front-.19,front+.09,v.y+ripple);
+          float curl=sin(v.x*19.+v.y*10.-phase+sin(v.x*6.7+v.y*8.+phase)*1.08);
+          float folds=.5+.5*sin(v.x*9.1-v.y*4.7+phase*.68+curl*.83);
+          float rim=(1.-smoothstep(.0,.14,abs(v.y+ripple-front)))*(.21+.35*folds);
+          vec2 distanceToLantern=(v-lanternScreen)*vec2(1.,1.28);
+          float shelter=.31*(1.-smoothstep(.08,.30,length(distanceToLantern)));
+          float opacity=cover*eclipse*(.49+folds*.31-shelter);
+          vec3 black=mix(vec3(.0012,.0008,.004),vec3(.028,.014,.057),folds*.20+rim);
+          gl_FragColor=vec4(black,opacity);
+          #include <colorspace_fragment>
+          return;
+        }
         vec2 p=v*2.-1.;
         float swell=sin(p.x*5.+.31*clock+heightLayer*1.4);
         float drift=sin(p.x*7.5-p.y*1.13-.21*clock+heightLayer)*.22;
         float belly=exp(-pow((p.y+swell*.15+drift)*1.84,2.0));
         float edge=1.-smoothstep(.51,.97,dot(p,p*vec2(.67,.44)));
         float sections=.52+.48*sin(p.x*4.+p.y*.9+.23*clock+heightLayer);
-        gl_FragColor=vec4(ink,edge*belly*sections*power*.21);
+        gl_FragColor=vec4(mix(ink,vec3(.015,.006,.036),eclipse),
+          edge*belly*sections*power*(.21+eclipse*.33));
         #include <colorspace_fragment>
       }`,
   });
-  const mist=new T.InstancedMesh(geometry,material,count);
+  const mist=new T.InstancedMesh(geometry,material,count+1);
   const scale=new T.Matrix4(),translation=new T.Matrix4();
   for(let i=0;i<count;i++){
     const x=(i%2===0?-1:1)*(i<2?6.1:3.1);
@@ -57,9 +89,10 @@ function lowMist(root,color,mobile){
     translation.makeTranslation(x,.68+i*.22,-10.1-i*2.30);
     mist.setMatrixAt(i,translation.multiply(scale));
   }
+  mist.setMatrixAt(count,new T.Matrix4());
   mist.renderOrder=4;
   root.add(mist);
-  return material;
+  return mist;
 }
 
 function shaft(view,group,from,to,width,color,index){
@@ -99,27 +132,33 @@ function shaft(view,group,from,to,width,color,index){
 
 function radiance(root,slots,accent,hot){
   const material=new T.ShaderMaterial({
-    uniforms:{accent:{value:new T.Color(accent)},hot:{value:new T.Color(hot)},strength:{value:1},clock:{value:0}},
+    uniforms:{accent:{value:new T.Color(accent)},hot:{value:new T.Color(hot)},strength:{value:1},clock:{value:0},
+      eclipseProgress:{value:0}},
     transparent:true,depthWrite:false,blending:T.AdditiveBlending,
     vertexShader:`
       varying vec2 v;varying float layer;
-      attribute float warm;
+      attribute float warm,lampBeat;uniform float eclipseProgress;
+      varying float wick;
       void main(){
         v=uv*2.-1.;layer=warm;
+        wick=lampBeat<0.?1.:1.-smoothstep(lampBeat-${lampDimming},lampBeat+${lampDimming},eclipseProgress);
         gl_Position=projectionMatrix*modelViewMatrix*instanceMatrix*vec4(position,1.);
       }`,
     fragmentShader:`
       varying vec2 v;varying float layer;
+      varying float wick;
       uniform vec3 accent,hot;uniform float strength,clock;
       void main(){
         float d=dot(v,v);
         float edge=(1.-smoothstep(.35,1.,d))*exp(-3.8*d);
         float flicker=.90+sin(clock*7.5+layer*9.)*.07+sin(clock*14.)*.028;
-        gl_FragColor=vec4(mix(accent,hot,layer),edge*strength*mix(.14,.29,layer)*flicker);
+        gl_FragColor=vec4(mix(accent,hot,layer),edge*strength*mix(.14,.29,layer)*flicker*wick);
         #include <colorspace_fragment>
       }`,
   });
-  const geo=ground.clone().setAttribute('warm',new T.InstancedBufferAttribute(new Float32Array(slots.map(a=>a[4])),1));
+  const geo=ground.clone()
+    .setAttribute('warm',new T.InstancedBufferAttribute(new Float32Array(slots.map(a=>a[4])),1))
+    .setAttribute('lampBeat',new T.InstancedBufferAttribute(new Float32Array(slots.map(a=>a[5]??-1)),1));
   const pile=new T.InstancedMesh(geo,material,slots.length);
   const base=new T.Object3D();
   slots.forEach(([x,z,scale,width],i)=>{
@@ -186,6 +225,7 @@ export class RoomLighting {
   constructor(view){
     this.view=view;
     this.materials=new Map();
+    this.eclipseFocus=new T.Vector3();
     this.key=new T.DirectionalLight(0xadbaff,0);
     this.fill=new T.SpotLight(0xffce9c,0,27,.66,.75,1.3);
     this.fill.position.set(8,7,-1);
@@ -251,10 +291,11 @@ export class RoomLighting {
       this.beams.push(shaft(this.view,this.volume,
         [x-direction*(3.2+index*.43),8.7+index*.44,z-9.3],[x,.35,z+3.1],5.2,hue,index));
     }
-    const slots=lamps.map(({x,z})=>[x,z,3.25,3.09,1]);
+    const slots=lamps.map(({x,z},index)=>[x,z,3.25,3.09,1,lampEclipseBeat(index,lamps.length)]);
     slots.push([-5.1,-3.3,9.0,11.2,0],[5.2,-2.8,10.7,11.9,0],[0,6.3,8.8,9.5,0]);
     this.pools=radiance(this.volume,slots,key,accent);
-    this.mist=lowMist(this.volume,new T.Color(air).multiplyScalar(.69),this.view.mobile);
+    this.mistMesh=lowMist(this.volume,new T.Color(air).multiplyScalar(.69),this.view.mobile);
+    this.mist=this.mistMesh.material;
     this.embers=motes(this.volume,this.view.mobile,air,['dunes','forge'].includes(type)?2.1:.3);
     // Each shaft keeps independent uniforms, while its compiled program survives
     // a room change. Swapping rooms changes values, not shader source.
@@ -287,10 +328,10 @@ export class RoomLighting {
     for(const beam of this.beams)beam.uniforms.density.value=this.density*(1-darkness*.89)*strength;
     this.pools.uniforms.strength.value=1-darkness*.83;
     this.mist.uniforms.power.value=.72+this.density*.26-darkness*.25;
-    this.embers.uniforms.gain.value=1-darkness*.58;
+    this.emberGain=this.embers.uniforms.gain.value=1-darkness*.58;
   }
 
-  tick(time,dusk=0,night=0,red=0){
+  tick(time,dusk=0,night=0,red=0,moon=0,eclipseProgress,hero){
     const clock=time%720;
     this.key.color.copy(this.keyBase).lerp(this.duskTone,dusk*.35).lerp(this.nightTone,night*.76);
     this.rim.color.copy(this.key.color);
@@ -314,7 +355,17 @@ export class RoomLighting {
     }
     for(const beam of this.beams)beam.uniforms.clock.value=clock;
     this.pools.uniforms.clock.value=clock;
+    this.pools.uniforms.eclipseProgress.value=eclipseProgress??0;
     this.mist.uniforms.clock.value=clock;
+    this.mist.uniforms.eclipse.value=moon;
+    this.mistMesh.frustumCulled=moon<=0;
+    if(moon>0){
+      const focus=this.eclipseFocus.set(hero.x,1.05,hero.z).project(this.view.camera);
+      this.mist.uniforms.lanternScreen.value.set(focus.x*.5+.5,focus.y*.5+.5);
+      this.mist.uniforms.sweep.value=eclipseProgress??1;
+      this.mist.uniforms.eclipseClock.value=this.view.feedback?.subdued?0:clock;
+    }
     this.embers.uniforms.clock.value=clock;
+    this.embers.uniforms.gain.value=this.emberGain*(1-moon*.86);
   }
 }

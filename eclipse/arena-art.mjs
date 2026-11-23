@@ -115,7 +115,8 @@ export class ArenaArt {
     this.view=view;
     this.root=new T.Group();
     this.phaseRoot=new T.Group();
-    view.scene.add(this.root,this.phaseRoot);
+    this.previousPhaseRoot=new T.Group();
+    view.scene.add(this.root,this.phaseRoot,this.previousPhaseRoot);
   }
 
   clear(root) {
@@ -152,6 +153,7 @@ export class ArenaArt {
     this.preparedPhases=arena?prepared?.phases:undefined;
     this.clear(this.root);
     this.clear(this.phaseRoot);
+    this.clear(this.previousPhaseRoot);
     this.arena=arena;
     this.fragments=[];
     this.columns=[];
@@ -169,7 +171,7 @@ export class ArenaArt {
     const fragments=plan.hazards.map(zone=>(zone.kind==='line'?fissure:pool)(root,zone,ink,stone,plan.style));
     const columns=(plan.pillars??[]).map(point=>monument(this.view,point,ink,{tall:true,stone}));
     for(const column of columns)root.add(column);
-    const sites=points.map(point=>fixture(this.view,root,point,plan.mode,ink,stone));
+    const sites=points.map(point=>fixture(this.view,root,point,plan.mode,plan.sealGlow??ink,stone));
     const reactsToRock=weakness.type==='projectile'||weakness.target==='pillar';
     const counterMarks=reactsToRock?rocks.map(rock=>{
       const radius=rock.radius+.25;
@@ -183,7 +185,12 @@ export class ArenaArt {
   }
 
   transform(arena) {
-    this.clear(this.phaseRoot);
+    this.clear(this.previousPhaseRoot);
+    this.previousPhaseRoot.scale.y=1;
+    if(arena.boss.phaseChange?.phase===2){
+      // Let the fog swallow the blood terrain before the life seals rise.
+      while(this.phaseRoot.children.length)this.previousPhaseRoot.add(this.phaseRoot.children[0]);
+    }else this.clear(this.phaseRoot);
     this.transient=[];
     const {weakness,rocks}=arena.counters,index=arena.phase-1;
     const phase=this.preparedPhases?.[index]??this.buildPhase(arena.plan,arena.terrain,arena.points,weakness,rocks);
@@ -222,16 +229,23 @@ export class ArenaArt {
     const arena=this.arena;
     if (!arena) return;
     const change=arena.boss.phaseChange;
-    const fade=change?T.MathUtils.smoothstep(change.progress,.36,1):1-Math.exp(-(arena.shift??0)*5.4);
+    const fade=change?T.MathUtils.smoothstep(change.progress,change.phase===2?.65:.36,change.phase===2?.94:1):
+      1-Math.exp(-(arena.shift??0)*5.4);
     if(change)this.phaseRoot.visible=fade>.001;
     else this.phaseRoot.visible=true;
+    if(this.previousPhaseRoot.children.length){
+      if(!change||change.progress>=.69)this.clear(this.previousPhaseRoot);
+      else this.previousPhaseRoot.scale.y=1-.96*T.MathUtils.smoothstep(change.progress,.39,.68);
+    }
     const dark=arena.darkness;
+    const eclipse=arena.eclipseProgress,red=arena.crimsonLight;
     const becomesMechanism=arena.phase>0&&arena.encounter.first.mode==='light';
     for (const [index,lamp] of this.lamps.entries()) {
       lamp.visible=!becomesMechanism;
-      const red=arena.crimsonLight;
-      const lit=!becomesMechanism&&(red>0||1-dark>index*.16+.23);
-      lightLantern(lamp,lit,time,Math.max(red*.60,1-dark),index,red);
+      const snuffAt=.46+.19*index/Math.max(1,this.lamps.length-1);
+      const flame=eclipse===undefined?1:1-T.MathUtils.smoothstep(eclipse,snuffAt,snuffAt+.07);
+      const lit=!becomesMechanism&&(eclipse===undefined?(red>0||1-dark>index*.16+.23):flame>.02);
+      lightLantern(lamp,lit,time,Math.max((eclipse===undefined?red:1)*.60,1-dark)*flame,index,red,flame);
     }
     for (const [index,{group,ember,surface}] of this.fragments.entries()) {
       group.scale.setScalar(.08+.92*fade);
@@ -264,10 +278,13 @@ export class ArenaArt {
       root.scale.y=.1+.9*fade;
       gem.rotation.y=time*.56+index*1.4;
       gem.visible=!point.done;
-      light.opacity=point.done?.21:.69+.16*Math.sin(time*4.4+index);
+      const moonSeal=eclipse!==undefined;
+      light.opacity=point.done?.21:moonSeal?fade*(.86+.12*Math.sin(time*4.4+index)):.69+.16*Math.sin(time*4.4+index);
       if (charge) {
         const amount=point.done?1:point.charge/arena.plan.hold;
-        charge.scale.set(charge.userData.size*amount,charge.userData.size*amount,1);
+        const radius=charge.userData.size*(moonSeal?.60+.40*amount:amount);
+        charge.scale.set(radius,radius,1);
+        if(moonSeal)charge.material.opacity=fade*(.29+.15*amount);
       }
     }
   }

@@ -161,7 +161,7 @@ export function lantern(view) {
 }
 
 const ritualFire=[new T.Color(0xff522e),new T.Color(0xffae75),new T.Color(0xed2543),new T.Color(0xea3d29)];
-export function lightLantern(root,lit,time,strength=1,index=0,red=0) {
+export function lightLantern(root,lit,time,strength=1,index=0,red=0,flameSize=1) {
   const {flame,heart,halo,light}=root.userData;
   flame.visible=halo.visible=light.visible=lit;
   if (!lit) return;
@@ -175,7 +175,7 @@ export function lightLantern(root,lit,time,strength=1,index=0,red=0) {
   const pulse=Math.sin(time*8.4+index*2.1);
   flame.position.y=.414+pulse*.033;
   flame.rotation.set(.13*pulse,time*.86,.11*Math.cos(time*6.1+index));
-  flame.scale.set(.91+pulse*.075,1.13+pulse*.20,.90);
+  flame.scale.set(.91+pulse*.075,1.13+pulse*.20,.90).multiplyScalar(flameSize);
   halo.material.opacity=strength*(.59+pulse*.11);
   light.material.opacity=strength*(.24+pulse*.043);
 }

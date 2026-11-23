@@ -772,7 +772,7 @@ export class WeaponViewer {
       view.cutaway.place(shot?T.MathUtils.lerp(hero.x,boss.x,shot):hero.x,
         shot?T.MathUtils.lerp(hero.z,boss.z,shot):hero.z,view.sight);
       view.landscape.light(darkness);
-      view.landscape.tick(view.time,hero,darkness,dt,arena?.crimsonLight??0);
+      view.landscape.tick(view.time,hero,darkness,dt,arena?.crimsonLight??0,arena?.moonMist??0,arena?.eclipseProgress);
     }
     this.renderer.render(this.scene,battleCamera);
     view.motion.budget=0;

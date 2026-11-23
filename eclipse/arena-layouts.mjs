@@ -46,7 +46,7 @@ const arenas = [
     sites:[site(-4.5,.4,'碑'),site(4.5,5.4,'碑')],hazards:[fissure(0,2.7,12,.66,-.45)],pillars:[pillar(-6.7,5.9),pillar(6.7,-.5)]},
   {floor:100,title:'血月斷王座',style:'blood',hint:'擊碎三座王座血印，瓦解護盾。',mode:'break',dark:.9,
     sites:[site(-5,4.7,'Ⅰ'),site(5,4.7,'Ⅱ'),site(0,-4.6,'Ⅲ')],hazards:[fissure(-4,1.6,7.2,.62),fissure(4,1.6,7.2,.62),pool(0,4,1.85)],
-    last:{title:'黑月吞殿',style:'void',hint:'王座塌陷。踏進最後兩道命印並留到充滿。',mode:'hold',dark:1,hold:1.65,
+    last:{title:'黑月吞殿',style:'void',hint:'王座塌陷。踏進最後兩道命印並留到充滿。',mode:'hold',dark:1,hold:1.65,sealGlow:0xe9d7ff,
       sites:[site(-4.7,2.7,'命'),site(4.7,2.7,'命')],hazards:[fissure(0,3,13,.73,Math.PI/2),pool(-5.6,-3.4,2.15),pool(5.6,-3.4,2.15)]}},
 ];
 

@@ -3,6 +3,7 @@ import {withinThreat} from './threats.mjs?v=impact-1';
 import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
 import {BossCounters} from './boss-counters.mjs?v=ledger-1';
+import {revealCurve} from './warden-transformation.mjs';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 
@@ -52,16 +53,32 @@ export class BossArena {
   }
 
   get crimsonLight() {
-    if(this.phase!==1||!this.boss.spec.phaseTransition)return 0;
-    const step=Math.max(0,Math.min(1,((this.boss.phaseChange?.progress??1)-.19)/.72));
-    return step*step*(3-2*step);
+    if(!this.boss.spec.phaseTransition)return 0;
+    const change=this.boss.phaseChange;
+    if(this.phase===1)return revealCurve(change?.progress??1,.19,.91);
+    return this.phase===2&&change?1-revealCurve(change.progress,.22,.73):0;
+  }
+
+  get eclipseProgress() {
+    if(this.phase===2&&this.boss.spec.phaseTransition)return this.boss.phaseChange?.progress??1;
+  }
+
+  get moonMist() {
+    const progress=this.eclipseProgress;
+    if(progress===undefined)return 0;
+    return revealCurve(progress,.30,.72)*(1-.76*revealCurve(progress,.73,.98));
   }
 
   get darkness() {
     if (!this.phase) return 0;
     const lights=this.plan.mode==='light' ? this.points.filter(point=>point.done).length/this.points.length : 0;
     const shadow=Math.min(1,(this.plan.dark??this.terrain.shade)+(this.aftershock?.16:0));
-    return shadow*(1-lights*.68)*(this.boss.phaseChange?this.crimsonLight:1-Math.exp(-this.shift*3.9));
+    const base=shadow*(1-lights*.68);
+    const change=this.boss.phaseChange;
+    if(!change)return base*(1-Math.exp(-this.shift*3.9));
+    if(change.phase===1)return base*this.crimsonLight;
+    const dusk=this.encounter.first.dark??.90;
+    return dusk+(base-dusk)*revealCurve(change.progress,.30,.78);
   }
 
   get targets() {
@@ -140,6 +157,7 @@ export class BossArena {
     this.tactics.observe(dt);
     this.shift+=dt;
     this.grace-=dt;
+    if(this.boss.phaseChange)return;
     this.counters.tick(dt);
     this.shieldCue-=dt;
     this.floorDamage-=dt;

@@ -1597,7 +1597,7 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
   else if(deityRelic)sculptDeityRelic(k,parts,spec.relicWeapon,mobile);
   k.sculpt?.finish(k.geometry);
   k.finish();
-  const box=new T.Box3().setFromObject(root);
+  const box=new T.Box3().setFromObject(parts.armouredForm??root);
   const weapons=enemyWeapons(root,parts);
   const palette=colors(entry);
   const currentPalette=relicLook?[...palette.slice(0,3),spec.relicWeapon.tone]:palette;
@@ -1617,8 +1617,13 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
 
 export function poseBestiary(model,unit,spec,time,x,z){
   const {root,body,crest,head,arms=[],legs=[],tail,pattern,scale,dimensions,materials,mount}=model;
-  restoreWeaponPose(model.weapons);
   const stage=spec.phase??unit.bossPhase??0;
+  const opening=model.openingForm&&stage===0;
+  if(model.openingForm){
+    model.openingForm.root.visible=opening;
+    model.armouredForm.visible=!opening;
+  }
+  if(!opening)restoreWeaponPose(model.weapons);
   const fall=spec.fall??0;
   const wind=unit.attack?T.MathUtils.clamp(1-unit.attack.time/Math.max(.001,unit.attack.windup??unit.spec.time),0,1):0;
   const release=unit.motion?.age<.34?unit.motion:null;
@@ -1653,6 +1658,12 @@ export function poseBestiary(model,unit,spec,time,x,z){
     (spec.tilt??0)*.62+fall*.24+(airborne?T.MathUtils.clamp(turn,-1,1)*travel*.22:0));
   const [width,height,depth]=dimensions;
   root.scale.set(scale*phaseScale*width,scale*phaseScale*height*(1-(spec.compression??0)*.31-brace*.038),scale*phaseScale*depth);
+  if(opening){
+    model.openingForm.pose({beat,headtime:time,wind,strike,travel,fall,step,stagger,subdued:spec.subdued});
+    model.aura.mesh.visible=false;
+    model.weaponFlash=null;
+    return;
+  }
   body.rotation.x=-(wind*.22+brace*.15)+strike*(pattern==='slam'?.56:.26)+Math.sin(beat)*.025;
   body.rotation.z=(spec.bend??0)*.33+Math.sin(beat)*.046*(travel+.25)+(groundedBoss&&sweep?(wind*.12-strike*.18):0);
   if(head)head.rotation.x=Math.sin(beat*.76)*.055+wind*.17-strike*.16;

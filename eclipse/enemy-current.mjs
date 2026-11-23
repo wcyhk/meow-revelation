@@ -335,7 +335,7 @@ export function enemyCurrent(root,bounds,{tint,effect,shape,field,pao,mobile,wea
     },
     update(time,stage,wind,strike,fall,stagger,travel=0,subdued=false,motion=null){
       const charge=Math.max(wind,strike,stagger*.45);
-      mesh.visible=fall<.98&&(root.visible||!field);
+      mesh.visible=stage>=(profile?.firstStage??0)&&fall<.98&&(root.visible||!field);
       if(!mesh.visible)return null;
       root.updateWorldMatrix(true,false);
       const amount=axes.setFromMatrixScale(root.matrixWorld).y;

@@ -58,5 +58,6 @@ export const chapterAttacks = [
   {effect:'blood',form:'吞日空殼',finishing:'eclipse',lastFinishing:'lance',moveLabels:{eclipse:'日輪合蝕',lance:'日晷穿影'},attacks:['pounce','lance','gravity','eclipse']},
   {effect:'root',form:'枯骨蔓生',finishing:'spiral',lastFinishing:'roots',moveLabels:{spiral:'孢潮迴旋',roots:'寄根穿地'},attacks:['roots','spiral','gravity','summon']},
   {effect:'void',form:'百眼展翼',finishing:'eclipse',lastFinishing:'gravefan',moveLabels:{eclipse:'黑翼蔽月',gravefan:'碎窗蝶翎'},attacks:['eclipse','blink','feathers','prison','gravefan']},
-  {effect:'blood',form:'血冠裂面',finishing:'eclipse',lastFinishing:'cinders',moveLabels:{eclipse:'萬名之蝕',cinders:'血冠裂地'},attacks:['eclipse','cleave','spiral','summon','sweep','lance','jaws','toll','cinders']},
+  {effect:'blood',form:'血冠裂面',finishing:'eclipse',lastFinishing:'cinders',entrance:{tint:0xc0e4ff,effect:'gold'},
+    moveLabels:{eclipse:'萬名之蝕',cinders:'血冠裂地'},attacks:['eclipse','cleave','spiral','summon','sweep','lance','jaws','toll','cinders']},
 ];

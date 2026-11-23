@@ -3,6 +3,7 @@ import {markEnemyWeapon} from './enemy-weapon-pose.mjs?v=night-current-1';
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=guard-forge-2';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
+import {sculptSilverWarden} from './silver-warden-sculpt.mjs';
 
 const sides=[-1,1];
 const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
@@ -62,7 +63,9 @@ function crownSparks(k,anchor,mobile){
 }
 
 export function sculptFinalWarden(k,mobile){
-  const {root,bone,mesh,sculpt,geometry}=k;
+  const {root:rig,bone,sculpt,geometry}=k;
+  const root=bone(rig,0,0,0);
+  root.name='王冠守夜者 · 血冠裂甲';
   wardenFinishes(k);
   const body=bone(root,0,1.27,0),head=bone(body,0,.945,.057),neck=bone(body,0,.678,-.083);
   const arms=[],legs=[],joints=[],flaps=[],ribs=[],hems=[],shins=[],mask=[];
@@ -199,9 +202,13 @@ export function sculptFinalWarden(k,mobile){
       flaps.push({joint:lantern,axis:'z',amp:.23,bias:0,seed:5.3});
     }
   }
-  return {body,head,arms,legs,pattern:'duel',crest:bone(root,0,0,0),
-    campaign:{flaps,joints},sourceSculpt:true,polishEnergy:{tint:0xee714d,shape:'embers',anchor:body,span:[.72,.94,.61]},
-    disposeRig(){sparks.plume.dispose();sparks.material.dispose();},
+  const openingForm=sculptSilverWarden(k,rig,mobile);
+  return {body,head,arms,legs,pattern:'duel',crest:bone(root,0,0,0),openingForm,armouredForm:root,
+    inspectionHead:openingForm.head,
+    campaign:{flaps,joints},sourceSculpt:true,polishEnergy:{
+      tint:0xee714d,shape:'embers',anchor:body,span:[.72,.94,.61],firstStage:1,
+    },
+    disposeRig(){sparks.plume.dispose();sparks.material.dispose();openingForm.dispose();},
     cataloguePose({beat,step,headtime,wind,strike,travel,stage,fall}){
       sparks.motes.visible=fall<.59;
       sparks.material.uniforms.clock.value=headtime;

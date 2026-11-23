@@ -1871,37 +1871,38 @@ export class Scenery {
       return;
     }
     const size=phase==='defeat'?7.6:5.9+(this.stage.dread??0)*2.8;
-    this.spellAccent(unit,{action:phase,element:spec.effect,tint:spec.tint,radius:size*.46,
+    const {tint,effect}=phase==='entrance'?(spec.entrance??spec):spec;
+    this.spellAccent(unit,{action:phase,element:effect,tint,radius:size*.46,
       seed:spellIndex(spec.bestiary?.id??spec.name??phase),power:1.12});
     this.shroud=phase==='entrance'?.72:phase==='defeat'?.36:.61;
     const haze=this.addEffect(plane,{x,y:.063,z},0xffffff,phase==='entrance'?1.3:.86,
       {map:this.battleTextures.dark,blend:false,scale:size,growth:1.6,opacity:.94,order:12});
     haze.spin=-.40;
-    this.addEffect(plane,{x,y:.075,z},spec.tint,1.06,{map:this.battleTextures.glyph,scale:size*.83,growth:1.34,
+    this.addEffect(plane,{x,y:.075,z},tint,1.06,{map:this.battleTextures.glyph,scale:size*.83,growth:1.34,
       opacity:.77,order:15});
-    this.spark(x,.44,z,spec.tint,phase==='defeat'?38:30,1.43,spec.effect);
+    this.spark(x,.44,z,tint,phase==='defeat'?38:30,1.43,effect);
     if(spec.relicWeapon)this.relicPulse(spec.relicWeapon,unit,2.7,0);
     if(phase!=='defeat'){
-      const color=spec.tint, radius=spec.height*.48;
-      if(spec.effect==='lightning')this.bolt({x,y:spec.height+2,z},{x,y:.2,z},color,2.12);
-      if(spec.effect==='ice'||spec.effect==='stone'){
+      const radius=spec.height*.48;
+      if(effect==='lightning')this.bolt({x,y:spec.height+2,z},{x,y:.2,z},tint,2.12);
+      if(effect==='ice'||effect==='stone'){
         for(let i=0;i<4;i++){
           const a=i*PI*.5+.37;
-          this.fallingShard(x+Math.cos(a)*radius,z+Math.sin(a)*radius,radius*.60,.35+i*.07,color);
+          this.fallingShard(x+Math.cos(a)*radius,z+Math.sin(a)*radius,radius*.60,.35+i*.07,tint);
         }
-      }else if(spec.effect==='fire'||spec.effect==='blood'){
-        this.motion.vortex(x,z,radius*1.18,color,.94);
-      }else if(spec.effect==='water'||spec.effect==='wind'){
+      }else if(effect==='fire'||effect==='blood'){
+        this.motion.vortex(x,z,radius*1.18,tint,.94);
+      }else if(effect==='water'||effect==='wind'){
         for(let i=0;i<3;i++){
           const a=i*PI*2/3;
-          this.wave(x,z,Math.cos(a),Math.sin(a),radius*1.5,color,true,spec.effect);
+          this.wave(x,z,Math.cos(a),Math.sin(a),radius*1.5,tint,true,effect);
         }
       }
-      this.elementBurst(x,.48,z,color,spec.effect,phase==='phase'?24:15,1.28);
+      this.elementBurst(x,.48,z,tint,effect,phase==='phase'?24:15,1.28);
     }
     if (this.motion.accent()) {
-      this.sealFx(x,z,spec.tint,size*.49,.96);
-      this.motion.vortex(x,z,phase==='entrance'?2.55:3.15,spec.tint);
+      this.sealFx(x,z,tint,size*.49,.96);
+      this.motion.vortex(x,z,phase==='entrance'?2.55:3.15,tint);
     }
     this.shake=Math.max(this.shake,phase==='entrance'?.21:.32);
   }

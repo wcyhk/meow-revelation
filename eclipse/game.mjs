@@ -1289,7 +1289,48 @@ export class Game {
     unit.bossPhase++;
     unit.phaseGuard=.91;
     unit.step=Math.max(unit.step,unit.bossPhase);
+    if(primary&&unit.bossPhase===1&&unit.spec.phaseTransition){
+      const duration=unit.spec.phaseTransition;
+      unit.phaseChange={duration,elapsed:0,progress:0};
+      unit.phaseGuard=duration+.91;
+      if(unit.attack)unit.attack.interrupted=true;
+      unit.attack=unit.motion=unit.reaction=null;
+      unit.kx=unit.kz=unit.move=0;
+      this.hazards=this.hazards.filter(hazard=>{
+        if(hazard.owner!==unit)return true;
+        if(hazard.windup)hazard.windup.interrupted=true;
+        if(hazard.visual)this.view.removeProjectile(hazard.visual);
+        return false;
+      });
+      this.bossArena.transform(1);
+      this.objective('銀輪正在碎裂');
+      this.audio.impact('heavy','armor');
+      return;
+    }
     if(primary)this.bossArena.transform(unit.bossPhase);
+    this.releaseBossPhase(unit,primary);
+  }
+
+  tickBossTransform(unit,dt) {
+    const change=unit.phaseChange;
+    if(!change)return false;
+    const previous=change.progress;
+    change.elapsed+=dt;
+    change.progress=Math.min(1,change.elapsed/change.duration);
+    if(previous<.12&&change.progress>=.12){
+      this.audio.impact('break','armor');
+      this.view.feedback.kick(.11,.28,Math.PI*.63);
+    }
+    if(change.progress>=1){
+      unit.phaseChange=null;
+      unit.phaseGuard=.91;
+      this.bossArena.showMechanisms();
+      this.releaseBossPhase(unit,true);
+    }
+    return true;
+  }
+
+  releaseBossPhase(unit,primary) {
     const finisher=unit.bossPhase===2?unit.spec.lastFinishing??unit.spec.finishing:unit.spec.finishing;
     this.beginEnemyAttack(unit,finisher??unit.spec.attacks[0]);
     this.view.bossCue(unit,'phase');
@@ -1458,6 +1499,7 @@ export class Game {
       unit.exposed-=dt;
       unit.phaseGuard-=dt;
       unit.morale-=dt;
+      if(this.tickBossTransform(unit,dt))continue;
       if (unit.lured>0) unit.lured-=dt;
       if (unit.frozen>0) {
         unit.frozen-=dt;
@@ -1920,7 +1962,7 @@ export class Game {
     if (boss) this.ui['boss-fill'].style.transform='scaleX('+clamp(boss.hp/boss.spec.hp,0,1)+')';
     const arena=this.bossArena;
     const arenaHint=this.ui['boss-arena-hint'];
-    arenaHint.hidden=!boss||!arena?.phase;
+    arenaHint.hidden=!boss||!arena?.phase||!!boss.phaseChange;
     arenaHint.classList.toggle('tactic',!!boss&&arena?.tactics.cueTime>0);
     this.ui['boss-hud'].classList.toggle('shielded',!!boss&&!!arena?.locked);
     if (!arenaHint.hidden) {
@@ -2787,7 +2829,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   paint(0);
   let fired=!!action.portrait;
   const hold=action.phase ? .85 : .20;
-  const duration=demonstration?3.05:hold+spec.time+2.75;
+  const duration=demonstration?3.05:hold+spec.time+2.75+(action.phase===1?spec.phaseTransition??0:0);
   return {
     controls,
     hero,
@@ -2813,7 +2855,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
         }else if(action.phase){
           unit.hp=spec.hp*spec.phases[unit.bossPhase];
           practice.advanceBossPhase(unit);
-          signal.phase(unit.bossPhase,arena.plan.title);
+          if(!unit.phaseChange)signal.phase(unit.bossPhase,arena.plan.title);
         }else{
           practice.beginEnemyAttack(unit,action.pattern);
         }
@@ -2824,10 +2866,13 @@ function makeBossPractice(view,dossier,action,signal,sound) {
         practice.moveUnit(unit,dt*speed,Math.sin(t*2.8)*dt*.60,.35);
         unit.move=1;
       }else if(demonstration==='travel')unit.move*=Math.exp(-dt*10);
-      if(drill&&fired&&!done){
+      if(drill&&fired&&!done&&!unit.phaseChange){
         const hasRift=riftDrill&&practice.hazards.some(hazard=>hazard.residue==='embers');
         exercise.attack=riftDrill&&!hasRift?'cinders':null;
         practice.updateEnemies(dt,exercise);
+      }else if(unit.phaseChange){
+        practice.tickBossTransform(unit,dt);
+        if(!unit.phaseChange)signal.phase(unit.bossPhase,arena.plan.title);
       }else{
         unit.age+=dt;
         unit.phaseGuard-=dt;
@@ -2846,7 +2891,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
         else arena.shift+=dt;
       }
       advanceThreats(practice,dt);
-      if(drill&&fired&&!done){
+      if(drill&&fired&&!done&&!unit.phaseChange){
         if(riftDrill)for(const hazard of practice.hazards){
           if(hazard.kind==='residue'&&hazard.residue==='embers'&&!hazard.rehearsal){
             hazard.rehearsal=true;

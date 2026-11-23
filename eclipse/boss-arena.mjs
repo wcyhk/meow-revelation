@@ -35,7 +35,7 @@ export class BossArena {
     }
     this.locked=!!this.plan.mode&&this.points.some(point=>!point.done);
     this.shift=0;
-    this.grace=.85;
+    this.grace=.85+(this.boss.phaseChange?.duration??0);
     this.castReady=1.4;
     this.baitCooldown=0;
     this.shieldCue=0;
@@ -43,19 +43,29 @@ export class BossArena {
     this.tactics.reset();
     this.counters.reset(phase);
     this.game.view.transformBossArena(this);
+    if(!this.boss.phaseChange)this.showMechanisms();
+  }
+
+  showMechanisms() {
     this.game.setupMissionPins();
     this.game.objective(this.locked?this.plan.hint:'擊敗 '+this.boss.spec.name);
+  }
+
+  get crimsonLight() {
+    if(this.phase!==1||!this.boss.spec.phaseTransition)return 0;
+    const step=Math.max(0,Math.min(1,((this.boss.phaseChange?.progress??1)-.19)/.72));
+    return step*step*(3-2*step);
   }
 
   get darkness() {
     if (!this.phase) return 0;
     const lights=this.plan.mode==='light' ? this.points.filter(point=>point.done).length/this.points.length : 0;
     const shadow=Math.min(1,(this.plan.dark??this.terrain.shade)+(this.aftershock?.16:0));
-    return shadow*(1-lights*.68)*(1-Math.exp(-this.shift*3.9));
+    return shadow*(1-lights*.68)*(this.boss.phaseChange?this.crimsonLight:1-Math.exp(-this.shift*3.9));
   }
 
   get targets() {
-    return this.locked&&this.plan.mode==='break' ? this.points.filter(point=>!point.done) : [];
+    return !this.boss.phaseChange&&this.locked&&this.plan.mode==='break' ? this.points.filter(point=>!point.done) : [];
   }
 
   nearby(hero) {
@@ -73,7 +83,7 @@ export class BossArena {
   }
 
   hit(point,damage) {
-    if (!this.locked||this.plan.mode!=='break'||point.done) return false;
+    if (this.boss.phaseChange||!this.locked||this.plan.mode!=='break'||point.done) return false;
     point.hp=Math.max(0,point.hp-damage);
     const {view}=this.game;
     view.spark(point.x,.81,point.z,this.terrain.ink,8,.67,'stone');
@@ -88,7 +98,7 @@ export class BossArena {
   }
 
   blocks(unit,margin,previous) {
-    return this.phase>0&&this.pillars.some(pillar=>{
+    return !this.boss.phaseChange&&this.phase>0&&this.pillars.some(pillar=>{
       const gap=distance(unit,pillar);
       return gap<pillar.radius+margin&&(!previous||gap<=distance(previous,pillar));
     });
@@ -116,7 +126,7 @@ export class BossArena {
   }
 
   resolve(hazard) {
-    if (hazard.arena!==this||hazard.arenaPhase!==this.phase||!this.locked) return;
+    if (this.boss.phaseChange||hazard.arena!==this||hazard.arenaPhase!==this.phase||!this.locked) return;
     for (const point of this.points) {
       if (!point.done&&withinThreat(point,hazard)) {
         this.activate(point);

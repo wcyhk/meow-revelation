@@ -160,10 +160,18 @@ export function lantern(view) {
   return root;
 }
 
-export function lightLantern(root,lit,time,strength=1,index=0) {
-  const {flame,halo,light}=root.userData;
+const ritualFire=[new T.Color(0xff522e),new T.Color(0xffae75),new T.Color(0xed2543),new T.Color(0xea3d29)];
+export function lightLantern(root,lit,time,strength=1,index=0,red=0) {
+  const {flame,heart,halo,light}=root.userData;
   flame.visible=halo.visible=light.visible=lit;
   if (!lit) return;
+  if(red||root.userData.crimson){
+    flame.material.color.setHex(0xffc477).lerp(ritualFire[0],red);
+    heart.material.color.setHex(0xfff3bb).lerp(ritualFire[1],red);
+    halo.material.color.setHex(0xffa760).lerp(ritualFire[2],red);
+    light.material.color.setHex(0xffbd77).lerp(ritualFire[3],red);
+    root.userData.crimson=red;
+  }
   const pulse=Math.sin(time*8.4+index*2.1);
   flame.position.y=.414+pulse*.033;
   flame.rotation.set(.13*pulse,time*.86,.11*Math.cos(time*6.1+index));

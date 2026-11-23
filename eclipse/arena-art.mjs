@@ -194,6 +194,7 @@ export class ArenaArt {
     this.sites=phase.sites;
     this.counterMarks=phase.counterMarks;
     for(const [index,site] of this.sites.entries())site.point=arena.points[index];
+    if(arena.boss.phaseChange)return;
     const {ink}=arena.terrain;
     for (const zone of arena.hazards) {
       const count=this.view.mobile?3:5;
@@ -220,13 +221,17 @@ export class ArenaArt {
   render(time) {
     const arena=this.arena;
     if (!arena) return;
-    const fade=1-Math.exp(-(arena.shift??0)*5.4);
+    const change=arena.boss.phaseChange;
+    const fade=change?T.MathUtils.smoothstep(change.progress,.36,1):1-Math.exp(-(arena.shift??0)*5.4);
+    if(change)this.phaseRoot.visible=fade>.001;
+    else this.phaseRoot.visible=true;
     const dark=arena.darkness;
     const becomesMechanism=arena.phase>0&&arena.encounter.first.mode==='light';
     for (const [index,lamp] of this.lamps.entries()) {
       lamp.visible=!becomesMechanism;
-      const lit=!becomesMechanism&&1-dark>index*.16+.23;
-      lightLantern(lamp,lit,time,1-dark,index);
+      const red=arena.crimsonLight;
+      const lit=!becomesMechanism&&(red>0||1-dark>index*.16+.23);
+      lightLantern(lamp,lit,time,Math.max(red*.60,1-dark),index,red);
     }
     for (const [index,{group,ember,surface}] of this.fragments.entries()) {
       group.scale.setScalar(.08+.92*fade);

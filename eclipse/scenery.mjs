@@ -2217,7 +2217,7 @@ export class Scenery {
       this.camera.position.addScaledVector(this.cameraUp,frame.y+y);
       this.camera.updateMatrixWorld();
       this.cutaway.place(hero.x,hero.z,sceneAngle);
-      this.landscape.tick(time,hero,darkness,paused?0:dt);
+      this.landscape.tick(time,hero,darkness,paused?0:dt,this.arenaArt.arena?.crimsonLight??0);
       this.lanternArt.tick(hero,time,this.stage,dt);
       this.landscape.lanternShadows.update(this.lanternArt.light,this.arenaArt.arena?.pillars,
         this.lanternArt.route?.barricades);

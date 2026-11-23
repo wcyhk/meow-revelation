@@ -4,6 +4,7 @@ import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=guard-forge-2';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {sculptSilverWarden} from './silver-warden-sculpt.mjs';
+import {wardenDissolve} from './warden-transformation.mjs';
 
 const sides=[-1,1];
 const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
@@ -11,15 +12,17 @@ const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
 function wardenFinishes(k){
   for(const [name,color,metalness,roughness,kind] of [
     ['wardenBronze',0x7a542e,.73,.54,'bronze'],
-    ['wardenSteel',0x383d44,.67,.48,'iron'],
-    ['wardenWorn',0x877e65,.46,.53,'bone'],
-    ['wardenCloth',0x442b32,.09,.78,'cloth'],
+    ['wardenSteel',0x454554,.70,.42,'iron'],
+    ['wardenWorn',0xb2a388,.52,.46,'bone'],
+    ['wardenCloth',0x492c43,.12,.73,'cloth'],
+    ['wardenCrimson',0x6d2537,.53,.39,'iron'],
   ]){
     k.materials[name]=paintedFinish(new T.MeshStandardMaterial({
       color,metalness,roughness,vertexColors:true,envMap:forgeEnvironment(),
       envMapIntensity:metalness>.4?.81:.33,
     }),kind,true,true);
   }
+  k.materials.wardenEmber=new T.MeshBasicMaterial({color:0xffa66d,toneMapped:false});
 }
 
 function crownSparks(k,anchor,mobile){
@@ -74,6 +77,7 @@ export function sculptFinalWarden(k,mobile){
   }));
   const piping=(joint,m,path)=>sculpt.sweep(joint,m,path,{sides:7,steps:14,ridge:.22});
   const plate=(joint,m,points,t=.065)=>sculpt.plate(joint,m,points,t,.018);
+  const stud=(joint,m,x,y,z,w,h,d)=>k.mesh(joint,'gem',m,x,y,z,w,h,d);
   const cleft=bone(body,0,.315,.257);
   cleft.name='王冠守夜者 · 長明燈匣';
   volume(body,'deep',[[0,-.292,-.032,.226,.194],[0,-.075,-.010,.303,.255],
@@ -91,6 +95,16 @@ export function sculptFinalWarden(k,mobile){
     piping(cleft,i===2?'wardenWorn':'wardenSteel',[[x*.57,-.204,.107,.011],[x,-.093,.183,.016],
       [x*1.12,.018,.217,.018],[x*.74,.142,.18,.015],[x*.39,.225,.095,.006]]);
   }
+  const spine=bone(body,0,.179,-.247);
+  spine.name='王冠守夜者 · 背脊鎖甲';
+  for(let i=0;i<6;i++){
+    const y=.515-i*.143,width=.149+Math.sin(i*.62)*.078,z=-.144-Math.sin(i*.64)*.055;
+    plate(spine,i%2?'wardenSteel':'wardenCrimson',[
+      [-width,y-.032,z+.061],[-width*.63,y+.053,z],[0,y+.075,z-.068],
+      [width*.63,y+.053,z],[width,y-.032,z+.061],[0,y-.117,z-.061],
+    ],.06);
+    stud(spine,i%2?'wardenBronze':'glow',0,y-.021,z-.096,.035,.051,.024);
+  }
 
   for(const side of sides){
     const out=path=>reflect(side,path);
@@ -104,7 +118,12 @@ export function sculptFinalWarden(k,mobile){
       [.081,.177,.085,.039,.032],[.024,.232,.056,.028,.023],[-.012,.291,-.042,.004,.004]]),side*1.14);
     piping(half,'wardenBronze',out([[.005,.207,.074,.018],[.063,.186,.106,.027],[.125,.148,.096,.026],
       [.17,.102,.043,.019],[.184,.054,-.006,.004]]));
+    plate(half,'deep',out([[.010,.078,.124],[.062,.126,.140],[.131,.136,.113],[.155,.087,.090],
+      [.102,.065,.116],[.053,.067,.130]]),.023);
     piping(half,'glow',out([[.016,.092,.105,.005],[.067,.109,.121,.015],[.104,.116,.103,.010],[.135,.119,.091,.004]]));
+    piping(half,'wardenEmber',out([[.023,.090,.165,.004],[.060,.111,.172,.009],[.097,.113,.161,.007],[.139,.122,.122,.004]]));
+    plate(half,'wardenWorn',out([[.023,.010,.126],[.082,-.011,.152],[.153,.057,.102],[.159,-.035,.083],
+      [.115,-.12,.124],[.098,-.195,.127],[.069,-.131,.142],[.045,-.11,.140]]),.028);
     for(let n=0;n<3;n++){
       const travel=n*.038;
       piping(half,'wardenWorn',out([[.017+travel,-.084-travel,.128,.014],[.046+travel,-.116-travel,.146,.016],
@@ -122,6 +141,12 @@ export function sculptFinalWarden(k,mobile){
       [.279,.618,-.188,.005,.004]]),side*2);
     piping(spike,'wardenBronze',out([[.055,.105,.050,.026],[.100,.260,.012,.028],[.175,.443,-.040,.024],
       [.253,.55,-.112,.013]]));
+    piping(spike,'wardenWorn',out([[.040,.046,.090,.019],[.093,.176,.087,.022],[.120,.301,.037,.016],
+      [.184,.479,-.026,.012],[.268,.597,-.165,.004]]));
+    piping(spike,'wardenCrimson',out([[.061,.025,-.039,.031],[.103,.175,-.099,.023],[.150,.346,-.124,.018],
+      [.223,.496,-.190,.013],[.273,.603,-.185,.004]]));
+    piping(spike,'glow',out([[.060,.064,.101,.009],[.078,.167,.108,.012],[.111,.245,.064,.008],
+      [.103,.289,.040,.007],[.151,.402,.019,.008],[.194,.476,-.028,.005]]));
     for(let i=0;i<4;i++){
       const y=.123-i*.141,spread=.413-i*.029;
       const rib=bone(cleft,0,y,-.058);
@@ -130,6 +155,14 @@ export function sculptFinalWarden(k,mobile){
         [spread+.007,.011,-.123],[spread-.059,-.037,-.143],[.172,.029,.095],[.046,-.018,.169]]),.055);
       piping(rib,i%2?'wardenWorn':'body',out([[.059,.038,.168,.011],[.176,.105,.137,.017],[spread-.015,.092,-.037,.013]]));
       ribs.push({rib,side,i});
+    }
+    const collar=bone(body,0,.45,-.105);
+    for(let i=0;i<3;i++){
+      const margin=i*.051;
+      plate(collar,i===1?'wardenCrimson':'wardenSteel',out([[.086,.138-margin,-.235],[.198,.185-margin,-.264],
+        [.378,.151-margin,-.208],[.426,.072-margin,-.092],[.320,.038-margin,-.197],[.135,.056-margin,-.280]]),.034);
+      piping(collar,'wardenWorn',out([[.100,.137-margin,-.250,.009],[.196,.180-margin,-.286,.012],
+        [.364,.151-margin,-.250,.011],[.417,.078-margin,-.104,.007]]));
     }
     const arm=bone(body,side*.441,.501,.012),elbow=bone(arm,side*.061,-.49,.015),grip=bone(elbow,side*.027,-.420,.065);
     arms.push(arm);joints.push({joint:elbow,side});
@@ -146,7 +179,14 @@ export function sculptFinalWarden(k,mobile){
         [-.106,y-.06,.088]]));
       piping(arm,'wardenBronze',out([[.025,y+.081,-.235,.022],[x+.111,y+.141,-.187,.025],[tip+.015,y+.093,-.042,.021],
         [tip-.048,y-.071,.136,.019],[.153,y-.104,.202,.011]]));
+      plate(arm,'wardenCrimson',out([[.008,y+.042,.177],[.107,y+.112,.188],[tip-.029,y+.063,.115],
+        [tip-.059,y-.069,.148],[.137,y-.086,.209],[.021,y-.044,.192]]),.029);
+      stud(arm,'wardenWorn',side*(.108+i*.021),y+.004,.221,.025,.032,.027);
     }
+    plate(elbow,'wardenSteel',out([[-.036,-.066,.130],[.116,-.030,.148],[.184,-.118,.112],
+      [.160,-.331,.140],[.061,-.424,.180],[-.042,-.355,.146]]),.047);
+    piping(elbow,'wardenWorn',out([[.019,-.093,.174,.012],[.114,-.084,.178,.018],
+      [.143,-.183,.174,.017],[.109,-.341,.189,.014],[.063,-.420,.208,.009]]));
     for(let i=0;i<4;i++){
       const x=(i-1.5)*.056;
       piping(grip,'edge',[[x,-.056,.122,.027],[x,-.147,.143,.029],[x*.94,-.182,.096,.024],[x*.96,-.158,.061,.011]]);
@@ -155,6 +195,15 @@ export function sculptFinalWarden(k,mobile){
     legs.push(leg);shins.push({shin,side});
     volume(leg,'deep',out([[.034,-.55,.08,.120,.114],[.022,-.342,.038,.16,.161],
       [0,-.028,-.006,.207,.183],[.01,.101,-.004,.167,.153]]));
+    for(let i=0;i<3;i++){
+      const y=.121-i*.129,z=.191-i*.011;
+      plate(leg,i===1?'wardenCrimson':'wardenSteel',out([
+        [-.112,y+.022,z],[.061,y+.087,z+.020],[.205,y+.026,z-.016],
+        [.159,y-.104,z+.010],[.025,y-.141,z+.046],[-.089,y-.071,z+.026],
+      ]),.042);
+      piping(leg,'wardenBronze',out([[.190,y+.022,z+.009],[.149,y-.093,z+.038],
+        [.027,y-.128,z+.068],[-.078,y-.064,z+.052]]));
+    }
     volume(shin,'wardenSteel',out([[.022,-.442,.046,.093,.111],[.065,-.277,-.032,.133,.111],
       [.035,-.133,-.001,.157,.151],[.013,.037,.041,.15,.16]]));
     plate(shin,'wardenBronze',out([[-.098,.104,.101],[.042,.139,.169],[.153,.041,.128],
@@ -177,6 +226,8 @@ export function sculptFinalWarden(k,mobile){
         [.148,-len*.408,-.168,width*.56,.037],[.179,-len*.557,-.223,width*.22,.021],[.155,-len*.589,-.245,.005,.004]]),i*2.1-side);
       piping(end,'wardenBronze',out([[.018,.018,-.018,.014],[.093,-len*.212,-.066,.016],[.142,-len*.409,-.20,.014],
         [.15,-len*.554,-.256,.004]]));
+      piping(cape,i%2?'wardenWorn':'wardenCrimson',out([[.024,-.052,-.073,.012],
+        [.061,-len*.234,-.145,.017],[.096+i*.012,-len*.405,-.201,.012],[.107+i*.018,-len*.50,-.226,.006]]));
       hems.push({cape,end,side,i});
     }
     if(side===1){
@@ -190,6 +241,14 @@ export function sculptFinalWarden(k,mobile){
       piping(sword,'edge',[[-.066,.288,.104,.021],[-.091,.601,.085,.027],[-.033,1.014,.103,.026],
         [.096,1.392,.112,.025],[.269,1.635,.193,.008]]);
       piping(sword,'trim',[[.033,.314,.109,.028],[.092,.719,.092,.033],[.145,1.058,.111,.024],[.183,1.328,.116,.009]]);
+      for(let i=0;i<5;i++){
+        const y=.32+i*.22,x=.046+i*.027;
+        plate(sword,i%2?'wardenCrimson':'wardenSteel',[[x-.044,y,.118],[x,y+.079,.128],
+          [x+.045,y+.005,.119],[x,y-.047,.124]],.026);
+        piping(sword,'glow',[[x-.017,y,.138,.007],[x,y+.032,.148,.012],[x+.017,y,.138,.005]]);
+      }
+      piping(sword,'wardenWorn',[[.142,.242,.066,.020],[.241,.583,.069,.017],[.281,.737,.090,.016],
+        [.354,1.174,.105,.012],[.266,1.642,.154,.005]]);
     }else{
       const lantern=bone(grip,0,-.118,.169);
       lantern.name='王冠守夜者 · 殘燈';
@@ -202,9 +261,10 @@ export function sculptFinalWarden(k,mobile){
       flaps.push({joint:lantern,axis:'z',amp:.23,bias:0,seed:5.3});
     }
   }
+  const reveal=wardenDissolve(Object.values(k.materials),true);
   const openingForm=sculptSilverWarden(k,rig,mobile);
   return {body,head,arms,legs,pattern:'duel',crest:bone(root,0,0,0),openingForm,armouredForm:root,
-    inspectionHead:openingForm.head,
+    reveal,inspectionHead:openingForm.head,
     campaign:{flaps,joints},sourceSculpt:true,polishEnergy:{
       tint:0xee714d,shape:'embers',anchor:body,span:[.72,.94,.61],firstStage:1,
     },

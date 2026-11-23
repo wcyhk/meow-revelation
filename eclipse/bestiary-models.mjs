@@ -1618,12 +1618,15 @@ export function mountBestiary(scene,entry,height,mobile=false,spec={}){
 export function poseBestiary(model,unit,spec,time,x,z){
   const {root,body,crest,head,arms=[],legs=[],tail,pattern,scale,dimensions,materials,mount}=model;
   const stage=spec.phase??unit.bossPhase??0;
-  const opening=model.openingForm&&stage===0;
+  const transition=unit.phaseChange;
+  const progress=transition?.progress??0;
+  const opening=model.openingForm&&(stage===0||!!transition);
+  const armoured=!model.openingForm||stage>0&&(!transition||progress>=.37);
   if(model.openingForm){
     model.openingForm.root.visible=opening;
-    model.armouredForm.visible=!opening;
+    model.armouredForm.visible=armoured;
   }
-  if(!opening)restoreWeaponPose(model.weapons);
+  if(armoured)restoreWeaponPose(model.weapons);
   const fall=spec.fall??0;
   const wind=unit.attack?T.MathUtils.clamp(1-unit.attack.time/Math.max(.001,unit.attack.windup??unit.spec.time),0,1):0;
   const release=unit.motion?.age<.34?unit.motion:null;
@@ -1633,7 +1636,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const airborne=flight||pattern==='hover'&&(!model.footed||unit.spec?.float>0||!!model.pao);
   const travel=spec.stepWeight??unit.move??0;
   const step=spec.gaitPhase??beat;
-  const phaseScale=1+stage*(model.pao?.047:.155);
+  const visualStage=transition?stage-1+T.MathUtils.smoothstep(progress,.35,.93):stage;
+  const phaseScale=1+visualStage*(model.pao?.047:.155);
   root.visible=(spec.fade??1)>.18;
   const attack=unit.attack??release;
   const patternAtContact=attack?.pattern;
@@ -1658,12 +1662,20 @@ export function poseBestiary(model,unit,spec,time,x,z){
     (spec.tilt??0)*.62+fall*.24+(airborne?T.MathUtils.clamp(turn,-1,1)*travel*.22:0));
   const [width,height,depth]=dimensions;
   root.scale.set(scale*phaseScale*width,scale*phaseScale*height*(1-(spec.compression??0)*.31-brace*.038),scale*phaseScale*depth);
+  if(transition&&model.openingForm){
+    root.updateWorldMatrix(true,false);
+    model.reveal.space.value.copy(root.matrixWorld).invert();
+    model.openingForm.fade.space.value.copy(model.reveal.space.value);
+  }
   if(opening){
-    model.openingForm.pose({beat,headtime:time,wind,strike,travel,fall,step,stagger,subdued:spec.subdued});
+    model.openingForm.pose({beat,headtime:time,wind,strike,travel,fall,step,stagger,subdued:spec.subdued,progress});
+  }
+  if(!armoured){
     model.aura.mesh.visible=false;
     model.weaponFlash=null;
     return;
   }
+  if(model.reveal)model.reveal.amount.value=transition?1-T.MathUtils.smoothstep(progress,.37,.91):0;
   body.rotation.x=-(wind*.22+brace*.15)+strike*(pattern==='slam'?.56:.26)+Math.sin(beat)*.025;
   body.rotation.z=(spec.bend??0)*.33+Math.sin(beat)*.046*(travel+.25)+(groundedBoss&&sweep?(wind*.12-strike*.18):0);
   if(head)head.rotation.x=Math.sin(beat*.76)*.055+wind*.17-strike*.16;
@@ -1794,7 +1806,10 @@ export function poseBestiary(model,unit,spec,time,x,z){
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall,turn:T.MathUtils.clamp(turn,-1,1),dt:spec.dt});
   aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,
     heading:spec.targetHeading??model.heading,fall,frame:!attack&&spec.targetHeading===undefined?root.parent:null});
-  model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
+  if(transition&&progress<.83){
+    model.aura.mesh.visible=false;
+    model.weaponFlash=null;
+  }else model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
   if(model.weaponEmission){
     const uniforms=model.weaponEmission;
     const energy=model.aura.mesh.material.uniforms;

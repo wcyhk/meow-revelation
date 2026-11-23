@@ -120,10 +120,12 @@ export class WeaponViewer {
     this.viewAngles.hidden=true;
     this.stage.append(this.image,this.canvas,this.hint,this.zoomTools,this.viewAngles);
     this.inspect=button('旋轉睇模型',()=>this.showModel());
+    this.armour=button('裂甲造型',()=>this.showModel(1));
+    this.armour.hidden=true;
     this.combo=button('播放三段普攻',()=>this.play('combo'));
     this.skill=button('播放技能',()=>this.play('skill'));
     this.tools=node('div','weapon-viewer-tools');
-    this.tools.append(this.inspect,this.combo,this.skill);
+    this.tools.append(this.inspect,this.armour,this.combo,this.skill);
     this.drillTools=node('div','counter-drill-tools');
     const roll=button('翻滾',()=>{this.practice.controls.roll=true;});
     const interact=button('祭燈／機關',()=>{this.practice.controls.interact=true;});
@@ -301,7 +303,7 @@ export class WeaponViewer {
       choice:'挑戰此頭目',description:spec.signature,commit,practice});
   }
 
-  get controls(){return [this.inspect,this.combo,this.skill,...this.phaseControls,...this.attackControls,
+  get controls(){return [this.inspect,this.armour,this.combo,this.skill,...this.phaseControls,...this.attackControls,
     ...this.motions.querySelectorAll('button'),
     ...(this.boss?this.weakness.querySelectorAll('button'):[])];}
 
@@ -320,6 +322,7 @@ export class WeaponViewer {
     this.dialog.classList.toggle('pao-viewer',paoForms.has(this.boss?.bestiary?.id));
     this.dialog.style.setProperty('--preview-ink',ink);
     this.combo.hidden=this.skill.hidden=!!this.boss;
+    this.armour.hidden=!this.boss?.phaseTransition;
     this.notes.hidden=!!this.boss;this.notes.open=false;
     this.attacks.hidden=!this.boss;
     this.motions.hidden=!this.boss||!this.motionNames;
@@ -511,12 +514,12 @@ export class WeaponViewer {
 
   renderModel(){
     const rig=this.bossRig;
-    if(this.refreshEnergy)rig?.aura.update(this.modelTime,0,0,0,0,0);
+    if(this.refreshEnergy)rig?.aura.update(this.modelTime,this.modelPhase,0,0,0,0);
     this.refreshEnergy=false;
     cancelAnimationFrame(this.modelFrame);
     this.modelFrame=0;
     if(this.closeUp&&rig){
-      const focus=rig.portraitHead??rig.mount?.helm??rig.inspectionHead??rig.head??rig.heads?.[0]
+      const focus=rig.portraitHead??rig.mount?.helm??(this.modelPhase&&rig.armouredForm?rig.head:rig.inspectionHead)??rig.head??rig.heads?.[0]
         ??rig.body.userData.inspectionHead??rig.body.userData.dragonHead??rig.body;
       focus.getWorldPosition(previewFocus);
       inspectCamera.position.set(previewFocus.x,previewFocus.y+.045,8);
@@ -527,14 +530,15 @@ export class WeaponViewer {
     if(this.weapon&&this.item)this.studioReady.add(this.item);
   }
 
-  showModel(){
+  showModel(phase=0){
     const model=this.boss?.bestiary??this.boss?.model;
     if(this.boss&&!model){this.playBoss({portrait:true},this.inspect);return;}
     this.clearScene();
     this.mode='model';
     this.modelTime=0;
     this.stage.dataset.preview='model';
-    this.setActive(this.inspect);
+    this.modelPhase=phase;
+    this.setActive(phase?this.armour:this.inspect);
     this.hint.textContent='拖動旋轉';
     this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
     this.drillTools.hidden=true;
@@ -568,7 +572,7 @@ export class WeaponViewer {
     if(this.boss){
       this.bossRig=mountBestiary(this.scene,model,this.boss.height,this.main.mobile,this.boss);
       const actor={phase:0,move:0,face:1,spec:this.boss};
-      poseBestiary(this.bossRig,actor,{phase:0},0,0,0);
+      poseBestiary(this.bossRig,actor,{phase:this.modelPhase},0,0,0);
       item=this.bossRig.root;
       this.displayActor=actor;
     }else item=borrowForge(this.weapon);
@@ -607,7 +611,7 @@ export class WeaponViewer {
           frame=now;
           const clock=(now-start)/1000;
           this.modelTime=clock;
-          poseBestiary(this.bossRig,this.displayActor,{phase:0,dt},clock,0,0);
+          poseBestiary(this.bossRig,this.displayActor,{phase:this.modelPhase,dt},clock,0,0);
           this.renderModel();
         }
         this.raf=requestAnimationFrame(update);
@@ -755,7 +759,7 @@ export class WeaponViewer {
       view.sight.set(0,0,1).applyQuaternion(battleCamera.quaternion);
       view.cutaway.place(hero.x,hero.z,view.sight);
       view.landscape.light(darkness);
-      view.landscape.tick(view.time,hero,darkness,dt);
+      view.landscape.tick(view.time,hero,darkness,dt,view.arenaArt.arena?.crimsonLight??0);
     }
     this.renderer.render(this.scene,battleCamera);
     view.motion.budget=0;

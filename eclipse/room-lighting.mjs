@@ -17,6 +17,7 @@ const colors={
   throne:[0x8cbbff,0xfb89a8,0x655bab,.75,2.2],
   crimson:[0xcc90e1,0xff735d,0xad3655,.79,2.1],
 };
+const crimsonKey=new T.Color(0xff6868),crimsonFill=new T.Color(0xff3328),crimsonRim=new T.Color(0xe52a54);
 
 function lowMist(root,color,mobile){
   const geometry=leafPlane.clone();
@@ -272,12 +273,16 @@ export class RoomLighting {
     this.pools=replacements.get(this.pools)??this.pools;
     this.mist=replacements.get(this.mist)??this.mist;
     this.embers=replacements.get(this.embers)??this.embers;
+    this.beamTints=this.beams.map(beam=>beam.uniforms.color.value.clone());
+    this.mistTint=this.mist.uniforms.ink.value.clone();
+    this.emberTint=this.embers.uniforms.ink.value.clone();
+    this.crimson=0;
   }
 
   light(darkness){
     this.darkness=darkness;
-    this.fill.intensity=(this.glass?19:13)*(1-.77*darkness);
-    this.rim.intensity=(this.glass?35:24)*(1-.75*darkness);
+    this.fill.intensity=this.fillPower=(this.glass?19:13)*(1-.77*darkness);
+    this.rim.intensity=this.rimPower=(this.glass?35:24)*(1-.75*darkness);
     const strength=this.glass?.49:.40;
     for(const beam of this.beams)beam.uniforms.density.value=this.density*(1-darkness*.89)*strength;
     this.pools.uniforms.strength.value=1-darkness*.83;
@@ -285,12 +290,28 @@ export class RoomLighting {
     this.embers.uniforms.gain.value=1-darkness*.58;
   }
 
-  tick(time,dusk=0,night=0){
+  tick(time,dusk=0,night=0,red=0){
     const clock=time%720;
     this.key.color.copy(this.keyBase).lerp(this.duskTone,dusk*.35).lerp(this.nightTone,night*.76);
     this.rim.color.copy(this.key.color);
     this.fill.color.copy(this.fillBase).lerp(this.duskTone,dusk*.37).lerp(this.nightTone,night*.35);
     this.key.intensity=this.level*(1-.74*this.darkness)*(1-night*.26);
+    this.fill.intensity=this.fillPower+red*4;
+    this.rim.intensity=this.rimPower+red*5;
+    if(red){
+      this.key.color.lerp(crimsonKey,red*.74);
+      this.fill.color.lerp(crimsonFill,red);
+      this.rim.color.lerp(crimsonRim,red);
+      this.key.intensity+=red*.47;
+    }
+    if(red!==this.crimson){
+      for(const [index,beam] of this.beams.entries())beam.uniforms.color.value.copy(this.beamTints[index]).lerp(crimsonFill,red*.8);
+      this.pools.uniforms.accent.value.copy(this.keyBase).lerp(crimsonRim,red*.83);
+      this.pools.uniforms.hot.value.copy(this.fillBase).lerp(crimsonFill,red);
+      this.mist.uniforms.ink.value.copy(this.mistTint).lerp(crimsonRim,red*.30);
+      this.embers.uniforms.ink.value.copy(this.emberTint).lerp(crimsonKey,red*.71);
+      this.crimson=red;
+    }
     for(const beam of this.beams)beam.uniforms.clock.value=clock;
     this.pools.uniforms.clock.value=clock;
     this.mist.uniforms.clock.value=clock;

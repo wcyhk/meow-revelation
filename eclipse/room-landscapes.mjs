@@ -699,6 +699,8 @@ function roomCenter(ctx,stage,type){
   }
 }
 
+const crimsonSky=new T.Color(0x3c0e1a),crimsonGlass=new T.Color(0xff445c),
+  crimsonStone=new T.Color(0xb96871),crimsonFlame=new T.Color(0xff452f);
 export class RoomLandscape {
   constructor(view,cutaway){
     this.view=view;
@@ -783,6 +785,10 @@ export class RoomLandscape {
     }
     const kit=retained??{m,floor,wind:this.wind,projections:[]};
     this.materialKits.set(type,kit);
+    this.floorTint=new T.Color(scan.map?finish.tint:0xdde1e6);
+    this.lampTint=new T.Color(warm);
+    this.floorMaterial=floor;
+    this.crimson=-1;
     if(!retained)this.lanternShadows?.apply(this.wind.material);
     this.lanternShadows?.setObstacles(this.solid,stage.props);
     insignia(this.root,type,stage,m);
@@ -810,7 +816,20 @@ export class RoomLandscape {
       node.matrixWorldAutoUpdate=false;
     });
     // The thirteen bounded theme kits retain programs, not old room geometry.
+    this.tintCrimson(0);
     this.light(0);
+  }
+
+  tintCrimson(red){
+    if(red===this.crimson)return;
+    this.crimson=red;
+    this.m.glass.color.setHex(0xffffff).lerp(crimsonGlass,red*.92);
+    this.floorMaterial.color.copy(this.floorTint).lerp(crimsonStone,red*.34);
+    this.m.lantern.color.copy(this.lampTint).lerp(crimsonFlame,red);
+    this.m.ember.color.copy(this.m.lantern.color);
+    for(const mat of this.projections){
+      mat.uniforms.tint.value.setHex(glassTones[this.type]).lerp(crimsonGlass,red*.92);
+    }
   }
 
   light(darkness){
@@ -821,7 +840,7 @@ export class RoomLandscape {
     for(const mat of this.projections)mat.uniforms.energy.value=.88*(1-darkness*.86);
   }
 
-  tick(time,hero,darkness,dt=0) {
+  tick(time,hero,darkness,dt=0,red=0) {
     const still=this.view.feedback?.subdued;
     this.floorProgress+=dt;
     const shift=still?0:Math.min(1,this.floorProgress/105);
@@ -829,8 +848,10 @@ export class RoomLandscape {
     const night=T.MathUtils.smoothstep(shift,.33,1);
     const sky=this.view.scene.background;
     sky.copy(this.skyBase).lerp(this.skyDusk,dusk).lerp(this.skyNight,night);
+    if(red)sky.lerp(crimsonSky,red*.8);
     this.view.scene.fog.color.copy(sky);
-    this.roomLighting.tick(time,dusk,night);
+    this.tintCrimson(red);
+    this.roomLighting.tick(time,dusk,night,red);
     this.wind.clock.value=still?0:time;
     this.m.water.uniforms.clock.value=time%3600;
     if(this.heroWarm){

@@ -4,6 +4,30 @@ const tau=2*Math.PI;
 const noise=(index,salt)=>((index+1)*salt)%1;
 export const revealCurve=(p,from,to)=>T.MathUtils.smoothstep(p,from,to);
 
+const shotOffset=new T.Vector3(),shotForward=new T.Vector3();
+
+export function wardenShotMix(boss,subdued){
+  const change=boss?.phaseChange;
+  if(!change||subdued)return 0;
+  return revealCurve(change.progress,0,.16)*(1-revealCurve(change.progress,.70,.98));
+}
+
+export function frameWardenShot(camera,boss,wideZoom,mix){
+  const tight=revealCurve(boss.phaseChange.progress,.32,.68);
+  const {height}=boss.spec;
+  const {lerp}=T.MathUtils;
+  const target=shotOffset.set(boss.x,height*lerp(.60,.74,tight),boss.z+.12);
+  target.sub(camera.position);
+  shotForward.set(0,0,-1).applyQuaternion(camera.quaternion);
+  // Translate in the view plane so the fixed battle angle and depth are preserved.
+  camera.position.addScaledVector(target,mix).addScaledVector(shotForward,-target.dot(shotForward)*mix);
+  const zoom=Math.min(
+    (camera.right-camera.left)/(height*lerp(.79,.51,tight)),
+    (camera.top-camera.bottom)/(height*lerp(.88,.54,tight)),
+  );
+  return lerp(wideZoom,Math.max(wideZoom,zoom),mix);
+}
+
 export function wardenDissolve(materials,armoured){
   const amount={value:0},space={value:new T.Matrix4()};
   for(const material of materials){

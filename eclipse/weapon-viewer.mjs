@@ -10,6 +10,7 @@ import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
 import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';
 import {lightPaoDisplay} from './pao-materials.mjs?v=nightforge-1';
+import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 const paoForms=new Set();
 
 function node(tag,kind,text){
@@ -632,6 +633,8 @@ export class WeaponViewer {
     const room=arena?this.dossier.stage:null;
     if(paoForms.has(this.boss?.bestiary?.id))lightPaoDisplay(scene);
     else armLighting(scene,arena);
+    battleCamera.zoom=1;
+    battleCamera.updateProjectionMatrix();
     battleCamera.position.set(.8,arena?16:9.2,arena?21:15);
     const bossHeight=this.chapterPreviewHeight;
     if(arena)battleCamera.lookAt(0,.3+bossHeight*.56,1.25);
@@ -652,6 +655,7 @@ export class WeaponViewer {
     view.ward=view.makeWard();
     const stage=new T.Group();
     if(arena){
+      view.wideBattlePosition=battleCamera.position.clone();
       view.cutaway=new RoomCutaway();
       view.sight=new T.Vector3();
       view.darkLights=scene.children.filter(node=>node.isLight).map(light=>[light,light.intensity]);
@@ -753,13 +757,22 @@ export class WeaponViewer {
     view.renderParticles(dt,false);
     if(view.arenaArt){
       const {hero}=this.practice;
-      const darkness=view.arenaArt.arena?.darkness??0;
+      const arena=view.arenaArt.arena;
+      const darkness=arena?.darkness??0;
+      const boss=arena?.boss,shot=wardenShotMix(boss,view.feedback.subdued);
+      if(shot||battleCamera.zoom!==1){
+        battleCamera.position.copy(view.wideBattlePosition);
+        battleCamera.zoom=shot?frameWardenShot(battleCamera,boss,1,shot):1;
+        battleCamera.updateProjectionMatrix();
+        battleCamera.updateMatrixWorld(true);
+      }
       view.arenaArt.render(view.time);
       for(const [light,intensity] of view.darkLights)light.intensity=intensity*(1-darkness*.52);
       view.sight.set(0,0,1).applyQuaternion(battleCamera.quaternion);
-      view.cutaway.place(hero.x,hero.z,view.sight);
+      view.cutaway.place(shot?T.MathUtils.lerp(hero.x,boss.x,shot):hero.x,
+        shot?T.MathUtils.lerp(hero.z,boss.z,shot):hero.z,view.sight);
       view.landscape.light(darkness);
-      view.landscape.tick(view.time,hero,darkness,dt,view.arenaArt.arena?.crimsonLight??0);
+      view.landscape.tick(view.time,hero,darkness,dt,arena?.crimsonLight??0);
     }
     this.renderer.render(this.scene,battleCamera);
     view.motion.budget=0;

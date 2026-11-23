@@ -29,6 +29,7 @@ import {paoArrival,paoCastWindup,paoSharedGeometry,paoStrike} from './pao-effect
 import {ornamentSpell,spellGeometry} from './spell-layers.mjs?v=emberlight-1';
 import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
+import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 
 const PI = Math.PI;
 const baseCastLooks={
@@ -2191,7 +2192,8 @@ export class Scenery {
     if (!paused) this.time += dt;
     this.feedback.update(dt);
     const time = this.time;
-    const darkness=this.arenaArt.arena?.darkness??0;
+    const arena=this.arenaArt.arena;
+    const darkness=arena?.darkness??0;
     if (Math.abs(darkness-this.arenaDarkness)>.006) {
       this.arenaDarkness=darkness;
       this.landscape.light(darkness);
@@ -2206,20 +2208,26 @@ export class Scenery {
       this.frameBosses(hero,enemies,dt);
       const frame=this.bossFrame;
       this.shake *= Math.exp(-dt * 12);
-      const zoom=frame.zoom*(this.feedback.subdued?1:1+this.shake*.055);
+      const subdued=this.feedback.subdued;
+      const boss=arena?.boss,shot=wardenShotMix(boss,subdued);
+      const wideZoom=frame.zoom*(subdued?1:1+this.shake*.055*(1-shot));
+      this.camera.position.copy(sceneAngle).multiplyScalar(28).add(this.focus);
+      this.camera.position.x+=frame.x;
+      this.camera.position.addScaledVector(this.cameraUp,frame.y);
+      const zoom=shot?frameWardenShot(this.camera,boss,wideZoom,shot):wideZoom;
       if(Math.abs(zoom-this.camera.zoom)>.0004||zoom===1&&this.camera.zoom!==1){
         this.camera.zoom=zoom;
         this.camera.updateProjectionMatrix();
       }
-      this.camera.position.copy(sceneAngle).multiplyScalar(28).add(this.focus);
       const {x,y}=this.feedback.offset;
-      this.camera.position.x+=frame.x+x;
-      this.camera.position.addScaledVector(this.cameraUp,frame.y+y);
+      this.camera.position.x+=x*(1-shot);
+      this.camera.position.addScaledVector(this.cameraUp,y*(1-shot));
       this.camera.updateMatrixWorld();
-      this.cutaway.place(hero.x,hero.z,sceneAngle);
-      this.landscape.tick(time,hero,darkness,paused?0:dt,this.arenaArt.arena?.crimsonLight??0);
+      this.cutaway.place(shot?T.MathUtils.lerp(hero.x,boss.x,shot):hero.x,
+        shot?T.MathUtils.lerp(hero.z,boss.z,shot):hero.z,sceneAngle);
+      this.landscape.tick(time,hero,darkness,paused?0:dt,arena?.crimsonLight??0);
       this.lanternArt.tick(hero,time,this.stage,dt);
-      this.landscape.lanternShadows.update(this.lanternArt.light,this.arenaArt.arena?.pillars,
+      this.landscape.lanternShadows.update(this.lanternArt.light,arena?.pillars,
         this.lanternArt.route?.barricades);
       this.groveLight.update(hero,this.lanternArt,this.accent,time);
     }

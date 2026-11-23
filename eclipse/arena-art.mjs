@@ -51,7 +51,9 @@ function fissure(parent,zone,ink,stone) {
     part.renderOrder=order;
     return part;
   };
-  const solid={side:T.DoubleSide,depthWrite:false};
+  // These translucent layers are flat strips. A single two-sided pass
+  // preserves the additive layers and the consistently wound scorch strip.
+  const solid={side:T.DoubleSide,depthWrite:false,forceSinglePass:true};
   layer(scorch,new T.MeshBasicMaterial({...solid,color:0x140d12,transparent:true,opacity:.52}),-8);
   layer(border,new T.MeshBasicMaterial({...solid,color:new T.Color(stone).lerp(new T.Color(0x98776b),.38)}),-7);
   layer(cut,new T.MeshBasicMaterial({...solid,color:new T.Color(stone).multiplyScalar(.14)}),-6);
@@ -202,6 +204,12 @@ export class ArenaArt {
       }
     }
     this.view.shake=Math.max(this.view.shake,.46);
+  }
+
+  fissureSample(){
+    const root=new T.Group();
+    fissure(root,{x:0,z:0,radius:6,width:.44,angle:0},0xff7957,0x682e27);
+    return root;
   }
 
   openFissure(hazard) {

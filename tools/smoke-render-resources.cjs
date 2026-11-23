@@ -100,6 +100,20 @@ let chrome,ws;
   assert.match(await ev('document.querySelector("script[type=module]").src'),/game\.mjs\?v=/);
   await wait('!!navigator.serviceWorker.controller && document.querySelector("#offline-status").textContent==="已可離線遊玩"',780);
   await c('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'no-preference'}]});
+  const coldFissure=await ev(`(()=>{
+    const view=qa.view,sample=view.arenaArt.fissureSample(),gl=view.renderer.getContext();
+    let links=0;
+    const original=gl.linkProgram;
+    gl.linkProgram=function(...args){links++;return original.apply(this,args);};
+    try{
+      view.warmGeometry(sample);
+      return links;
+    }finally{
+      gl.linkProgram=original;
+      view.arenaArt.clear(sample);
+    }
+  })()`);
+  assert.equal(coldFissure,0,'First moving fissure must reuse the exact prepared shader programs');
   const act=async selector=>{
     await ev('document.querySelector('+JSON.stringify(selector)+').scrollIntoView({block:"center",behavior:"instant"})');
     await tap(selector);

@@ -415,6 +415,7 @@ export class Scenery {
     // material that uses a program makes the next attack compile it again.
     const point={x:0,y:.1,z:0},tint=0xffc786;
     this.warning('circle',0,0,1,1);
+    this.warning('line',0,0,4,1,0,.55);
     this.sealFx(0,0,tint,2);
     this.motion.ribbon(this.motion.cut,point,tint,.3);
     this.motion.impactLight(point,tint,1,0);
@@ -423,15 +424,30 @@ export class Scenery {
     const group=new T.Group();
     const samples=this.effects.splice(0);
     for(const {mesh} of samples)group.add(mesh);
+    // Sealing a route creates a separate crack without the phase floor's
+    // cutaway shader. Keep its exact draw programs resident before combat.
+    const fissure=this.arenaArt.fissureSample();
+    group.add(fissure);
+    let ready=false;
     try{
-      await this.renderer.compileAsync(group,this.camera,this.scene);
-      this.preparedEffectMaterials=samples.filter(fx=>!fx.materialKey).map(({mesh})=>mesh.material);
+      ready=await this.warmMesh(group,()=>true);
+      if(ready){
+        const materials=samples.filter(fx=>!fx.materialKey).map(({mesh})=>mesh.material);
+        fissure.traverse(part=>{if(part.isMesh)materials.push(part.material);});
+        this.preparedEffectMaterials=materials;
+      }
     }finally{
       for(const fx of samples){
-        if(!this.preparedEffectMaterials)fx.mesh.material.dispose();
+        if(!ready)fx.mesh.material.dispose();
         else if(fx.materialKey)this.recycleEffectMaterial(fx.materialKey,fx.mesh.material);
         if(fx.owned)fx.mesh.geometry.dispose();
       }
+      fissure.traverse(part=>{
+        if(!part.isMesh)return;
+        part.geometry.dispose();
+        if(!ready)part.material.dispose();
+      });
+      group.clear();
       this.motion.budget=0;
     }
   }

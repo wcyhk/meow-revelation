@@ -122,11 +122,12 @@ export class WeaponViewer {
     this.stage.append(this.image,this.canvas,this.hint,this.zoomTools,this.viewAngles);
     this.inspect=button('旋轉睇模型',()=>this.showModel());
     this.armour=button('裂甲造型',()=>this.showModel(1));
-    this.armour.hidden=true;
+    this.moon=button('斷冠造型',()=>this.showModel(2));
+    this.moon.hidden=this.armour.hidden=true;
     this.combo=button('播放三段普攻',()=>this.play('combo'));
     this.skill=button('播放技能',()=>this.play('skill'));
     this.tools=node('div','weapon-viewer-tools');
-    this.tools.append(this.inspect,this.armour,this.combo,this.skill);
+    this.tools.append(this.inspect,this.armour,this.moon,this.combo,this.skill);
     this.drillTools=node('div','counter-drill-tools');
     const roll=button('翻滾',()=>{this.practice.controls.roll=true;});
     const interact=button('祭燈／機關',()=>{this.practice.controls.interact=true;});
@@ -275,7 +276,7 @@ export class WeaponViewer {
       return control;
     }));
     this.makeBossPractice=makePractice;
-    this.inspect.textContent=spec.bestiary||spec.model?'旋轉睇模型':'睇頭目';
+    this.inspect.textContent=spec.phaseTransition?'銀輝造型':spec.bestiary||spec.model?'旋轉睇模型':'睇頭目';
     this.phaseControls?.forEach(control=>control.remove());
     this.phaseControls=spec.phases.map((_,index)=>{
       const control=button(index===0?'二段變身':'三段變身',()=>this.playBoss({phase:index+1},control));
@@ -304,7 +305,7 @@ export class WeaponViewer {
       choice:'挑戰此頭目',description:spec.signature,commit,practice});
   }
 
-  get controls(){return [this.inspect,this.armour,this.combo,this.skill,...this.phaseControls,...this.attackControls,
+  get controls(){return [this.inspect,this.armour,this.moon,this.combo,this.skill,...this.phaseControls,...this.attackControls,
     ...this.motions.querySelectorAll('button'),
     ...(this.boss?this.weakness.querySelectorAll('button'):[])];}
 
@@ -320,10 +321,12 @@ export class WeaponViewer {
     this.choose.textContent=choice;
     this.choose.hidden=!commit;
     this.dialog.dataset.subject=this.boss?'boss':'weapon';
+    this.dialog.classList.toggle('warden-viewer',!!this.boss?.phaseTransition);
     this.dialog.classList.toggle('pao-viewer',paoForms.has(this.boss?.bestiary?.id));
     this.dialog.style.setProperty('--preview-ink',ink);
     this.combo.hidden=this.skill.hidden=!!this.boss;
     this.armour.hidden=!this.boss?.phaseTransition;
+    this.moon.hidden=!this.boss?.phaseTransition?.[1];
     this.notes.hidden=!!this.boss;this.notes.open=false;
     this.attacks.hidden=!this.boss;
     this.motions.hidden=!this.boss||!this.motionNames;
@@ -539,7 +542,7 @@ export class WeaponViewer {
     this.modelTime=0;
     this.stage.dataset.preview='model';
     this.modelPhase=phase;
-    this.setActive(phase?this.armour:this.inspect);
+    this.setActive(phase===2?this.moon:phase===1?this.armour:this.inspect);
     this.hint.textContent='拖動旋轉';
     this.canvas.setAttribute('aria-label','3D 模型。拖動或用方向鍵旋轉，Home 鍵重置視角。');
     this.drillTools.hidden=true;
@@ -707,7 +710,8 @@ export class WeaponViewer {
       :action.phase?phaseDetail:action.portrait?this.description:name;
     const view=this.makeStage();
     const seed=this.bossSeed??=Math.floor(Math.random()*0x100000000);
-    this.practice=this.makeBossPractice(view,this.dossier,{seed,...action},{
+    const form=this.boss.phaseTransition&&!action.phase?this.modelPhase:0;
+    this.practice=this.makeBossPractice(view,this.dossier,{seed,form,...action},{
       phase:(phase,title)=>{this.hint.textContent=`${phase===1?'第二階段':'第三階段'} · ${title}`;},
       status:(message,done)=>{
         this.hint.textContent=message;

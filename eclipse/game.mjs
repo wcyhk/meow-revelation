@@ -2748,6 +2748,10 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const unit=practice.spawn('boss',action.phase?0:pao?-2.1:-2.4,action.phase?-3.2:pao?-1.65:-.46,null,spec);
   unit.age=3;
   unit.face=1;
+  if(action.form){
+    unit.bossPhase=action.form;
+    unit.hp=spec.hp*spec.phases[action.form-1];
+  }
   if(demonstration&&unit.visual.bestiary)unit.visual.bestiary.heading=.55;
   if(action.phase){
     practice.bossArena=new BossArena(practice,layout,unit,action.seed,drill?drillEncounter(dossier):null);

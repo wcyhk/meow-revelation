@@ -7,6 +7,7 @@ import {creatureFace,detailCreature,poseCreatureDetail} from './creature-detail.
 import {enemyCurrent} from './enemy-current.mjs?v=boss-foundry-1';
 import {aimEnemyWeapons,enemyWeapons,markEnemyWeapon,restoreWeaponPose} from './enemy-weapon-pose.mjs?v=boss-foundry-1';
 import {armWeaponEmission} from './enemy-weapon-energy.mjs?v=boss-foundry-1';
+import {poseWardenStrike,tintWardenEnergy,wardenMoonGlow} from './warden-combat-pose.mjs';
 import {carveEggGhost,carveImperialTurtle,carveJadeEmperor,carveRoyalPair,carveVaruna} from './giant-boss-sculpt.mjs?v=boss-foundry-1';
 import {sculptPao} from './pao-sculpt.mjs?v=chiaroscuro-1';
 import {sculptDestroyer,sculptPhoenix,sculptWhiteBear,poseSignatureBeast} from './signature-beasts.mjs?v=boss-foundry-1';
@@ -1621,6 +1622,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const transition=unit.phaseChange;
   const progress=transition?.progress??0;
   const shedding=transition?.phase===1;
+  const warden=!!model.armouredForm;
   const opening=model.openingForm&&(stage===0||shedding);
   const armoured=!model.openingForm||stage>0&&(!shedding||progress>=.37);
   if(model.openingForm){
@@ -1673,7 +1675,8 @@ export function poseBestiary(model,unit,spec,time,x,z){
     model.openingForm.fade.space.value.copy(model.reveal.space.value);
   }
   if(opening){
-    model.openingForm.pose({beat,headtime:time,wind,strike,travel,fall,step,stagger,subdued:spec.subdued,progress});
+    model.openingForm.pose({beat,headtime:time,wind,strike,travel,fall,step,stagger,subdued:spec.subdued,progress,
+      attackPattern:patternAtContact});
   }
   if(!armoured){
     model.aura.mesh.visible=false;
@@ -1686,6 +1689,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   if(head)head.rotation.x=Math.sin(beat*.76)*.055+wind*.17-strike*.16;
   for(const [index,arm] of arms.entries()){
     const sign=index%2===0?-1:1;
+    if(warden)arm.rotation.y=0;
     if(pattern==='wing'||pattern==='flutter'){
       arm.rotation.z=sign*(.09+Math.sin(beat)*.39+wind*.30-strike*.48);
     }else if(pattern==='coil'){
@@ -1810,12 +1814,16 @@ export function poseBestiary(model,unit,spec,time,x,z){
     legs[3].rotation.x-=lift;
   }
   model.skin?.pose({beat,wind,strike,stage,stagger,travel,fall,turn:T.MathUtils.clamp(turn,-1,1),dt:spec.dt});
-  aimEnemyWeapons(model.weapons,attack,wind,strike,{thrust,sweep,crush,travel,
-    heading:spec.targetHeading??model.heading,fall,frame:!attack&&spec.targetHeading===undefined?root.parent:null});
+  const aim={thrust,sweep,crush,travel,heading:spec.targetHeading??model.heading,fall,
+    frame:!attack&&spec.targetHeading===undefined?root.parent:null};
+  if(warden&&attack)poseWardenStrike(model,patternAtContact,wind,unit.attack?null:release,aim);
+  aimEnemyWeapons(model.weapons,attack,wind,strike,aim);
+  const moonGlow=warden?tintWardenEnergy(model,stage,transition):0;
   if(shedding&&progress<.83){
     model.aura.mesh.visible=false;
     model.weaponFlash=null;
   }else model.weaponFlash=model.aura.update(time,stage,wind,strike,fall,stagger,travel,spec.subdued,unit.motion);
+  if(warden&&model.weaponFlash)model.weaponFlash.tint=model.aura.mesh.material.uniforms.tint.value.getHex();
   if(model.weaponEmission){
     const uniforms=model.weaponEmission;
     const energy=model.aura.mesh.material.uniforms;
@@ -1832,6 +1840,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   const glow=model.palette[3];
   const chargePulse=model.entry.field?0:(wind*wind*.09+strike*.19)*(spec.subdued?.5:1);
   materials.glow.color.setHex(model.signature?.type==='bear'?0xbbf7f1:glow)
+    .lerp(wardenMoonGlow,moonGlow)
     .lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18+chargePulse*.44));
   materials.body.emissiveIntensity=.14+(spec.flash??0)*.19+stage*.08+chargePulse*.28;
   const forgedPulse=chargePulse;

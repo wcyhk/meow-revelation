@@ -6,6 +6,7 @@ import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {sculptSilverWarden} from './silver-warden-sculpt.mjs';
 import {wardenDissolve} from './warden-transformation.mjs';
 import {buildWardenCrown} from './warden-crown-rupture.mjs';
+import {forgeWardenMoonKit} from './warden-moon-forge.mjs';
 
 const sides=[-1,1];
 const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
@@ -18,6 +19,7 @@ function wardenFinishes(k){
     ['wardenWorn',0xb2a388,.52,.46,'bone'],
     ['wardenCloth',0x492c43,.12,.73,'cloth'],
     ['wardenCrimson',0x6d2537,.53,.39,'iron'],
+    ['wardenObsidian',0x35364b,.78,.32,'iron'],
   ]){
     k.materials[name]=paintedFinish(new T.MeshStandardMaterial({
       color,metalness,roughness,vertexColors:true,envMap:forgeEnvironment(),
@@ -26,6 +28,7 @@ function wardenFinishes(k){
   }
   k.materials.wardenEmber=new T.MeshBasicMaterial({color:0xffa66d,toneMapped:false});
   k.materials.wardenCrownCore=new T.MeshBasicMaterial({color:0xbb99ee,toneMapped:false});
+  k.materials.wardenMoonEdge=new T.MeshBasicMaterial({color:0xa694fa,toneMapped:false});
 }
 
 function crownSparks(anchor,mobile){
@@ -93,10 +96,13 @@ export function sculptFinalWarden(k,mobile){
     [0,.238,-.030,.222,.183],[0,.348,-.077,.138,.121]]);
   volume(cleft,'deep',[[0,-.274,-.029,.134,.057],[0,-.193,.007,.212,.12],[0,.015,.035,.234,.131],
     [0,.164,.024,.213,.131],[0,.251,-.014,.121,.068]]);
-  volume(cleft,'glow',[[0,-.155,.06,.03,.025],[0,-.097,.111,.076,.075],[0,.025,.148,.111,.062],
+  const amber=bone(cleft,0,0,0);
+  amber.name='王冠守夜者 · 赤芒燈芯';
+  volume(amber,'glow',[[0,-.155,.06,.03,.025],[0,-.097,.111,.076,.075],[0,.025,.148,.111,.062],
     [0,.091,.132,.074,.049],[0,.166,.043,.015,.011]],5.8);
   const sparks=crownSparks(cleft,mobile);
   const crown=buildWardenCrown(k,head,mobile);
+  const moonKit=forgeWardenMoonKit(k,body,cleft,amber);
   for(let i=0;i<5;i++){
     const x=(i-2)*.056;
     piping(cleft,i===2?'wardenWorn':'wardenSteel',[[x*.57,-.204,.107,.011],[x,-.093,.183,.016],
@@ -231,19 +237,22 @@ export function sculptFinalWarden(k,mobile){
       markEnemyWeapon(sword,[.265,1.65,.14],{width:.20});
       piping(sword,'deep',[[0,-.33,-.02,.05],[0,-.110,0,.057],[.02,.091,.037,.068],[.04,.20,.05,.063]]);
       piping(sword,'trim',[[-.26,.18,.023,.043],[-.139,.234,.094,.061],[.032,.176,.096,.073],[.214,.245,.055,.052],[.317,.31,.043,.006]]);
-      plate(sword,'body',[[-.078,.232,.053],[.143,.251,.036],[.233,.595,.035],[.181,.645,.038],
+      const sunBlade=bone(sword,0,0,0);
+      sunBlade.name='落日裂王劍 · 赤刃';
+      plate(sunBlade,'body',[[-.078,.232,.053],[.143,.251,.036],[.233,.595,.035],[.181,.645,.038],
         [.271,.733,.062],[.339,1.184,.072],[.265,1.65,.14],[.093,1.394,.051],[-.039,1.03,.018],[-.086,.623,.029]],.088);
-      piping(sword,'edge',[[-.066,.288,.104,.021],[-.091,.601,.085,.027],[-.033,1.014,.103,.026],
+      piping(sunBlade,'edge',[[-.066,.288,.104,.021],[-.091,.601,.085,.027],[-.033,1.014,.103,.026],
         [.096,1.392,.112,.025],[.269,1.635,.193,.008]]);
-      piping(sword,'trim',[[.033,.314,.109,.028],[.092,.719,.092,.033],[.145,1.058,.111,.024],[.183,1.328,.116,.009]]);
+      piping(sunBlade,'trim',[[.033,.314,.109,.028],[.092,.719,.092,.033],[.145,1.058,.111,.024],[.183,1.328,.116,.009]]);
       for(let i=0;i<5;i++){
         const y=.32+i*.22,x=.046+i*.027;
-        plate(sword,i%2?'wardenCrimson':'wardenSteel',[[x-.044,y,.118],[x,y+.079,.128],
+        plate(sunBlade,i%2?'wardenCrimson':'wardenSteel',[[x-.044,y,.118],[x,y+.079,.128],
           [x+.045,y+.005,.119],[x,y-.047,.124]],.026);
-        piping(sword,'glow',[[x-.017,y,.138,.007],[x,y+.032,.148,.012],[x+.017,y,.138,.005]]);
+        piping(sunBlade,'glow',[[x-.017,y,.138,.007],[x,y+.032,.148,.012],[x+.017,y,.138,.005]]);
       }
-      piping(sword,'wardenWorn',[[.142,.242,.066,.020],[.241,.583,.069,.017],[.281,.737,.090,.016],
+      piping(sunBlade,'wardenWorn',[[.142,.242,.066,.020],[.241,.583,.069,.017],[.281,.737,.090,.016],
         [.354,1.174,.105,.012],[.266,1.642,.154,.005]]);
+      moonKit.mountBlade(sword,sunBlade);
     }else{
       const lantern=bone(grip,0,-.118,.169);
       lantern.name='王冠守夜者 · 殘燈';
@@ -263,12 +272,13 @@ export function sculptFinalWarden(k,mobile){
     campaign:{flaps,joints},sourceSculpt:true,polishEnergy:{
       tint:0xee714d,shape:'embers',anchor:body,span:[.72,.94,.61],firstStage:1,
     },
-    disposeRig(){sparks.plume.dispose();sparks.material.dispose();crown.dispose();openingForm.dispose();},
+    disposeRig(){sparks.plume.dispose();sparks.material.dispose();crown.dispose();moonKit.dispose();openingForm.dispose();},
     cataloguePose({beat,step,headtime,wind,strike,travel,stage,fall,transition,subdued}){
       const progress=transition?.phase===2?transition.progress:stage===2?1:0;
       const moon=T.MathUtils.smoothstep(progress,.28,.66);
       const recoil=T.MathUtils.smoothstep(progress,.13,.29)*(1-T.MathUtils.smoothstep(progress,.31,.65));
       crown.pose(stage,transition,subdued);
+      moonKit.pose({moon,headtime,wind,strike,fall,subdued});
       k.materials.wardenEmber.color.copy(emberEye).lerp(moonEye,moon);
       head.rotation.x-=recoil*(subdued?.08:.16);
       body.rotation.x+=recoil*(subdued?.05:.11);
@@ -282,12 +292,12 @@ export function sculptFinalWarden(k,mobile){
         half.rotation.z=side*(stage*.063+Math.sin(beat*.46)*.019+moon*.031);
       }
       for(const {rib,side,i} of ribs){
-        rib.rotation.y=side*(Math.sin(beat*.73-i*.32)*.035+stage*.09+wind*.12-strike*.23);
+        rib.rotation.y=side*(Math.sin(beat*.73-i*.32)*.035+stage*.09+wind*.12-strike*.23+moon*(.20-i*.035));
       }
       for(const {cape,end,side,i} of hems){
         const wave=Math.sin(beat*.82-i*.66+side*.17);
         cape.rotation.x=travel*.23+wave*.055+wind*.12-strike*.25;
-        cape.rotation.z=side*(.12+wave*.048+stage*.074+strike*.27);
+        cape.rotation.z=side*(.12+wave*.048+stage*.074+strike*.27+moon*(.07+i*.016));
         end.rotation.x=wave*.09+travel*.24-wind*.08+strike*.38;
         end.rotation.z=side*(wave*.058+fall*.21);
       }

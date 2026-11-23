@@ -59,6 +59,24 @@ function cowl(mobile,lining){
   },!lining);
 }
 
+function porcelainFace(mobile){
+  return surface(mobile?22:32,mobile?32:46,(u,v)=>{
+    const a=v*tau,y=-.227+u*.483,front=Math.cos(a);
+    const oval=Math.sin(Math.PI*u)**.59;
+    const width=(.142+.029*revealCurve(u,.19,.46))*oval;
+    const x=Math.sin(a)*width;
+    const px=Math.abs(x);
+    const relief=(atX,atY,sx,sy)=>Math.exp(-(((px-atX)/sx)**2+((y-atY)/sy)**2));
+    const ridge=.052*relief(0,.001,.044,.106)+.038*relief(0,-.052,.041,.045);
+    const cheeks=.017*relief(.108,-.028,.048,.061);
+    const sockets=.020*relief(.084,.060,.051,.029);
+    const chin=.017*relief(0,-.162,.083,.063);
+    const plane=.045-u*.029+front*(.139+.032*revealCurve(u,.23,.52))*oval;
+    return [x,y,plane+(ridge+cheeks-sockets+chin)*Math.max(0,front)**3,
+      .90+.062*Math.max(0,front)+cheeks*1.42-sockets*.90];
+  },true);
+}
+
 function pleat(depth,length,start,end,rows,lining){
   return surface(rows,40,(u,v)=>{
     const a=v*tau,c=Math.cos(a),s=Math.sin(a);
@@ -125,6 +143,7 @@ function buildHalo(k,form,mobile){
     const a=n*tau/16,s=Math.sin(a),c=Math.cos(a),major=n%4===0;
     k.mesh(bands,'gem',major?'vigilPearl':'vigilEtching',s*1.029,c*1.029,.003,
       major?.045:.028,major?.095:.050,major?.035:.021,0,0,-a);
+    if(major)k.mesh(bands,'gem','vigilSilver',s*.955,c*.955,-.017,.039,.081,.032,0,0,-a);
   }
   const light=blessingLight(1.30,true);
   light.position.z=.031;
@@ -146,44 +165,61 @@ export function sculptSilverWarden(k,parent,mobile){
   carve(body,'vigilSatin',[[0,-.349,-.015,.247,.177],[0,-.13,-.029,.268,.194],
     [0,.13,-.038,.318,.221],[0,.417,-.043,.416,.228],[0,.610,-.062,.374,.200],[0,.752,-.022,.135,.131]]);
   carve(body,'vigilLining',[[0,.600,-.048,.177,.131],[0,.696,-.020,.151,.132],[0,.89,.016,.120,.116]]);
-  carve(head,'vigilPorcelain',[[0,-.228,.054,.046,.063],[0,-.171,.063,.097,.116],[0,-.065,.071,.161,.147],
-    [0,.059,.047,.169,.167],[0,.180,.026,.163,.141],[0,.243,-.018,.095,.101]],{ridge:.031});
-  carve(head,'vigilPorcelain',[[0,-.073,.192,.028,.017],[0,-.036,.222,.033,.022],
-    [0,.023,.211,.025,.025],[0,.096,.187,.013,.012]],{sides:9,rings:9,ridge:.02});
-  carve(head,'vigilPorcelain',[[0,-.221,.102,.043,.028],[0,-.179,.135,.075,.039],
-    [0,-.139,.142,.076,.052],[0,-.105,.142,.059,.049]],{sides:10,rings:12,ridge:.032});
+  k.geometry(head,'vigilPorcelain',porcelainFace(mobile));
   k.geometry(head,'vigilSatin',cowl(mobile,false));
   k.geometry(head,'vigilLining',cowl(mobile,true));
-  carve(head,'vigilHair',[[-.134,.202,.138,.037,.021],[-.063,.247,.158,.068,.037],
-    [.041,.248,.170,.058,.043],[.135,.196,.155,.030,.027],[.156,.137,.142,.007,.008]],
+  carve(head,'vigilHair',[[-.135,.193,.139,.034,.022],[-.069,.241,.166,.051,.034],
+    [.039,.239,.190,.056,.046],[.110,.200,.183,.038,.024],[.140,.137,.147,.006,.008]],
     {sides:9,rings:19,section:2.76,ridge:.23});
-  seam(head,'vigilLips',[[-.046,-.124,.195,.004],[-.019,-.126,.198,.006],
-    [0,-.129,.200,.005],[.021,-.126,.198,.005],[.046,-.123,.190,.003]],11);
+  seam(head,'vigilLips',[[-.046,-.118,.169,.003],[-.021,-.122,.182,.005],
+    [0,-.119,.188,.004],[.021,-.122,.182,.005],[.044,-.115,.170,.003]],11);
+  seam(head,'vigilPorcelain',[[-.019,-.132,.176,.003],[0,-.135,.185,.008],[.019,-.131,.176,.003]],7);
+  gem(head,'vigilSilver',0,.154,.199,.015,.024,.008);
+  gem(head,'vigilPearl',0,.153,.206,.004,.008,.003);
   for(let index=0;index<3;index++){
     const inset=index*.015;
     seam(head,'vigilSatin',[[-.122+inset,.222+inset*.23,.173,.004],[-.046,.259-inset,.180+inset*.50,.007],
       [.055,.252-inset,.204,.008],[.139-inset,.193+inset,.176,.004]],12);
   }
+  const lids=[];
   for(const side of sides){
     const reflect=path=>path.map(([x,...rest])=>[x*side,...rest]);
     seam(head,'vigilEtching',reflect([[.005,.381,.153,.013],[.145,.338,.171,.013],
       [.256,.219,.190,.014],[.301,.022,.247,.015],[.247,-.203,.232,.013],[.112,-.331,.221,.017]]),17);
     seam(head,'vigilSilver',reflect([[.005,.389,.092,.011],[.155,.357,.119,.011],
       [.285,.234,.145,.010],[.322,.011,.193,.012],[.266,-.220,.189,.011],[.119,-.351,.181,.014]]),17);
-    seam(head,'vigilInk',reflect([[.035,.054,.205,.005],[.073,.068,.211,.011],[.119,.061,.201,.009],[.147,.045,.178,.004]]));
-    seam(head,'vigilSilver',reflect([[.035,.104,.209,.005],[.083,.119,.216,.008],[.131,.104,.191,.004]]));
-    gem(head,'vigilPearl',side*.088,.056,.218,.014,.006,.006);
+    const lid=k.bone(head,0,.056,.175);
+    lid.name=side<0?'晏燈 · 左眼':'晏燈 · 右眼';
+    lids.push(lid);
+    seam(lid,'vigilInk',reflect([[.035,-.004,.027,.003],[.073,.010,.016,.009],[.104,.009,.008,.010],
+      [.131,.001,-.006,.006],[.146,-.004,-.015,.003]]),9);
+    seam(lid,'vigilLips',reflect([[.050,-.012,.023,.003],[.083,-.015,.013,.005],[.116,-.009,.002,.003]]),7);
+    gem(lid,'vigilPearl',side*.087,-.002,.017,.014,.008,.004);
+    gem(lid,'vigilInk',side*.088,-.002,.023,.004,.006,.002);
+    seam(head,'vigilSilver',reflect([[.038,.103,.199,.003],[.082,.120,.186,.007],[.130,.099,.161,.003]]),9);
+    seam(head,'vigilEtching',reflect([[.131,.026,.153,.003],[.142,.005,.146,.004],
+      [.125,-.017,.156,.004],[.128,-.043,.150,.002]]),8);
     carve(head,'vigilHair',reflect([[.146,.176,.122,.032,.038],[.172,.108,.127,.038,.026],
       [.177,.023,.125,.030,.028],[.136,-.102,.133,.021,.023],[.104,-.162,.146,.004,.006]]),
       {sides:8,rings:13,section:2.4,ridge:.21,seed:side});
     seam(head,'vigilEtching',reflect([[.168,.207,.161,.006],[.177,.125,.155,.008],
       [.184,.051,.151,.006],[.161,-.050,.155,.004]]));
+    seam(head,'vigilEtching',reflect([[.266,.196,.108,.005],[.272,.140,-.018,.007],
+      [.235,.072,-.142,.006],[.151,.020,-.221,.004],[.049,-.023,-.250,.003]]),12);
+    seam(head,'vigilSilver',reflect([[.306,.072,.183,.005],[.286,-.042,.146,.007],
+      [.247,-.145,.118,.006],[.181,-.211,.082,.004]]),11);
     plate(body,'vigilSilver',reflect([[.048,.581,.171],[.159,.702,.144],[.327,.614,.177],[.432,.482,.138],
       [.348,.337,.198],[.205,.404,.226],[.102,.278,.210]]),.038);
     seam(body,'vigilEtching',reflect([[.070,.299,.237,.012],[.205,.439,.249,.013],[.348,.371,.215,.010],
       [.445,.496,.151,.011],[.331,.629,.193,.012],[.161,.716,.164,.009]]),14);
     seam(body,'vigilLining',reflect([[.046,.464,.222,.009],[.123,.361,.246,.013],[.162,.173,.202,.013],
       [.183,-.068,.180,.011],[.153,-.231,.166,.007]]),14);
+    seam(body,'vigilSilver',reflect([[.126,.411,.249,.005],[.199,.364,.244,.007],[.267,.413,.207,.005],
+      [.330,.474,.184,.006],[.393,.463,.163,.004]]),12);
+    for(let rivet=0;rivet<4;rivet++){
+      const d=rivet*.053;
+      gem(body,'vigilEtching',side*(.176+d),.392+d*.23,.237-d*.43,.010,.012,.007);
+    }
     plate(body,'vigilSilver',reflect([[.039,.658,-.202],[.174,.673,-.22],[.402,.543,-.157],
       [.339,.408,-.247],[.159,.382,-.298],[.010,.257,-.292]]),.044);
     seam(body,'vigilEtching',reflect([[.041,.651,-.232,.009],[.182,.692,-.239,.013],
@@ -191,11 +227,22 @@ export function sculptSilverWarden(k,parent,mobile){
       [.016,.238,-.316,.009]]),17);
   }
   plate(body,'vigilEtching',[[0,.420,.241],[.087,.519,.232],[0,.613,.224],[-.087,.519,.232]],.036);
+  plate(body,'vigilSilver',[[0,.449,.267],[.055,.514,.261],[0,.577,.255],[-.055,.514,.261]],.022);
   gem(body,'vigilPearl',0,.516,.264,.032,.044,.021);
+  for(const side of sides){
+    seam(body,'vigilEtching',[[side*.087,.531,.256],[side*.053,.566,.260],[side*.032,.596,.249]],7);
+    seam(body,'vigilEtching',[[side*.087,.504,.267],[side*.055,.465,.279],[side*.027,.454,.277]],7);
+  }
   const hem=k.bone(costume,0,1.373,.00);
   hem.name='晏燈 · 百褶銀袍';
   k.geometry(hem,'vigilSatin',pleat(.65,1.19,.267,.509,mobile?15:23,false));
   k.geometry(hem,'vigilLining',pleat(.65,1.19,.267,.509,mobile?15:23,true));
+  const hemBinding=Array.from({length:41},(_,index)=>{
+    const a=index*tau/40,s=Math.sin(a),c=Math.cos(a);
+    const rim=.499+.045*(Math.cos(a*8+2.1)+.31*Math.cos(a*13-5));
+    return [s*rim,-1.16+c*.050-.044*Math.abs(s),c*(rim-.155)-.123,.008];
+  });
+  seam(hem,'vigilEtching',hemBinding,mobile?32:56);
   const surcoat=k.bone(body,0,-.13,.20);
   carve(surcoat,'vigilSatin',[[0,.034,.003,.133,.035],[0,-.173,.009,.166,.046],
     [0,-.394,.056,.174,.040],[0,-.676,.066,.133,.040],[0,-.921,.032,.021,.010]],{ridge:.14});
@@ -227,10 +274,14 @@ export function sculptSilverWarden(k,parent,mobile){
     wrist.name=side<0?'晏燈 · 左掌':'晏燈 · 右掌';
     carve(shoulder,'vigilSatin',reflect([[.024,.101,-.014,.090,.101],[.065,-.016,-.002,.170,.151],
       [.044,-.165,.005,.149,.132],[.024,-.356,.009,.117,.096],[.019,-.430,.017,.102,.094]]));
+    seam(shoulder,'vigilEtching',reflect([[.017,.030,.132],[.098,-.061,.133],[.119,-.192,.119],
+      [.060,-.308,.108]].map(([x,y,z])=>[x,y,z,.006])),10);
     carve(elbow,'vigilSatin',reflect([[.014,.037,-.016,.103,.092],[.044,-.085,-.024,.135,.110],
       [.022,-.229,.005,.157,.120],[.004,-.387,.008,.122,.107]]),{ridge:.16});
     carve(elbow,'vigilSilver',[[0,-.425,.023,.100,.099],[0,-.399,.015,.138,.114],
       [0,-.335,.012,.126,.111],[0,-.302,.009,.101,.094]]);
+    carve(elbow,'vigilEtching',[[0,-.394,.012,.138,.111],[0,-.383,.011,.145,.117],[0,-.369,.010,.138,.113]],
+      {sides:12,rings:6,section:1.9,ridge:.048});
     seam(elbow,'vigilEtching',reflect([[.092,-.059,.057,.008],[.119,-.164,.077,.012],
       [.125,-.255,.079,.011],[.088,-.345,.088,.010]]));
     carve(wrist,'vigilPorcelain',[[0,.030,.007,.064,.046],[0,-.039,.030,.069,.042],
@@ -247,7 +298,7 @@ export function sculptSilverWarden(k,parent,mobile){
     light.position.set(0,-.104,.112);
     wrist.add(light);
     lamps.push(light);
-    arms.push({shoulder,elbow,wrist,foot,side});
+    arms.push({shoulder,elbow,wrist,foot,side,light});
   }
   for(let index=0;index<5;index++){
     const y=-.11-index*.140,scale=1-index*.12;
@@ -255,51 +306,79 @@ export function sculptSilverWarden(k,parent,mobile){
       [0,y-.042*scale,.071],[-.032*scale,y,.061]],.009);
   }
   const relic=k.bone(body,0,.33,-.319);
+  relic.name='晏燈 · 背章';
   for(const side of sides){
     seam(relic,'vigilSilver',[[side*.016,.301,.094,.028],[side*.104,.223,-.112,.042],
       [side*.132,.041,-.103,.039],[side*.097,-.183,-.069,.029],[0,-.312,.011,.008]],16);
   }
   plate(relic,'vigilEtching',[[0,.229,-.152],[.085,.055,-.154],[0,-.135,-.107],[-.085,.055,-.154]],.057);
   gem(relic,'vigilPearl',0,.049,-.200,.023,.061,.022);
+  k.geometry(relic,'vigilSilver',new T.TorusGeometry(.082,.009,5,mobile?20:30).scale(1,1.18,1).translate(0,.052,-.196));
+  for(const side of sides){
+    seam(relic,'vigilEtching',[[side*.047,.141,-.144,.007],[side*.111,.132,-.145,.009],[side*.157,.187,-.136,.006],
+      [side*.180,.201,-.097,.003]],10);
+    seam(relic,'vigilEtching',[[side*.057,.001,-.164,.006],[side*.117,-.062,-.132,.008],
+      [side*.109,-.118,-.092,.004]],8);
+    gem(relic,'vigilPearl',side*.122,.129,-.154,.009,.013,.008);
+  }
   const {halo,wheel,bands,light}=buildHalo(k,form,mobile);
   const fragments=wardenFragments(form,wheel,mobile);
   const fade=wardenDissolve(Object.entries(k.materials)
     .filter(([name])=>name.startsWith('vigil')).map(([,material])=>material),false);
   const emissions=[light,...lamps];
-  return {root:form,head,fade,pose({beat,headtime,wind,strike,travel,fall,step,stagger,subdued,progress=0}){
+  return {root:form,head,fade,pose({beat,headtime,wind,strike,travel,fall,step,stagger,subdued,attackPattern,progress=0}){
     const pulse=Math.sin(beat*.56),cast=Math.max(wind,strike*.95);
     const visibility=(1-fall)*(subdued?.65:1);
-    body.position.y=1.36+pulse*.026+strike*.039;
+    const invocation=attackPattern==='eclipse'||attackPattern==='spiral'||attackPattern==='summon';
+    const thrust=attackPattern==='lance',slash=attackPattern==='cleave'||attackPattern==='sweep'||attackPattern==='jaws';
+    const stomp=attackPattern==='toll'||attackPattern==='cinders';
+    const gather=invocation?wind:0,unfold=invocation?strike:0;
+    const coil=slash?wind:0,slice=slash?strike:0;
+    const draw=thrust?wind:0,reach=thrust?strike:0;
+    const press=stomp?wind:0,impact=stomp?strike:0;
+    body.position.y=1.36+pulse*.026+strike*.039+gather*.08+press*.035-impact*.11;
     const breaking=revealCurve(progress,.05,.31)*(1-revealCurve(progress,.36,.71));
-    body.rotation.x=-wind*.12+strike*.15-stagger*.18-breaking*.16;
-    head.rotation.set(-.038+pulse*.043+wind*.106-strike*.096,0,-stagger*.10);
+    body.rotation.x=-wind*.12+strike*.15-stagger*.18-breaking*.16+reach*.21+impact*.28-gather*.11;
+    body.rotation.y=.33*coil-.39*slice+.18*draw-.22*reach;
+    body.rotation.z=-.10*coil+.13*slice-.09*reach;
+    head.rotation.set(-.038+pulse*.043+wind*.106-strike*.096+.13*impact-.11*gather,
+      -body.rotation.y*.62,-stagger*.10+.07*slice);
+    const blink=revealCurve(Math.cos(headtime*1.61+.85),.996,1);
+    for(const lid of lids)lid.scale.y=1-.86*blink-.10*press;
     hem.rotation.set(-travel*.10+Math.sin(beat*.71)*.027,Math.sin(beat*.45)*(.035+travel*.034),pulse*.026);
     surcoat.rotation.x=.071+Math.sin(beat*.76)*.062+travel*.143+strike*.18+breaking*.43;
     for(const {train,side} of tails){
       train.rotation.x=travel*.28+Math.sin(beat*.81+side*.5)*.077+strike*.25+breaking*.49;
       train.rotation.z=side*(.07+pulse*.038+wind*.12-strike*.18);
     }
-    for(const {shoulder,elbow,wrist,foot,side} of arms){
-      shoulder.rotation.set(-.94-wind*.22-strike*.32+stagger*.29+breaking*.49,side*(.11+wind*.12),
-        side*(.72+pulse*.061+wind*.18-strike*.22-fall*.26+breaking*.28));
-      elbow.rotation.set(-.27-wind*.17+strike*.18,side*.09,-side*(.19+strike*.09));
-      wrist.rotation.set(.36+wind*.22-strike*.27,side*(.23+wind*.16-strike*.19),-side*.12);
+    for(const {shoulder,elbow,wrist,foot,side,light:palm} of arms){
+      const lead=side===1;
+      shoulder.rotation.set(-.94-wind*.22-strike*.32+stagger*.29+breaking*.49-gather*.31-unfold*.18+
+        (lead?.46*draw-.54*reach:.18*draw+.27*reach)+.51*impact-(lead?.30*coil:0),
+      side*(.11+wind*.12)+(lead?.40*coil-.66*slice:0),
+      side*(.72+pulse*.061+wind*.18-strike*.22-fall*.26+breaking*.28-.56*gather+.69*unfold+
+        (lead?-.37*draw-.42*reach:.17*reach)+.22*press-.27*impact+(lead?.26*coil+.29*slice:0)));
+      elbow.rotation.set(-.27-wind*.17+strike*.18-.47*gather+.22*unfold+
+        (lead?-draw*.54+reach*.24:.05*draw-.32*reach),side*.09,-side*(.19+strike*.09-.14*impact));
+      wrist.rotation.set(.36+wind*.22-strike*.27+.30*gather-.26*unfold-(lead?.36*reach:0)-.47*impact,
+        side*(.23+wind*.16-strike*.19+.25*press),-side*.12+(lead?.35*slice:0));
       foot.rotation.x=Math.sin(step+side*Math.PI*.5)*travel*.38;
       foot.position.y=.264+Math.max(0,Math.sin(step+side*Math.PI*.5))*travel*.063;
+      palm.material.uniforms.power.value=Math.max(breaking,gather*.92,unfold,lead?cast:cast*(1-.66*Math.max(draw,reach,coil,slice)));
     }
     costume.visible=progress<.76;
     halo.position.y=body.position.y+.80;
     halo.rotation.set(body.rotation.x-.24+pulse*.042,stagger*.16,Math.sin(beat*.29)*.044);
-    wheel.rotation.z=headtime*.13+wind*.31;
+    wheel.rotation.z=headtime*.13+wind*.31+gather*.29+unfold*.51;
     bands.visible=progress<.12;
     light.visible=progress<.19;
     fade.amount.value=revealCurve(progress,.19,.76);
     fragments.update(progress);
     for(const emission of emissions){
       emission.material.uniforms.clock.value=headtime;
-      emission.material.uniforms.power.value=Math.max(cast,breaking);
       emission.material.uniforms.visibility.value=visibility*(1-revealCurve(progress,.14,.37));
     }
+    light.material.uniforms.power.value=Math.max(cast,breaking,gather*.94,unfold);
   },dispose(){
     for(const emission of emissions)emission.material.dispose();
     fragments.dispose();

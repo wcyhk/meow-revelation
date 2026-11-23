@@ -26,6 +26,7 @@ import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHi
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=story-repair-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
 import {BossArena} from './boss-arena.mjs?v=ledger-1';
+import {BossReversal,bossDamageScale} from './boss-reversal.mjs';
 import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {bossArenas} from './arena-layouts.mjs?v=bestiary-1';
 import {advanceReaction, blendPose, enemyPose, heroAction, heroPose, reactionPose, reactionTime, recoil} from './combat-motion.mjs?v=weapon-audit-1';
@@ -575,10 +576,17 @@ export class Game {
   }
 
   clearActors() {
+    this.clearReversal();
     this.branchCombat.activeMaw?.clearVisuals();
     const actors = new Set([...this.enemies,...this.fallen,...this.pickups]);
     for (const unit of actors) this.view.removeActor(unit.visual);
     this.enemies.length = this.fallen.length = this.pickups.length = 0;
+  }
+
+  clearReversal() {
+    if(this.roomReversal)this.view.arenaArt.setReversals(null);
+    this.roomReversal=null;
+    this.reversalPending=false;
   }
 
   enter(level) {
@@ -819,6 +827,7 @@ export class Game {
       }
     }
     this.enemies.push(unit);
+    if(kind==='boss'&&!this.roomReversal)this.reversalPending=true;
     this.view.spark(unit.x,.27,unit.z,spec.tint,12,.68,spec.effect);
     return unit;
   }
@@ -1068,7 +1077,8 @@ export class Game {
     return this.stage.props.some(prop=>distance(unit,prop)<prop.radius+margin)
       ||!!this.view.landscape?.solid.some(prop=>distance(unit,prop)<prop.radius+margin)
       ||!!this.escape?.barricades.some(item=>item.hp>0&&distance(unit,item)<item.radius+margin)
-      || !!this.bossArena?.blocks(unit,margin,previous);
+      || !!this.bossArena?.blocks(unit,margin,previous)
+      || !!this.roomReversal?.blocks(unit,margin,previous);
   }
 
   moveUnit(unit,dx,dz,margin) {
@@ -1271,7 +1281,8 @@ export class Game {
     const shield=unit.spec.guard&&unit.guardOpen<=0&&unit.attack&&unit.attack.time>unit.spec.time*.34;
     const heavy=weight==='heavy'||(!weight&&(Math.abs(knock)>=1.21||amount>=this.hero.damage*1.44));
     const before=unit.hp;
-    unit.hp -= damage*(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
+    unit.hp -= damage*bossDamageScale(unit,source,this.testRun)
+      *(unit.exposed>0?1.24:1)*(shield?(unit.omen?.id==='husk'&&!heavy?.55:.73):1);
     if (phaseBoundary) unit.hp=Math.max(nextPhaseHp,unit.hp);
     this.practiceRun?.damage.record(source,before,unit.hp);
     const kind=unit.hp<=0?'fall':heavy&&(shield||unit.attack?.moonAssist)?'break':shield?'block':heavy?'heavy':'light';
@@ -1508,6 +1519,10 @@ export class Game {
     const attack=unit.attack;
     const boss=unit.kind==='boss';
     unit.attack=null;
+    if(attack.reversal){
+      this.roomReversal?.release(unit,attack);
+      return;
+    }
     unit.motion={pattern:attack.pattern,dx:attack.dx,dz:attack.dz,age:0,moonStroke:attack.moonSlash?.index};
     unit.recover=boss?.56-unit.bossPhase*.08:.29;
     unit.cool=(boss?1.16-unit.bossPhase*.19:1.21/this.stage.pace)+random(.12,.45);
@@ -1554,6 +1569,7 @@ export class Game {
       unit.phaseGuard-=dt;
       unit.morale-=dt;
       if(this.tickBossTransform(unit,dt))continue;
+      if(this.roomReversal?.dash?.unit===unit)continue;
       if (unit.lured>0) unit.lured-=dt;
       if (unit.frozen>0) {
         unit.frozen-=dt;
@@ -1581,6 +1597,7 @@ export class Game {
       if (Math.abs(dx)>.14) unit.face=Math.sign(dx);
       const attackRange=h===this.hero ? spec.reach : Math.min(spec.reach,spec.ranged??1.85);
       const exercise=arena?drill:null;
+      if(!drill&&unit.kind==='boss'&&unit.cool<=0&&this.roomReversal?.tryLure(unit))continue;
       if (unit.cool<=0&&arena) {
         if(!exercise?.focused&&wardenSummonReady(this,unit)){
           this.beginEnemyAttack(unit,wardenSummonPattern);
@@ -1729,6 +1746,7 @@ export class Game {
       this.clearActors();
     }
     this.bossArena=null;
+    this.clearReversal();
     this.audio.danger=false;
     this.view.setBossArena(null);
     this.setupMissionPins();
@@ -1881,7 +1899,7 @@ export class Game {
     const boss=unit.kind==='boss';
     const primary=this.bossArena?.boss===unit;
     const shielded=primary&&this.bossArena?.locked;
-    const staggered=primary&&this.bossArena?.counters.stagger>0;
+    const staggered=boss&&(unit.stun>.20||primary&&this.bossArena?.counters.stagger>0);
     const frozen=unit.frozen>0;
     const wind=unit.attack ? 1-clamp(unit.attack.time/(unit.attack.windup??unit.spec.time),0,1) : 0;
     const gait=actorMotion(unit,dt,t);
@@ -1979,6 +1997,13 @@ export class Game {
     this.updateRituals(dt);
     if (this.ultimateFields.length) updateUltimates(this,dt);
     this.branchCombat.update(this,dt);
+    if(this.reversalPending){
+      this.reversalPending=false;
+      this.roomReversal=new BossReversal(this);
+      this.view.arenaArt.setReversals(this.roomReversal);
+    }
+    this.roomReversal?.tick(dt);
+    if(this.state!=='play')return;
     this.updateEnemies(dt);
     this.relicHunt?.tick(dt);
     if(this.relicWalls.length)this.relicWalls=this.relicWalls.filter(wall=>wall.until>this.t);
@@ -2047,12 +2072,14 @@ export class Game {
       if (arenaHint.textContent!==textForLocale(line)) arenaHint.textContent=textForLocale(line);
     }
     const weakness=this.ui['boss-weakness'];
-    weakness.hidden=arenaHint.hidden;
+    const reversal=this.roomReversal;
+    weakness.hidden=arenaHint.hidden&&(!reversal||(!boss&&!echo&&!summons)||!!boss?.phaseChange);
     if (!weakness.hidden) {
-      const counter=arena.counters;
-      const hint=counter.hint;
-      weakness.classList.toggle('open',counter.stagger>0);
-      weakness.classList.toggle('windup',counter.chargeHint>0);
+      const counter=arena?.counters;
+      const usingDevice=reversal&&(reversal.windup||reversal.dash||reversal.nearby()||!counter?.active);
+      const hint=usingDevice?reversal.cue:counter?.hint??'';
+      weakness.classList.toggle('open',!!boss&&boss.exposed>0);
+      weakness.classList.toggle('windup',!!(reversal?.windup||reversal?.dash)||counter?.chargeHint>0);
       if (weakness.textContent!==textForLocale(hint)) weakness.textContent=textForLocale(hint);
     }
     const cooldowns=[h.rollCool/h.rollTime,h.spellCool/h.spellTime,h.atk/h.atkTotal];
@@ -2739,6 +2766,7 @@ export class Game {
   showCover() {
     this.recordChallenge('abandoned');
     this.state='cover';
+    this.clearReversal();
     this.cancelRoomPreparation();
     this.clearStageEncounter();
     if(this.testRun){

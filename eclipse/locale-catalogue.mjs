@@ -1,5 +1,9 @@
 // Display copy keyed by the original Traditional Chinese text.
 export const catalogue = Object.freeze({
+  "頭目鎖定機關 · 離開紅線":["首领已锁定机关 · 离开红线","Boss is targeting the device. Leave the red line.","ボスが仕掛けを狙っている。赤い予兆から離れよう。"],
+  "場地機關重新蓄力":["场地机关正在蓄力","Arena devices are recharging.","仕掛けを再充填中。"],
+  "用石柱或銅鏡引頭目擊碎封印":["用石柱或铜镜引首领击碎封印","Use a pillar or mirror to turn the boss's attack against the seals.","石柱や銅鏡を使い、ボスの攻撃で封印を壊そう。"],
+  "踏入光環，借石柱或銅鏡反制頭目":["踏入光环，借石柱或铜镜反制首领","Step into a glowing ring to bait the boss into a pillar or mirror.","光る輪に入り、石柱か銅鏡にボスの攻撃を誘導しよう。"],
   "・終式":["・终式","End of story.","終わりのストーリー。"],
   "・連式":["・连式","",". . ."],
   "・餘響":["・余响","Yu-hing","ユヒンジ"],

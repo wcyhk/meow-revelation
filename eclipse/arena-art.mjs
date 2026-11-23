@@ -1,5 +1,6 @@
 import * as T from '../three.min.mjs';
 import {floorRing, lightLantern, monument, piece as mesh, ritualFixture} from './map-art.mjs?v=forge-1';
+import {reversalRadius} from './boss-reversal.mjs';
 
 const PI=Math.PI;
 const glowOptions={transparent:true,depthWrite:false,blending:T.AdditiveBlending};
@@ -116,7 +117,24 @@ export class ArenaArt {
     this.root=new T.Group();
     this.phaseRoot=new T.Group();
     this.previousPhaseRoot=new T.Group();
+    this.reversalRoot=new T.Group();
     view.scene.add(this.root,this.phaseRoot,this.previousPhaseRoot);
+    view.scene.add(this.reversalRoot);
+  }
+
+  setReversals(reversal) {
+    this.clear(this.reversalRoot);
+    this.reversal=reversal;
+    this.reversalMarks=reversal?.sites.map(site=>{
+      const root=this.reversalRoot;
+      if(site.kind==='pillar')root.add(monument(this.view,{...site,style:2},site.ink,{tall:true}));
+      else ritualFixture(this.view,root,site,'bait',site.ink,0x6d7b87);
+      const mark=mesh(root,floorRing(reversalRadius-.075,reversalRadius,32),
+        new T.MeshBasicMaterial({color:site.ink,opacity:.69,...glowOptions}),site.x,.09,site.z);
+      mark.renderOrder=4;
+      return mark;
+    })??[];
+    if(reversal)this.view.cutaway.cover(this.reversalRoot);
   }
 
   clear(root) {
@@ -226,6 +244,12 @@ export class ArenaArt {
   }
 
   render(time) {
+    if(this.reversal){
+      const ready=this.reversal.game.t>=this.reversal.readyAt;
+      for(const [index,mark] of this.reversalMarks.entries()){
+        mark.material.opacity=ready?.68+.13*Math.sin(time*4.6+index):.27;
+      }
+    }
     const arena=this.arena;
     if (!arena) return;
     const change=arena.boss.phaseChange;

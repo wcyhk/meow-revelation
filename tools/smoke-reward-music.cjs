@@ -160,7 +160,9 @@ let chrome,ws;
     await act('#begin');await wait('qa.state==="armory"');
     await act('.arm-card');await wait('qa.weaponViewer.open');await act('.weapon-viewer .primary');
     await wait('qa.state==="story"');
-    await ev('(()=>{for(let i=0;i<20&&qa.state==="story";i++){const choices=document.querySelector(".vn-options");(choices&&!choices.hidden?choices.firstElementChild:document.querySelector(".vn-next")).click();}qa.hero.invulnerable=10000;qa.clearActors();qa.blessing("離線配樂測試");return true;})()');
+    await ev('(()=>{for(let i=0;i<20&&qa.state==="story";i++){const choices=document.querySelector(".vn-options");(choices&&!choices.hidden?choices.firstElementChild:document.querySelector(".vn-next")).click();}return true;})()');
+    await wait('qa.state==="play"');
+    await ev('qa.hero.invulnerable=10000;qa.clearActors();qa.blessing("離線配樂測試");true');
     await wait('!navigator.onLine && qa.state==="blessing" && !qa.soundtrack.media.paused && qa.soundtrack.audible');
   }
   assert.deepEqual(errors,[]);assert.deepEqual(httpErrors,[]);

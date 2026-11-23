@@ -497,7 +497,7 @@ export class Game {
     this.closeModal();
     if(this.duelMonster)this.startMonsterDuel();
     else this.enter(0);
-    this.view.canvas.focus();
+    if(this.ui.modal.hidden)this.view.canvas.focus({preventScroll:true});
   }
 
   equip(weapon) {
@@ -673,20 +673,42 @@ export class Game {
     this.state='story';
     this.audio.play('blessing');
     const final=clue===ending;
+    const opening=this.level===0&&!final;
+    const hero=this.hero,stage=this.stage;
+    const current=()=>this.hero===hero&&this.stage===stage&&(this.state==='story'||this.state==='transition');
+    let preparation;
+    if(opening){
+      this.poseHero(0);
+      preparation=this.openingPreparation={current,pending:true};
+      preparation.promise=this.view.prepareBattlefield(hero,this.enemies,current)
+        .catch(error=>console.warn('Opening battlefield preparation deferred',error))
+        .finally(()=>{
+          preparation.pending=false;
+          if(this.openingPreparation===preparation)this.openingPreparation=null;
+        });
+    }
     this.openDialogue(clue.title,final?'尾聲':this.stage.zone.name,storyDialogue(clue,this.storyChoices),
-      final?'聽鐘聲':'收起線索',selected=>{
+      final?'聽鐘聲':'收起線索',async selected=>{
       if (selected) this.storyChoices[clue.title]=selected.id;
       if (clue.record) this.journal.push({title:clue.title,record:clue.record,chapter:this.stage.zone.name,note:selected?.note});
+      if(preparation?.pending){
+        this.state='transition';
+        const next=this.ui['modal-content'].querySelector('.vn-next');
+        if(next){next.disabled=true;next.textContent='燈火引路⋯⋯';}
+        await preparation.promise;
+        if(!current()||this.state!=='transition')return;
+      }
       this.closeModal();
       if (final) {
         this.finish(true);
         return;
       }
       this.state='play';
+      this.view.canvas.focus({preventScroll:true});
       this.objective(this.level===0?'敵影將至 · 紅印亮起時可翻滾':this.mission?.plan.hint??'前方的封印正在鬆動');
       this.startDelay=1.07;
     });
-    this.storyDepth.setActive(this.level===0&&!final);
+    this.storyDepth.setActive(opening);
     return true;
   }
 
@@ -701,8 +723,8 @@ export class Game {
 
   openDialogue(title,location,scene,finishLabel,onFinish,summary) {
     const content=dialoguePanel({title,location,scene,finishLabel,onFinish,summary});
-    this.openModal({kind:'dialogue',mark:'',kicker:'',title,copy:'',content});
-    content.querySelector('.vn-next:not([hidden]), .vn-options:not([hidden]) .vn-choice')?.focus({preventScroll:true});
+    const focus=content.querySelector('.vn-next:not([hidden]), .vn-options:not([hidden]) .vn-choice');
+    this.openModal({kind:'dialogue',mark:'',kicker:'',title,copy:'',content,focus});
   }
 
   showJournal() {
@@ -1953,6 +1975,7 @@ export class Game {
     this.audio.active=this.state==='play'||rewardMusicStates.has(this.state)
       ||this.state==='armory'&&this.ui.cover.hidden;
     if(this.storyDepth.render(this.view.renderer,dt,this.view.feedback.subdued))return;
+    if(this.openingPreparation?.pending&&this.openingPreparation.current())return;
     if (this.state==='fracture'||this.state==='gm') this.updateFailure(dt);
     const freezeWarnings=this.hitstop>0;
     if (this.state==='play'||this.state==='falling') {
@@ -1976,7 +1999,7 @@ export class Game {
     this.updateMissionPins();
   }
 
-  openModal({mark,kicker,title,copy,content,buttons,kind=''}) {
+  openModal({mark,kicker,title,copy,content,buttons,kind='',focus}) {
     if(this.weaponViewer.open)this.weaponViewer.dialog.close();
     this.input.reset();
     this.buffered = {dodge:0,spell:0,strike:0,dodgeDirection:null,spellAim:null};
@@ -1991,7 +2014,7 @@ export class Game {
     this.ui.modal.hidden=false;
     this.ui.hud.inert=true;
     this.ui.cover.inert=true;
-    this.ui.modal.querySelector('button')?.focus({preventScroll:true});
+    (focus??this.ui.modal.querySelector('button'))?.focus({preventScroll:true});
     this.interfaceMotion.enter(this.ui.modal);
   }
 

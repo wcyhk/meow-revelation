@@ -106,8 +106,20 @@ let chrome,ws;
   };
   await act('#begin');await wait('qa.state==="armory"');
   await act('.arm-card');await wait('qa.weaponViewer.open');
+  await ev(`(()=>{
+    const view=qa.view,prepare=view.prepareBattlefield;
+    const hold=new Promise(resolve=>{window.completeOpeningWarmup=resolve;});
+    view.prepareBattlefield=function(...args){
+      view.prepareBattlefield=prepare;
+      return Promise.all([prepare.apply(this,args),hold]);
+    };
+    return true;
+  })()`);
   await act('.weapon-viewer .primary');await wait('qa.state==="story"');
   await ev('(()=>{for(let i=0;i<20&&qa.state==="story";i++){const choices=document.querySelector(".vn-options");(choices&&!choices.hidden?choices.firstElementChild:document.querySelector(".vn-next")).click();}return true;})()');
+  assert.equal(await ev('qa.state==="transition" && !qa.ui.modal.hidden && qa.elapsed===0 && qa.enemies.length===0'),true,
+    'Skipping the prologue during GPU preparation must keep the run clock and enemies paused');
+  await ev('completeOpeningWarmup();true');
   await wait('qa.state==="play" && !qa.soundtrack.media.paused');
   await ev('qa.hero.invulnerable=10000;qa.relicHunt=null;true');
   await sleep(1400);

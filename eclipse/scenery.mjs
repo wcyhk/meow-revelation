@@ -388,7 +388,33 @@ export class Scenery {
       this.removeActor(actor);
     }
     this.setStage(stages[0]);
+    await this.prepareCombatEffects();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  async prepareCombatEffects() {
+    // Keep a small set of representative materials alive. Disposing the last
+    // material that uses a program makes the next attack compile it again.
+    const point={x:0,y:.1,z:0},tint=0xffc786;
+    this.warning('circle',0,0,1,1);
+    this.sealFx(0,0,tint,2);
+    this.motion.ribbon(this.motion.cut,point,tint,.3);
+    this.motion.impactLight(point,tint,1,0);
+    ornamentSpell(this,point,{action:'line',element:'lightning',tint,radius:2});
+    ornamentSpell(this,point,{action:'entrance',element:'stone',tint,radius:2});
+    const group=new T.Group();
+    const samples=this.effects.splice(0);
+    for(const {mesh} of samples)group.add(mesh);
+    try{
+      await this.renderer.compileAsync(group,this.camera,this.scene);
+      this.preparedEffectMaterials=samples.map(({mesh})=>mesh.material);
+    }finally{
+      for(const fx of samples){
+        if(!this.preparedEffectMaterials)fx.mesh.material.dispose();
+        if(fx.owned)fx.mesh.geometry.dispose();
+      }
+      this.motion.budget=0;
+    }
   }
 
   resize() {
@@ -1928,7 +1954,15 @@ export class Scenery {
     mark.material.uniforms.pixelRatio.value=this.renderer.getPixelRatio();
   }
 
-  render(dt, hero, paused=false, freezeWarnings=false, enemies=[]) {
+  async prepareBattlefield(hero,enemies,valid) {
+    // Give the prologue a frame to paint before starting the GPU work.
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    if(!valid())return;
+    this.updateFrame(0,hero,true,false,enemies);
+    await this.renderer.compileAsync(this.scene,this.camera);
+  }
+
+  updateFrame(dt, hero, paused, freezeWarnings, enemies) {
     if (!paused) this.time += dt;
     this.feedback.update(dt);
     const time = this.time;
@@ -1981,6 +2015,10 @@ export class Scenery {
     if(this.leaves.mesh.visible)this.renderLeaves(this.feedback.subdued?0:time);
     this.renderMission();
     this.arenaArt.render(time);
+  }
+
+  render(dt, hero, paused=false, freezeWarnings=false, enemies=[]) {
+    this.updateFrame(dt,hero,paused,freezeWarnings,enemies);
     this.renderer.render(this.scene,this.camera);
     this.motion.budget=0;
     this.elementBudget=0;

@@ -104,11 +104,11 @@ let chrome,ws;
     const {mountBestiary,poseBestiary,removeBestiary}=await import(new URL('bestiary-models.mjs?v=boss-foundry-1',document.baseURI));
     const T=await import(new URL('../three.min.mjs',document.baseURI));
     window.originalQA={arms,monsterCatalogue,monsterBattle,mountBestiary,poseBestiary,removeBestiary,T};
-    const signatures=[],models=[];
+    const models=[];
     for(const weapon of arms){
       const root=forge(weapon),box=new T.Box3().setFromObject(root),size=box.getSize(new T.Vector3());
       const finite=[size.x,size.y,size.z].every(Number.isFinite)&&Math.min(size.x,size.y,size.z)>0;
-      models.push({id:weapon.id,name:weapon.name,finite,signature:root.userData.originalSignature});signatures.push(root.userData.originalSignature);disposeForge(root);
+      models.push({id:weapon.id,named:root.name===weapon.name,finite});disposeForge(root);
     }
     return {count:arms.length,designCount:originalRelics.size,uniqueNames:new Set(arms.map(w=>w.name)).size,
       uniqueIcons:new Set(qa.view.armIcons.values()).size,models,catalogue:monsterCatalogue.length,
@@ -116,7 +116,7 @@ let chrome,ws;
   })()`);
   assert.equal(content.count,73);assert.equal(content.designCount,73);assert.equal(content.uniqueNames,73);
   assert.equal(content.catalogue,166);assert.equal(content.independent,true);
-  assert.ok(content.models.every(m=>m.finite&&m.signature));
+  assert.ok(content.models.every(m=>m.finite&&m.named));
   const icons=await ev('({keys:[...qa.view.armIcons.keys()].length,unique:new Set(qa.view.armIcons.values()).size})');
   assert.equal(icons.keys,73);assert.equal(icons.unique,73,'Each weapon needs its own rendered icon');
   const rendered=await ev('[...qa.view.previewArms()]');

@@ -361,7 +361,7 @@ export class Scenery {
       this.renderer.initTexture(texture);
       if(++uploaded%4===0)await new Promise(resolve=>requestAnimationFrame(resolve));
     }
-    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=lantern-original-1',import.meta.url).href]));
+    this.armIcons = new Map(arms.map(arm=>[arm.id,new URL('./art/weapons/'+arm.id+'.webp?v=forged-relics-1',import.meta.url).href]));
     // Downloading assets is not GPU preparation. Retained theme materials let us
     // do first-use texture uploads and shader compilation behind the loading art.
     for(const [index,picture] of landscapePictures.entries()){
@@ -371,21 +371,30 @@ export class Scenery {
       await this.renderer.compileAsync(this.scene,this.camera);
       this.renderer.render(this.scene,this.camera);
     }
-    // Prime the first field enemies and the first two boss shader/rig families.
-    // Later encounters reuse compatible programs; the reserve has a strict cap.
-    const encounters=[...stages[0].zone.foes.map(kind=>enemySpec(stages[0],kind)),
-      enemySpec(stages[4],'boss'),enemySpec(stages[9],'boss')];
+    // Keep the actual opening wave at the end of the bounded reserve. Include
+    // repeated enemies since each one needs its own animated rig at spawn.
+    const opening=stages[0];
+    const encounters=[enemySpec(stages[4],'boss'),enemySpec(stages[9],'boss'),
+      ...opening.waves[0].map(kind=>enemySpec(opening,kind))];
     document.getElementById('load-note').textContent='正在預備戰鬥模型⋯⋯';
     this.setStage(stages[0]);
-    for(const spec of encounters){
-      await new Promise(resolve=>requestAnimationFrame(resolve));
-      const actor=this.createActor(spec.frame,spec.height);
-      this.prepareBoss(actor,spec);
-      this.actor(actor,{x:0,z:-2,kind:'boss',bossPhase:0,age:1,hp:spec.hp,move:0,flash:0,attack:null},
-        {frame:spec.frame,face:1,aura:.4,rim:spec.tint,bob:0,squash:1,tilt:0});
-      await this.renderer.compileAsync(this.scene,this.camera);
-      this.renderer.render(this.scene,this.camera);
-      this.removeActor(actor);
+    const primed=[];
+    try {
+      for(const spec of encounters){
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        const actor=this.createActor(spec.frame,spec.height);
+        primed.push(actor);
+        this.prepareBoss(actor,spec);
+        this.actor(actor,{x:0,z:-2,kind:'boss',bossPhase:0,age:1,hp:spec.hp,move:0,flash:0,attack:null},
+          {frame:spec.frame,face:1,aura:.4,rim:spec.tint,bob:0,squash:1,tilt:0});
+        await this.renderer.compileAsync(this.scene,this.camera);
+        this.renderer.render(this.scene,this.camera);
+        this.scene.remove(actor.art,actor.shade,actor.rim);
+        (actor.bestiary?.root??actor.form)?.removeFromParent();
+      }
+    }finally{
+      // Keep duplicate rigs checked out until all instances have been prepared.
+      for(const actor of primed)this.removeActor(actor);
     }
     this.setStage(stages[0]);
     await this.prepareCombatEffects();
@@ -407,10 +416,11 @@ export class Scenery {
     for(const {mesh} of samples)group.add(mesh);
     try{
       await this.renderer.compileAsync(group,this.camera,this.scene);
-      this.preparedEffectMaterials=samples.map(({mesh})=>mesh.material);
+      this.preparedEffectMaterials=samples.filter(fx=>!fx.materialKey).map(({mesh})=>mesh.material);
     }finally{
       for(const fx of samples){
         if(!this.preparedEffectMaterials)fx.mesh.material.dispose();
+        else if(fx.materialKey)this.recycleEffectMaterial(fx.materialKey,fx.mesh.material);
         if(fx.owned)fx.mesh.geometry.dispose();
       }
       this.motion.budget=0;
@@ -1486,6 +1496,23 @@ export class Scenery {
     if(element==='water'||element==='fire')this.feedback.surge(element,hero,.64);
   }
 
+  effectMaterial(key,create) {
+    return this.effectMaterials?.get(key)?.pop()??create();
+  }
+
+  recycleEffectMaterial(key,material) {
+    const pool=this.effectMaterials??=new Map();
+    const idle=pool.get(key)??[];
+    if(idle.length===6){material.dispose();return;}
+    idle.push(material);
+    pool.set(key,idle);
+  }
+
+  clearEffectMaterials() {
+    for(const idle of this.effectMaterials?.values()??[])for(const material of idle)material.dispose();
+    this.effectMaterials?.clear();
+  }
+
   addEffect(geometry, position, tint, duration, settings = {}) {
     const {opacity=1, scale=1, growth=0, angle=0, blend=true, owned=false, map=null, fade=false, material} = settings;
     const mat = material??new T.MeshBasicMaterial({color:tint,map,transparent:true,opacity,depthWrite:false,side:T.DoubleSide,
@@ -1498,7 +1525,7 @@ export class Scenery {
     mesh.scale.setScalar(scale);
     mesh.renderOrder = settings.order ?? 30;
     this.scene.add(mesh);
-    const fx = {mesh,ttl:duration,age:0,scale,growth,opacity,owned,fade};
+    const fx = {mesh,ttl:duration,age:0,scale,growth,opacity,owned,fade,materialKey:settings.materialKey};
     this.effects.push(fx);
     return fx;
   }
@@ -1671,7 +1698,7 @@ export class Scenery {
       opacity:.77,order:15});
     this.spark(x,.44,z,spec.tint,phase==='defeat'?38:30,1.43,spec.effect);
     if(spec.relicWeapon)this.relicPulse(spec.relicWeapon,unit,2.7,0);
-    if(spec.bestiary){
+    if(phase!=='defeat'){
       const color=spec.tint, radius=spec.height*.48;
       if(spec.effect==='lightning')this.bolt({x,y:spec.height+2,z},{x,y:.2,z},color,2.12);
       if(spec.effect==='ice'||spec.effect==='stone'){
@@ -1682,7 +1709,10 @@ export class Scenery {
       }else if(spec.effect==='fire'||spec.effect==='blood'){
         this.motion.vortex(x,z,radius*1.18,color,.94);
       }else if(spec.effect==='water'||spec.effect==='wind'){
-        for(let i=0;i<4;i++)this.wave(x,z,Math.cos(i*PI/2),Math.sin(i*PI/2),radius*1.5,color,true,spec.effect);
+        for(let i=0;i<3;i++){
+          const a=i*PI*2/3;
+          this.wave(x,z,Math.cos(a),Math.sin(a),radius*1.5,color,true,spec.effect);
+        }
       }
       this.elementBurst(x,.48,z,color,spec.effect,phase==='phase'?24:15,1.28);
     }
@@ -1870,7 +1900,8 @@ export class Scenery {
 
   release(fx) {
     this.scene.remove(fx.mesh);
-    fx.mesh.material.dispose();
+    if(fx.materialKey)this.recycleEffectMaterial(fx.materialKey,fx.mesh.material);
+    else fx.mesh.material.dispose();
     if(fx.cleanup)fx.cleanup();
     else for(const child of fx.mesh.children)child.material.dispose();
     if (fx.owned) fx.mesh.geometry.dispose();

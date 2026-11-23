@@ -2,6 +2,7 @@ import * as T from '../three.min.mjs';
 import {spellVolume,spellVolumeGeometry} from './spell-volume.mjs?v=emberlight-1';
 
 const TAU=Math.PI*2;
+const warmWhite=new T.Color(0xfff1d7);
 const elements={
   fire:0,ice:1,wind:2,lightning:3,light:4,void:5,blood:6,water:7,gold:8,
   stone:9,earth:9,root:10,web:11,poison:12,feather:13,
@@ -123,14 +124,17 @@ const fragment=`
       thread=.52+.17*pulse;drift=pow(.5+.5*sin(u*52.+v*15.-t),4.);cloud=pow(sides,1.6);
     }
     float distance=abs(v-thread);
-    float trail=exp(-distance*6.0);
-    float shine=exp(-distance*(flavor==3.?35.:21.));
+    float trail=exp(-distance*7.0);
+    float shine=exp(-distance*(flavor==3.?46.:26.));
     float split=thread+.19*sin(u*21.-t*.5);
-    float echo=exp(-abs(v-split)*24.)*pow(.5+.5*cos(u*26.-t),3.);
+    float echo=exp(-abs(v-split)*28.)*pow(.5+.5*cos(u*26.-t),3.);
     float packet=pow(.5+.5*cos(u*18.-t*1.45),4.);
-    float glow=cloud*(.24+drift*.21)+trail*.34+shine*(.65+.27*packet)+echo*.27;
-    vec3 color=mix(tint*(.72+drift*.29),heart,clamp(shine*(.76+.24*packet)+echo*.21,0.,1.));
-    gl_FragColor=vec4(color,glow*gate*reveal*opacity*smoothstep(0.,.13,sides));
+    float curl=thread+.24*sin(u*13.+t*.38);
+    float rim=exp(-abs(v-curl)*40.)*pow(.5+.5*sin(u*38.+t*.62),5.);
+    float dust=cloud*(.15+drift*.19)*(.66+.34*abs(lace));
+    float glow=dust+trail*.28+shine*(.68+.37*packet)+echo*.33+rim*.19;
+    vec3 color=mix(tint*(.64+drift*.42),heart,clamp(shine*(.80+.20*packet)+echo*.23+rim*.21,0.,1.));
+    gl_FragColor=vec4(color,glow*gate*reveal*opacity*smoothstep(0.,.17,sides));
     #include <colorspace_fragment>
   }
 `;
@@ -139,21 +143,28 @@ export function ornamentSpell(view,point,spec) {
   const {action,element,tint,radius,angle=0,seed=0,power=1}=spec;
   const layout=scripts[action]??'spiral';
   if(!view.motion.accent())return;
-  const color=new T.Color(tint);
   const fade=layout==='gate'?.66:layout==='ward'?.68:layout==='spiral'?.53:layout==='line'?.29:.42;
   const extended=layout==='line'||layout==='sweep';
   const span=T.MathUtils.clamp(radius,.45,extended?9:4.7);
-  const material=new T.ShaderMaterial({
+  const materialKey='spell-veil';
+  const material=view.effectMaterial(materialKey,()=>new T.ShaderMaterial({
     transparent:true,depthWrite:false,side:T.DoubleSide,forceSinglePass:true,blending:T.AdditiveBlending,
     uniforms:{
-      tint:{value:color},heart:{value:color.clone().lerp(new T.Color(0xfff1d7),.59)},
-      life:{value:0},opacity:{value:power},flavor:{value:elements[element]??5},salt:{value:(seed%91)*.23},
-      coil:{value:layout==='spiral'||layout==='gate'?1:0},
+      tint:{value:new T.Color()},heart:{value:new T.Color()},
+      life:{value:0},opacity:{value:0},flavor:{value:0},salt:{value:0},coil:{value:0},
     },
     vertexShader:vertex,fragmentShader:fragment,
-  });
+  }));
+  const u=material.uniforms;
+  u.tint.value.setHex(tint);
+  u.heart.value.copy(u.tint.value).lerp(warmWhite,.59);
+  u.life.value=0;
+  u.opacity.value=power;
+  u.flavor.value=elements[element]??5;
+  u.salt.value=(seed%91)*.23;
+  u.coil.value=layout==='spiral'||layout==='gate'?1:0;
   const fx=view.addEffect(surfaces[layout],{x:point.x,y:point.y??.075,z:point.z},tint,fade,{
-    material,fade:true,opacity:power,scale:span*(layout==='ward'?.94:.80),growth:span*(extended?.11:.26),
+    material,materialKey,fade:true,opacity:power,scale:span*(layout==='ward'?.94:.80),growth:span*(extended?.11:.26),
     angle:extended?-angle:(seed%23)*.273,order:71,
   });
   fx.stretchY=extended?Math.min(1,1.9/span):Math.min(1,2.1/span);

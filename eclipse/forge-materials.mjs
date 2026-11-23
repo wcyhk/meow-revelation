@@ -1,6 +1,5 @@
 import * as T from '../three.min.mjs';
 import {paintedFinish} from './painted-finish.mjs?v=nightforge-1';
-import {KoreanWeaponColors} from './korean-art.mjs?v=pao-1';
 import {forgeEnvironment} from './pao-materials.mjs?v=nightforge-1';
 import {scannedSurface} from './sculpt-material.mjs?v=sculpted-1';
 
@@ -84,9 +83,6 @@ const lacquer=new Set(['frostlute','treasure-staff','red-bow','venom-cane','bat-
 export function forgedMaterials(weapon) {
   const {id}=weapon;
   const [dark,trim,edge,body,core]=palettes[id].split(' ').map(hex=>Number.parseInt(hex,16));
-  const sample=KoreanWeaponColors[id];
-  const referenceColor=(original,index,weight)=>sample?
-    new T.Color(original).lerp(new T.Color(sample[index]),weight).getHex():original;
   const chipped=bone.has(id),gem=crystal.has(id);
   function material(color,kind,metalness,roughness,emissiveIntensity=0,bronze=false){
     const map=surfaces[kind]??=surface(kind);
@@ -96,19 +92,19 @@ export function forgedMaterials(weapon) {
       ['cloth','wood','bone'].includes(kind)?scannedSurface('leather',kind==='wood'?.25:.36):{};
     const bump=scan.normalMap?{}:{bumpMap:map,bumpScale:kind==='wood'?.037:.024};
     const shaded=paintedFinish(new T.MeshStandardMaterial({color,map,...bump,...scan,metalness,roughness,
-      envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?.95:.62,
-      vertexColors:true,emissive:color,emissiveIntensity}),finish);
+      envMap:metalness>=.22?forgeEnvironment():null,envMapIntensity:kind==='metal'?1.08:.70,
+      vertexColors:true,emissive:color,emissiveIntensity}),finish,true,kind==='metal');
     shaded.userData.restGlow=emissiveIntensity;
     return shaded;
   }
   return {
     dark:material(dark,cloth.has(id)?'cloth':'wood',.12,.79),
-    trim:material(referenceColor(trim,2,.31),'metal',.69,.37,.035,true),
-    edge:material(referenceColor(edge,0,.43),chipped?'bone':'metal',chipped?.16:.73,chipped?.60:.31,.046),
+    trim:material(trim,'metal',.72,.34,.035,true),
+    edge:material(edge,chipped?'bone':'metal',chipped?.16:.77,chipped?.60:.27,.046),
     patina:material(new T.Color(body).lerp(new T.Color(trim),.29).multiplyScalar(.69),'metal',.52,.67,.027),
-    hardened:material(new T.Color(edge).lerp(new T.Color(sample?.[0]??trim),.34),'metal',.80,.32,.064),
-    body:material(referenceColor(body,1,.42),gem?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
+    hardened:material(new T.Color(edge).lerp(new T.Color(trim),.34),'metal',.80,.32,.064),
+    body:material(body,gem?'crystal':cloth.has(id)?'cloth':lacquer.has(id)?'wood':'metal',
       gem?.29:.38,lacquer.has(id)?.38:.54,.075),
-    core:material(core,gem?'crystal':'stone',.15,.34,gem?.55:.26),
+    core:material(core,gem?'crystal':'stone',gem?.24:.15,gem?.27:.34,gem?.65:.30),
   };
 }

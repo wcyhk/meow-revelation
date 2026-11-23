@@ -10,7 +10,7 @@ const packed=new Set(release.files.map(([file])=>file));
 for(const [file,size,hash] of release.files){
  const bytes=fs.readFileSync(path.join(root,file));assert.equal(bytes.length,size,file);
  assert.equal(createHash('sha256').update(bytes).digest('base64'),hash,file);
- assert.doesNotMatch(file,/infinite-requiem|korean-art|jushang-references|gersang-frames|\/review\/|weapon-forge/,'Retired content must not be cached');
+ assert.doesNotMatch(file,/infinite-requiem|korean-art|jushang-references|gersang-frames|\/review\//,'Retired content must not be cached');
 }
 const seen=new Set();
 function visit(file){

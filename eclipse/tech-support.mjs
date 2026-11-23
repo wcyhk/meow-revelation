@@ -21,7 +21,8 @@ const sweepFragment=`
     float arc=pow(max(0.,sin((path.x-elapsed*.36)*6.2832)),3.);
     float fissure=pow(.5+.5*cos(path.x*106.-elapsed*7.+path.y*9.),10.);
     float seam=pow(.5+.5*sin(path.y*6.2832),4.);
-    float pulse=mix(.57+.16*fissure+seam*.23,.29+.51*arc+.33*ticks,scanner)*scan;
+    float echo=pow(.5+.5*cos(path.x*62.832-elapsed*11.+path.y*6.),9.);
+    float pulse=mix(.49+.19*fissure+seam*.29,.24+.53*arc+.35*ticks+.14*echo,scanner)*scan;
     gl_FragColor=vec4(mix(tint,vec3(.96,.89,.78),seam*.35+ticks*scanner*.21),opacity*pulse);
     #include <colorspace_fragment>
   }`;
@@ -73,7 +74,8 @@ export class EnemyMarkers {
       }
       const marker=this.markers[index++];
       marker.classList.toggle('boss-mark',enemy.kind==='boss');
-      marker.style.transform=`translate(${Math.round(point.x)}px,${Math.round(point.y)}px) translate(-50%,-50%)`;
+      const transform=`translate(${Math.round(point.x)}px,${Math.round(point.y)}px) translate(-50%,-50%)`;
+      if(marker.style.transform!==transform)marker.style.transform=transform;
       marker.hidden=false;
     }
     for(let i=index;i<this.markers.length;i++) this.markers[i].hidden=true;

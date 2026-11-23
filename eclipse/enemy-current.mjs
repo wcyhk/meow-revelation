@@ -254,8 +254,10 @@ const fragment=`
     float tendril=exp(-abs(v-vein-.34*sin(u*24.+t))*15.)*pow(.5+.5*sin(u*15.-t),3.);
     float veil=exp(-d*(style<.5?2.9:4.6))*.38;
     float sparkle=exp(-d*18.)*pow(.5+.5*sin(u*60.-t*1.62+seed),13.);
-    vec3 glow=mix(tint,heart,clamp(core*packet*.75+sparkle*.35,0.,1.));
-    float energy=(core*packet*.76+veil+tendril*.26+sparkle*.43)*mask*opacity;
+    float thread=vein+.23*sin(u*16.+seed+t*.44);
+    float braiding=exp(-abs(v-thread)*24.)*pow(.5+.5*cos(u*19.+t*.9),4.);
+    vec3 glow=mix(tint,heart,clamp(core*packet*.75+sparkle*.35+braiding*.28,0.,1.));
+    float energy=(core*packet*.76+veil+tendril*.27+sparkle*.43+braiding*.25)*mask*opacity;
     if((kind>5.5&&kind<7.5)||(kind>9.5&&kind<11.5)){
       glow=mix(tint,heart,.55+core*.45);
       energy=(core*.98+veil*.51)*mask*opacity;

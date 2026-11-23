@@ -993,13 +993,12 @@ function combineParts(group,animated){
     if(parts.length<2)continue;
     const sources=parts.map(mesh=>{
       mesh.updateMatrix();
-      const geometry=mesh.geometry.index?mesh.geometry.toNonIndexed():mesh.geometry;
-      geometry.applyMatrix4(mesh.matrix);
-      return geometry;
+      return mesh.geometry.applyMatrix4(mesh.matrix);
     });
     const geometry=new T.BufferGeometry();
+    const vertexCount=sources.reduce((sum,source)=>sum+source.attributes.position.count,0);
     for(const [name,size] of [['position',3],['normal',3],['uv',2],['color',3]]){
-      const values=new Float32Array(sources.reduce((sum,source)=>sum+source.attributes.position.count*size,0));
+      const values=new Float32Array(vertexCount*size);
       let offset=0;
       for(const source of sources){
         const data=source.getAttribute(name);
@@ -1010,9 +1009,21 @@ function combineParts(group,animated){
       }
       geometry.setAttribute(name,new T.BufferAttribute(values,size));
     }
-    for(const [index,mesh] of parts.entries()){
-      const source=sources[index];
-      if(source!==mesh.geometry)source.dispose();
+    // Preserve each surface's shared vertices when baking parts into a single draw.
+    if(sources.some(source=>source.index)){
+      const indexCount=sources.reduce((sum,source)=>sum+(source.index?.count??source.attributes.position.count),0);
+      const IndexArray=vertexCount>65535?Uint32Array:Uint16Array;
+      const indices=new IndexArray(indexCount);
+      let offset=0,base=0;
+      for(const source of sources){
+        const {index,attributes}=source;
+        const count=index?.count??attributes.position.count;
+        for(let i=0;i<count;i++)indices[offset++]=base+(index?index.array[i]:i);
+        base+=attributes.position.count;
+      }
+      geometry.setIndex(new T.BufferAttribute(indices,1));
+    }
+    for(const mesh of parts){
       mesh.geometry.dispose();
       group.remove(mesh);
     }
@@ -1022,6 +1033,7 @@ function combineParts(group,animated){
 
 export function buildWeapon(weapon,finishes){
   const root=new T.Group();
+  root.name=weapon.name;
   const [kind,...recipe]=designs[weapon.id];
   root.userData.finishes=finishes;
   const kit=workshop(root,finishes);

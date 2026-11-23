@@ -644,6 +644,8 @@ export class WeaponViewer {
       this.practice?.dispose();
       view.modelReserve?.clear();
       for(const fx of view.effects)view.release(fx);
+      view.clearEffectMaterials();
+      view.motion.dispose();
       view.landscape?.clear();
       const geometries=new Set(),materials=new Set();
       view.scene.traverse(part=>{
@@ -651,7 +653,7 @@ export class WeaponViewer {
         if(part.geometry&&!view.sharedPreviewGeometry(part.geometry))geometries.add(part.geometry);
         if(part.material)materials.add(part.material);
       });
-      for(const geometry of Object.values(view.motion))if(geometry.isBufferGeometry)geometries.add(geometry);
+      for(const geometry of Object.values(view.motion))if(geometry?.isBufferGeometry)geometries.add(geometry);
       for(const geometry of view.motion.cleaves.values())geometries.add(geometry);
       geometries.forEach(geometry=>geometry.dispose());
       materials.forEach(material=>material.dispose());

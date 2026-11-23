@@ -31,10 +31,12 @@ export class BlackGoatEye {
           float veins=1.-smoothstep(.002,.009,abs(d+.035+sin(angle*10.+time*13.)*.018));
           float bruise=(1.-smoothstep(.042,.145,abs(d+.045)))*.80;
           float pulse=.76+.24*sin(angle*21.+time*12.);
+          float iris=pow(.5+.5*cos(angle*29.+sin(angle*9.+time)*1.3),5.);
+          float fork=1.-smoothstep(.003,.014,abs(d-.028*sin(angle*17.-time*9.)));
           float coverage=smoothstep(.035,.16,r)*(1.-smoothstep(.85,1.,r));
           float edge=(1.-smoothstep(.006,.022,abs(r-.974)))*.24;
-          float alpha=max(bruise*.62,max(outer*.79,veins*.56*pulse))*coverage+edge;
-          vec3 hue=mix(vec3(.085,.012,.13),vec3(.61,.25,.88),max(outer,veins*.72));
+          float alpha=max(bruise*.60,max(outer*.72,veins*.56*pulse+fork*iris*.30))*coverage+edge;
+          vec3 hue=mix(vec3(.080,.013,.13),vec3(.65,.31,.93),max(outer,veins*.74+fork*iris*.21));
           gl_FragColor=vec4(hue,alpha);
         }
       `,

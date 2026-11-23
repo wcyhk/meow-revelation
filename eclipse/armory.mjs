@@ -1,9 +1,9 @@
 import * as T from '../three.min.mjs';
 import {stampRelic} from './lantern-designs.mjs';
 import {nightArms} from './nightfall-arms.mjs?v=nightfall-1';
-import {forgedMaterials} from './lantern-materials.mjs';
+import {forgedMaterials} from './forge-materials.mjs?v=emberlight-1';
 import {huntArms} from './relic-arsenal.mjs?v=weapon-audit-1';
-import {buildWeapon,disposeWeapon,shapeBow} from './lantern-weapons.mjs';
+import {buildWeapon,disposeWeapon,shapeBow} from './weapon-forge.mjs?v=emberlight-1';
 
 export const arms = [
   {id:'tiger', name:'裂風折刃', mark:'✧', tone:0xece7c5, ink:'#f1ddb2', role:'近身 · 高機動',

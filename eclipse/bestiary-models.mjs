@@ -155,7 +155,7 @@ function buildMaterials(entry){
     const bump=scan.normalMap?{}:{bumpMap:relief(),bumpScale:chitin?.062:.043};
     return paintedFinish(new T.MeshStandardMaterial({
       color,metalness,roughness,...bump,...scan,vertexColors:true,emissive:color,emissiveIntensity:.03,
-      envMap:conduct?forgeEnvironment():null,envMapIntensity:metal?.81:.48,
+      envMap:conduct?forgeEnvironment():null,envMapIntensity:metal?(entry.field?.81:1.05):.48,
     }),finish,true,!entry.field);
   }
   const pigment=color=>new T.Color(color).lerp(new T.Color(0x5d5049),.20);
@@ -1798,7 +1798,7 @@ export function poseBestiary(model,unit,spec,time,x,z){
   materials.glow.color.setHex(model.signature?.type==='bear'?0xbbf7f1:glow)
     .lerp(white,Math.min(.84,(spec.flash??0)*.78+wind*.18));
   materials.body.emissiveIntensity=.14+(spec.flash??0)*.19+stage*.08;
-  materials.edge.emissiveIntensity=.14+stage*.087+wind*.07;
+  materials.edge.emissiveIntensity=.14+stage*.087+wind*.07+(!model.entry.field?strike*.095:0);
 }
 
 const white=new T.Color(0xfff4e0);

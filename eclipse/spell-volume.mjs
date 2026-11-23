@@ -137,7 +137,8 @@ const fragmentInk=`
     }else{
       mask*=max(0.,1.-d*3.5)*(.6+.4*abs(detail));
     }
-    vec3 color=mix(tint*shade,heart,clamp(white,0.,.89));
+    float facetGlint=pow(max(0.,.5+.5*sin(uv.y*36.+uv.x*9.-life*17.+speck*9.)),9.);
+    vec3 color=mix(tint*(shade*.88+.14*belly),heart,clamp(white+facetGlint*.18*belly,0.,.95));
     gl_FragColor=vec4(color,opacity*energy*mask);
     #include <colorspace_fragment>
   }
@@ -169,13 +170,21 @@ const crestInk=`
   }
 `;
 
-function lightMaterial(color,highlight,extras,vertexShader,fragmentShader,solid=false){
-  return new T.ShaderMaterial({
-    uniforms:{life:{value:0},opacity:{value:1},tint:{value:color.clone()},heart:{value:highlight.clone()},...extras},
+function lightMaterial(view,key,color,highlight,extras,vertexShader,fragmentShader,solid=false){
+  const material=view.effectMaterial(key,()=>new T.ShaderMaterial({
+    uniforms:{life:{value:0},opacity:{value:1},tint:{value:new T.Color()},heart:{value:new T.Color()},
+      ...Object.fromEntries(Object.keys(extras).map(name=>[name,{value:0}]))},
     vertexShader,fragmentShader,transparent:true,depthWrite:false,
     side:T.DoubleSide,forceSinglePass:true,
     blending:solid?T.NormalBlending:T.AdditiveBlending,
-  });
+  }));
+  const u=material.uniforms;
+  u.life.value=0;
+  u.opacity.value=1;
+  u.tint.value.copy(color);
+  u.heart.value.copy(highlight);
+  for(const [name,value] of Object.entries(extras))u[name].value=value;
+  return material;
 }
 
 export function spellVolume(view,point,spec,layout){
@@ -190,22 +199,24 @@ export function spellVolume(view,point,spec,layout){
   const mesh=fragments[solid?'solid':'soft'][mobile?0:1];
   const lit=pale.setHex(surface).lerp(core.setHex(tint),.60);
   const bright=core.setHex(highlight);
-  const material=lightMaterial(lit,bright,{
-    style:{value:style},spread:{value:spread},height:{value:height*(.61+Math.min(spread,4)*.22)},
-    form:{value:line?1:radial?2:0},salt:{value:(seed%37)*.17},
+  const materialKey=solid?'spell-fragments-solid':'spell-fragments-soft';
+  const material=lightMaterial(view,materialKey,lit,bright,{
+    style,spread,height:height*(.61+Math.min(spread,4)*.22),
+    form:line?1:radial?2:0,salt:(seed%37)*.17,
   },fragmentVertex,fragmentInk,solid);
   const strength=Math.min(1,power)*(view.feedback?.subdued ? .63 : 1);
   const fx=view.addEffect(mesh,{x:point.x,y:Math.max(.10,point.y??.13),z:point.z},tint,length,{
-    material,opacity:strength,angle:-angle,fade:true,order:73,
+    material,materialKey,opacity:strength,angle:-angle,fade:true,order:73,
   });
   fx.mesh.name='技能 · 元素碎片';
   fx.mesh.frustumCulled=false;
   fx.combatClock=true;
   if(radial&&power>=.72&&view.motion.accent()){
-    const circle=lightMaterial(lit,bright,{style:{value:style},salt:{value:seed*.11},spokes:{value:9+seed%7}},
+    const materialKey='spell-crest';
+    const circle=lightMaterial(view,materialKey,lit,bright,{style,salt:seed*.11,spokes:9+seed%7},
       crestVertex,crestInk);
     const seal=view.addEffect(crest,{x:point.x,y:.096,z:point.z},tint,length+.13,{
-      material:circle,opacity:strength*.93,angle:-angle,scale:spread*.89,growth:spread*.16,fade:true,order:39,
+      material:circle,materialKey,opacity:strength*.93,angle:-angle,scale:spread*.89,growth:spread*.16,fade:true,order:39,
     });
     seal.mesh.name='技能 · 法陣';
     seal.combatClock=true;

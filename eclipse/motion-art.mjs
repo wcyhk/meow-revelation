@@ -492,13 +492,16 @@ export class MotionArt {
 
   bladefall(x,z,tint,wait,index) {
     const duration=wait+.075;
-    const sword=forge(flameblade);
+    const template=this.fallingBlade??=forge(flameblade);
+    const sword=new T.Group();
+    // Falling swords share the static forged parts. Each still has its own pose.
+    for(const part of template.children)sword.add(part.clone());
     const fx=this.view.addEffect(this.blade,{x,y:5.3,z},tint,duration,
       {angle:index*2.4+.6,scale:1.17,opacity:0,order:89});
     fx.mesh.material.colorWrite=false;
     sword.rotation.z=Math.PI;
     fx.mesh.add(sword);
-    fx.cleanup=()=>disposeForge(sword);
+    fx.cleanup=()=>sword.removeFromParent();
     fx.vertical={from:5.3,to:.52,duration:Math.max(.075,wait)};
     fx.spin=1.05;
     fx.combatClock=true;
@@ -510,6 +513,11 @@ export class MotionArt {
       heat.vertical=fx.vertical;
       heat.combatClock=true;
     }
+  }
+
+  dispose() {
+    if(this.fallingBlade)disposeForge(this.fallingBlade);
+    this.fallingBlade=null;
   }
 
   rush(from,to,tint) {

@@ -2073,14 +2073,15 @@ export class Game {
     if(level>=stages.length)return null;
     if(this.roomPreparation?.level===level&&this.roomPreparation.hero===hero&&this.roomPreparation.weapon===this.weapon)return this.roomPreparation;
     const stage=modeStage(stages[level],this.difficulty);
-    const kinds=new Set([...stage.zone.foes,...stage.waves.flat()]);
-    if(stage.boss)kinds.add('boss');
-    const specs=[...kinds].map(kind=>enemySpec(stage,kind));
+    const kinds=new Set(stage.objective?stage.zone.foes:stage.waves.flat());
+    const specs=[];
+    if(this.relicHunt?.state==='waiting')specs.push(this.relicHunt.specFor(stage));
+    for(const kind of [...kinds].reverse())if(kind!=='boss')specs.push(enemySpec(stage,kind));
+    if(stage.boss)specs.push(enemySpec(stage,'boss'));
     const twin=twinSpec(stage);
     if(twin)specs.push(twin);
     const visitor=visitorFor(stage,this.routeSeed);
     if(visitor)specs.push(monsterBattle(visitor,stage.floor,this.difficulty));
-    if(this.relicHunt?.state==='waiting')specs.push(this.relicHunt.specFor(stage));
     const preparation={level,hero,weapon:this.weapon,pending:true};
     this.roomPreparation=preparation;
     preparation.promise=this.view.prepareEncounters(specs,()=>this.roomPreparation===preparation&&this.hero===hero&&this.state!=='cover')

@@ -12,8 +12,11 @@ const emission={
   blood:[0xdc3353,19,.55,.48,.27],
   water:[0x63f2de,22,.53,.58,.30],
   root:[0x98b36b,15,.53,.43,.19],
+  web:[0xd4a6f1,18,.57,.53,.24],
+  feather:[0xf2c8a1,21,.44,.80,.27],
   wind:[0x9bdcc8,15,.31,.75,.22],
   stone:[0xf2a873,15,.32,.46,.18],
+  earth:[0xdeaa78,16,.38,.46,.19],
   poison:[0xb9db62,19,.56,.49,.23],
 };
 const neutral=[0xd7e2ff,18,.43,.73,.26];

@@ -11,7 +11,12 @@ import {createWardenBladeWake} from './warden-blade-wake.mjs';
 
 const sides=[-1,1];
 const reflect=(side,path)=>path.map(([x,...rest])=>[side*x,...rest]);
-const emberEye=new T.Color(0xffa66d),moonEye=new T.Color(0xcfabff);
+const emberEye=new T.Color(0xffa66d),moonEye=new T.Color(0xe4d8ff);
+const moonFinishes={
+  body:0x24243b,deep:0x151525,edge:0x655e98,trim:0x7d8ab8,
+  wardenBronze:0x546994,wardenSteel:0x343757,wardenCrimson:0x47326b,
+  wardenCloth:0x272043,wardenWorn:0x9ca9d2,
+};
 
 function wardenFinishes(k){
   for(const [name,color,metalness,roughness,kind] of [
@@ -20,7 +25,7 @@ function wardenFinishes(k){
     ['wardenWorn',0xb2a388,.52,.46,'bone'],
     ['wardenCloth',0x492c43,.12,.73,'cloth'],
     ['wardenCrimson',0x6d2537,.53,.39,'iron'],
-    ['wardenObsidian',0x35364b,.78,.32,'iron'],
+    ['wardenObsidian',0x25243e,.79,.35,'iron'],
   ]){
     k.materials[name]=paintedFinish(new T.MeshStandardMaterial({
       color,metalness,roughness,vertexColors:true,envMap:forgeEnvironment(),
@@ -30,6 +35,10 @@ function wardenFinishes(k){
   k.materials.wardenEmber=new T.MeshBasicMaterial({color:0xffa66d,toneMapped:false});
   k.materials.wardenCrownCore=new T.MeshBasicMaterial({color:0xbb99ee,toneMapped:false});
   k.materials.wardenMoonEdge=new T.MeshBasicMaterial({color:0xa694fa,toneMapped:false});
+  return Object.entries(moonFinishes).map(([key,colour])=>{
+    const {color}=k.materials[key];
+    return {color,ember:color.clone(),moon:new T.Color(colour)};
+  });
 }
 
 function crownSparks(anchor,mobile){
@@ -79,7 +88,7 @@ export function sculptFinalWarden(k,mobile){
   const {root:rig,bone,sculpt,geometry}=k;
   const root=bone(rig,0,0,0);
   root.name='王冠守夜者 · 血冠裂甲';
-  wardenFinishes(k);
+  const phaseFinishes=wardenFinishes(k);
   const body=bone(root,0,1.27,0),head=bone(body,0,.945,.057),neck=bone(body,0,.678,-.083);
   const arms=[],legs=[],joints=[],flaps=[],ribs=[],hems=[],shins=[],mask=[];
   const volume=(joint,m,path,seed=0)=>geometry(joint,m,sculptVolume(path,{
@@ -103,7 +112,7 @@ export function sculptFinalWarden(k,mobile){
     [0,.091,.132,.074,.049],[0,.166,.043,.015,.011]],5.8);
   const sparks=crownSparks(cleft,mobile);
   const crown=buildWardenCrown(k,head,mobile);
-  const moonKit=forgeWardenMoonKit(k,body,cleft,amber);
+  const moonKit=forgeWardenMoonKit(k,body,head,cleft,amber);
   for(let i=0;i<5;i++){
     const x=(i-2)*.056;
     piping(cleft,i===2?'wardenWorn':'wardenSteel',[[x*.57,-.204,.107,.011],[x,-.093,.183,.016],
@@ -289,6 +298,7 @@ export function sculptFinalWarden(k,mobile){
     cataloguePose({beat,step,headtime,wind,strike,travel,stage,fall,transition,subdued}){
       const progress=transition?.phase===2?transition.progress:stage===2?1:0;
       const moon=T.MathUtils.smoothstep(progress,.28,.66);
+      for(const {color,ember,moon:shadow} of phaseFinishes)color.copy(ember).lerp(shadow,moon);
       const recoil=T.MathUtils.smoothstep(progress,.13,.29)*(1-T.MathUtils.smoothstep(progress,.31,.65));
       crown.pose(stage,transition,subdued);
       moonKit.pose({moon,headtime,wind,strike,fall,subdued});

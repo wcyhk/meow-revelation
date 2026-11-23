@@ -1,5 +1,6 @@
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {PulseScore} from './score.mjs?v=loop-music-1';
+import {playWardenVoice} from './warden-voices.mjs';
 
 const attackVoices={
   tiger:{noise:2160,pitch:219,shape:'triangle'},
@@ -208,6 +209,16 @@ export class Audio {
       this.rasp(now+.19,.20,.17,stone||plated?720:400);
       this.note(stone||plated?93:72,24,now+.30,.28,.30,'triangle',.008);
     }
+  }
+
+  wardenStrike(phase,cue){
+    if(this.context?.state!=='running'||this.muted)return;
+    const now=this.context.currentTime;
+    if(cue==='impact'){
+      if(now-(this.lastImpact.warden??-1)<.065)return;
+      this.lastImpact.warden=now;
+    }
+    playWardenVoice(this,phase,cue,now);
   }
 
   release(pattern,boss,identity) {

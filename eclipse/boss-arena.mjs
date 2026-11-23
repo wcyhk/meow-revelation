@@ -162,7 +162,7 @@ export class BossArena {
     this.shieldCue-=dt;
     this.floorDamage-=dt;
     if (this.grace>0) return;
-    const {hero,view,audio}=this.game;
+    const {hero,view}=this.game;
     const hazardous=this.hazards.find(zone=>withinThreat(hero,zone));
     if (hazardous&&hero.rolling<=0) {
       if (this.terrain.slow) hero.snared=Math.max(hero.snared,.12);
@@ -197,7 +197,7 @@ export class BossArena {
         tint:this.terrain.ink,effect:this.boss.spec.effect,pattern:'burst',arena:this,arenaPhase:this.phase});
       view.warning('circle',x,z,radius,delay,0,0,this.terrain.ink);
       view.fallingShard(x,z,radius,delay,this.terrain.ink);
-      audio.play('warning');
+      this.game.warnEnemyAttack(this.boss);
       this.game.announce(this.boss.spec.name,this.plan.cast,'紅圈鎖定 · 翻滾閃開',1.12);
     }
   }

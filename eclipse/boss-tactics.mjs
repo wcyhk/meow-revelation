@@ -101,7 +101,7 @@ export class BossTactics {
     const {arena,boss,game}=this;
     if (!arena.phase||arena.grace>0||this.ready>0||boss.phaseGuard>0
       || (arena.locked&&arena.plan.mode==='bait')) return false;
-    const {hero,view,audio,stage}=game;
+    const {hero,view,stage}=game;
     if (hero.rolling>0||arena.hazards.some(zone=>onArenaHazard(hero,zone,.08))) return false;
     const attack=this.coverAttack(hero,stage.chapter)??this.routeAttack(hero,stage.chapter);
     if (!attack) {
@@ -120,7 +120,7 @@ export class BossTactics {
       effect:boss.spec.effect,damage:boss.spec.hurt*(attack.tactic==='flush'?.84:.64)});
     view.warning(attack.kind,attack.x,attack.z,attack.radius,attack.delay,-(attack.angle??0),attack.width??0,tint,active);
     if (attack.tactic==='flush') view.fallingShard(attack.x,attack.z,attack.radius,attack.delay,tint,active);
-    audio.play('warning');
+    game.warnEnemyAttack(boss);
     return true;
   }
 }

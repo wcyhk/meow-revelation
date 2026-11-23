@@ -31,6 +31,7 @@ import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {loadSculptMaterials} from './sculpt-material.mjs?v=sculpted-1';
 import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 import {WardenGround,wardenStrikeLook} from './warden-ground.mjs';
+import {wardenThreatPhase} from './threats.mjs?v=world-3d-1';
 
 const PI = Math.PI;
 const baseCastLooks={
@@ -598,7 +599,7 @@ export class Scenery {
       if(stage.boss){
         scratch.motion.budget=0;
         const spec=specs[0];
-        if(specs.some(guard=>guard.wardenGround)){
+        if(specs.some(guard=>guard.finalWarden)){
           this.wardenGround??=new WardenGround(this.scene,this.mobile);
           this.wardenGround.warmup(group);
         }
@@ -1260,7 +1261,7 @@ export class Scenery {
       const model=visual.bestiary;
       poseBestiary(model,unit,{...spec,flash,subdued:this.feedback.subdued},this.time,x,z);
       if(model.weaponFlash&&unit.kind==='boss')this.spellLighting.emit(model.weaponFlash,{
-        action:'weapon-release',element:unit.spec.wardenGround?wardenStrikeLook(spec.phase).light:unit.spec.effect,
+        action:'weapon-release',element:unit.spec.finalWarden?wardenStrikeLook(spec.phase).light:unit.spec.effect,
         tint:model.weaponFlash.tint,
         radius:1.9,power:.80+(spec.phase??0)*.09,sourceHeight:true,
       });
@@ -1959,8 +1960,8 @@ export class Scenery {
 
   threatImpact(hazard) {
     const {kind,x,z,radius,tint,width,angle,pattern,effect,owner}=hazard;
-    if(owner?.spec?.wardenGround){
-      const phase=hazard.bossPhase??hazard.arenaPhase??owner.bossPhase;
+    const phase=wardenThreatPhase(hazard);
+    if(phase!==null){
       this.wardenGround??=new WardenGround(this.scene,this.mobile);
       if(this.wardenGround.impact(hazard,phase,this.feedback.subdued)){
         const look=wardenStrikeLook(phase);

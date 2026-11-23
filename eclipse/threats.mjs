@@ -3,6 +3,10 @@ import {roomBounds} from './lantern-route.mjs?v=world-3d-1';
 const TAU = Math.PI*2;
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 
+export function wardenThreatPhase({owner,bossPhase,arenaPhase}){
+  return owner?.spec?.finalWarden?bossPhase??arenaPhase??owner.bossPhase??0:null;
+}
+
 function direction(origin,target) {
   const length=distance(origin,target);
   return length>.03 ? [(target.x-origin.x)/length,(target.z-origin.z)/length] : [0,1];
@@ -274,6 +278,8 @@ export function advanceThreats(game,dt) {
       continue;
     }
     view.threatImpact(hazard);
+    const warden=wardenThreatPhase(hazard);
+    if(warden!==null)game.audio.wardenStrike(warden,'impact');
     if(hazard.relicWeapon)view.relicPulse(hazard.relicWeapon,hazard,hazard.radius,hazard.relicPulse);
     if (hazard.arena) hazard.arena.resolve(hazard);
     const caughtByPillar=counters?.impact(hazard);

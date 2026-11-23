@@ -85,23 +85,77 @@ function eclipseHeart(k,cleft,material){
   return core;
 }
 
+function eclipseVisor(k,head,material){
+  const visor=k.bone(head,0,.02,.23);
+  visor.name='王冠守夜者 · 黑曜月面';
+  const crown=[
+    [0,.36,-.034],[.044,.212,.027],[.178,.202,.009],[.197,.152,-.005],
+    [.087,.107,.079],[.033,.124,.141],[0,.068,.157],
+    [-.040,.125,.124],[-.119,.122,.067],[-.224,.179,-.039],[-.166,.236,-.053],[-.058,.186,.025],
+  ];
+  k.sculpt.plate(visor,'wardenObsidian',crown,.044,.012);
+  for(const [index,side] of sides.entries()){
+    const height=index?.11:.18;
+    k.sculpt.plate(visor,'wardenObsidian',mirror([
+      [.110,.002,.098],[.185,.034,.048],[.233,height,-.072],[.288,height-.117,-.163],
+      [.302,-.036,-.228],[.206,-.123,-.084],[.130,-.224,.053],[.095,-.177,.089],
+    ],side),.047,.012);
+    k.sculpt.sweep(visor,'wardenWorn',mirror([
+      [.125,-.177,.092,.010],[.181,-.109,.038,.014],[.237,-.064,-.090,.013],[.276,-.012,-.181,.006],
+    ],side),{sides:5,steps:10});
+  }
+  fractureThreads(visor,[
+    [[.001,.335,-.006,.007],[-.008,.242,.020,.015],[.012,.177,.077,.013],[-.005,.109,.156,.011]],
+    [[-.152,.189,-.008,.010],[-.105,.163,.025,.013],[-.058,.160,.082,.012],[-.010,.127,.134,.007]],
+  ],material);
+  return visor;
+}
+
+function brokenCrescent(k,head){
+  const moon=k.bone(head,-.085,.155,-.35);
+  moon.name='王冠守夜者 · 懸浮斷月';
+  const segments=[[47,115],[126,224],[239,310]];
+  const pieces=segments.map(([start,end],index)=>{
+    const piece=k.bone(moon,0,0,-.017*index);
+    const steps=8;
+    const branch=Array.from({length:steps+1},(_,i)=>{
+      const t=i/steps,a=(start+(end-start)*t)*Math.PI/180;
+      const outer=.69+.023*Math.cos(a*7)-.024*index;
+      const depth=.015*Math.sin(a*4);
+      const inner=outer-(.028+.115*Math.sin(Math.PI*t)**.64+.038*(1-Math.abs(Math.cos(a))));
+      return {outer:[Math.cos(a)*outer,Math.sin(a)*outer*.88,depth],
+        inner:[Math.cos(a)*inner,Math.sin(a)*inner*.88,depth+.016]};
+    });
+    const outside=branch.map(point=>point.outer),inside=branch.map(point=>point.inner);
+    k.sculpt.plate(piece,'wardenObsidian',[...outside,...inside.slice().reverse()],.055,.012);
+    const bevel=(points,depth)=>points.map(([x,y,z],i)=>[x,y,z+depth,.006+.006*Math.sin(i*Math.PI/steps)]);
+    k.sculpt.sweep(piece,'wardenMoonEdge',bevel(inside,.037),{sides:5,steps:12});
+    k.sculpt.sweep(piece,'wardenWorn',bevel(outside,-.041),{sides:5,steps:12});
+    return piece;
+  });
+  return {moon,pieces};
+}
+
 function shatteredMantle(k,body){
   return sides.map(side=>{
     const root=k.bone(body,side*.367,.456,-.226);
     root.name=side<0?'王冠守夜者 · 左碎晶肩脊':'王冠守夜者 · 右碎晶肩脊';
-    const high=side<0?.29:.41;
+    const high=side<0?.49:.32;
     const armour=mirror([
-      [-.017,-.047,.068],[.151,-.151,.021],[.354,-.144,-.145],[.468,.041,-.219],
-      [.323,.098,-.154],[.374,high,-.257],[.161,.204,-.144],[.135,.101,-.045],
+      [-.017,-.047,.068],[.151,-.151,.021],[.354,-.144,-.145],[.534,.023,-.339],
+      [.368,.106,-.224],[.399,high,-.321],[.161,.204,-.144],[.135,.101,-.045],
     ],side);
     k.sculpt.plate(root,'wardenObsidian',armour,.081,.018);
     k.sculpt.plate(root,'wardenObsidian',mirror([
       [.023,-.091,.069],[.233,-.208,-.058],[.394,-.126,-.158],[.302,-.061,-.143],
-      [.270,.279,-.204],[.127,.006,.009],
+      [.299,.323,-.292],[.127,.006,.009],
     ],side),.045,.011);
     k.sculpt.sweep(root,'wardenMoonEdge',mirror([
       [.164,-.130,.048,.010],[.219,-.065,-.018,.011],[.214,-.028,-.077,.006],
-      [.324,.070,-.123,.010],[.347,high-.032,-.227,.004],
+      [.324,.070,-.172,.010],[.387,high-.032,-.307,.004],
+    ],side),{sides:5,steps:11});
+    k.sculpt.sweep(root,'wardenWorn',mirror([
+      [.106,-.122,-.025,.007],[.241,-.138,-.117,.013],[.389,-.074,-.236,.013],[.514,.024,-.343,.006],
     ],side),{sides:5,steps:11});
     return root;
   });
@@ -151,10 +205,12 @@ function shadowBlade(k,weapon,material){
   return {root,pieces,mainEdge};
 }
 
-export function forgeWardenMoonKit(k,body,cleft,amber){
+export function forgeWardenMoonKit(k,body,head,cleft,amber){
   const material=fractureMaterial();
   const core=eclipseHeart(k,cleft,material);
   const mantle=shatteredMantle(k,body);
+  const visor=eclipseVisor(k,head,material);
+  const {moon:ring,pieces:crescent}=brokenCrescent(k,head);
   let blade,bloodBlade;
   return {
     get edge(){return blade?.root.visible?blade.mainEdge:null;},
@@ -166,12 +222,15 @@ export function forgeWardenMoonKit(k,body,cleft,amber){
       const awake=moon>.33;
       core.visible=awake;amber.visible=!awake;
       const open=ease(moon,.33,.88);
+      visor.visible=ring.visible=awake;
+      visor.scale.setScalar(.75+open*.25);
+      ring.scale.setScalar(.68+open*.32);
       if(blade){
         blade.root.visible=awake;bloodBlade.visible=!awake;
         const spread=open*(.65+wind*.35);
         for(const {section,pivot,side} of blade.pieces){
-          section.position.set(pivot[0]+side*spread*.024,pivot[1]+spread*(side<0?-.022:.008),pivot[2]+side*spread*.013);
-          section.rotation.z=side*spread*.067;
+          section.position.set(pivot[0]+side*spread*.041,pivot[1]+spread*(side<0?-.043:.008),pivot[2]+side*spread*.022);
+          section.rotation.z=side*spread*.104;
         }
       }
       for(const [index,root] of mantle.entries()){
@@ -182,6 +241,12 @@ export function forgeWardenMoonKit(k,body,cleft,amber){
       }
       if(!awake)return;
       const charge=Math.max(wind,strike);
+      ring.rotation.set(-.16+wind*.17,Math.sin(headtime*.74)*.17+.18,Math.sin(headtime*.61)*.12);
+      for(const [index,piece] of crescent.entries()){
+        const float=Math.sin(headtime*1.71+index*1.91)*(subdued?.013:.033);
+        piece.position.y=float+strike*.035;
+        piece.rotation.z=(index-1)*(charge*.08+float);
+      }
       core.rotation.z=Math.sin(headtime*1.32)*.055*moon;
       const swell=1+Math.sin(headtime*3.8)*.064+charge*.10;
       core.scale.set(swell,1+charge*.06,swell);

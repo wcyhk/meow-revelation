@@ -123,7 +123,7 @@ export class BossCounters {
     this.chargeHint=delay;
     game.view.warning('line',center.x,center.z,length,delay,-Math.atan2(dz,dx),.77,boss.spec.tint,
       ()=>arena.phase===phase&&boss.hp>0&&boss.attack===attack);
-    game.audio.play('warning');
+    game.warnEnemyAttack(boss);
     return true;
   }
 

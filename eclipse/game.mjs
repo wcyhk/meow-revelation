@@ -1455,7 +1455,21 @@ export class Game {
       telegraph(this,['summon','blink','rally'].includes(echo)?'marked':echo,unit,h,
         {delay:time+.52,damage:spec.hurt*.72,radius:spec.radius*.72,owner:unit,phase});
     }
-    this.audio.play('warning');
+    this.warnEnemyAttack(unit);
+  }
+
+  warnEnemyAttack(unit) {
+    if(unit.spec.finalWarden)this.audio.wardenStrike(unit.bossPhase,'charge');
+    else this.audio.play('warning');
+  }
+
+  stepEnemyAttack(unit,dt) {
+    const attack=unit.attack;
+    const previous=attack.time;
+    attack.time-=dt;
+    if(attack.time<=0)this.resolveEnemyAttack(unit);
+    else if(unit.spec.finalWarden&&!attack.interrupted&&previous>.17&&attack.time<=.17)
+      this.audio.wardenStrike(unit.bossPhase,'ready');
   }
 
   resolveEnemyAttack(unit) {
@@ -1477,10 +1491,11 @@ export class Game {
       unit.z=z;
       this.view.spark(x,.58,z,unit.spec.tint,18,.86,'void');
     }
-    const look=unit.spec.wardenGround?wardenStrikeLook(unit.bossPhase):null;
+    const look=unit.spec.finalWarden?wardenStrikeLook(unit.bossPhase):null;
     this.view.elementBurst(unit.x,unit.spec.height*.38,unit.z,look?.tint??unit.spec.tint,look?.spark??unit.spec.effect,boss?12:6,
       boss?1.14:.83,Math.atan2(attack.dz,attack.dx));
-    this.audio.release(attack.pattern,boss,unit.spec.bestiary?.id);
+    if(look)this.audio.wardenStrike(unit.bossPhase,'release');
+    else this.audio.release(attack.pattern,boss,unit.spec.bestiary?.id);
     if (boss) {
       if(this.bossArena?.boss===unit)this.bossArena.counters.resolveAttack(attack);
       this.view.feedback.kick(.11,.21,Math.atan2(attack.dz,attack.dx));
@@ -1521,8 +1536,7 @@ export class Game {
       unit.kx*=Math.exp(-dt*10); unit.kz*=Math.exp(-dt*10);
       unit.move*=Math.exp(-dt*13);
       if (unit.attack) {
-        unit.attack.time-=dt;
-        if (unit.attack.time<=0) this.resolveEnemyAttack(unit);
+        this.stepEnemyAttack(unit,dt);
         continue;
       }
       if (unit.age<.38 || unit.stun>0 || unit.recover>0) continue;
@@ -2742,8 +2756,9 @@ function makeBossPractice(view,dossier,action,signal,sound) {
   const hero=Object.assign(makeHero(),position,{moveSpeed:6.9,damage:25,face:-1});
   const controls={keys:new Set(),point:null,roll:false,interact:false};
   const weapon=arms.find(arm=>arm.id==='tiger');
-  const audio=pao?sound:{play(){},release(){},boss(){},impact(){}};
-  if(pao)audio.start().catch(()=>{});
+  const audible=pao||spec.finalWarden;
+  const audio=audible?sound:{play(){},release(){},boss(){},impact(){}};
+  if(audible)audio.start().catch(()=>{});
   Object.assign(practice,{view,stage,hero,weapon,t:0,state:'play',hazards:[],enemies:[],relicWalls:[],wave:0,
     hitstop:0,branchCombat:{skills:new Set()},audio,
     announce(){},setupMissionPins(){},objective(){}});
@@ -2884,7 +2899,7 @@ function makeBossPractice(view,dossier,action,signal,sound) {
       }else{
         unit.age+=dt;
         unit.phaseGuard-=dt;
-        if(unit.attack&&(unit.attack.time-=dt)<=0)practice.resolveEnemyAttack(unit);
+        if(unit.attack)practice.stepEnemyAttack(unit,dt);
         if(unit.motion)unit.motion.age+=dt;
         if(unit.kx||unit.kz){
           const before={x:unit.x,z:unit.z};

@@ -668,7 +668,7 @@ export class WeaponViewer {
       for(const prop of room.props)stage.add(monument(view,prop,this.boss.tint));
       view.cutaway.cover(stage);
     }else{
-      const ground=new T.Mesh(new T.CircleGeometry(this.boss?.wardenGround?14:7,52).rotateX(-Math.PI/2),
+      const ground=new T.Mesh(new T.CircleGeometry(this.boss?.finalWarden?14:7,52).rotateX(-Math.PI/2),
         new T.MeshStandardMaterial({color:0x272533,roughness:.89,metalness:.19}));
       ground.position.y=-.031;
       stage.add(ground);

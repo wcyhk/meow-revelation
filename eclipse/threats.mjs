@@ -189,6 +189,7 @@ export function telegraph(game,pattern,origin,target,{delay,damage,radius,owner=
       zone('cone',source,boss?8.14:6.18,delay,boss?.72:.60,bearing-.47);
       zone('cone',source,boss?8.14:6.18,delay+.31,boss?.73:.60,bearing+.47);
       if(boss) rays(source,[bearing-.14,bearing,bearing+.14],7.8,delay+.62);
+      if(owner?.spec.chapterTrial) circle(aim,2.35,delay+1.07);
       break;
   }
 }

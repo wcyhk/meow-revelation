@@ -2,6 +2,7 @@ import {t as textForLocale} from './locale.mjs';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
 import {schools,buildStats} from './blessings.mjs?v=heirlooms-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
+import {blessingSummary,colorExplanation,local,weaponSummary,weaponTheme,weaponThemeInk} from './journey-copy.mjs';
 
 const motifs={
   thorn:'M20 75 L72 22 M32 61 L18 49 L28 42 L45 48 M52 46 L44 27 L54 22 L62 33 M42 54 L56 69 L66 61 L56 49',
@@ -142,8 +143,10 @@ export function blessingLedger(relics,weapon,hero,training,floor){
     const item=el('article');
     const text=el('div');
     const weaponStatus=relic.weaponId?(relic.weaponId===weapon.id?' · 已生效':' · 裝備對應神器時生效'):'';
-    const buff=relic.weaponId?'技能傷害 '+bonusPercent(relicPower(rank)-1)+' · ':'';
-    text.append(el('strong',relic.name+' ×'+rank+weaponStatus),el('p',buff+relic.detail));
+    const buff=relic.weaponId?textForLocale('技能傷害')+' '+bonusPercent(relicPower(rank)-1)+' · ':'';
+    const effect=el('p');
+    effect.textContent=buff+blessingSummary(relic);
+    text.append(el('strong',relic.name+' ×'+rank+weaponStatus),effect);
     item.append(blessingIcon(relic),text);
     list.append(item);
   }
@@ -153,7 +156,8 @@ export function blessingLedger(relics,weapon,hero,training,floor){
 
 export function weaponPicker(weapons,icons,select){
   const root=el('details','','heirloom-picker');
-  root.append(el('summary','自選神器 · '+weapons.length+' 件'));
+  root.append(el('summary',local(`自選神器 · ${weapons.length} 件`,`自选神器 · ${weapons.length} 件`,
+    `Relic catalogue · ${weapons.length}`,`神器を一覧から選ぶ · 全${weapons.length}件`)));
   root.addEventListener('toggle',()=>{
     if(!root.open||root.dataset.ready)return;
     root.dataset.ready='true';
@@ -172,16 +176,17 @@ export function weaponCatalogue(weapons,icons,select){
     const item=el('button','','heirloom-choice');
     item.type='button';
     item.dataset.armChoice=weapon.id;
-    const labels=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name];
+    const labels=[weapon.name,weapon.skill,weapon.guardian?.name,weapon.blessing?.name,weaponTheme(weapon)];
     item.dataset.search=[...labels,...labels.map(textForLocale)].join(' ').toLowerCase();
-    item.style.setProperty('--weapon-tone',weapon.ink);
+    item.style.setProperty('--weapon-tone',weaponThemeInk(weapon));
     const icon=el('img');
     icon.alt='';icon.loading='lazy';icon.decoding='async';
     icon.src=icons.get(weapon.id);
     const portrait=el('div','','heirloom-portrait');
     portrait.append(icon);
     const text=el('div');
-    text.append(el('b',weapon.name),el('span',weapon.skill+' · '+weapon.detail));
+    const brief=weaponSummary(weapon);
+    text.append(el('b',weapon.name),el('span',brief.attack),el('small',weaponTheme(weapon)+' · '+brief.effect,'weapon-theme-label'));
     if(weapon.guardian)text.append(el('small','守護頭目 · '+weapon.guardian.name));
     item.append(portrait,text);
     item.addEventListener('click',()=>select(weapon));
@@ -191,6 +196,6 @@ export function weaponCatalogue(weapons,icons,select){
     const query=input.value.trim().toLowerCase();
     for(const item of list.children)item.hidden=!item.dataset.search.includes(query);
   });
-  root.append(input,list);
+  root.append(el('p',colorExplanation(),'weapon-theme-legend'),input,list);
   return root;
 }

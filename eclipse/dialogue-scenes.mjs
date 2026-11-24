@@ -1,3 +1,5 @@
+import {local} from './journey-copy.mjs';
+
 const line=(speaker,text,mood)=>({speaker,text,mood});
 const narration=(text,illustration)=>({...line('narrator',text),illustration});
 const hero=(text,mood)=>line('hero',text,mood);
@@ -49,8 +51,18 @@ const scenes={
   },
   '守關人的回條':{
     cast:['hero','keeper'],names:{keeper:'司刻 · 帳簿投影'},illustration:'three-doors',moods:{hero:'shock',keeper:'dawn'},
-    intro:[
+    intro:flags=>[
       narration('你將回條壓喺守燈下面。入口帳簿嘅封印亮起，司刻嘅投影出現；佢仍坐喺林門外，手指離唔開嗰本簿。'),
+      ...(flags['缺頁的口糧簿']==='drawing'?[keeper(local(
+        '嗰道歪燈柄係小燈自己畫嘅。沿水道搵同一個記號，守燈一照，你就認得出佢留下嘅路。',
+        '那道歪灯柄是小灯亲手画的。沿水道找同一个记号，用守灯照一照，你就能认出她留下的路。',
+        'Glimmer drew that crooked handle. Look for the same mark along the waterway. Your lantern will reveal her trail.',
+        '曲がった持ち手はルゥが描いた目印だ。水路に同じ印がある。灯をかざせば、あの子の足取りを追える。'))]
+        :flags['缺頁的口糧簿']==='receipt'?[keeper(local(
+          '你手上係糧倉運貨嘅副據。記低右下角嘅號碼，王座下嘅名庫會用同一個編號。',
+          '你手里的是粮仓运货的副单。记住右下角的编号，王座下的名库也会用它。',
+          'That is a copy of a grain shipment receipt. Keep the number in the corner. The name vault uses the same one.',
+          'それは穀物を運んだときの控えだ。右下の番号を覚えておけ。玉座の下の名庫でも同じ番号が使われている。'))]:[]),
       keeper('我當年幫商會修過鐘，個名亦押喺主契度。封印令我行唔過入口，只能靠收據同你講話。'),
       keeper('呢座林有百道封鎖。巡燈、血月、無月係同一夜嘅三種封印路徑，都通去王座；路線重疊，守衛同出口就會改位。'),
     ],
@@ -209,4 +221,42 @@ export function storyDialogue(clue,flags={}){
   const scene=scenes[clue.title];
   if(!scene)return {cast:['hero'],intro:clue.text.map(text=>narration(text))};
   return {...scene,intro:typeof scene.intro==='function'?scene.intro(flags):scene.intro};
+}
+
+export function chapterInterlude(flags={}){
+  const chosen=flags['缺頁的口糧簿'];
+  const discovery=chosen==='drawing'
+    ? local('織碑夫人鬆開絲線。你喺金庫門檻認出小燈畫嘅歪燈柄，佢確實經過呢度。',
+      '织碑夫人松开丝线。你在金库门槛认出小灯画的歪灯柄，她确实经过这里。',
+      'As the Weaver lets go of her threads, you spot Glimmer’s crooked lantern on the vault threshold. She came through here.',
+      '織り手が糸を放す。金庫の敷居にルゥが描いた曲がった灯の印がある。あの子はここを通った。')
+    : local('織碑夫人鬆開絲線。金庫門底露出同你保存嘅副據一樣嘅運送編號。',
+      '织碑夫人松开丝线。金库门下露出与副单相同的运送编号。',
+      'As the Weaver lets go of her threads, a shipping number emerges beneath the vault door. It matches your receipt.',
+      '織り手が糸を放すと、金庫の扉の下に運送番号が現れる。持ってきた控えと同じ番号だ。');
+  return {cast:['hero','keeper'],illustration:'sealed-grain',moods:{hero:'dawn',keeper:'dawn'},intro:[
+    narration(discovery),
+    keeper(local('我會喺入口帳簿留低你行到嘅位置。金庫後面仲有五十層，囚名庫喺王座底，去接小燈返嚟。',
+      '我会在入口账簿记下你走到的位置。金库后还有五十层，囚名库就在王座下，去接小灯回来。',
+      'I’ll mark your place in the ledger at the gate. Fifty floors remain. The name vault lies beneath the throne. Bring Glimmer home.',
+      '入口の帳簿に、ここまでの記録を残しておく。この先は残り五十階。名庫は玉座の下だ。ルゥを連れ帰ろう。')),
+  ],options:[
+    choice('continue',local('繼續第 51 層','继续第 51 层','Continue to floor 51','51階へ進む'),[]),
+    choice('return',local('先返回入口','先返回入口','Return to the entrance','いったん入口へ戻る'),[]),
+  ]};
+}
+
+export function openingPayoff(flags={}){
+  const chosen=flags['缺頁的口糧簿'];
+  if(chosen==='drawing')return narration(local(
+    '燈底嗰道歪弧仍然清清楚楚。小燈攬住盞燈，記得自己當日點樣畫低呢個記號。',
+    '灯底那道歪弧依然清清楚楚。小灯抱着灯，记得自己那天怎样画下这个记号。',
+    'The crooked line is still clear on the lantern. Glimmer hugs it, remembering the day she drew that mark.',
+    '灯の底に、曲がった線がまだ残っている。ルゥは灯を抱きしめ、その印を描いた日のことを思い出す。'));
+  if(chosen==='receipt')return narration(local(
+    '司刻將你保存嘅副據同名冊夾埋一齊。封存編號終於對返一個個真名，家屬有路去追查。',
+    '司刻把你保存的副单和名册夹在一起。封存编号终于对上真名，家属有了追查的线索。',
+    'The timekeeper files your receipt with the register. Families can finally trace the shipment numbers back to real names.',
+    '時守は、君が持ち帰った控えを名簿に挟んだ。運送番号と本当の名がつながり、家族が行方をたどれるようになった。'));
+  return null;
 }

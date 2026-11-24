@@ -24,8 +24,9 @@
   <link rel="stylesheet" href="./interface-motion.css?v=lantern-ui-1">
   <link rel="stylesheet" href="./quiet-ui.css?v=quiet-ui-1">
   <link rel="stylesheet" href="./locale.css">
+  <link rel="stylesheet" href="./journey.css">
   <script type="module" src="./traffic.mjs"></script>
-  <script type="module" src="./game.mjs?v=locale-1"></script>
+  <script type="module" src="./game.mjs?v=journey-1"></script>
   <script type="module" src="./offline.mjs?v=locale-1"></script>
 </head>
 <body>
@@ -65,6 +66,7 @@
         </header>
         <nav class="title-actions" aria-label="遊戲選單">
           <button class="primary" id="begin" disabled aria-busy="true"><span class="title-icon" aria-hidden="true">✦</span><span>開始冒險</span><span class="title-chevron" aria-hidden="true">→</span></button>
+          <button id="journey-checkpoint" type="button" hidden>旅程存檔</button>
           <div class="menu-group" role="group" aria-label="準備冒險"><span class="menu-group-label" aria-hidden="true">整裝</span><button id="bestiary" type="button" disabled>練習場</button><button id="training" type="button" disabled>訓練所</button></div>
           <div class="menu-group" role="group" aria-label="旅程紀錄"><span class="menu-group-label" aria-hidden="true">旅程</span><button id="records" type="button" disabled>個人紀錄</button><button id="leaderboard" type="button" disabled>排行榜</button></div>
         </nav>

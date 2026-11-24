@@ -4,6 +4,7 @@ import {drawBossEncounter} from './arena-draw.mjs?v=shifting-2';
 import {BossTactics} from './boss-tactics.mjs?v=shifting-2';
 import {BossCounters} from './boss-counters.mjs?v=ledger-1';
 import {revealCurve} from './warden-transformation.mjs';
+import {mechanismHint,mechanismProgress} from './journey-copy.mjs';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 
@@ -49,7 +50,7 @@ export class BossArena {
 
   showMechanisms() {
     this.game.setupMissionPins();
-    this.game.objective(this.locked?this.plan.hint:'擊敗 '+this.boss.spec.name);
+    this.game.objective(this.locked?mechanismHint(this.plan):'擊敗 '+this.boss.spec.name);
   }
 
   get crimsonLight() {
@@ -207,17 +208,13 @@ export class BossArena {
     const {mode,hold}=this.plan;
     const done=this.points.filter(point=>point.done).length;
     const total=this.points.length;
-    if (!mode) return this.plan.hint;
+    if (!mode) return mechanismHint(this.plan);
     if (!this.locked) return '護盾已破';
     if (mode==='hold') {
       const point=this.points.find(site=>!site.done&&site.charge>0);
       const charge=point?' · '+Math.min(99,Math.floor(point.charge/hold*100))+'%':'';
-      return '蓄滿命印 '+done+'/'+total+charge;
+      return mechanismProgress(mode,done,total,charge);
     }
-    return {
-      light:'祭燈已點燃 '+done+'/'+total,
-      bait:'引頭目擊碎封印 '+done+'/'+total,
-      break:'已摧毀核心 '+done+'/'+total,
-    }[mode];
+    return mechanismProgress(mode,done,total);
   }
 }

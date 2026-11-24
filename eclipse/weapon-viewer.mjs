@@ -1,12 +1,12 @@
 import {t as textForLocale} from './locale.mjs';
 import * as T from '../three.min.mjs';
 import {armLighting,borrowForge,recycleForge,retainedForge} from './armory.mjs?v=emberlight-1';
-import {comboNames,skillLinks} from './weapon-combos.mjs?v=weapon-audit-1';
 import {MotionArt} from './motion-art.mjs?v=clear-sight-1';
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
 import {ArenaArt} from './arena-art.mjs?v=forge-1';
 import {RoomCutaway} from './room-cutaway.mjs?v=world-3d-1';
 import {RoomLandscape} from './room-landscapes.mjs?v=clear-sight-1';
+import {CombatSpellFx} from './combat-spell-fx.mjs';
 import {CombatFeedback} from './combat-feedback.mjs?v=afterglow-1';
 import {SpellLighting} from './spell-lighting.mjs?v=forgeburst-1';
 import {monument} from './map-art.mjs?v=forge-1';
@@ -15,6 +15,7 @@ import {frameWardenShot,wardenShotMix} from './warden-transformation.mjs';
 import {moonSlashPattern} from './warden-moon-slash.mjs';
 import {moonPincerPreview} from './warden-moon-assist.mjs';
 import {wardenReinforcementSpecs,wardenSummonPattern} from './warden-reinforcements.mjs';
+import {local,weaponDetailRows,weaponSummary,weaponTheme,weaponThemeInk} from './journey-copy.mjs';
 const paoForms=new Set();
 
 function node(tag,kind,text){
@@ -291,15 +292,13 @@ export class WeaponViewer {
     this.attacks.replaceChildren();
     this.inspect.textContent=textForLocale('旋轉睇模型');
     const notes=node('dl');
-    const link=skillLinks[weapon.id];
-    for(const [label,text] of [['普攻連段',comboNames(weapon).join(' → ')+'。'+weapon.basic],
-      [weapon.skill,weapon.detail],[link?.name,link?.detail],['專屬祝福',weapon.blessing?weapon.blessing.name+' · '+weapon.blessing.detail:null]]){
-      if(!label||!text)continue;
+    for(const [label,text] of weaponDetailRows(weapon)){
       const row=node('div');row.append(node('dt','',label),node('dd','',text));notes.append(row);
     }
-    this.notes.replaceChildren(node('summary','','招式與祝福'),notes);
-    this.openViewer({title:weapon.name,role:weapon.role,ink:weapon.ink,choice:'選擇'+weapon.name,
-      image:this.main.armIcons.get(weapon.id),description:weapon.skill+' · '+weapon.detail,commit:commit&&(()=>commit(weapon))});
+    this.notes.replaceChildren(node('summary','',local('詳細效果','详细效果','Detailed effects','詳しい効果')),notes);
+    const brief=weaponSummary(weapon);
+    this.openViewer({title:weapon.name,role:weaponTheme(weapon)+' · '+brief.attack,ink:weaponThemeInk(weapon),choice:'選擇'+weapon.name,
+      image:this.main.armIcons.get(weapon.id),description:brief.effect,commit:commit&&(()=>commit(weapon))});
   }
 
   showBoss(dossier,names,makePractice,commit,practice){
@@ -693,6 +692,7 @@ export class WeaponViewer {
       sigilTextures:source.sigilTextures,ring:source.ring,disc:source.disc,effects:[],time:0,shake:0,
       projectileShape:source.projectileShape,coinShape:source.coinShape,shardShape:source.shardShape,
       elementBudget:0,elementSeed:857302,stage:room??{dread:this.boss ? .45 : 0}});
+    view.combatSpellFx=new CombatSpellFx(scene,view.mobile);
     view.motes=view.createParticleSystem(view.mobile?125:220);
     view.feedback=new CombatFeedback(view);
     view.feedback.reduced=()=>source.feedback.subdued;
@@ -834,7 +834,8 @@ export class WeaponViewer {
     const view=this.makeStage();
     this.practice=this.makePractice(view,this.weapon,kind);
     this.hint.textContent='';
-    this.detail.textContent=textForLocale(kind==='combo'?comboNames(this.weapon).join(' → '):this.weapon.skill+' · '+this.weapon.detail);
+    const summary=weaponSummary(this.weapon);
+    this.detail.textContent=kind==='combo'?summary.attack:summary.effect;
     this.startPlayback();
   }
 
@@ -860,6 +861,7 @@ export class WeaponViewer {
     view.feedback.update(dt);
     view.spellLighting.tick(dt);
     view.wardenGround?.tick(dt);
+    view.combatSpellFx.update(dt);
     view.updateEffects(dt);
     view.renderParticles(dt,false);
     if(view.arenaArt){
@@ -912,6 +914,7 @@ export class WeaponViewer {
     if(this.view){
       const {view}=this;
       this.practice?.dispose();
+      view.combatSpellFx.clear();
       view.modelReserve?.clear();
       for(const fx of view.effects)view.release(fx);
       view.clearEffectMaterials();

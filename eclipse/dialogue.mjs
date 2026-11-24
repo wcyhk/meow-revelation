@@ -133,9 +133,17 @@ export function dialoguePanel({title,location,scene,finishLabel,onFinish,summary
     if(!atChoice()) return;
     selected=option;
     transcript.push({name:'你的選擇',text:option.label});
-    lines=[...option.reply,...(scene.outro??[])];
-    index=0;
-    render();
+    const followUp=[...(option.reply??[]),...(scene.outro??[])];
+    if(followUp.length) {
+      lines=followUp;
+      index=0;
+      render();
+    } else {
+      // Keep the prompt visible and require the usual confirmation.
+      options.hidden=true;
+      next.hidden=false;
+      next.textContent=textForLocale(finishLabel)+' · '+textForLocale(option.label);
+    }
     next.focus({preventScroll:true});
   }
 

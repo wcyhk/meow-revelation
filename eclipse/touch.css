@@ -5,7 +5,9 @@
   --spell-top:calc(var(--spell-bottom) + var(--spell-size));
 }
 #hud.touch-controls {--spell-bottom:max(76px,calc(env(safe-area-inset-bottom) + 67px))}
-.touch-controls :is(.actions,.keys,#inspect kbd) {display:none}
+.touch-controls .actions {display:contents}
+.touch-controls :is(.keys,#strike,#dodge,#inspect kbd) {display:none}
+#hud:not(.touch-controls) .actions {bottom:max(36px,calc(env(safe-area-inset-bottom) + 30px))}
 .touch-controls .touch-guide {
   position:absolute;
   display:grid;
@@ -33,6 +35,7 @@
   border-color:#b48f7375;
   background:radial-gradient(circle at 50% 45%,#44364b,#16111e 76%);
 }
+#hud:not(.touch-controls) #spell {position:relative;inset:auto;translate:none;flex:none}
 #spell[aria-disabled=false] {
   border-color:var(--spell-ink);
   background:radial-gradient(circle at 50% 43%,color-mix(in srgb,var(--spell-ink) 35%,#291f35),#1b1326 74%);

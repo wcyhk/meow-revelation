@@ -8,6 +8,7 @@ export class Input {
     this.world=world;
     this.keys = new Set();
     this.hold = new Set();
+    this.mouseHeld=false;
     this.actions = new Set();
     this.dodgeDirection=null;
     const hud=$('hud');
@@ -80,21 +81,35 @@ export class Input {
         if (event.detail === 0 && running()) this.actions.add(action);
       });
     }
-    world.addEventListener('pointerdown',event => {
-      if (event.pointerType !== 'mouse' || event.button !== 0 || !running()) return;
-      event.preventDefault();
-      world.setPointerCapture(event.pointerId);
-      this.mouseAim = {x:event.clientX,y:event.clientY};
-      this.actions.add('strike');
-      this.hold.add(event.pointerId);
+    // Mouse events report each hardware button, including overlaps; pointer
+    // down/up report only the first and last button of a mouse chord.
+    const releaseMouse=()=>{
+      this.mouseHeld=false;
+      if (!this.actions.has('strike')) this.mouseAim=null;
+    };
+    world.addEventListener('mousedown',event => {
+      if (!running() || event.sourceCapabilities?.firesTouchEvents) return;
+      if (event.button===0) {
+        event.preventDefault();
+        this.mouseHeld=true;
+        this.mouseAim={x:event.clientX,y:event.clientY};
+        this.actions.add('strike');
+      } else if (event.button===2) {
+        event.preventDefault();
+        this.spellRelease=null; // Same automatic aim and cooldown as Q.
+        this.actions.add('spell');
+      }
     });
-    world.addEventListener('pointermove',event => {
-      if(this.hold.has(event.pointerId) && event.pointerType==='mouse') this.mouseAim={x:event.clientX,y:event.clientY};
+    world.addEventListener('mousemove',event => {
+      if (!this.mouseHeld) return;
+      if (!(event.buttons&1)) releaseMouse();
+      else this.mouseAim={x:event.clientX,y:event.clientY};
     });
-    for (const name of ['pointerup','pointercancel','lostpointercapture']) {
-      world.addEventListener(name,event => {this.hold.delete(event.pointerId); if(!this.actions.has('strike')) this.mouseAim=null;});
-    }
-    document.addEventListener('contextmenu',event => event.preventDefault());
+    addEventListener('mouseup',event=>{if(event.button===0)releaseMouse();},true);
+    world.addEventListener('pointercancel',event=>{if(event.pointerType==='mouse')releaseMouse();});
+    world.addEventListener('contextmenu',event => {
+      if (running()) event.preventDefault();
+    });
   }
 
   aimSpell(event) {
@@ -125,14 +140,14 @@ export class Input {
     z /= length;
     const input = {
       x,z, dodge:this.actions.has('dodge'), dodgeDirection:this.dodgeDirection, spell:this.actions.has('spell'), interact:this.actions.has('interact'),
-      strike:this.actions.has('strike')||k.has('KeyJ')||this.hold.size>0,
+      strike:this.actions.has('strike')||k.has('KeyJ')||this.mouseHeld||this.hold.size>0,
       aim:this.mouseAim,
       spellAim:this.spellRelease,
     };
     this.actions.clear();
     this.dodgeDirection=null;
     this.spellRelease=null;
-    if (!this.hold.size) this.mouseAim = null;
+    if (!this.mouseHeld) this.mouseAim = null;
     return input;
   }
 
@@ -140,6 +155,7 @@ export class Input {
     this.keys.clear();
     this.hold.clear();
     this.actions.clear();
+    this.mouseHeld=false;
     this.mouseAim = null;
     this.dodgeDirection=null;
     this.spellRelease=null;

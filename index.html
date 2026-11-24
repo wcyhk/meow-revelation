@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="./style.css?v=world-3d-1">
   <link rel="stylesheet" href="./dialogue.css?v=story-portraits-1">
   <link rel="stylesheet" href="./gilded.css?v=gilded-1">
-  <link rel="stylesheet" href="./touch.css?v=boss-camera-1">
+  <link rel="stylesheet" href="./touch.css?v=desktop-controls-1">
   <link rel="stylesheet" href="./relic-interface.css?v=armory-art-1">
   <link rel="stylesheet" href="./weapon-viewer.css?v=moon-counter-1">
   <link rel="stylesheet" href="./afterglow.css?v=afterglow-1">
@@ -23,10 +23,10 @@
   <link rel="stylesheet" href="./player-ui.css?v=auth-onboarding-1">
   <link rel="stylesheet" href="./interface-motion.css?v=lantern-ui-1">
   <link rel="stylesheet" href="./quiet-ui.css?v=quiet-ui-1">
-  <link rel="stylesheet" href="./locale.css">
+  <link rel="stylesheet" href="./locale.css?v=desktop-controls-1">
   <link rel="stylesheet" href="./journey.css">
   <script type="module" src="./traffic.mjs"></script>
-  <script type="module" src="./game.mjs?v=journey-1"></script>
+  <script type="module" src="./game.mjs?v=desktop-controls-1"></script>
   <script type="module" src="./offline.mjs?v=locale-1"></script>
 </head>
 <body>
@@ -55,8 +55,8 @@
             <option value="ja" lang="ja" data-language>日本語</option>
           </select>
         </label>
-        <span class="cover-wallet" id="entry-gold">金幣 0</span>
         <button id="player-account" type="button" class="account-chip" aria-label="玩家登入" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg><span class="menu-label">登入</span><i aria-hidden="true"></i></button>
+        <span class="cover-wallet" id="entry-gold">金幣 0</span>
       </div>
       <div class="title-menu">
         <header class="title-group">
@@ -119,13 +119,13 @@
           <span>點紋章自動瞄準 · 拖紋章放手施技</span>
         </div>
         <div class="keys"><kbd>W A S D</kbd> 移動 <kbd>Esc</kbd> 暫停</div>
-        <button id="spell" type="button" class="action" aria-label="月輪" aria-disabled="true" hidden>
-          <span aria-hidden="true">☾</span>
-          <b id="spell-cooldown" aria-hidden="true" hidden></b>
-          <small class="spell-caption" aria-hidden="true" data-release-label="放手施放"><em>月輪</em><kbd>Q</kbd></small>
-          <i id="skill-link" aria-hidden="true" hidden></i>
-        </button>
         <div class="actions">
+          <button id="spell" type="button" class="action" aria-label="月輪" aria-disabled="true" hidden>
+            <span aria-hidden="true">☾</span>
+            <b id="spell-cooldown" aria-hidden="true" hidden></b>
+            <small class="spell-caption" aria-hidden="true" data-release-label="放手施放"><em>月輪</em><kbd>Q</kbd></small>
+            <i id="skill-link" aria-hidden="true" hidden></i>
+          </button>
           <button id="dodge" class="action" aria-label="翻滾"><span>»</span><em>翻滾</em><kbd>Space</kbd></button>
           <button id="strike" class="action attack" aria-label="斬擊"><span>✦</span><em>斬擊</em><i class="combo-pips" aria-hidden="true"><b></b><b></b><b></b></i><kbd>J</kbd></button>
         </div>

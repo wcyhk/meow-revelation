@@ -242,6 +242,21 @@ export function mechanismHint(phase){
   return action?action(phase.sites.length,phase.hold,phase.floor):terrain[phase.floor]??t(phase.hint);
 }
 
+const arenaCounterCopy=localized({
+  75:[
+    '蓄滿綠色淨印後，引頭目踏入已充滿嘅印。',
+    '蓄满绿色净印后，引首领踏入已充满的印。',
+    'Charge a green seal, then lure the boss onto it.',
+    '緑色の封印を充填してから、ボスをその上に誘い込む。',
+  ],
+  100:[
+    '引守夜者喺已解開嘅血印上斬擊。最後階段蓄滿命印後，再引佢踏入自己劈出嘅裂縫。',
+    '引守夜者在已解开的血印上斩击。最终阶段蓄满命印后，再引它踏入自己劈出的裂缝。',
+    'Lure the boss into using a cleave on an opened blood seal. In the final phase, charge the Life Seals, then lure the boss into a rift left by its own attack.',
+    '解除済みの血の封印の上で、ボスに斬撃を出させよう。最終形態では命の封印を充填し、ボス自身が作った亀裂に誘い込もう。',
+  ],
+});
+
 export function briefingLines(arena){
   const lines=[];
   for(const [index,phase] of [arena,arena?.last].entries()){
@@ -252,7 +267,7 @@ export function briefingLines(arena){
   if(!lines.length)lines.push([local('走位','走位','Movement','立ち回り'),
     local('睇準地面預警，離開紅色範圍。','看准地面预警，离开红色范围。','Watch the floor and leave red danger zones.','床の赤い予兆から離れる。')]);
   lines.push([local('場地反制','场地反制','Arena counter','地形で反撃'),
-    local('企喺石柱後引衝撞，或者踏入銅鏡光圈反射。見紅線鎖定就向側邊閃。',
+    arenaCounterCopy[arena?.floor]??local('企喺石柱後引衝撞，或者踏入銅鏡光圈反射。見紅線鎖定就向側邊閃。',
       '站在石柱后引首领撞柱，或踏进铜镜光圈反射。红线锁定后向侧面闪避。',
       'Bait a charge from behind a pillar or inside a mirror ring. Dodge sideways when the red line locks.',
       '石柱の後ろか銅鏡の光の中で攻撃を誘い、赤い線が止まったら横へ回避する。')]);

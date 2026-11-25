@@ -1,7 +1,7 @@
 // Display copy keyed by the original Traditional Chinese text.
 export const catalogue = Object.freeze({
-  "了解更多":["了解更多","Learn more","詳しく見る"],
-  "了解更多遊戲資訊（另開分頁）":["了解更多游戏信息（在新标签页打开）","Learn more about the game (opens in a new tab)","詳しく見る（ゲーム紹介を新しいタブで開きます）"],
+  "作者網站":["作者网站","Creator's website","作者のサイト"],
+  "作者網站（另開分頁）":["作者网站（在新标签页打开）","Creator's website (opens in a new tab)","作者のサイト（新しいタブで開きます）"],
   "空籮坡":["空箩坡","Empty Basket Slope","空籠の坂"],
   "守簿之庭":["守簿之庭","Ledger Keeper’s Court","帳簿守の庭"],
   "白花汀":["白花汀","Whiteblossom Shore","白花の岸辺"],

@@ -96,7 +96,7 @@ const uniqueSkills=localized({
 });
 export function weaponSummary(weapon){
   return {attack:uniqueAttacks[weapon.id]??attacks[weapon.form]??t(weapon.role),
-    effect:uniqueSkills[weapon.id]??casts[weapon.spell?.action]??t(weapon.detail)};
+    effect:weapon.awakening?t(weapon.detail):uniqueSkills[weapon.id]??casts[weapon.spell?.action]??t(weapon.detail)};
 }
 
 const links=localized({
@@ -134,7 +134,9 @@ const augments=localized({
 export function weaponDetailRows(weapon){
   const {attack,effect}=weaponSummary(weapon);
   const seconds=weapon.cooldown;
-  const follow=links[weapon.id]??local('鎖定最後命中嘅敵人，提高技能傷害同範圍。',
+  const follow=weapon.awakening?local('以連段命中位置輔助瞄準，並提高技能傷害。',
+    '以连段命中位置辅助瞄准，并提高技能伤害。','The combo hit helps aim the skill and increases its damage.',
+    '連撃の命中地点を照準に使い、スキルの威力が上がります。'):links[weapon.id]??local('鎖定最後命中嘅敵人，提高技能傷害同範圍。',
     '锁定最后命中的敌人，提高技能伤害和范围。','Aim at the last enemy hit with increased damage and area.',
     'その敵を狙って発動し、威力と攻撃範囲が上がります。');
   return [
@@ -143,7 +145,7 @@ export function weaponDetailRows(weapon){
       `. Base cooldown: ${seconds}s.`,`。再使用まで${seconds}秒。`)],
     [local('接技','连招','Follow-up','連携技'),local('第三段普攻命中後立即用神器技能。','第三段普攻命中后立即使用神器技能。',
       'Use the relic skill just after landing the third stage of the basic combo. ','3撃目が当たった直後に神器スキルを使います。')+follow],
-    ...(weapon.blessing?[[t(weapon.blessing.name),augments[weapon.blessing.augment]]]:[]),
+    ...(weapon.blessing?[[t(weapon.blessing.name),blessingSummary(weapon.blessing)]]:[]),
   ];
 }
 
@@ -173,7 +175,7 @@ const blessings=localized({
   iceheart:['接技護甲擋下一擊時放出冰刺，減慢附近敵人','连招护甲挡下一击时放出冰刺，减慢附近敌人','Follow-up armor releases slowing ice spikes when it blocks a hit','連携技の鎧で攻撃を防ぐと、氷のとげで近くの敵を遅くする'],
   votive:['護甲擋下一擊時回血','护甲挡下一击时回血','Armor restores health when it blocks a hit','鎧で攻撃を防ぐとHPが回復する'],
 });
-export const blessingSummary=blessing=>blessings[blessing.id]??augments[blessing.augment]??t(blessing.detail);
+export const blessingSummary=blessing=>blessings[blessing.id]??(blessing.awakened?t(blessing.detail):augments[blessing.augment]??t(blessing.detail));
 
 const blessingConditions=localized({
   ashbrand:['每次連段只喺第三段首次命中時觸發。','每次连段只在第三段首次命中时触发。','Triggers on the first hit of the third stage in each combo.','各連撃で3撃目が最初に当たったときに発動します。'],

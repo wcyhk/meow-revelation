@@ -1,4 +1,5 @@
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
+import {castAwakening} from './relic-awakenings.mjs';
 
 const gap=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const TAU=Math.PI*2;
@@ -10,7 +11,7 @@ const hitMargin=(unit,boss,other)=>unit.kind==='boss'?boss*(unit.bodyScale??1):o
 function closest(game,point,range,visited=new Set()){
   let target;
   for(const unit of game.enemies){
-    if(!live(unit)||visited.has(unit))continue;
+    if(!live(unit)||unit.turnedUntil>game.t||visited.has(unit))continue;
     const distance=gap(unit,point);
     if(distance<range){target=unit;range=distance;}
   }
@@ -37,6 +38,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
 
   const castSource=linked?'link':'skill';
   function strike(target,source,scale,force=.65,react=true,credit=castSource){
+    if(target.turnedUntil>game.t)return false;
     const landed=game.hit(target,damage*scale,source,force,weapon.tone,force>1?'heavy':'light',undefined,credit);
     if(!landed||!react||!target.spec)return landed;
     onHit?.(target,source);
@@ -96,6 +98,10 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
     }
   }
 
+  if(weapon.awakening){
+    castAwakening(game,{origin,center,bearing,radius,range,damage,credit:castSource,strike,burst,schedule});
+    return;
+  }
   switch(action){
     case 'rain':
       for(let i=0;i<hits;i++){

@@ -22,7 +22,7 @@ import {ending,storyPrimer} from './campaign.mjs?v=story-repair-1';
 import {enemySpec, patterns, stages} from './expedition.mjs?v=story-repair-1';
 import {blessingRankCap, blessings, buildStats, schoolProgress, schools} from './blessings.mjs?v=ascendant-1';
 import {advanceThreats, telegraph, withinThreat} from './threats.mjs?v=world-3d-1';
-import {dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, skillFootprint, strikeTravel, strikeWith} from './combat.mjs?v=giant-gates-1';
+import {basicReach, dischargeFusion, finishLinkedRush, invokeArm, invokeLinkedArm, reflectHit, rushHit, skillFootprint, strikeTravel, strikeWith} from './combat.mjs?v=relic-awakenings-1';
 import {RoomObjective,fieldNotes} from './objectives.mjs?v=story-repair-1';
 import {invokeSchool} from './schools.mjs?v=nightforge-1';
 import {BossArena} from './boss-arena.mjs?v=ledger-1';
@@ -49,6 +49,7 @@ import {RelicHunt} from './relic-hunt.mjs?v=story-repair-1';
 import {relicCounter} from './relic-cast.mjs?v=giant-gates-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
+import {clearAwakenings,updateAwakenings,updateTurnedEnemy} from './relic-awakenings.mjs';
 import {wardenStrikeLook} from './warden-ground.mjs';
 import {moonSlashDuration,moonSlashPattern,queueMoonSlash} from './warden-moon-slash.mjs';
 import {moonPincerPreview} from './warden-moon-assist.mjs';
@@ -256,7 +257,7 @@ export class Game {
       flags:{...this.storyChoices},journal:this.journal.map(entry=>({...entry})),
       training:{...this.training},technique:this.hero.technique,lantern:this.hero.lanternStyle,
       branch:this.branchCombat.branch?.id??null,skills:[...this.branchCombat.skills],medic:this.branchCombat.reviveReady,
-      fusionPin:this.fusionPin,reviveOffered:this.reviveOffered});
+      fusionPin:this.fusionPin,reviveOffered:this.reviveOffered,relicDetourUsed:this.relicDetourUsed});
   }
 
   openTraining() {
@@ -549,6 +550,8 @@ export class Game {
     this.twinReward=null;
     this.failure=null;
     this.reviveOffered=!!saved?.reviveOffered;
+    this.relicDetourUsed=!!saved?.relicDetourUsed;
+    this.replayThrough=-1;
     if(!this.testRun&&!this.practiceRun&&!this.duelMonster&&!this.storyRun)this.rewardedRevive.prepare();
     this.heroVisual = this.view.createActor(0,2.68,true);
     this.relics=saved?saved.relics.map(id=>blessingById.get(id)):this.testRun?testBlessings():this.practiceRun?[...this.practiceRun.relics]:[];
@@ -647,6 +650,7 @@ export class Game {
 
   clearActors() {
     this.clearReversal();
+    clearAwakenings(this);
     this.branchCombat.activeMaw?.clearVisuals();
     const actors = new Set([...this.enemies,...this.fallen,...this.pickups]);
     for (const unit of actors) this.view.removeActor(unit.visual);
@@ -688,6 +692,7 @@ export class Game {
     h.hp=Math.min(h.maxHp,h.hp+Math.max(0,h.maxHp-oldMax));
     h.trainingWardSpent=false;
     h.relicCounter=h.relicHaste=h.projectileAim=h.poseGait=null;
+    h.relicGiantUntil=0;
     h.lanternOut=0;
     h.wardenBoonStacks=h.wardenBoonUntil=0;
     h.snuffCooldown=0;
@@ -735,7 +740,7 @@ export class Game {
     this.placeStory(null);
     this.objective(this.mission?.plan.hint??(stage.boss?'迎戰 '+stage.guardian.name:patterns[stage.hazard]+' · 留意地面預警'));
     const arrival=this.mission?.plan.title??(stage.boss?stage.guardian.name:patterns[stage.hazard]);
-    this.announce(stage.zone.name+'  /  第 '+stage.floor+' 關',stage.name,arrival,2.15);
+    this.announce(format('《0》 · 第 《1》 關',stage.zone.name,stage.floor),stage.name,arrival,2.15);
     this.startDelay=.70;
     if(clue&&!this.journal.some(entry=>!entry.hiddenClue&&entry.chapter===stage.zone.name)){
       this.discover(clue);
@@ -1028,7 +1033,7 @@ export class Game {
     return {dx,dz,center};
   }
 
-  aim(input, range=this.hero.reach+.86) {
+  aim(input, range=basicReach(this)+.86) {
     const h = this.hero;
     if(input.aim){
       const center=this.view.project(h.x,.8,h.z);
@@ -1042,7 +1047,7 @@ export class Game {
     for (const foe of [...anchors,...this.enemies,...this.breakables()]) {
       const d = distance(h,foe);
       const priority=foe.kind==='arenaAnchor'?.50:foe.kind==='breakable'?1.35:1;
-      if (foe.hp>0 && d*priority<shortest && d<range+(foe.kind==='boss'?.65*(foe.bodyScale??1):0)) {
+      if (foe.hp>0&&!(foe.turnedUntil>this.t) && d*priority<shortest && d<range+(foe.kind==='boss'?.65*(foe.bodyScale??1):0)) {
         nearest = foe;
         shortest = d*priority;
       }
@@ -1262,7 +1267,7 @@ export class Game {
       giftFinisher(this,strike,unit,kind);
     }:undefined));
     if (link) {
-      const travel=strikeTravel(move,h.reach*move.reach,true);
+      const travel=strikeTravel(move,basicReach(this)*move.reach,true);
       const settle=()=>{
         link.pending=false;
         if (h.link===link&&!link.contacts.length) h.link=null;
@@ -1337,6 +1342,44 @@ export class Game {
     this.rituals.push({delay,fire});
   }
 
+  awakeningBossSpec(kind) {
+    return enemySpec(modeStage(stages[kind==='goat'?4:69],this.difficulty??difficulties.vigil),'boss');
+  }
+
+  releaseEnemyForAwakening(unit) {
+    if(unit.attack)unit.attack.interrupted=true;
+    unit.attack=unit.motion=null;
+    unit.frozen=unit.kx=unit.kz=0;
+    this.hazards=(this.hazards??[]).filter(hazard=>{
+      if(hazard.owner!==unit)return true;
+      if(hazard.windup)hazard.windup.interrupted=true;
+      if(hazard.visual)this.view.removeProjectile(hazard.visual);
+      return false;
+    });
+  }
+
+  queueRelicDetour() {
+    if(this.state!=='play'||this.relicDetourUsed||this.practiceRun||this.duelMonster||this.storyRun==='chapter'
+      ||this.discovery||this.escape?.ready||this.enemies.some(u=>u.kind==='boss'&&u.hp>0))return false;
+    const optional=s=>s&&!s.boss&&!s.clue&&!s.objective;
+    const from=this.level;
+    if(!optional(this.stage))return false;
+    const choices=[from-1,from+1].filter(level=>optional(stages[level]));
+    if(!choices.length)return false;
+    const destination=choices[Math.floor(Math.random()*choices.length)];
+    // A short casting tell plays before the regular room transition takes over.
+    this.hero.invulnerable=Math.max(this.hero.invulnerable,.72);
+    this.schedule(.46,()=>{
+      if(this.level!==from||this.state!=='play'||this.escape?.ready||this.enemies.some(u=>u.kind==='boss'&&u.hp>0))return;
+      this.relicDetourUsed=true;
+      if(destination<from)this.replayThrough=from-1;
+      this.recordChallenge('abandoned');
+      this.continueAfterReward(destination);
+      this.announce('神器覺醒',this.weapon.skill,'翻頁歧途已啟動，呢局停止計入排行榜。',2.6);
+    });
+    return true;
+  }
+
   updateRituals(dt) {
     const pending=this.rituals;
     this.rituals=[];
@@ -1371,7 +1414,7 @@ export class Game {
       if(!unit.hp){this.view.lanternArt.smash(unit);this.audio.impact('break',unit.style==='urn'?'stone':'hide');}
       return true;
     }
-    if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0) return false;
+    if (unit.hp<=0 || unit.age<.23 || unit.phaseGuard>0 || unit.turnedUntil>this.t) return false;
     const boss=unit.kind==='boss';
     const primary=this.bossArena?.boss===unit;
     if (primary&&this.bossArena.locked) {
@@ -1670,6 +1713,7 @@ export class Game {
       unit.exposed-=dt;
       unit.phaseGuard-=dt;
       unit.morale-=dt;
+      if(updateTurnedEnemy(this,unit,dt))continue;
       if(this.tickBossTransform(unit,dt))continue;
       if(this.roomReversal?.dash?.unit===unit)continue;
       if (unit.lured>0) unit.lured-=dt;
@@ -1884,6 +1928,10 @@ export class Game {
       this.leaveAltar();
       return true;
     }
+    if(this.level<=this.replayThrough){
+      this.continueAfterReward();
+      return true;
+    }
     const reward=milestones[this.difficulty.id].find(item=>item.floor===this.stage.floor);
     const gold=this.storyRun?0:floorGold(this.stage);
     const unlocked=!this.storyRun&&this.progress.clear(this.difficulty.id,this.stage.floor,gold,reward?.id==='crimson');
@@ -1905,8 +1953,10 @@ export class Game {
     exit.searchTime+=dt;
     const dx=exit.x-this.hero.x,dz=exit.z-this.hero.z;
     const compass=(Math.abs(dx)>2?(dx<0?'西':'東'):'')+(Math.abs(dz)>2?(dz<0?'北':'南'):'');
-    this.objective(exit.found?('出口已開 · '+(compass?'往'+compass:'行入拱門'))
-      :'提燈找出口 · '+(exit.searchTime>7&&compass?'往'+compass:'沿北面牆搜尋'));
+    const direction=compass?format('往《0》',compass):'';
+    this.objective(exit.found
+      ?format('出口已開 · 《0》',direction||'行入拱門')
+      :format('提燈找出口 · 《0》',exit.searchTime>7&&direction?direction:'沿北面牆搜尋'));
     if(exit.found)return;
     exit.clock-=dt;
     if(exit.clock>0||this.enemies.length>=4)return;
@@ -1979,7 +2029,7 @@ export class Game {
     const movingLimbs=!action&&!bracing&&!isRoll;
     const heroFrame={
       dt,shot:!isRoll&&h.projectileAim?.until>t?h.projectileAim:null,
-      frame:pose,poseSize:isRoll?.92:pose===heroFrames.run?.93:1,face:action?.face??h.face,
+      frame:pose,modelScale:h.relicGiantUntil>t?2:1,poseSize:(isRoll?.92:pose===heroFrames.run?.93:1)*(h.relicGiantUntil>t?2:1),face:action?.face??h.face,
       bob:isRoll?.024+tuck*.26:.037+gait.bob+Math.sin(t*4.1)*.018,
       tilt:isRoll?0:-gait.tilt,
       squash:isRoll?1-tuck*.32:1-gait.compression*.7,
@@ -1991,7 +2041,8 @@ export class Game {
       armReach:action?clamp((action.grip.reach-.25)*.13,-.075,.12):0,
       armLift:action?clamp((action.grip.raise-.26)*.21,-.10,.17):0,
       roll:isRoll&&!h.rush?-h.face*rollPhase*TAU:0,
-      flash:h.flash,fade:!h.ascendant&&h.invulnerable>0&&!isRoll&&Math.sin(t*33)<-.35?.74:1,
+      flash:h.flash,fade:h.awakeningForm?.until>t&&(!h.awakeningForm.host||h.awakeningForm.host.hp>0)?0:
+        !h.ascendant&&h.invulnerable>0&&!isRoll&&Math.sin(t*33)<-.35?.74:1,
       aura:h.ascendant?.86:h.ward>0||h.surge>0?.55:.24,rim:h.ascendant?0xffcc6e:this.weapon.tone,
     };
     this.view.actor(this.heroVisual,h,blendPose(blendPose(heroFrame,action),reactionPose(h)));
@@ -2007,7 +2058,8 @@ export class Game {
     const frozen=unit.frozen>0;
     const wind=unit.attack ? 1-clamp(unit.attack.time/(unit.attack.windup??unit.spec.time),0,1) : 0;
     const gait=actorMotion(unit,dt,t);
-    const target=this.enemyTarget(unit);
+    const turned=unit.turnedUntil>t;
+    const target=(turned?unit.turnedTarget:null)??this.enemyTarget(unit);
     const xToTarget=target.x-unit.x,zToTarget=target.z-unit.z;
     const targetHeading=Math.hypot(xToTarget,zToTarget)>.09?Math.atan2(xToTarget,zToTarget):undefined;
     const stepping=!unit.attack&&!unit.reaction&&!staggered&&!frozen;
@@ -2026,8 +2078,8 @@ export class Game {
       stride:stepping?gait.swing:0,footLift:stepping?gait.footLift:0,
       feet:stepping&&gait.weight>.34?gait.foot:null,
       warm:fierce?.42:0,
-      aura:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
-      rim:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
+      aura:turned?.96:frozen?.90:staggered?.82:unit.phaseGuard>0||shielded?.65:unit.omen?.61:unit.chill>0||unit.exposed>0?.38:unit.attack||boss?.25:.09,
+      rim:turned?0xa4ffcf:frozen?0xb9f9ff:staggered?0x9ff4e4:shielded?this.bossArena.terrain.ink:unit.omen?.tint??(unit.chill>0?0x8de2de:unit.morale>0?0xffd48b:unit.exposed>0?0xff8255:unit.spec.tint),
       phase:unit.bossPhase,
       gaitPhase:gait.phase,stepWeight:gait.weight,heading:gait.heading,targetHeading,dt,
     };
@@ -2099,6 +2151,8 @@ export class Game {
     this.updateHero(dt,input);
     if (this.state!=='play') return;
     this.updateRituals(dt);
+    if (this.state!=='play') return;
+    updateAwakenings(this,dt);
     if (this.ultimateFields.length) updateUltimates(this,dt);
     this.branchCombat.update(this,dt);
     if(this.reversalPending){
@@ -2352,8 +2406,8 @@ export class Game {
     this.view.arenaArt.disposePreparation(pending?.encounter);
   }
 
-  prepareNextRoom(){
-    const level=this.level+1,hero=this.hero;
+  prepareNextRoom(level=this.level+1){
+    const hero=this.hero;
     if(level>=stages.length)return null;
     const ready=this.roomPreparation;
     if(ready?.level===level&&ready.hero===hero&&ready.stage.difficulty===this.difficulty)return ready;
@@ -2667,16 +2721,16 @@ export class Game {
     return this.continueAfterReward();
   }
 
-  async continueAfterReward(){
-    if(this.stage.floor<stages.length){
-      const level=this.level+1;
-      const preparation=this.prepareNextRoom();
+  async continueAfterReward(level=this.level+1){
+    if(level<stages.length){
+      const previous=this.level;
+      const preparation=this.prepareNextRoom(level);
       this.state='transition';
       this.openModal({kind:'transition',mark:'◇',kicker:'第 '+(level+1)+' 關',
         title:'燈火引路',copy:'正在準備下一層⋯⋯'});
       await afterPaint();
       await preparation.promise;
-      if(this.roomPreparation!==preparation||this.level!==level-1||this.state!=='transition')return;
+      if(this.roomPreparation!==preparation||this.level!==previous||this.state!=='transition')return;
       this.presentingRoom=preparation;
       try{
         this.enter(level);
@@ -2972,7 +3026,7 @@ function makeWeaponPractice(view,weapon,kind) {
     return true;
   };
   let actionAt=.16,combo=0;
-  const duration=kind==='combo'?2.65:Math.max(2.75,(weapon.spell?.hits??1)*(weapon.spell?.interval??0)+1.35);
+  const duration=kind==='combo'?2.65:weapon.awakening?5.4:Math.max(2.75,(weapon.spell?.hits??1)*(weapon.spell?.interval??0)+1.35);
   const input={x:0,z:0};
   practice.poseHero(0);
   return {
@@ -3001,6 +3055,8 @@ function makeWeaponPractice(view,weapon,kind) {
       }
       while(hero.slash&&hero.attackAge>=hero.slash.timing.hits[hero.slash.next].at)practice.landSlash();
       practice.updateRituals(dt);
+      updateAwakenings(practice,dt);
+      for(const unit of practice.enemies)updateTurnedEnemy(practice,unit,dt);
       practice.poseHero(dt);
       view.setWard(hero);
       view.previewSkill(hero,0,dt);
@@ -3012,6 +3068,7 @@ function makeWeaponPractice(view,weapon,kind) {
       return practice.t<duration;
     },
     dispose(){
+      clearAwakenings(practice);
       view.removeEquippedActor(practice.heroVisual);
       for(const unit of practice.enemies)view.removeActor(unit.visual);
     },

@@ -1,11 +1,12 @@
 import {comboMove} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
 import {castRelic,relicSpellRadius} from './relic-cast.mjs?v=giant-gates-1';
+import {awakeningFootprint} from './relic-awakenings.mjs';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const hitMargin=(unit,boss,other=0)=>unit.kind==='boss'?boss*(unit.bodyScale??1):other;
 const active = game => {
-  const foes=game.enemies.filter(foe=>foe.hp>0 && foe.age>=.23);
+  const foes=game.enemies.filter(foe=>foe.hp>0&&foe.age>=.23&&!(foe.turnedUntil>game.t));
   const anchors=game.bossArena?.targets;
   return [...(anchors??[]),...foes,...game.breakables()];
 };
@@ -107,12 +108,14 @@ function bowShot(game,origin,dx,dz,reach,move,tint,heavy,land,confirm) {
   }
 }
 
+export const basicReach=game=>game.hero.reach*(game.hero.relicGiantUntil>game.t?1.38:1);
+
 export function strikeWith(game,dx,dz,move=comboMove(game.weapon,game.hero.combo),powerScale=1,confirm,onContact) {
   const {hero:h,view,weapon:arm}=game;
   const finish=h.combo===3;
   const targets=active(game);
-  const reach=h.reach*move.reach;
-  const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1)*powerScale;
+  const reach=basicReach(game)*move.reach;
+  const power=h.damage*(finish?h.finisher:h.combo===2?1.12:1)*(h.surge>0?1.3:1)*(h.relicGiantUntil>game.t?1.35:1)*powerScale;
   const source={x:h.x,z:h.z};
   const weight=finish?'heavy':'light';
   const land=(unit,scale=1,origin=source,force=move.force)=>game.hit(unit,power*scale,origin,force,arm.tone,weight,onContact,'basic');
@@ -216,6 +219,7 @@ export function skillFootprint(game,{dx,dz,center}) {
   const endpoint={x:hero.x+dx*range,z:hero.z+dz*range};
   game.bound(endpoint);
   if(weapon.spell){
+    if(weapon.awakening)return awakeningFootprint(weapon,hero,range,{dx,dz},center,ranks.get(weapon.blessing.id)??0);
     const {action,hits,look}=weapon.spell;
     const radius=relicSpellRadius(weapon,Math.min(3,ranks.get(weapon.blessing.id)??0));
     switch(action){

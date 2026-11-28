@@ -1,3 +1,5 @@
+import {awakenings,awakenedBoon} from './relic-awakening-data.mjs';
+
 // Independently authored lantern-world concepts. Stable keys preserve existing local records.
 export const lanternThemes={"light": ["照誓", 15913371, 2107954, 8161169, 15124107], "lightning": ["鳴隙", 8054015, 1517878, 6521485, 11586006], "earth": ["沉鐘", 13741943, 2370345, 6777948, 13677450], "ice": ["霜函", 12121082, 2371903, 8427177, 15199460], "void": ["夜紗", 14260205, 2368056, 6904185, 12821969], "fire": ["薪火", 16753508, 2893873, 7754310, 14594437], "blood": ["紅線", 16743576, 3154733, 8672095, 13870240], "poison": ["腐墨", 11917175, 2306348, 6125674, 11978652], "wind": ["織風", 11003857, 2437173, 7310213, 13819082]};
 const rows=`tiger|裂風折刃|折影疾行|wind|curve
@@ -88,6 +90,11 @@ export function stampRelic(weapon){
     if(weapon.id==='western-rifle')result.detail='召來持排槍嘅紙衛，連續向附近敵人開火。';
   }
   if(weapon.blessing)result.blessing={...weapon.blessing,name:d.name+'・餘響',school,detail:weapon.blessing.detail.replace(/狐雷|冥雷|龍輪|鬼角|蓮光|聖光|黑火|活力/g,'契印')};
+  const awakening=awakenings[weapon.id];
+  if(awakening){
+    Object.assign(result,{awakening,skill:awakening.name,detail:awakening.detail,cooldown:awakening.cooldown});
+    Object.assign(result.blessing,{detail:awakenedBoon[0],awakened:true});
+  }
   if(weapon.guardian)result.guardian={...weapon.guardian,name:'追契者・'+d.name,cry:'嗰件'+d.name+'仲留住我嘅名字，交返畀我！'};
   return result;
 }

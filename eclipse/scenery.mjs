@@ -1,5 +1,6 @@
 import {mountBestiary,poseBestiary,removeBestiary} from './bestiary-models.mjs?v=boss-foundry-1';
 import {ModelReserve} from './model-reserve.mjs';
+import {format, t as textForLocale} from './locale.mjs';
 import {shapeAura} from './boss-aura.mjs?v=emberlight-1';
 import * as T from '../three.min.mjs';
 import {CombatFeedback,addHitSurface} from './combat-feedback.mjs?v=combat-pace-1';
@@ -20,7 +21,7 @@ import {loadRoomSurfaces} from './room-surfaces.mjs?v=penumbra-1';
 import {loadPaintedActors} from './actor-art.mjs?v=ascendant-1';
 import {GroveLight} from './grove-light.mjs?v=emberlight-1';
 import {skillSigil} from './skill-sigils.mjs?v=weapon-audit-1';
-import {summonModel,summonMuzzle} from './relic-summons.mjs?v=skill-depth-1';
+import {summonModel,summonMuzzle} from './relic-summons.mjs?v=relic-awakenings-1';
 import {relicGrip} from './relic-models.mjs?v=armory-art-1';
 import {huntById} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {pawPositions,weaponGrips} from './weapon-grips.mjs?v=armory-art-1';
@@ -380,7 +381,7 @@ export class Scenery {
     // Downloading assets is not GPU preparation. Retained theme materials let us
     // do first-use texture uploads and shader compilation behind the loading art.
     for(const [index,picture] of landscapePictures.entries()){
-      document.getElementById('load-note').textContent='正在預備場景光影 '+(index+1)+' / '+landscapePictures.length+'⋯⋯';
+      document.getElementById('load-note').textContent=format('正在預備場景光影 《0》 / 《1》⋯⋯',index+1,landscapePictures.length);
       await new Promise(resolve=>requestAnimationFrame(resolve));
       this.setStage(stages.find(stage=>stage.picture===picture)??{...stages[0],picture});
       await this.renderer.compileAsync(this.scene,this.camera);
@@ -391,7 +392,7 @@ export class Scenery {
     const opening=stages[0];
     const encounters=[enemySpec(stages[4],'boss'),enemySpec(stages[9],'boss'),
       ...opening.waves[0].map(kind=>enemySpec(opening,kind))];
-    document.getElementById('load-note').textContent='正在預備戰鬥模型⋯⋯';
+    document.getElementById('load-note').textContent=textForLocale('正在預備戰鬥模型⋯⋯');
     this.setStage(stages[0]);
     const primed=[];
     try {
@@ -1373,7 +1374,7 @@ export class Scenery {
       glow.material.opacity=.072+charge*.30+surge*.15;
       const halo=.88+charge*.53+surge*.22;
       glow.scale.set(halo,halo,1);
-      model.scale.setScalar(profile.scale*(roll?.85:1)*(1-fall*.16));
+      model.scale.setScalar(profile.scale*(spec.modelScale??1)*(roll?.85:1)*(1-fall*.16));
       model.position.copy(handPoint).sub(weaponOffset.copy(anchor).multiply(model.scale).applyQuaternion(model.quaternion));
       if(blades) {
         for(const [index,blade] of blades.entries()){
@@ -1683,7 +1684,7 @@ export class Scenery {
     const element=weapon.element??weaponElements[weapon.id]??weapon.effect;
     const angle=Math.atan2(dz,dx);
     this.elementBurst(hero.x,.20,hero.z,weapon.tone,element,18,1.18);
-    this.spellAccent({x:hero.x,y:.15,z:hero.z},{action:weapon.spell?.action??baseCastLooks[weapon.id],element,
+    if(!weapon.awakening)this.spellAccent({x:hero.x,y:.15,z:hero.z},{action:weapon.spell?.action??baseCastLooks[weapon.id],element,
       tint:weapon.tone,radius:weapon.spell?.action==='minion'?1.64:2.06,angle,
       seed:weapon.sigil??spellIndex(weapon.id),power:.87});
     if(element==='water'||element==='fire')this.feedback.surge(element,hero,.64);

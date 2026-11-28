@@ -6,7 +6,7 @@ const rootGeometry=new T.BufferGeometry(),box=new T.BoxGeometry(1,1,1),
   ring=new T.TorusGeometry(1,.065,5,24),gem=new T.OctahedronGeometry(1);
 const muzzle=new T.Vector3();
 export function summonModel(view,weapon,point,duration){
-  const effect=view.addEffect(rootGeometry,{...point,y:.03},weapon.tone,duration,{opacity:0,order:70});
+  const effect=view.addEffect(rootGeometry,{...point,y:.03},weapon.tone,duration,{opacity:0,order:70,scale:2});
   effect.combatClock=true;const root=effect.mesh;root.name='契紙造物 · '+weapon.name;
   const make=(color,glow=0)=>new T.MeshStandardMaterial({color,roughness:.48,metalness:.47,emissive:weapon.tone,
     emissiveIntensity:glow,transparent:true,opacity:.93});
@@ -63,7 +63,8 @@ export function summonModel(view,weapon,point,duration){
 export function summonMuzzle(summon,point,angle,target){
   summon.mesh.position.set(point.x,.03,point.z);
   const distance=Math.hypot(target.x-point.x,target.z-point.z);
-  if(distance>.19)angle-=Math.asin(.12/distance);
+  const lateralOffset=.12*summon.scale;
+  if(distance>lateralOffset+.07)angle-=Math.asin(lateralOffset/distance);
   summon.mesh.rotation.y=-angle;summon.rifle.position.x=.10;summon.rifle.rotation.z=-Math.PI/2;
   summon.rifle.localToWorld(muzzle.set(...summon.rifle.userData.launch.tip));summon.fired=summon.age;
   return {x:muzzle.x,y:muzzle.y,z:muzzle.z,dx:Math.cos(angle),dz:Math.sin(angle)};

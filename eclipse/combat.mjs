@@ -1,7 +1,8 @@
 import {comboMove} from './weapon-combos.mjs?v=weapon-audit-1';
 import {linkResonances} from './link-blessings.mjs?v=resonance-1';
-import {castRelic,relicSpellRadius} from './relic-cast.mjs?v=giant-gates-1';
+import {castRelic,relicSpellRadius} from './relic-cast.mjs?v=summon-frenzy-1';
 import {awakeningFootprint} from './relic-awakenings.mjs';
+import {nativeRelicSignature} from './relic-signature-fx.mjs';
 
 const distance = (a,b) => Math.hypot(a.x-b.x,a.z-b.z);
 const hitMargin=(unit,boss,other=0)=>unit.kind==='boss'?boss*(unit.bodyScale??1):other;
@@ -344,6 +345,7 @@ export function invokeArm(game,input,aim=null) {
     castRelic(game,origin,dx,dz,center,power,range);
     return;
   }
+  nativeRelicSignature(view,arm,origin,target(),Math.atan2(dz,dx));
   switch (arm.id) {
     case 'tiger':
       h.rolling=.35;
@@ -670,6 +672,7 @@ export function invokeLinkedArm(game,link,wind,fusion) {
     });
     return;
   }
+  nativeRelicSignature(view,arm,origin,focus(),Math.atan2(dz,dx),true);
   switch (arm.id) {
     case 'tiger':
       h.rolling=h.rollDuration=.32;

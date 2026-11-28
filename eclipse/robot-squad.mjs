@@ -1,39 +1,13 @@
 import * as T from '../three.min.mjs';
 import {aimTracer,createRobot,createRocket,createTracer,muzzlePosition,poseRobot,rocketPose} from './robot-art.mjs?v=skill-depth-1';
+import {chaseSummon,clearSummonShot,focusSummon,summonEnemy,summonGap as gap} from './summon-combat.mjs';
 
 const models=[
-  {id:'rocket',paint:0x9d342e,tint:0xff805c,scale:1.15,lift:.17,side:0,back:2.10,range:9.8,windup:.41,shots:1,interval:2.95,speed:13,power:.50},
-  {id:'smg',paint:0x296698,tint:0x7ad8ff,scale:.91,lift:.03,side:-1.40,back:1.20,range:4.6,windup:.10,shots:3,interval:1.28,rate:.09,power:.105},
-  {id:'minigun',paint:0x477b42,tint:0xafff80,scale:1.05,lift:.09,side:1.40,back:1.23,range:6.9,windup:.27,shots:5,interval:2.28,rate:.085,power:.084},
+  {id:'rocket',paint:0x9d342e,tint:0xff805c,scale:1.15,lift:.17,side:0,back:2.10,range:9.8,windup:.27,shots:1,interval:1.70,speed:17,power:.44},
+  {id:'smg',paint:0x296698,tint:0x7ad8ff,scale:.91,lift:.03,side:-1.40,back:1.20,range:4.6,windup:.075,shots:4,interval:.59,rate:.07,power:.073},
+  {id:'minigun',paint:0x477b42,tint:0xafff80,scale:1.05,lift:.09,side:1.40,back:1.23,range:6.9,windup:.17,shots:7,interval:.98,rate:.065,power:.057},
 ];
-const gap=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-const valid=(game,enemy)=>enemy.hp>0&&enemy.age>=.23&&enemy.phaseGuard<=0
-  && !(game.bossArena?.locked&&game.bossArena.boss===enemy);
 const turn=(from,to)=>Math.atan2(Math.sin(to-from),Math.cos(to-from));
-
-function clearShot(game,from,to) {
-  const dx=to.x-from.x,dz=to.z-from.z;
-  const steps=Math.ceil(Math.hypot(dx,dz)/.44);
-  const point={x:from.x,z:from.z};
-  for(let i=1;i<steps;i++) {
-    point.x=from.x+dx*i/steps;
-    point.z=from.z+dz*i/steps;
-    if(game.isBlocked(point,.04)) return false;
-  }
-  return true;
-}
-
-function acquire(game,bot) {
-  let target=null,range=bot.config.range;
-  for(const enemy of game.enemies) {
-    const distance=gap(bot,enemy);
-    if(distance<range&&valid(game,enemy)&&clearShot(game,bot,enemy)) {
-      range=distance;
-      target=enemy;
-    }
-  }
-  return target;
-}
 
 export class RobotSquad {
   constructor(view) {
@@ -71,6 +45,7 @@ export class RobotSquad {
     }
     for(const bot of this.bots) {
       bot.target=null;
+      bot.searchAt=0;
       bot.shots=0;
       bot.flash=bot.recoil=0;
       bot.art.flash.visible=false;
@@ -120,13 +95,17 @@ export class RobotSquad {
     const look=Math.atan2(hero.rolling>0?hero.rollX:hero.dx,hero.rolling>0?hero.rollZ:hero.dz);
     this.heading+=turn(this.heading,look)*(1-Math.exp(-9*dt));
     for(const bot of this.bots) {
-      this.follow(game,bot,dt);
+      const target=active?focusSummon(game,bot,hero):null;
+      const inRange=target&&gap(bot,target)<=bot.config.range;
+      const clear=inRange&&clearSummonShot(game,bot,target);
+      if(!target)this.follow(game,bot,dt);
+      else if(!clear)chaseSummon(game,bot,target,dt*(bot.config.id==='smg'?10:8.2),.27);
       bot.flash=Math.max(0,bot.flash-dt);
       bot.recoil*=Math.exp(-12*dt);
       bot.cool-=dt;
-      if(active) this.attack(game,bot,dt);
-      const target=bot.target?.hp>0?Math.atan2(bot.target.x-bot.x,bot.target.z-bot.z):this.heading;
-      bot.yaw+=turn(bot.yaw,target)*(1-Math.exp(-24*dt));
+      if(clear)this.attack(game,bot,dt);
+      const yaw=target?Math.atan2(target.x-bot.x,target.z-bot.z):this.heading;
+      bot.yaw+=turn(bot.yaw,yaw)*(1-Math.exp(-24*dt));
       poseRobot(bot,game.t,dt);
     }
   }
@@ -134,26 +113,13 @@ export class RobotSquad {
   attack(game,bot,dt) {
     const {config}=bot;
     if(!bot.shots) {
-      if(bot.cool>0) return;
-      bot.target=acquire(game,bot);
-      if(!bot.target) {
-        bot.cool=.12;
-        return;
-      }
+      if(bot.cool>0||config.id==='rocket'&&this.rocket.duration)return;
       bot.shots=config.shots;
       bot.wait=config.windup;
       return;
     }
     bot.wait-=dt;
     if(bot.wait>0) return;
-    if(!bot.target||!valid(game,bot.target)||gap(bot,bot.target)>config.range||!clearShot(game,bot,bot.target)) {
-      bot.target=acquire(game,bot);
-      if(!bot.target) {
-        bot.shots=0;
-        bot.cool=.12;
-        return;
-      }
-    }
     bot.yaw=Math.atan2(bot.target.x-bot.x,bot.target.z-bot.z);
     poseRobot(bot,game.t,0);
     const origin=muzzlePosition(bot,this.from);
@@ -222,7 +188,7 @@ export class RobotSquad {
     game.view.elementBurst(x,.24,z,0xff9162,'fire',15,1.10);
     game.audio.play('robot-impact');
     for(const enemy of game.enemies) {
-      if(valid(game,enemy)&&gap(enemy,point)<1.62+(enemy.spec.radius??0)*.28&&clearShot(game,point,enemy)) {
+      if(summonEnemy(game,enemy)&&gap(enemy,point)<1.62+(enemy.spec.radius??0)*.28&&clearSummonShot(game,point,enemy)) {
         game.hit(enemy,game.hero.damage*config.power,rocket.from,.34,config.tint,'light',undefined,'support');
       }
     }

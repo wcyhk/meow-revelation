@@ -1,6 +1,8 @@
+import {miracleDesigns} from './relic-miracle-data.mjs';
+
 // Aim shape, baseline cooldown, and the four in-game locales for each awakening.
 const entries = {
-  'sam-in':['clones','self',11,['燈影分身','灯影分身','Lantern Doubles','灯影分身'],['兩個雙倍體型嘅分身隨行 5 秒，交替追斬附近敵人。','两个双倍体型的分身随行 5 秒，交替追斩附近敌人。','Two double-size copies follow for 5 seconds and take turns slashing nearby foes.','倍の大きさの分身が2体、5秒間ついて来て交互に周囲の敵を斬る。']],
+  'sam-in':['clones','self',11,['燈影分身','灯影分身','Lantern Doubles','灯影分身'],['喚出兩個雙倍體型嘅分身維持 5 秒，圍住最強敵人連斬。','召唤两个双倍体型的分身持续 5 秒，围住最强敌人连斩。','Two double-size copies hound the strongest foe for 5 seconds, striking repeatedly.','倍の大きさの分身を2体呼び、5秒間最も強い敵を追って連斬する。']],
   'lotus-fish':['prism','point',8,['三鏡照刑','三镜照刑','Mirror Tribunal','三鏡の裁き'],['三面浮鏡鎖定三角區域，交錯照射後向中心爆開。','三面浮镜锁定三角区域，交错照射后向中心爆开。','Three floating mirrors trace a triangle and converge in a blast at its center.','浮遊鏡が三角を描いて照射し、中央で光が炸裂する。']],
   'thunder-pearl':['capacitor','point',8,['拘雷接力','拘雷接力','Charged Relay','拘雷リレー'],['放出接力電球，沿不同敵人跳躍，每次換目標都會增傷。','放出接力电球，沿不同敌人跳跃，每次换目标都会增伤。','A charge jumps between distinct foes and grows stronger with each hop.','電撃球が別々の敵に跳び移り、跳ぶたびに威力が増す。']],
   'thunder-sword':['rail','line',7,['刻線回斬','刻线回斩','Aftershock Rail','刻線の返し'],['劃出一條導電線。短暫延遲後由遠端向你逐段爆返嚟。','划出一条导电线。短暂延迟后由远端向你逐段炸回来。','Etch a straight rail. Its shocks travel back toward you after a short delay.','導電線を刻む。短い間の後、先端から手前に向けて順に炸裂する。']],
@@ -8,10 +10,10 @@ const entries = {
   'dragon-fish':['giant','self',13,['借鐘巨身','借钟巨身','Borrowed Giant','鐘の巨身'],['身體放大 2 倍維持 5 秒，普攻射程同傷害上升，變大時震退附近敵人。','身体放大 2 倍维持 5 秒，普攻射程和伤害提高，变大时震退附近敌人。','Double your size for 5 seconds, extend and strengthen basic attacks, and knock nearby foes back as you grow.','5秒間、体が倍になり通常攻撃の射程と威力が上がる。巨大化の瞬間に敵を吹き飛ばす。']],
   'seven-blade':['sweep','self',8,['圓函斷界','圆函断界','Full Circle Cleave','円函の全周斬'],['以自身為中心連斬四個象限，完整掃過 360 度並擊退敵人。','以自身为中心连斩四个象限，完整扫过 360 度并击退敌人。','Sweep all four quadrants in order for a full 360-degree cleave with knockback.','自分を中心に四方向を順に薙ぎ、全周の敵を吹き飛ばす。']],
   'true-seven':['fan','line',7,['七鋒開扇','七锋开扇','Sevenfold Fan','七鋒の扇'],['同時打開七道扇形地刃，同一敵人被多道重疊命中時只計一次。','同时展开七道扇形地刃，同一敌人被多道重叠命中时只算一次。','Open seven ground blades in a wide fan. Overlapping blades only hit a foe once.','地刃が7本同時に扇状に開く。複数の刃が重なっても一体につき一度だけ命中。']],
-  goumang:['boss','point',14,['根契借將','根契借将','Call the Root Warden','根契の将を呼ぶ'],['召喚雙倍體型嘅糧簿山羊殘影，佢會向附近敵群衝撞三次。','召唤双倍体型的粮簿山羊残影，向附近敌群冲撞三次。','Summon a two-times-size Ledger Goat echo to charge nearby foes three times.','倍の大きさの帳簿山羊の残影を召喚し、周囲の敵に3回突進させる。']],
+  goumang:['boss','point',14,['根契借將','根契借将','Call the Root Warden','根契の将を呼ぶ'],['召喚雙倍體型嘅糧簿山羊殘影，追住最強敵人連續衝撞。','召唤双倍体型的粮簿山羊残影，追着最强敌人连续冲撞。','Summon a double-size Ledger Goat echo that repeatedly charges the strongest foe.','倍の大きさの帳簿山羊の残影を召喚し、最も強い敵に繰り返し突進させる。']],
   'snow-doll':['possession','point',11,['未眠憑身','未眠凭身','Sleepless Possession','眠らぬ憑依'],['憑依瞄準範圍內一隻普通敵人，跟住佢移動一瞬，離體時向外震散。','凭依瞄准范围内一只普通敌人，跟着它移动片刻，离体时向外震散。','Possess an aimed regular foe, move with it briefly, then burst outward as you leave.','狙った通常敵に短時間憑依して一緒に移動し、離れる時に周囲を吹き飛ばす。']],
-  'yama-cane':['charm','point',12,['墨契倒戈','墨契倒戈','Inkbound Defector','墨契の寝返り'],['令一隻普通敵人倒戈 5 秒。佢會追打其他敵人，到時解除契約。','令一只普通敌人倒戈 5 秒，追打其他敌人，到时解除契约。','Turn one regular foe for 5 seconds. It hunts other enemies until the pact ends.','通常敵を一体、5秒間寝返らせる。契約が切れるまで他の敵を追い回す。']],
-  'cursed-cane':['rift','self',13,['翻頁歧途','翻页歧途','Page-Turn Detour','頁めくりの迷路'],['每局一次，從合適嘅普通樓層隨機前進或後退一關。頭目、劇情關同練習場改為釋放裂隙。跳關後唔再更新該局嘅排行成績。','每局一次，从合适的普通楼层随机前进或后退一关。首领、剧情关和练习场改为释放裂隙。跳关后不再更新本局的排行成绩。','Once per run, jump one eligible floor forward or back at random. Boss, story and practice rooms cast a rift instead. Later progress in this run does not update the leaderboard.','一周に一度、条件を満たす隣の階へ前後ランダムに移動する。ボス・物語・練習では裂け目を放つ。移動後の進行はこの周回のランキング記録を更新しない。']],
+  'yama-cane':['charm','point',12,['墨契倒戈','墨契倒戈','Inkbound Defector','墨契の寝返り'],['令一隻普通敵人倒戈 5 秒，追住場上最強嘅敵人連打。','令一只普通敌人倒戈 5 秒，追着场上最强的敌人连打。','Turn one regular foe for 5 seconds, sending it after the strongest enemy.','通常敵を一体、5秒間寝返らせて最も強い敵を連続で攻撃させる。']],
+  'cursed-cane':['rift','self',13,['翻頁歧途','翻页歧途','Page-Turn Detour','頁めくりの迷路'],['每個非頭目樓層可用一次，隨機前進或後退一層。頭目戰、練習場或已跳過嘅樓層會改放裂隙。跳關後繼續計排行榜。','每个非首领楼层可用一次，随机前进或后退一层。首领战、练习场或已跳过的楼层改为释放裂隙。跳关后继续计入排行榜。','Once per non-boss floor, jump one floor forward or back at random. Casts a rift in boss fights, in practice, or after this floor’s jump has been used. Runs stay eligible for the leaderboard.','ボス階以外では各階一度、ランダムに前後どちらかの階へ移動。ボス戦・練習・移動済みの階では裂け目を放つ。移動後もランキングの集計は続く。']],
   'blue-corporal':['freeze','point',10,['八封瞬凝','八封瞬凝','Flash Freeze Seal','八封の瞬間凍結'],['一聲碎冰凍結範圍內普通敵人，頭目只會減速。','一声碎冰冻结范围内普通敌人，首领只会减速。','A single flash freezes regular foes in the area and slows bosses.','一瞬で範囲内の通常敵を凍らせ、ボスの動きを遅くする。']],
   xuanming:['dam','line',9,['留寒截流','留寒截流','Glacial Dam','留寒の堰'],['喺瞄準點橫起冰牆擋飛彈，冰牆隨即向前推出一道碎冰波。','在瞄准点横起冰墙挡飞弹，冰墙随即向前推出一道碎冰波。','Block projectiles with a crosswise ice wall, then send a wave of ice forward.','狙った位置に氷壁を横向きに立てて飛び道具を防ぎ、前方へ氷片の波を放つ。']],
   'venom-cane':['infection','point',8,['追墨感染','追墨感染','Walking Blight','追い墨の感染'],['標記一隻敵人，毒墨會跟住佢走。目標倒地時，剩餘毒效傳到附近敵人。','标记一只敌人，毒墨跟着它移动。目标倒地时，剩余毒效传给附近敌人。','A poison mark follows a foe and transfers its remaining ticks nearby when the host falls.','毒の印が敵に付いて移動する。宿主が倒れると残りの毒が近くの敵へ移る。']],
@@ -25,9 +27,14 @@ const entries = {
   taotie:['form','self',14,['吞契頭目化','吞契首领化','Devourer Form','契約喰らいの姿'],['變成頭目形態 4 秒，期間踏出三次全方位震擊，命中時回少量生命。','变成首领形态 4 秒，期间踏出三次全方位震击，命中时恢复少量生命。','Take on a boss form for 4 seconds. Three omnidirectional stomps restore some health on hit.','4秒間ボスの姿になり、全方向の踏みつけを3回繰り出す。命中で少量回復。']],
 };
 
-export const awakenings=Object.fromEntries(Object.entries(entries).map(([id,[kind,aim,cooldown,names,descriptions]])=>
-  [id,{kind,aim,cooldown,name:names[0],detail:descriptions[0]}]));
-export const awakeningTranslations=Object.fromEntries(Object.values(entries).flatMap(([, , ,names,descriptions])=>
-  [names,descriptions].map(([zh,...translations])=>[zh,translations])));
+export const awakenings=Object.fromEntries([
+  ...Object.entries(entries).map(([id,[kind,aim,cooldown,names,descriptions]])=>
+    [id,{kind,aim,cooldown,name:names[0],detail:descriptions[0]}]),
+  ...Object.entries(miracleDesigns).map(([id,[kind,aim,descriptions]])=>[id,{kind,aim,detail:descriptions[0],miracle:true}]),
+]);
+export const awakeningTranslations=Object.fromEntries([
+  ...Object.values(entries).flatMap(([, , ,names,descriptions])=>[names,descriptions]),
+  ...Object.values(miracleDesigns).map(([, ,descriptions])=>descriptions),
+].map(([zh,...translations])=>[zh,translations]));
 
 export const awakenedBoon=['共鳴時提升呢招嘅傷害。','共鸣时提高这招的伤害。','Resonance increases this skill’s damage.','共鳴するとこの技のダメージが上がる。'];

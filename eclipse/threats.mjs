@@ -222,6 +222,10 @@ export function advanceThreats(game,dt) {
       if(hazard.visual)view.removeProjectile(hazard.visual);
       continue;
     }
+    if(hazard.kind==='projectile'&&hazard.frozenUntil>game.t){
+      game.hazards.push(hazard);
+      continue;
+    }
     if(hazard.moonSlash){
       if(!stepMoonSlash(game,hazard,dt,queued))continue;
     }else hazard.delay-=dt;

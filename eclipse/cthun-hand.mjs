@@ -1,14 +1,12 @@
 import * as T from '../three.min.mjs';
 import {createTendril,shapeTendril} from './tentacle-art.mjs?v=skill-depth-1';
+import {clearSummonShot,strongestSummonTarget,summonEnemy,summonGap as gap} from './summon-combat.mjs';
 
 const configs=[
-  {id:'sweep',skin:0x100b18,flesh:0x79486b,tint:0x9a6488,side:-1.93,rise:2.54,range:2.8,radius:.26,wait:.38,cool:1.8,damage:.40},
-  {id:'pierce',skin:0x59101c,flesh:0xff645d,tint:0xff505c,side:1.98,rise:2.65,range:4.5,radius:.22,wait:.46,cool:2.5,damage:.59},
-  {id:'erupt',skin:0x2f154f,flesh:0xe19dff,tint:0xca7bff,side:.47,rise:3.54,range:6.35,radius:.235,wait:.68,cool:3.25,damage:.48},
+  {id:'sweep',skin:0x100b18,flesh:0x79486b,tint:0x9a6488,side:-1.93,rise:2.54,range:2.8,radius:.26,wait:.23,cool:.72,damage:.31},
+  {id:'pierce',skin:0x59101c,flesh:0xff645d,tint:0xff505c,side:1.98,rise:2.65,range:4.5,radius:.22,wait:.31,cool:1.00,damage:.44},
+  {id:'erupt',skin:0x2f154f,flesh:0xe19dff,tint:0xca7bff,side:.47,rise:3.54,range:6.35,radius:.235,wait:.43,cool:1.33,damage:.37},
 ];
-const gap=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
-const eligible=(game,foe)=>foe.hp>0&&foe.age>=.23&&foe.phaseGuard<=0
-  &&!(game.bossArena?.locked&&game.bossArena.boss===foe);
 const clamp=value=>Math.max(0,Math.min(1,value));
 const between=(a,b,t)=>a+(b-a)*t;
 
@@ -49,6 +47,10 @@ export class CthunHand {
     for(const part of this.tendrils) {
       const attack=part.attack;
       if(attack&&t>=attack.end) part.attack=null;
+      else if(attack&&!attack.hit&&!summonEnemy(game,attack.target)){
+        part.attack=null;
+        part.ready=t+.06;
+      }
       else if(attack&&!attack.hit&&t>=attack.strike) {
         attack.hit=true;
         if(!game.discovery) this.strike(game,part);
@@ -61,29 +63,25 @@ export class CthunHand {
   windup(game,part) {
     const {config}=part;
     const {hero,t}=game;
-    let target=null,reach=config.range;
-    for(const foe of game.enemies) {
-      const distance=gap(hero,foe);
-      if(distance<reach&&eligible(game,foe)) {
-        target=foe;
-        reach=distance;
-      }
-    }
+    const target=strongestSummonTarget(game,hero,config.range,foe=>config.id==='erupt'||clearSummonShot(game,hero,foe));
     if(!target) {
       part.ready=t+.14;
       return;
     }
-    const angle=reach>.05?Math.atan2(target.x-hero.x,target.z-hero.z):this.heading;
+    const angle=gap(hero,target)>.05?Math.atan2(target.x-hero.x,target.z-hero.z):this.heading;
     const point={x:target.x,z:target.z};
-    part.attack={angle,point,start:t,strike:t+config.wait,end:t+config.wait+.37,hit:false};
+    part.attack={angle,point,target,start:t,strike:t+config.wait,end:t+config.wait+.29,hit:false};
     part.ready=t+config.wait+config.cool;
-    if(config.id==='erupt') this.view.sealFx(point.x,point.z,config.tint,1.35,config.wait+.14);
+    if(config.id==='erupt') this.view.sealFx(point.x,point.z,config.tint,1.35,config.wait+.14,()=>part.attack?.point===point);
     this.view.spark(hero.x,1.38,hero.z,config.tint,6,.55,'void');
   }
 
   strike(game,part) {
     const {config,attack}=part;
     const {hero}=game;
+    if(config.id!=='erupt'&&gap(hero,attack.target)<config.range&&clearSummonShot(game,hero,attack.target)){
+      attack.angle=Math.atan2(attack.target.x-hero.x,attack.target.z-hero.z);
+    }
     const dx=Math.sin(attack.angle),dz=Math.cos(attack.angle);
     const origin=config.id==='erupt'?attack.point:hero;
     const reach=config.id==='erupt'?0:config.range*.57;
@@ -104,13 +102,15 @@ export class CthunHand {
     }
     game.audio.play('tentacle-'+config.id);
     for(const foe of game.enemies) {
-      if(!eligible(game,foe)) continue;
+      if(!summonEnemy(game,foe)) continue;
       const x=foe.x-origin.x,z=foe.z-origin.z;
       const forward=x*dx+z*dz,side=Math.abs(x*dz-z*dx);
       const target=config.id==='sweep'?gap(foe,hero)<config.range&&forward>-.59
         :config.id==='pierce'?forward>-.12&&forward<config.range&&side<.64
           :Math.hypot(x,z)<1.72;
-      if(target) game.hit(foe,hero.damage*config.damage,origin,.18,config.tint,'light',undefined,'support');
+      if(target&&(config.id==='erupt'||clearSummonShot(game,hero,foe))){
+        game.hit(foe,hero.damage*config.damage,origin,.18,config.tint,'light',undefined,'support');
+      }
     }
   }
 

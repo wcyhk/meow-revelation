@@ -1,4 +1,6 @@
 import {awakeningFx} from './relic-awakening-fx.mjs';
+import {chaseSummon,clearSummonShot,focusSummon} from './summon-combat.mjs';
+import {castMiracle,miracleFootprint} from './relic-miracles.mjs';
 
 const TAU=Math.PI*2;
 const point=(o,a,d)=>({x:o.x+Math.cos(a)*d,z:o.z+Math.sin(a)*d});
@@ -70,27 +72,32 @@ export function updateAwakenings(game,dt){
     view.actor(entry.visual,unit,{frame:entry.strikeUntil>t?2:entry.follow?1:unit.spec?.frame??0,
       face:unit.face,modelScale:entry.weapon?unit.bodyScale:1,bob:.08+Math.sin((t-entry.start)*9)*.065,
       fade:Math.min(entry.fade,(entry.until-t)*5),
-      aura:.68,rim:entry.tint??0xcdeec8,heading:Math.atan2(unit.dx,unit.dz),stepWeight:entry.follow?.68:0,dt});
+      aura:.68,rim:entry.tint??0xcdeec8,heading:Math.atan2(unit.dx,unit.dz),stepWeight:unit.move??(entry.follow?.68:0),dt});
   }
 }
 
 export function updateTurnedEnemy(game,unit,dt){
   if(!(unit.turnedUntil>game.t))return false;
-  const target=nearest(game,unit,8,new Set([unit]));
-  if(!target){unit.move=0;return true;}
+  const target=focusSummon(game,unit.turnedFocus??={},game.hero);
+  if(!target){unit.turnedTarget=null;unit.move=0;return true;}
   const d=gap(unit,target),a=angle(unit,target);
   unit.face=Math.cos(a)>=0?1:-1;
   unit.turnedTarget=target;
-  if(d>1.42){game.moveUnit(unit,Math.cos(a)*dt*5,Math.sin(a)*dt*5,.33);unit.move=.78;}
+  const reach=1.42+(target.kind==='boss'?.36*(target.bodyScale??1):0);
+  if(d>reach||!clearSummonShot(game,unit,target)){
+    unit.move=chaseSummon(game,unit,target,dt*8,.30)>.005?.95:0;
+  }
   else if(unit.turnedAttack<=game.t){
-    unit.turnedAttack=game.t+.49;
+    unit.turnedAttack=game.t+.32;
+    unit.move=0;
     game.view.slash(unit.x,unit.z,Math.cos(a),Math.sin(a),unit.turnedWeapon.tone,1.75,true);
-    game.hit(target,unit.turnedPower,unit,.58,unit.turnedWeapon.tone,'light',undefined,unit.turnedCredit);
+    game.hit(target,unit.turnedPower*.81,unit,.58,unit.turnedWeapon.tone,'light',undefined,unit.turnedCredit);
   }
   return true;
 }
 
 export function awakeningFootprint(weapon,hero,range,direction,center,rank){
+  if(weapon.awakening.miracle)return miracleFootprint(weapon,hero,range,direction,center);
   const {aim,kind}=weapon.awakening;
   const r=weapon.spell.radius;
   const area=(o,radius)=>({area:{x:o.x,z:o.z,radius}});
@@ -106,6 +113,7 @@ export function awakeningFootprint(weapon,hero,range,direction,center,rank){
 
 export function castAwakening(game,context){
   const {hero,view,weapon}=game;
+  if(weapon.awakening.miracle)return castMiracle(game,context);
   const {origin,center,bearing,range,radius,damage,credit,strike,schedule}=context;
   const {kind}=weapon.awakening;
   const tint=weapon.tone;
@@ -129,25 +137,27 @@ export function castAwakening(game,context){
       for(const side of [-1,1]){
         const ghost=figure(game,ahead(hero,bearing+side*1.92,1.9),5,{weapon,scale:2,fade:.63});
         ghost.follow=true;ghost.tint=tint;
+        const tracker={};
+        let next=game.t+(side>0?.30:.12);
         ghost.update=(unit,dt)=>{
-          const a=Math.atan2(hero.dz,hero.dx)+side*1.92;
-          const to=ahead(hero,a,1.95);
-          const blend=1-Math.exp(-dt*(ghost.strikeUntil>game.t?3:11));
-          unit.x+=(to.x-unit.x)*blend;unit.z+=(to.z-unit.z)*blend;
-          if(!(ghost.strikeUntil>game.t)){unit.dx=hero.dx;unit.dz=hero.dz;unit.face=hero.face;}
+          const target=!game.discovery&&focusSummon(game,tracker,hero);
+          const goal=target||ahead(hero,Math.atan2(hero.dz,hero.dx)+side*1.92,1.95);
+          const a=angle(unit,goal),distance=gap(unit,goal);
+          unit.dx=Math.cos(a);unit.dz=Math.sin(a);unit.face=unit.dx>=0?1:-1;
+          const reach=1.76+(target?.kind==='boss'?.34*(target.bodyScale??1):0);
+          if(!target||distance>reach||!clearSummonShot(game,unit,target)){
+            chaseSummon(game,unit,goal,dt*11,.25);
+            return;
+          }
+          if(game.t<next)return;
+          next=game.t+.46;
+          ghost.strikeUntil=game.t+.22;
+          const start={x:unit.x,z:unit.z};
+          chaseSummon(game,unit,goal,.37,.25);
+          view.motion.rush(start,unit,tint);
+          view.slash(unit.x,unit.z,unit.dx,unit.dz,tint,2.05,true);
+          strike(target,unit,.48,.52);
         };
-        for(let i=0;i<4;i++)schedule(.38+i*1.06+(side>0?.40:0),()=>{
-          const from=ghost.unit,target=nearest(game,from,4.5);
-          if(!target)return;
-          ghost.strikeUntil=game.t+.25;
-          const a=angle(from,target);
-          from.dx=Math.cos(a);from.dz=Math.sin(a);
-          const start={x:from.x,z:from.z};
-          Object.assign(from,ahead(from,a,Math.min(2.3,gap(from,target))),{face:Math.cos(a)>0?1:-1});
-          view.motion.rush(start,from,tint);
-          view.slash(from.x,from.z,Math.cos(a),Math.sin(a),tint,1.65,true);
-          line(start,ahead(from,a,1.1),1.05,.72,.82);
-        });
       }
       break;
     }
@@ -231,18 +241,30 @@ export function castAwakening(game,context){
       const ghost=figure(game,center,3.85,{spec:game.awakeningBossSpec('goat'),scale:2});
       ghost.tint=tint;
       fx('crown',center,{size:2.16,y:.32,life:1.0,lift:2});
-      for(let i=0;i<3;i++)schedule(.37+i*1.06,()=>{
-        const u=ghost.unit;const dest=nearest(game,u,8)??ahead(u,bearing,3.35);
-        const from={x:u.x,z:u.z},a=angle(from,dest);
-        const land=ahead(from,a,Math.min(5.4,Math.max(1.5,gap(from,dest)+.45)));
-        u.dx=Math.cos(a);u.dz=Math.sin(a);u.face=u.dx>=0?1:-1;
-        u.motion={pattern:'pounce',age:0,dx:u.dx,dz:u.dz};
-        const start=game.t;
-        ghost.update=()=>{const step=Math.min(1,(game.t-start)/.32);u.motion.age=game.t-start;
-          u.x=from.x+(land.x-from.x)*step;u.z=from.z+(land.z-from.z)*step;};
-        trace(from,land,'stone',.31,.7,.30);
-        schedule(.32,()=>{line(from,land,1.5,1.71,1.65);view.shock(land.x,land.z,tint,2.2,.91);});
-      });
+      const tracker={};
+      let next=game.t+.20;
+      ghost.update=(unit,dt)=>{
+        if(unit.motion)unit.motion.age+=dt;
+        const target=!game.discovery&&focusSummon(game,tracker,hero);
+        if(!target)return;
+        const d=gap(unit,target);
+        if(d>2.3||!clearSummonShot(game,unit,target)){
+          unit.move=chaseSummon(game,unit,target,dt*(unit.motion?.age<.26?17:10),.45)>.005?.90:0;
+        }else unit.move=0;
+        const a=angle(unit,target);
+        unit.dx=Math.cos(a);unit.dz=Math.sin(a);unit.face=unit.dx>=0?1:-1;
+        if(game.t<next||d>5.4||!clearSummonShot(game,unit,target))return;
+        next=game.t+.55;
+        unit.motion={pattern:'pounce',age:0,dx:unit.dx,dz:unit.dz};
+        const from={x:unit.x,z:unit.z};
+        const land=ahead(from,a,Math.min(5.4,Math.max(1.35,d+.44)));
+        trace(from,land,'stone',.24,.78,.30);
+        schedule(.19,()=>{
+          if(game.t>=ghost.until)return;
+          view.shock(unit.x,unit.z,tint,2.2,.91);
+          line(from,land,1.38,1.08,1.2);
+        });
+      };
       break;
     }
     case 'possession': {
@@ -265,7 +287,8 @@ export function castAwakening(game,context){
       view.bolt(height(hero,1.1),height(p,1.35),tint,1.72);
       if(!unit){fx('trap',p,{size:2.1,life:.7});burst(p,2.08,1.12);break;}
       game.releaseEnemyForAwakening(unit);
-      Object.assign(unit,{turnedUntil:game.t+5,turnedPower:damage*.88,turnedWeapon:weapon,turnedCredit:credit,turnedAttack:game.t+.08});
+      Object.assign(unit,{turnedUntil:game.t+5,turnedPower:damage*.88,turnedWeapon:weapon,turnedCredit:credit,
+        turnedAttack:game.t+.08,turnedFocus:{}});
       for(let i=0;i<5;i++)schedule(i,()=>{if(unit.hp>0)fx('crown',unit,{size:.72,y:1.82,life:.80,spin:3});});
       break;
     }

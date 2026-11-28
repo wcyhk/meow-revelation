@@ -4,6 +4,8 @@ const key='meow.journey-checkpoints.v1';
 const modes=new Set(['vigil','blood','abyss']);
 const numeric=(n,min=0,max=Number.MAX_SAFE_INTEGER)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
 const textList=value=>Array.isArray(value)&&value.length<=150&&value.every(part=>typeof part==='string');
+const floorList=value=>value===undefined||(Array.isArray(value)&&value.length<=100
+  &&value.every(floor=>Number.isInteger(floor)&&floor>=1&&floor<=100));
 const record=value=>value&&typeof value==='object'&&!Array.isArray(value);
 const pairs=(value,check)=>record(value)&&Object.values(value).every(check);
 const valid=entry=>record(entry)&&isCheckpoint(entry.floor)&&modes.has(entry.difficulty)
@@ -13,7 +15,7 @@ const valid=entry=>record(entry)&&isCheckpoint(entry.floor)&&modes.has(entry.dif
   &&entry.hp>0&&pairs(entry.flags,value=>typeof value==='string')&&pairs(entry.training,value=>numeric(value,0,25))
   &&Array.isArray(entry.journal)&&entry.journal.length<=20&&entry.journal.every(row=>record(row)
     &&['title','record','chapter'].every(name=>typeof row[name]==='string'))
-  &&textList(entry.skills);
+  &&textList(entry.skills)&&floorList(entry.relicDetours)&&floorList(entry.rewardedFloors);
 
 export class JourneyCheckpoints {
   constructor(storage){

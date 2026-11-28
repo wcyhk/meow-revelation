@@ -46,7 +46,7 @@ import {chapterInterlude,openingPayoff,storyDialogue} from './dialogue-scenes.mj
 import {dialoguePanel} from './dialogue.mjs?v=story-repair-1';
 import {endingFor} from './endings.mjs?v=story-repair-1';
 import {RelicHunt} from './relic-hunt.mjs?v=story-repair-1';
-import {relicCounter} from './relic-cast.mjs?v=giant-gates-1';
+import {relicCounter,updateRelicCompanions} from './relic-cast.mjs?v=summon-frenzy-1';
 import {blessingIcon,blessingLedger,bonusPercent,paintBlessingHud,weaponCatalogue,weaponPicker} from './relic-interface.mjs?v=codex-1';
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {clearAwakenings,updateAwakenings,updateTurnedEnemy} from './relic-awakenings.mjs';
@@ -257,7 +257,8 @@ export class Game {
       flags:{...this.storyChoices},journal:this.journal.map(entry=>({...entry})),
       training:{...this.training},technique:this.hero.technique,lantern:this.hero.lanternStyle,
       branch:this.branchCombat.branch?.id??null,skills:[...this.branchCombat.skills],medic:this.branchCombat.reviveReady,
-      fusionPin:this.fusionPin,reviveOffered:this.reviveOffered,relicDetourUsed:this.relicDetourUsed});
+      fusionPin:this.fusionPin,reviveOffered:this.reviveOffered,relicDetours:[...this.relicDetours],
+      rewardedFloors:[...this.rewardedFloors]});
   }
 
   openTraining() {
@@ -550,8 +551,9 @@ export class Game {
     this.twinReward=null;
     this.failure=null;
     this.reviveOffered=!!saved?.reviveOffered;
-    this.relicDetourUsed=!!saved?.relicDetourUsed;
-    this.replayThrough=-1;
+    this.relicDetours=new Set(saved?.relicDetours);
+    this.rewardedFloors=new Set(saved?.rewardedFloors??Array.from({length:saved?.floor??0},(_,i)=>i+1));
+    this.pendingDetour=null;
     if(!this.testRun&&!this.practiceRun&&!this.duelMonster&&!this.storyRun)this.rewardedRevive.prepare();
     this.heroVisual = this.view.createActor(0,2.68,true);
     this.relics=saved?saved.relics.map(id=>blessingById.get(id)):this.testRun?testBlessings():this.practiceRun?[...this.practiceRun.relics]:[];
@@ -651,6 +653,7 @@ export class Game {
   clearActors() {
     this.clearReversal();
     clearAwakenings(this);
+    this.relicCompanions=[];
     this.branchCombat.activeMaw?.clearVisuals();
     const actors = new Set([...this.enemies,...this.fallen,...this.pickups]);
     for (const unit of actors) this.view.removeActor(unit.visual);
@@ -664,6 +667,7 @@ export class Game {
   }
 
   enter(level) {
+    this.pendingDetour=null;
     this.clearActors();
     this.clearThreats();
     this.rituals.length=0;
@@ -1359,24 +1363,27 @@ export class Game {
   }
 
   queueRelicDetour() {
-    if(this.state!=='play'||this.relicDetourUsed||this.practiceRun||this.duelMonster||this.storyRun==='chapter'
-      ||this.discovery||this.escape?.ready||this.enemies.some(u=>u.kind==='boss'&&u.hp>0))return false;
-    const optional=s=>s&&!s.boss&&!s.clue&&!s.objective;
+    if(this.state!=='play'||this.stage.boss||this.relicDetours.has(this.stage.floor)||this.pendingDetour
+      ||this.practiceRun||this.duelMonster||this.discovery||this.enemies.some(u=>u.kind==='boss'&&u.hp>0))return false;
     const from=this.level;
-    if(!optional(this.stage))return false;
-    const choices=[from-1,from+1].filter(level=>optional(stages[level]));
+    const choices=[];
+    if(from>0&&!stages[from-1].boss)choices.push(from-1);
+    if(from+1<stages.length)choices.push(from+1);
     if(!choices.length)return false;
     const destination=choices[Math.floor(Math.random()*choices.length)];
-    // A short casting tell plays before the regular room transition takes over.
+    this.pendingDetour={stage:this.stage,destination,at:this.t+.46};
     this.hero.invulnerable=Math.max(this.hero.invulnerable,.72);
-    this.schedule(.46,()=>{
-      if(this.level!==from||this.state!=='play'||this.escape?.ready||this.enemies.some(u=>u.kind==='boss'&&u.hp>0))return;
-      this.relicDetourUsed=true;
-      if(destination<from)this.replayThrough=from-1;
-      this.recordChallenge('abandoned');
-      this.continueAfterReward(destination);
-      this.announce('神器覺醒',this.weapon.skill,'翻頁歧途已啟動，呢局停止計入排行榜。',2.6);
-    });
+    return true;
+  }
+
+  advanceRelicDetour() {
+    const pending=this.pendingDetour;
+    if(!pending||this.t<pending.at)return false;
+    this.pendingDetour=null;
+    if(pending.stage!==this.stage||this.discovery||this.enemies.some(u=>u.kind==='boss'&&u.hp>0))return false;
+    this.relicDetours.add(pending.stage.floor);
+    this.continueAfterReward(pending.destination);
+    this.announce('神器覺醒',this.weapon.skill,'翻頁歧途已啟動，挑戰繼續計入排行榜。',2.6);
     return true;
   }
 
@@ -1921,6 +1928,7 @@ export class Game {
   useExit() {
     if(this.state!=='play'||!this.exitOpen()||this.escape.opening>0||!inExitThreshold(this.hero,this.escape))return false;
     this.escape.passed=true;
+    this.pendingDetour=null;
     this.clearThreats();this.rituals.length=0;this.clearActors();
     this.ui.inspect.hidden=true;
     if(this.testRun){
@@ -1928,10 +1936,11 @@ export class Game {
       this.leaveAltar();
       return true;
     }
-    if(this.level<=this.replayThrough){
+    if(this.rewardedFloors.has(this.stage.floor)){
       this.continueAfterReward();
       return true;
     }
+    this.rewardedFloors.add(this.stage.floor);
     const reward=milestones[this.difficulty.id].find(item=>item.floor===this.stage.floor);
     const gold=this.storyRun?0:floorGold(this.stage);
     const unlocked=!this.storyRun&&this.progress.clear(this.difficulty.id,this.stage.floor,gold,reward?.id==='crimson');
@@ -2150,9 +2159,11 @@ export class Game {
     this.branchCombat.activeMaw?.expire(this.t);
     this.updateHero(dt,input);
     if (this.state!=='play') return;
+    if(this.advanceRelicDetour())return;
     this.updateRituals(dt);
     if (this.state!=='play') return;
     updateAwakenings(this,dt);
+    updateRelicCompanions(this,dt);
     if (this.ultimateFields.length) updateUltimates(this,dt);
     this.branchCombat.update(this,dt);
     if(this.reversalPending){
@@ -3026,7 +3037,8 @@ function makeWeaponPractice(view,weapon,kind) {
     return true;
   };
   let actionAt=.16,combo=0;
-  const duration=kind==='combo'?2.65:weapon.awakening?5.4:Math.max(2.75,(weapon.spell?.hits??1)*(weapon.spell?.interval??0)+1.35);
+  const duration=kind==='combo'?2.65:weapon.awakening||weapon.spell?.action==='minion'?5.4
+    :Math.max(2.75,(weapon.spell?.hits??1)*(weapon.spell?.interval??0)+1.35);
   const input={x:0,z:0};
   practice.poseHero(0);
   return {
@@ -3038,6 +3050,7 @@ function makeWeaponPractice(view,weapon,kind) {
       if(practice.t>=actionAt){
         if(kind==='skill'){
           practice.cast(input,null);actionAt=Infinity;
+          if(hero.relicCounter?.fire)practice.schedule(.72,()=>relicCounter(practice,practice.enemies[0]));
         }else{
           hero.combo=combo;
           hero.comboLeft=1;
@@ -3056,6 +3069,7 @@ function makeWeaponPractice(view,weapon,kind) {
       while(hero.slash&&hero.attackAge>=hero.slash.timing.hits[hero.slash.next].at)practice.landSlash();
       practice.updateRituals(dt);
       updateAwakenings(practice,dt);
+      updateRelicCompanions(practice,dt);
       for(const unit of practice.enemies)updateTurnedEnemy(practice,unit,dt);
       practice.poseHero(dt);
       view.setWard(hero);

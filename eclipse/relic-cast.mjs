@@ -1,5 +1,7 @@
 import {relicPower} from './relic-arsenal.mjs?v=weapon-audit-1';
 import {castAwakening} from './relic-awakenings.mjs';
+import {awakeningFx} from './relic-awakening-fx.mjs';
+import {chaseSummon,clearSummonShot,focusSummon,summonEnemy} from './summon-combat.mjs';
 
 const gap=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const TAU=Math.PI*2;
@@ -20,6 +22,16 @@ function closest(game,point,range,visited=new Set()){
 
 export function relicSpellRadius(weapon,rank,linked=false){
   return weapon.spell.radius*(weapon.blessing.augment==='wide'?1+rank*.14:1)*(linked?1.12:1);
+}
+
+export function updateRelicCompanions(game,dt){
+  const companions=game.relicCompanions;
+  if(!companions?.length)return;
+  for(let i=companions.length-1;i>=0;i--){
+    const companion=companions[i];
+    if(game.t>=companion.until||!companion.visual.mesh.parent)companions.splice(i,1);
+    else if(!game.discovery)companion.fight(dt);
+  }
 }
 
 export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHit){
@@ -221,14 +233,32 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
     case 'minion': {
       const gunslinger=weapon.id==='western-rifle';
       const firesnake=weapon.id==='zhurong-axe';
-      const spawn=gunslinger||firesnake?position(origin,bearing+Math.PI*.67,1.08):center;
-      const summon=view.relicCompanion(weapon,spawn,.50+hits*interval);
-      let point={...spawn};
-      for(let i=0;i<hits;i++)schedule(.13+i*interval,()=>{
-        const target=closest(game,point,gunslinger?10.5:8.7);
-        const direction=aim(point,target??offset(point,bearing,range*.65));
+      const shadowArcher=weapon.id==='oni-bow';
+      let spawn=gunslinger||firesnake?position(origin,bearing+Math.PI*.67,1.08):center;
+      if(game.isBlocked(spawn,.30))spawn=origin;
+      const lifetime=2.55+hits*.20;
+      const summon=view.relicCompanion(weapon,spawn,lifetime);
+      const point={...spawn},tracker={};
+      const speed=gunslinger?8.2:10.5;
+      const reach=gunslinger?9.2:shadowArcher?7.8:firesnake?Math.min(5.5,range):1.12+radius*.48;
+      let next=game.t+.13,pulse=0;
+      const fight=dt=>{
+        const target=focusSummon(game,tracker,hero);
+        if(!target){
+          if(gap(point,hero)>2)chaseSummon(game,point,hero,speed*dt,.25);
+          summon.mesh.position.set(point.x,.03,point.z);
+          return;
+        }
+        const distance=gap(point,target),body=hitMargin(target,.50,0);
+        const ready=game.t>=next&&distance<=reach+body&&clearSummonShot(game,point,target);
+        if(!ready&&(distance>reach*.72||game.t>=next))chaseSummon(game,point,target,speed*dt,.26);
+        const direction=aim(point,target);
+        summon.mesh.position.set(point.x,.03,point.z);
+        summon.mesh.rotation.y=-direction;
+        if(!ready)return;
+        next=game.t+Math.max(.19,interval*.61);
+        const i=pulse++;
         if(gunslinger){
-          if(!target)return;
           const impact={x:target.x,z:target.z};
           const shot=view.relicShot(summon,point,direction,impact,weapon.tone);
           game.audio.ghostRifle();
@@ -239,7 +269,7 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
             let contact;
             let nearest=Infinity;
             for(const foe of game.enemies){
-              if(!live(foe))continue;
+              if(!summonEnemy(game,foe))continue;
               const x=foe.x-shot.origin.x,z=foe.z-shot.origin.z;
               const along=x*shot.dx+z*shot.dz;
               const size=hitMargin(foe,.85,.42);
@@ -250,27 +280,37 @@ export function castRelic(game,origin,dx,dz,center,power,range,linked=false,onHi
             if(contact){
               landed=true;
               view.elementBurst(contact.x,.65,contact.z,weapon.tone,'void',6,.79,direction);
-              strike(contact,spawn,1.02,.53);
+              strike(contact,shot.origin,.73,.53);
             }
+          });
+        }else if(shadowArcher){
+          const to={x:target.x,z:target.z};
+          for(const side of [-1,1]){
+            const from=offset(point,direction+side*Math.PI/2,.45);
+            awakeningFx(view,'feather',from,weapon.tone,{y:1.14,size:.60,life:.22,dx:to.x-from.x,dz:to.z-from.z,angle:Math.PI/2-direction});
+          }
+          schedule(.20,()=>{
+            if(!summonEnemy(game,target)||gap(target,to)>1.45)return;
+            awakeningFx(view,'notch',to,weapon.tone,{size:.99,y:.62,life:.27,spin:3.3});
+            strike(target,point,.80,.23);
           });
         }else if(firesnake){
-          summon.mesh.rotation.y=-direction;
           const mouth=offset(point,direction,.67);
-          ray(mouth,direction,Math.min(6.3,range),radius*.44,i);
-        }else if(target){
-          const start=point;
-          const travel=Math.min(weapon.id==='turtle-bow'?3.6:2.85,gap(start,target));
-          point=position(start,direction,travel);
-          const landing=point;
-          view.relicLunge(summon,start,landing,direction);
-          schedule(.16,()=>{
-            if(weapon.id==='turtle-bow'){
-              view.slash(landing.x,landing.z,Math.cos(direction),Math.sin(direction),weapon.tone,radius,true);
-            }
-            burst(landing,radius,1,i,true,weapon.id==='turtle-bow'?1.45:.76);
-          });
+          ray(mouth,direction,Math.min(6.3,range),radius*.44,i,.73);
+        }else if(weapon.id==='snake'){
+          const side=i%3-1;
+          const p=offset(target,direction+Math.PI/2,side*.55);
+          awakeningFx(view,'fang',p,weapon.tone,{size:.72,y:.96,lift:-.72,life:.29,angle:Math.PI/2-direction});
+          view.elementBurst(p.x,.58,p.z,weapon.tone,'root',6,.87,direction);
+          strike(target,point,.67,.25);
+        }else{
+          const landing=position(point,direction,Math.min(radius*.68,gap(point,target)));
+          view.relicLunge(summon,point,landing,direction);
+          view.slash(landing.x,landing.z,Math.cos(direction),Math.sin(direction),weapon.tone,radius,i%2===1);
+          burst(landing,radius,.72,i,true,weapon.id==='turtle-bow'?1.45:.76);
         }
-      });
+      };
+      (game.relicCompanions??=[]).push({visual:summon,until:game.t+lifetime,fight});
       break;
     }
     case 'drain':
@@ -328,6 +368,7 @@ export function relicCounter(game,attacker){
   const counter=game.hero.relicCounter;
   if(!counter)return;
   game.hero.relicCounter=null;
+  if(counter.fire){counter.fire(attacker);return;}
   const {weapon,power,rank}=counter;
   const point=attacker??game.hero;
   game.view.relicPulse(weapon,point,1.8,1);

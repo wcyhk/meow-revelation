@@ -92,7 +92,8 @@ export function stampRelic(weapon){
   if(weapon.blessing)result.blessing={...weapon.blessing,name:d.name+'・餘響',school,detail:weapon.blessing.detail.replace(/狐雷|冥雷|龍輪|鬼角|蓮光|聖光|黑火|活力/g,'契印')};
   const awakening=awakenings[weapon.id];
   if(awakening){
-    Object.assign(result,{awakening,skill:awakening.name,detail:awakening.detail,cooldown:awakening.cooldown});
+    Object.assign(result,{awakening,skill:awakening.name??result.skill,detail:awakening.detail,
+      cooldown:awakening.cooldown??result.cooldown});
     Object.assign(result.blessing,{detail:awakenedBoon[0],awakened:true});
   }
   if(weapon.guardian)result.guardian={...weapon.guardian,name:'追契者・'+d.name,cry:'嗰件'+d.name+'仲留住我嘅名字，交返畀我！'};

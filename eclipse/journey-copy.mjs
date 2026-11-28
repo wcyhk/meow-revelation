@@ -59,7 +59,7 @@ const casts=localized({
   guard:['披上護甲，挨打會反擊','披上护甲，受击时反击','Gain armor and counter when hit','防御を固め、被弾時に反撃'],
   ring:['用收向中心嘅圓環攻擊','用向内收缩的圆环攻击','Hit enemies with a shrinking ring','外から内へ縮む輪で攻撃'],
   storm:['留低風暴，持續傷敵','留下风暴，持续伤敌','Leave a storm that deals repeated damage','その場に残る嵐で連続攻撃'],
-  minion:['召喚盟友追打敵人','召唤盟友追击敌人','Summon an ally to chase enemies','味方を呼び、敵を追撃'],
+  minion:['召喚盟友連續追打最強敵人','召唤盟友连续追打最强敌人','Summon an ally to hound the strongest enemy','味方を召喚し、最も強い敵を連続攻撃'],
   beam:['射出可貫穿敵人嘅光束','射出可贯穿敌人的光束','Fire piercing beams','複数の直線を貫く'],
   volley:['連射會爆炸嘅彈丸','连射会爆炸的弹丸','Fire a volley of explosive shots','爆発する弾を連射'],
   drain:['傷害附近敵人並回血','伤害附近敌人并回血','Damage nearby enemies and heal','周囲を攻撃して回復'],
@@ -92,7 +92,11 @@ const uniqueSkills=localized({
   cannon:['向瞄準位置落三發榴彈','向瞄准位置落下三发榴弹','Drop three grenades at the aimed spot','狙った場所に榴弾を3発落とす'],
   bell:['喺瞄準位置連敲三下，範圍逐下擴大','在瞄准位置连续敲三下，范围逐次扩大','Ring the bell three times in widening bursts','狙った場所に3回、範囲が広がる音波を放つ'],
   reaper:['拉近敵人，重創生命低嘅目標','拉近敌人，重创生命较低的目标','Pull enemies in and hit harder when their HP is low','敵を引き寄せ、HPの減った敵に強い一撃'],
-  'western-rifle':['召喚紙槍手向敵人連續開槍','召唤纸枪手向敌人连续开枪','Summon a paper gunner to fire repeated shots','紙の銃兵を呼び、敵に連射させる'],
+  'western-rifle':['召喚紙槍手追住最強敵人連射','召唤纸枪手追着最强敌人连射','Summon a paper gunner to fire repeatedly at the strongest foe','紙の銃兵を呼び、最も強い敵を追って連射させる'],
+  'oni-bow':['召喚影弓手，雙箭交擊最強敵人並吸血','召唤影弓手，双箭交击最强敌人并吸血','Summon a shadow archer whose twin arrows converge on the strongest foe and drain life','影の弓兵を呼び、最も強い敵に交差する2本の矢を放ってHPを吸う'],
+  'turtle-bow':['召喚鐘匣車追撞最強敵人，撞擊會掃開附近敵人','召唤钟匣车追撞最强敌人，撞击扫开附近敌人','Summon a bell cart that rams the strongest foe and sweeps nearby enemies aside','鐘の車を呼び、最も強い敵に突進して周囲も押しのける'],
+  'zhurong-axe':['召喚吐燼管，連續向最強敵人噴出穿透火流','召唤吐烬管，连续向最强敌人喷出穿透火流','Summon a furnace that spits piercing jets at the strongest enemy','火炉を呼び、最も強い敵に貫通する炎を絶え間なく放つ'],
+  snake:['召喚腐墨造物，三段毒牙交替咬住最強敵人','召唤腐墨造物，三段毒牙交替咬住最强敌人','Summon an ink familiar that turns three venomous fangs on the strongest foe','墨の使い魔を呼び、毒牙3本で最も強い敵を交互にかみつく'],
 });
 export function weaponSummary(weapon){
   return {attack:uniqueAttacks[weapon.id]??attacks[weapon.form]??t(weapon.role),
